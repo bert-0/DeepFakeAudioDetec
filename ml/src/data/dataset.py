@@ -53,13 +53,19 @@ class ASVspoofDataset(Dataset):
         extractor: FeatureExtractor,
         cache_dir: str | Path | None = None,
         file_ext: str = ".flac",
+        augmenter=None,
     ):
         self.items = parse_protocol(protocol_path)
+        self.labels = [label for _, label in self.items]
+        self.ids = [name for name, _ in self.items]
         self.audio_dir = Path(audio_dir)
         self.audio_cfg = audio_cfg
         self.extractor = extractor
         self.file_ext = file_ext
-        self.cache_dir = Path(cache_dir) if cache_dir else None
+        self.augmenter = augmenter
+        # Aumentação aleatória e cache são incompatíveis (o cache congelaria uma
+        # única versão aumentada), então o cache é desativado quando há augmenter.
+        self.cache_dir = Path(cache_dir) if (cache_dir and augmenter is None) else None
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             self._cache_key = _config_fingerprint(audio_cfg, extractor.types)
@@ -82,6 +88,8 @@ class ASVspoofDataset(Dataset):
         wav = load_audio(self.audio_dir / f"{file_name}{self.file_ext}",
                          self.audio_cfg["sample_rate"])
         wav = preprocess_waveform(wav, self.audio_cfg)
+        if self.augmenter is not None:
+            wav = self.augmenter(wav)
         features = self.extractor(wav)
 
         if cache_path is not None:
@@ -102,13 +110,17 @@ class SmokeDataset(Dataset):
     Não é dado realista — serve apenas para exercitar o código ponta-a-ponta.
     """
 
-    def __init__(self, n: int, audio_cfg: dict, extractor: FeatureExtractor, seed: int = 0):
+    def __init__(self, n: int, audio_cfg: dict, extractor: FeatureExtractor,
+                 seed: int = 0, augmenter=None):
         self.n = n
         self.audio_cfg = audio_cfg
         self.extractor = extractor
         self.seed = seed
+        self.augmenter = augmenter
         self.sr = audio_cfg["sample_rate"]
         self.n_samples = int(self.sr * audio_cfg["duration"])
+        self.labels = [i % 2 for i in range(n)]
+        self.ids = [f"smoke_{i:05d}" for i in range(n)]
 
     def __len__(self) -> int:
         return self.n
@@ -118,6 +130,8 @@ class SmokeDataset(Dataset):
         label = idx % 2  # metade bonafide, metade spoof
         wav = self._synth(rng, spoof=bool(label))
         wav = preprocess_waveform(wav, self.audio_cfg)
+        if self.augmenter is not None:
+            wav = self.augmenter(wav)
         return self.extractor(wav), label
 
     def _synth(self, rng: np.random.Generator, spoof: bool) -> np.ndarray:
@@ -143,13 +157,18 @@ def build_dataset(
     partition: str,
     extractor: FeatureExtractor,
     smoke: bool,
+    augmenter=None,
 ) -> Dataset:
-    """Constrói o dataset de uma partição ('train' | 'dev' | 'eval')."""
+    """Constrói o dataset de uma partição ('train' | 'dev' | 'eval').
+
+    `augmenter`: callable opcional `wav -> wav` aplicado após o pré-processamento
+    (aumentação no treino ou perturbação na avaliação de robustez).
+    """
     if smoke:
         smoke_cfg = config["smoke"]
         n = smoke_cfg[f"n_{partition}"]
         seed = {"train": 1, "dev": 2, "eval": 3}[partition]
-        return SmokeDataset(n, config["audio"], extractor, seed=seed)
+        return SmokeDataset(n, config["audio"], extractor, seed=seed, augmenter=augmenter)
 
     cache_dir = None
     if config["train"].get("cache_features", False):
@@ -160,6 +179,7 @@ def build_dataset(
         audio_cfg=config["audio"],
         extractor=extractor,
         cache_dir=cache_dir,
+        augmenter=augmenter,
     )
 
 

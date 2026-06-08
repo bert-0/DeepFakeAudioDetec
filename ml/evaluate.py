@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from src.config import load_config, resolve_device, set_seed
 from src.data import build_dataset
 from src.features import FeatureExtractor
-from src.metrics import compute_metrics, format_metrics, plot_confusion_matrix
+from src.metrics import compute_metrics, format_metrics, plot_confusion_matrix, save_score_file
 from src.models import build_model
 
 OUTPUT_DIR = Path("outputs")
@@ -33,6 +33,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--partition", default="eval", choices=["train", "dev", "eval"])
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--device", default=None)
+    p.add_argument("--score-file", default=None,
+                   help="se definido, salva um arquivo de scores por utterance (estilo ASVspoof)")
     return p.parse_args()
 
 
@@ -63,7 +65,8 @@ def main() -> None:
                         num_workers=0 if args.smoke else config["train"]["num_workers"])
 
     model = build_model(config["model"]).to(device)
-    ckpt = torch.load(args.checkpoint, map_location=device)
+    # weights_only=False: o checkpoint é nosso e inclui o dicionário de config.
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
     print(f"Modelo: {config['model']['name']} | partição: {args.partition} | "
           f"dispositivo: {device}")
@@ -81,6 +84,10 @@ def main() -> None:
         json.dump(metrics, fh, indent=2)
     print(f"Matriz de confusão: {cm_path}")
     print(f"Métricas (JSON):    {metrics_path}")
+
+    if args.score_file:
+        save_score_file(ds.ids, labels, scores, args.score_file)
+        print(f"Arquivo de scores:  {args.score_file}")
 
 
 if __name__ == "__main__":

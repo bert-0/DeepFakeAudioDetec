@@ -41,7 +41,7 @@ def main() -> None:
     features = {k: v.unsqueeze(0).to(device) for k, v in extractor(wav).items()}
 
     model = build_model(config["model"]).to(device)
-    ckpt = torch.load(args.checkpoint, map_location=device)
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 

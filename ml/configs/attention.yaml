@@ -10,6 +10,11 @@ audio:
   trim_silence: true
   top_db: 30
   peak_normalize: true
+  augment:                # aumentacao no treino (desativada p/ comparacao justa entre incrementos)
+    enabled: false
+    noise: {prob: 0.5, snr_db: [10, 30]}
+    gain:  {prob: 0.5, gain_db: [-6, 6]}
+    shift: {prob: 0.5, max_fraction: 0.1}
 
 features:
   types: [lfcc, spectrogram]
@@ -39,6 +44,13 @@ train:
   num_workers: 4
   device: cuda
   cache_features: true
+  class_weights: auto
+  amp: true
+  early_stopping_patience: 7
+  scheduler:
+    enabled: true
+    factor: 0.5
+    patience: 3
 
 smoke:
   n_train: 240

@@ -30,3 +30,17 @@ def resolve_device(requested: str = "cuda") -> torch.device:
     if requested.startswith("cuda") and torch.cuda.is_available():
         return torch.device(requested)
     return torch.device("cpu")
+
+
+def make_generator(seed: int) -> torch.Generator:
+    """Gerador semeado para o embaralhamento reprodutível do DataLoader."""
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    return generator
+
+
+def seed_worker(worker_id: int) -> None:  # noqa: ARG001 - assinatura exigida pelo DataLoader
+    """Semeia cada worker do DataLoader (reprodutibilidade com num_workers > 0)."""
+    worker_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)

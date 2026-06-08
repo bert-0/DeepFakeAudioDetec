@@ -10,6 +10,11 @@ audio:
   trim_silence: true      # remocao de silencio (RF02)
   top_db: 30              # limiar de silencio (librosa.effects.trim)
   peak_normalize: true    # normalizacao de amplitude (RF02)
+  augment:                # aumentacao no treino (desativada p/ comparacao justa entre incrementos)
+    enabled: false
+    noise: {prob: 0.5, snr_db: [10, 30]}
+    gain:  {prob: 0.5, gain_db: [-6, 6]}
+    shift: {prob: 0.5, max_fraction: 0.1}
 
 features:
   types: [lfcc]           # apenas LFCC no baseline
@@ -39,6 +44,13 @@ train:
   num_workers: 4
   device: cuda            # cai para cpu automaticamente se nao houver GPU
   cache_features: true
+  class_weights: auto     # auto = pondera pela frequencia (ASVspoof e desbalanceado) | none
+  amp: true               # mixed precision (ativa so em GPU; ajuda na memoria da GTX 1650)
+  early_stopping_patience: 7   # para se o EER de validacao nao melhorar por N epocas (0 = desativado)
+  scheduler:
+    enabled: true
+    factor: 0.5           # multiplica o LR por este fator ao estagnar
+    patience: 3           # epocas sem melhora no EER antes de reduzir o LR
 
 # Numeros pequenos usados apenas no modo --smoke
 smoke:
