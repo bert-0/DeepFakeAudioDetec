@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Artefatos de treino/avaliacao
+ml/checkpoints/
+ml/outputs/
+ml/data/cache/
+
+# Base ASVspoof (grande demais para versionar — baixar localmente)
+ml/data/LA/
+
+# Amostras de voluntarios — voz e dado biometrico sensivel (LGPD): NUNCA versionar
+ml/data/volunteers/
+
+# Audio em geral (evita subir voz por engano). Remova a regra se precisar
+# versionar algum audio publico de exemplo.
+*.flac
+*.wav
+*.mp3
+
+# Sistema operacional / editores
+.DS_Store
+.idea/
+.vscode/

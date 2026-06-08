@@ -1,0 +1,169 @@
+"""Datasets para o pipeline de detecção de deepfakes.
+
+- ASVspoofDataset: lê os .flac e o protocolo da base ASVspoof 2019 LA.
+- SmokeDataset: gera áudios sintéticos (bonafide vs. spoof) para validar o
+  pipeline ponta-a-ponta sem precisar da base (modo --smoke).
+
+Convenção de rótulos: 0 = bonafide (autêntico), 1 = spoof (sintético).
+A classe positiva é `spoof`, alinhada ao objetivo de detecção.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+
+from ..features import FeatureExtractor
+from ..preprocess import load_audio, preprocess_waveform
+
+LABEL_MAP = {"bonafide": 0, "spoof": 1}
+
+
+# --------------------------------------------------------------------------- #
+# ASVspoof 2019 LA
+# --------------------------------------------------------------------------- #
+def parse_protocol(protocol_path: str | Path) -> list[tuple[str, int]]:
+    """Lê um arquivo de protocolo e devolve [(audio_file_name, label), ...].
+
+    Formato esperado: `SPEAKER  FILE  -  SYSTEM_ID  KEY`, KEY ∈ {bonafide, spoof}.
+    """
+    items: list[tuple[str, int]] = []
+    with open(protocol_path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            file_name, key = parts[1], parts[4]
+            if key in LABEL_MAP:
+                items.append((file_name, LABEL_MAP[key]))
+    return items
+
+
+class ASVspoofDataset(Dataset):
+    def __init__(
+        self,
+        protocol_path: str | Path,
+        audio_dir: str | Path,
+        audio_cfg: dict,
+        extractor: FeatureExtractor,
+        cache_dir: str | Path | None = None,
+        file_ext: str = ".flac",
+    ):
+        self.items = parse_protocol(protocol_path)
+        self.audio_dir = Path(audio_dir)
+        self.audio_cfg = audio_cfg
+        self.extractor = extractor
+        self.file_ext = file_ext
+        self.cache_dir = Path(cache_dir) if cache_dir else None
+        if self.cache_dir:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self._cache_key = _config_fingerprint(audio_cfg, extractor.types)
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def __getitem__(self, idx: int):
+        file_name, label = self.items[idx]
+        features = self._load_features(file_name)
+        return features, label
+
+    def _load_features(self, file_name: str) -> dict[str, torch.Tensor]:
+        cache_path = None
+        if self.cache_dir:
+            cache_path = self.cache_dir / f"{file_name}_{self._cache_key}.pt"
+            if cache_path.exists():
+                return torch.load(cache_path)
+
+        wav = load_audio(self.audio_dir / f"{file_name}{self.file_ext}",
+                         self.audio_cfg["sample_rate"])
+        wav = preprocess_waveform(wav, self.audio_cfg)
+        features = self.extractor(wav)
+
+        if cache_path is not None:
+            torch.save(features, cache_path)
+        return features
+
+
+# --------------------------------------------------------------------------- #
+# Smoke — dados sintéticos
+# --------------------------------------------------------------------------- #
+class SmokeDataset(Dataset):
+    """Gera áudios sintéticos separáveis para validar o pipeline.
+
+    - bonafide: soma de harmônicos "limpos" + ruído baixo.
+    - spoof: harmônicos + artefato de alta frequência + ruído (imita o tipo de
+      inconsistência espectral que um detector deve aprender).
+
+    Não é dado realista — serve apenas para exercitar o código ponta-a-ponta.
+    """
+
+    def __init__(self, n: int, audio_cfg: dict, extractor: FeatureExtractor, seed: int = 0):
+        self.n = n
+        self.audio_cfg = audio_cfg
+        self.extractor = extractor
+        self.seed = seed
+        self.sr = audio_cfg["sample_rate"]
+        self.n_samples = int(self.sr * audio_cfg["duration"])
+
+    def __len__(self) -> int:
+        return self.n
+
+    def __getitem__(self, idx: int):
+        rng = np.random.default_rng(self.seed * 100_000 + idx)
+        label = idx % 2  # metade bonafide, metade spoof
+        wav = self._synth(rng, spoof=bool(label))
+        wav = preprocess_waveform(wav, self.audio_cfg)
+        return self.extractor(wav), label
+
+    def _synth(self, rng: np.random.Generator, spoof: bool) -> np.ndarray:
+        t = np.arange(self.n_samples) / self.sr
+        f0 = rng.uniform(110, 220)  # frequência fundamental
+        wav = np.zeros_like(t)
+        for k in range(1, 6):  # harmônicos
+            wav += (1.0 / k) * np.sin(2 * np.pi * f0 * k * t + rng.uniform(0, 2 * np.pi))
+        wav += 0.01 * rng.standard_normal(self.n_samples)  # ruído de fundo baixo
+        if spoof:
+            # Artefato de alta frequência (tom puro perto de Nyquist) + ruído extra,
+            # imitando a "assinatura" espectral de sinais sintéticos.
+            wav += 0.3 * np.sin(2 * np.pi * (self.sr * 0.45) * t)
+            wav += 0.03 * rng.standard_normal(self.n_samples)
+        return wav.astype(np.float32)
+
+
+# --------------------------------------------------------------------------- #
+# Fábrica
+# --------------------------------------------------------------------------- #
+def build_dataset(
+    config: dict,
+    partition: str,
+    extractor: FeatureExtractor,
+    smoke: bool,
+) -> Dataset:
+    """Constrói o dataset de uma partição ('train' | 'dev' | 'eval')."""
+    if smoke:
+        smoke_cfg = config["smoke"]
+        n = smoke_cfg[f"n_{partition}"]
+        seed = {"train": 1, "dev": 2, "eval": 3}[partition]
+        return SmokeDataset(n, config["audio"], extractor, seed=seed)
+
+    cache_dir = None
+    if config["train"].get("cache_features", False):
+        cache_dir = Path(config["data"]["root"]).parent / "cache" / config["experiment"]["name"]
+    return ASVspoofDataset(
+        protocol_path=config["data"]["protocols"][partition],
+        audio_dir=config["data"]["audio_dir"][partition],
+        audio_cfg=config["audio"],
+        extractor=extractor,
+        cache_dir=cache_dir,
+    )
+
+
+def _config_fingerprint(audio_cfg: dict, types: list[str]) -> str:
+    """Hash curto de áudio+features para invalidar cache se a config mudar."""
+    payload = json.dumps({"audio": audio_cfg, "types": sorted(types)}, sort_keys=True)
+    return hashlib.md5(payload.encode()).hexdigest()[:8]

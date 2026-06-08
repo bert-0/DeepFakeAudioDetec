@@ -1,0 +1,59 @@
+# Incremento 2 — Fusao de caracteristicas: LFCC + espectrograma (TC1 §4.7)
+
+experiment:
+  name: fusion_lfcc_spec
+  seed: 42
+
+audio:
+  sample_rate: 16000
+  duration: 4.0
+  trim_silence: true
+  top_db: 30
+  peak_normalize: true
+
+features:
+  types: [lfcc, spectrogram]   # dois ramos: LFCC + espectrograma
+  lfcc:
+    n_lfcc: 20
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_filter: 20
+    deltas: true
+  spectrogram:
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_mels: 80
+
+model:
+  name: fusion
+  n_classes: 2
+  dropout: 0.3
+
+train:
+  epochs: 50
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  num_workers: 4
+  device: cuda
+  cache_features: true
+
+smoke:
+  n_train: 240
+  n_dev: 80
+  n_eval: 80
+  epochs: 3
+  batch_size: 16
+
+data:
+  root: data/LA
+  protocols:
+    train: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.train.trn.txt
+    dev:   data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.dev.trl.txt
+    eval:  data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.eval.trl.txt
+  audio_dir:
+    train: data/LA/ASVspoof2019_LA_train/flac
+    dev:   data/LA/ASVspoof2019_LA_dev/flac
+    eval:  data/LA/ASVspoof2019_LA_eval/flac

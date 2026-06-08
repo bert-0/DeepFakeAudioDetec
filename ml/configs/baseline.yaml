@@ -1,0 +1,60 @@
+# Incremento 1 — Baseline: LFCC + CNN convencional (TC1 §4.7)
+
+experiment:
+  name: baseline_lfcc_cnn
+  seed: 42
+
+audio:
+  sample_rate: 16000      # Hz
+  duration: 4.0           # segundos (recorte/padding para tamanho fixo)
+  trim_silence: true      # remocao de silencio (RF02)
+  top_db: 30              # limiar de silencio (librosa.effects.trim)
+  peak_normalize: true    # normalizacao de amplitude (RF02)
+
+features:
+  types: [lfcc]           # apenas LFCC no baseline
+  lfcc:
+    n_lfcc: 20
+    n_fft: 512
+    win_length: 400       # 25 ms @ 16 kHz
+    hop_length: 160       # 10 ms @ 16 kHz
+    n_filter: 20          # filtros lineares
+    deltas: true          # adiciona delta e delta-delta -> 60 canais
+  spectrogram:            # ignorado no baseline (usado na fusao/atencao)
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_mels: 80
+
+model:
+  name: baseline_cnn
+  n_classes: 2
+  dropout: 0.3
+
+train:
+  epochs: 50
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  num_workers: 4
+  device: cuda            # cai para cpu automaticamente se nao houver GPU
+  cache_features: true
+
+# Numeros pequenos usados apenas no modo --smoke
+smoke:
+  n_train: 240
+  n_dev: 80
+  n_eval: 80
+  epochs: 3
+  batch_size: 16
+
+data:
+  root: data/LA
+  protocols:
+    train: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.train.trn.txt
+    dev:   data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.dev.trl.txt
+    eval:  data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.eval.trl.txt
+  audio_dir:
+    train: data/LA/ASVspoof2019_LA_train/flac
+    dev:   data/LA/ASVspoof2019_LA_dev/flac
+    eval:  data/LA/ASVspoof2019_LA_eval/flac
