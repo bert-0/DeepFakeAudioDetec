@@ -32,7 +32,14 @@ Funciona igual para `configs/fusion.yaml` e `configs/attention.yaml`.
 ## Treino real (ASVspoof 2019 LA)
 
 1. Baixe a base e coloque em `ml/data/LA/` (veja [`data/README.md`](data/README.md)).
-2. Treine cada incremento:
+2. **Verifique a base antes de treinar** (confere protocolos, contagem
+   bonafide/spoof e se os `.flac` existem e abrem):
+
+```bash
+python scripts/check_data.py --config configs/baseline.yaml
+```
+
+3. Treine cada incremento:
 
 ```bash
 python train.py    --config configs/baseline.yaml
@@ -40,7 +47,7 @@ python train.py    --config configs/fusion.yaml
 python train.py    --config configs/attention.yaml
 ```
 
-3. Avalie no conjunto de teste (eval) com EER, F1 e matriz de confusão:
+4. Avalie no conjunto de teste (eval) com EER, F1 e matriz de confusão:
 
 ```bash
 python evaluate.py --config configs/baseline.yaml \
@@ -80,6 +87,8 @@ ml/
 │       ├── fusion.py     # Incremento 2
 │       ├── attention.py  # Incremento 3
 │       └── registry.py   # build_model(config)
+├── scripts/
+│   └── check_data.py     # valida a estrutura/conteúdo da base antes do treino
 ├── train.py
 ├── evaluate.py
 └── infer.py
