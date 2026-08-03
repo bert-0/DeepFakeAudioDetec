@@ -26,4 +26,5 @@ def build_model(model_cfg: dict) -> nn.Module:
         n_classes=model_cfg.get("n_classes", 2),
         dropout=model_cfg.get("dropout", 0.3),
         pooling=model_cfg.get("pooling", "avg"),
+        channels=tuple(model_cfg.get("channels", (16, 32, 64))),
     )

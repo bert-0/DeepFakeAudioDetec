@@ -68,6 +68,27 @@ def test_checkpoint_roundtrip_with_avg_pooling(name):
     dst.load_state_dict(src.state_dict())  # levanta RuntimeError se divergir
 
 
+@pytest.mark.parametrize("name", ["baseline_cnn", "fusion", "attention"])
+def test_deeper_encoder_forward(name):
+    """Encoder de 4 blocos (config v3) precisa rodar nos três modelos."""
+    model = build_model({"name": name, "pooling": "stats",
+                         "channels": [32, 64, 128, 128]})
+    model.eval()
+    with torch.no_grad():
+        # 4 blocos = 4 maxpools: 60->3 e 80->5 na frequência, 400->25 no tempo
+        logits = model(_features(freq_lfcc=60, freq_spec=80, frames=400))
+    assert logits.shape == (2, 2)
+
+
+def test_channels_default_matches_legacy():
+    """Sem a chave `channels`, o modelo deve manter a arquitetura antiga."""
+    legacy = build_model({"name": "baseline_cnn", "pooling": "avg"})
+    explicit = build_model({"name": "baseline_cnn", "pooling": "avg",
+                            "channels": [16, 32, 64]})
+    assert set(legacy.state_dict()) == set(explicit.state_dict())
+    legacy.load_state_dict(explicit.state_dict())
+
+
 def test_unknown_model_raises():
     with pytest.raises(ValueError):
         build_model({"name": "inexistente"})

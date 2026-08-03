@@ -1,8 +1,9 @@
-# Incremento 1 (v2) — Baseline com as melhorias anti-overfitting ligadas.
-# Compare com configs/baseline.yaml (versao original) para o 'antes x depois'.
+# Incremento 1 (v3a) — ABLACAO: v2 + apenas n_filter 20->70.
+# Isola o efeito da resolucao espectral, sem mexer na arquitetura.
+# Compare com baseline_v2.yaml (mesma arquitetura) e baseline_v3.yaml.
 
 experiment:
-  name: baseline_lfcc_cnn_v2
+  name: baseline_lfcc_cnn_v3a
   seed: 42
 audio:
   sample_rate: 16000
@@ -34,7 +35,7 @@ features:
     n_fft: 512
     win_length: 400
     hop_length: 160
-    n_filter: 20
+    n_filter: 70
     deltas: true
   spectrogram:
     n_fft: 512
@@ -44,7 +45,7 @@ features:
 model:
   name: baseline_cnn
   pooling: stats
-  channels: [16, 32, 64]  # canais por bloco conv (mais/maiores = encoder mais profundo)
+  channels: [16, 32, 64]  # IGUAL ao v2 — a ablacao muda so o n_filter
   n_classes: 2
   dropout: 0.3
 train:

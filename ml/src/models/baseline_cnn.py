@@ -19,9 +19,10 @@ class BaselineCNN(nn.Module):
       - "stats": média + desvio-padrão temporais, preservando a variação do sinal.
     """
 
-    def __init__(self, n_classes: int = 2, dropout: float = 0.3, pooling: str = "avg"):
+    def __init__(self, n_classes: int = 2, dropout: float = 0.3, pooling: str = "avg",
+                 channels: tuple[int, ...] = (16, 32, 64)):
         super().__init__()
-        self.encoder = CNNEncoder(in_ch=1, channels=(16, 32, 64))
+        self.encoder = CNNEncoder(in_ch=1, channels=tuple(channels))
         self.pooling = pooling
 
         if pooling == "stats":

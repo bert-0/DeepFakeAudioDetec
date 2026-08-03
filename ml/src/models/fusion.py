@@ -20,10 +20,11 @@ from .blocks import CNNEncoder, StatsPool
 class FeatureFusionNet(nn.Module):
     """Fusão tardia de dois ramos CNN. Ver `pooling` em BaselineCNN."""
 
-    def __init__(self, n_classes: int = 2, dropout: float = 0.3, pooling: str = "avg"):
+    def __init__(self, n_classes: int = 2, dropout: float = 0.3, pooling: str = "avg",
+                 channels: tuple[int, ...] = (16, 32, 64)):
         super().__init__()
-        self.lfcc_branch = CNNEncoder(in_ch=1, channels=(16, 32, 64))
-        self.spec_branch = CNNEncoder(in_ch=1, channels=(16, 32, 64))
+        self.lfcc_branch = CNNEncoder(in_ch=1, channels=tuple(channels))
+        self.spec_branch = CNNEncoder(in_ch=1, channels=tuple(channels))
         self.pooling = pooling
 
         if pooling == "stats":

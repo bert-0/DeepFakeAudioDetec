@@ -77,6 +77,40 @@ ligar, edite `audio.augment.enabled: true` no config — adiciona ruído/ganho/s
 aleatórios no treino, melhorando a robustez. Quando ligada, o cache de features
 do treino é automaticamente desativado.
 
+## Versões dos configs (`v1` → `v2` → `v3`)
+
+Cada incremento tem várias versões, formando uma **série de ablação** para o
+relatório. Como os nomes de experimento diferem, nada se sobrescreve.
+
+| Config | O que muda | Motivação |
+|---|---|---|
+| `baseline.yaml` (**v1**) | configuração inicial | referência |
+| `baseline_v2.yaml` (**v2**) | 5 melhorias anti-overfitting | o v1 memorizava o treino |
+| `baseline_v3a.yaml` (**v3a**) | v2 **+ apenas** `n_filter: 70` | isola o efeito da resolução espectral |
+| `baseline_v3.yaml` (**v3**) | v3a + encoder de 4 blocos + `patience: 12` | mais capacidade, já com regularização |
+
+Rodar `v3a` **e** `v3` permite separar quanto veio das *features* e quanto veio
+da *arquitetura* — uma ablação limpa para a seção de resultados.
+
+### Por que `n_filter: 20 → 70`
+
+O banco de filtros do LFCC define a resolução espectral da feature:
+
+| `n_filter` | Largura de cada filtro |
+|---|---|
+| 20 | 762 Hz (muito grosseiro) |
+| 70 | 225 Hz |
+
+Artefatos de síntese de voz vivem na estrutura fina do espectro, sobretudo em
+alta frequência. Com filtros de 762 Hz essa informação é borrada antes de chegar
+ao modelo. Além disso, com `n_filter == n_lfcc` a DCT guarda todos os
+coeficientes e deixa de comprimir/decorrelacionar — o valor de referência da
+literatura para o ASVspoof é ~70 filtros com 20 coeficientes.
+
+> ⚠️ Mudar qualquer parâmetro de feature (`n_filter`, `n_lfcc`, `n_mels`, ...)
+> invalida o cache automaticamente — as features são recalculadas na primeira
+> época. Isso é intencional: reusar cache antigo tornaria o experimento inválido.
+
 ## Versões `v1` × `v2` dos configs
 
 Cada incremento tem dois configs, para permitir a comparação "antes × depois":
@@ -95,6 +129,10 @@ O mesmo vale para `fusion*` e `attention*`. Como os nomes de experimento diferem
 | Aumentação no treino | `audio.augment.enabled` | `false` | `true` |
 | Peso de classe suavizado | `train.class_weights` | `auto` | `sqrt` |
 | Pooling estatístico | `model.pooling` | `avg` | `stats` |
+
+Além dessas, `model.channels` controla a profundidade/largura do encoder
+(`[16, 32, 64]` em v1/v2, `[32, 64, 128, 128]` em v3). Cada entrada da lista é um
+bloco convolucional com aquele número de canais.
 
 ### Por que cada uma
 

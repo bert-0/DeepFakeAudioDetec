@@ -74,7 +74,7 @@ class ASVspoofDataset(Dataset):
         self.cache_dir = Path(cache_dir) if (cache_dir and not stochastic) else None
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
-            self._cache_key = _config_fingerprint(audio_cfg, extractor.types)
+            self._cache_key = _config_fingerprint(audio_cfg, extractor)
 
     def set_epoch(self, epoch: int) -> None:
         """Varia a semente por época para que o recorte aleatório mude a cada uma."""
@@ -202,7 +202,15 @@ def build_dataset(
     )
 
 
-def _config_fingerprint(audio_cfg: dict, types: list[str]) -> str:
-    """Hash curto de áudio+features para invalidar cache se a config mudar."""
-    payload = json.dumps({"audio": audio_cfg, "types": sorted(types)}, sort_keys=True)
+def _config_fingerprint(audio_cfg: dict, extractor: FeatureExtractor) -> str:
+    """Hash curto de áudio+features para invalidar o cache quando a config muda.
+
+    Inclui os *parâmetros* das features (n_filter, n_lfcc, n_mels, ...), não só
+    os tipos — caso contrário, alterar `n_filter` reusaria features antigas do
+    cache e o experimento seria silenciosamente inválido.
+    """
+    payload = json.dumps(
+        {"audio": audio_cfg, "features": extractor.fingerprint()},
+        sort_keys=True,
+    )
     return hashlib.md5(payload.encode()).hexdigest()[:8]

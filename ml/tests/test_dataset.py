@@ -35,6 +35,35 @@ def test_build_dataset_smoke_returns_smoke(audio_cfg, feat_cfg):
     assert len(ds) == 8
 
 
+def test_cache_fingerprint_changes_with_feature_params(audio_cfg, feat_cfg):
+    """Mudar n_filter PRECISA invalidar o cache, senão reusa features antigas."""
+    from src.data.dataset import _config_fingerprint
+
+    a = FeatureExtractor(audio_cfg, feat_cfg)
+    other = {**feat_cfg, "lfcc": {**feat_cfg["lfcc"], "n_filter": 70}}
+    b = FeatureExtractor(audio_cfg, other)
+    assert _config_fingerprint(audio_cfg, a) != _config_fingerprint(audio_cfg, b)
+
+
+def test_cache_fingerprint_stable_for_same_config(audio_cfg, feat_cfg):
+    from src.data.dataset import _config_fingerprint
+
+    a = FeatureExtractor(audio_cfg, feat_cfg)
+    b = FeatureExtractor(audio_cfg, {**feat_cfg})
+    assert _config_fingerprint(audio_cfg, a) == _config_fingerprint(audio_cfg, b)
+
+
+def test_cache_fingerprint_ignores_unused_feature(audio_cfg, feat_cfg):
+    """Alterar o espectrograma não deve invalidar o cache de um modelo só-LFCC."""
+    from src.data.dataset import _config_fingerprint
+
+    lfcc_only = {**feat_cfg, "types": ["lfcc"]}
+    a = FeatureExtractor(audio_cfg, lfcc_only)
+    changed = {**lfcc_only, "spectrogram": {**feat_cfg["spectrogram"], "n_mels": 123}}
+    b = FeatureExtractor(audio_cfg, changed)
+    assert _config_fingerprint(audio_cfg, a) == _config_fingerprint(audio_cfg, b)
+
+
 def test_augmenter_applied_in_smoke(audio_cfg, feat_cfg):
     """Com augmenter, o dataset ainda deve devolver features no formato certo."""
     from src.preprocess.augment import make_perturbation

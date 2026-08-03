@@ -22,6 +22,21 @@ class FeatureExtractor:
         self.lfcc_cfg = feat_cfg.get("lfcc", {})
         self.spec_cfg = feat_cfg.get("spectrogram", {})
 
+    def fingerprint(self) -> dict:
+        """Parâmetros que afetam as features extraídas.
+
+        Usado para invalidar o cache em disco: mudar `n_filter`, `n_lfcc` etc.
+        precisa gerar uma chave diferente, senão features antigas seriam reusadas
+        silenciosamente. Só os tipos ativos entram, para não invalidar o cache à
+        toa quando se altera uma feature que nem está em uso.
+        """
+        active = {"types": sorted(self.types)}
+        if "lfcc" in self.types:
+            active["lfcc"] = self.lfcc_cfg
+        if "spectrogram" in self.types:
+            active["spectrogram"] = self.spec_cfg
+        return active
+
     def __call__(self, wav: np.ndarray) -> dict[str, torch.Tensor]:
         """Extrai as features pedidas. Cada tensor tem shape (1, freq, frames)."""
         out: dict[str, torch.Tensor] = {}
