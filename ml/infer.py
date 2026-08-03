@@ -26,6 +26,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--audio", required=True, help="arquivo .wav/.mp3/.flac")
     p.add_argument("--device", default=None)
+    p.add_argument("--threshold", type=float, default=None,
+                   help="sobrescreve o threshold do checkpoint (padrão: o calibrado no dev)")
     return p.parse_args()
 
 
@@ -46,13 +48,22 @@ def main() -> None:
     model.eval()
 
     probs = torch.softmax(model(features), dim=1)[0]
-    pred = int(probs.argmax())
+    spoof_prob = float(probs[1])
+
+    # Usa o mesmo ponto de corte calibrado no dev durante o treino; sem ele,
+    # cai no argmax (equivalente a threshold 0,5).
+    threshold = ckpt.get("threshold") if config["train"].get("calibrate_threshold") else None
+    if args.threshold is not None:
+        threshold = args.threshold
+    pred = int(spoof_prob >= threshold) if threshold is not None else int(probs.argmax())
     confidence = float(probs[pred]) * 100
 
     print(f"\nArquivo: {args.audio}")
     print(f"Classificação: {CLASS_NAMES[pred]}")
     print(f"Probabilidade: {confidence:.1f}%")
     print(f"  (bonafide={probs[0] * 100:.1f}%  |  spoof={probs[1] * 100:.1f}%)")
+    if threshold is not None:
+        print(f"  threshold aplicado: {threshold:.4f}")
 
 
 if __name__ == "__main__":

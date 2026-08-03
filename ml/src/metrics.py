@@ -20,28 +20,60 @@ def compute_eer(labels: np.ndarray, scores: np.ndarray) -> float:
     """Equal Error Rate: ponto em que falso positivo (FPR) e falso negativo
     (FNR) se igualam. `scores` = probabilidade da classe spoof. Menor é melhor.
     """
+    eer, _ = compute_eer_with_threshold(labels, scores)
+    return eer
+
+
+def compute_eer_with_threshold(
+    labels: np.ndarray, scores: np.ndarray
+) -> tuple[float, float]:
+    """Devolve (EER, threshold) no ponto de erro igual.
+
+    O threshold é o ponto de corte que equilibra falsos positivos e falsos
+    negativos. Calibrá-lo no conjunto de validação evita o corte fixo de 0,5,
+    que é fortemente enviesado quando as classes são desbalanceadas ou quando
+    a perda usa pesos de classe.
+    """
     labels = np.asarray(labels)
     scores = np.asarray(scores)
     if np.unique(labels).size < 2:
         # Sem ambas as classes (bonafide e spoof) o EER é indefinido.
-        return float("nan")
-    fpr, tpr, _ = roc_curve(labels, scores, pos_label=1)
+        return float("nan"), 0.5
+    fpr, tpr, thresholds = roc_curve(labels, scores, pos_label=1)
     fnr = 1.0 - tpr
     idx = int(np.nanargmin(np.abs(fpr - fnr)))
-    return float((fpr[idx] + fnr[idx]) / 2.0)
+    eer = float((fpr[idx] + fnr[idx]) / 2.0)
+    threshold = float(thresholds[idx])
+    # roc_curve pode devolver +inf no primeiro ponto; nesse caso não há corte útil.
+    if not np.isfinite(threshold):
+        threshold = 1.0
+    return eer, threshold
 
 
 def compute_metrics(
-    labels: np.ndarray, preds: np.ndarray, scores: np.ndarray
+    labels: np.ndarray,
+    preds: np.ndarray,
+    scores: np.ndarray,
+    threshold: float | None = None,
 ) -> dict[str, float]:
-    """Calcula todas as métricas a partir dos rótulos, predições e scores."""
-    return {
+    """Calcula todas as métricas a partir dos rótulos, predições e scores.
+
+    Se `threshold` for informado, as predições são recalculadas como
+    `scores >= threshold` (ignorando `preds`), permitindo reportar as métricas
+    em um ponto de corte calibrado em vez do 0,5 implícito do argmax.
+    """
+    if threshold is not None:
+        preds = (np.asarray(scores) >= threshold).astype(int)
+    metrics = {
         "accuracy": float(accuracy_score(labels, preds)),
         "precision": float(precision_score(labels, preds, pos_label=1, zero_division=0)),
         "recall": float(recall_score(labels, preds, pos_label=1, zero_division=0)),
         "f1": float(f1_score(labels, preds, pos_label=1, zero_division=0)),
         "eer": compute_eer(labels, scores),
     }
+    if threshold is not None:
+        metrics["threshold"] = float(threshold)
+    return metrics
 
 
 def plot_confusion_matrix(

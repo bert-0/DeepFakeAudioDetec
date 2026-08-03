@@ -26,7 +26,12 @@ from tqdm import tqdm
 from src.config import load_config, make_generator, resolve_device, seed_worker, set_seed
 from src.data import build_dataset
 from src.features import FeatureExtractor
-from src.metrics import compute_metrics, format_metrics, plot_history
+from src.metrics import (
+    compute_eer_with_threshold,
+    compute_metrics,
+    format_metrics,
+    plot_history,
+)
 from src.models import build_model
 from src.preprocess.augment import Augmenter
 
@@ -43,21 +48,33 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def class_weights_from(labels, n_classes: int, device) -> torch.Tensor:
-    """Pesos inversamente proporcionais à frequência de cada classe.
+def class_weights_from(labels, n_classes: int, device, mode: str = "auto") -> torch.Tensor:
+    """Pesos de classe para compensar o desbalanceamento da base.
 
-    Compensa o desbalanceamento da base (ASVspoof LA tem muito mais spoof do que
-    bonafide), evitando que o modelo aprenda a prever sempre a classe majoritária.
+    O ASVspoof LA tem ~9 spoof para cada bonafide; sem ponderação o modelo tende
+    a prever sempre a classe majoritária.
+
+    - "auto": peso inversamente proporcional à frequência (compensação total).
+      No LA isso gera ~8,8x mais peso no bonafide, o que desloca fortemente o
+      ponto de decisão e aumenta os falsos positivos.
+    - "sqrt": raiz quadrada da razão (~3x no LA) — compensação mais suave, que
+      mantém o benefício sem desestabilizar tanto o threshold.
     """
     counts = Counter(int(label) for label in labels)
     total = len(labels)
     weights = [total / (n_classes * max(counts.get(c, 0), 1)) for c in range(n_classes)]
+    if mode == "sqrt":
+        weights = [float(np.sqrt(w)) for w in weights]
     return torch.tensor(weights, dtype=torch.float32, device=device)
 
 
 @torch.no_grad()
-def evaluate_loader(model, loader, device) -> dict[str, float]:
-    """Roda o modelo em um DataLoader e devolve as métricas."""
+def evaluate_loader(model, loader, device) -> tuple[dict[str, float], float]:
+    """Roda o modelo em um DataLoader.
+
+    Devolve (métricas, threshold_do_EER). As métricas são calculadas no ponto de
+    corte calibrado quando `calibrate` está ativo — ver `main`.
+    """
     model.eval()
     all_labels, all_preds, all_scores = [], [], []
     for features, labels in loader:
@@ -67,11 +84,11 @@ def evaluate_loader(model, loader, device) -> dict[str, float]:
         all_scores.append(probs.cpu().numpy())
         all_preds.append(logits.argmax(dim=1).cpu().numpy())
         all_labels.append(labels.numpy())
-    return compute_metrics(
-        np.concatenate(all_labels),
-        np.concatenate(all_preds),
-        np.concatenate(all_scores),
-    )
+    labels_arr = np.concatenate(all_labels)
+    preds_arr = np.concatenate(all_preds)
+    scores_arr = np.concatenate(all_scores)
+    _, threshold = compute_eer_with_threshold(labels_arr, scores_arr)
+    return (labels_arr, preds_arr, scores_arr), threshold
 
 
 def main() -> None:
@@ -94,7 +111,12 @@ def main() -> None:
     augmenter = Augmenter(aug_cfg, seed=seed) if aug_cfg.get("enabled", False) else None
     if augmenter is not None:
         print("Aumentação de treino: ATIVADA")
-    train_ds = build_dataset(config, "train", extractor, args.smoke, augmenter=augmenter)
+    random_crop = bool(config["audio"].get("random_crop", False))
+    if random_crop:
+        print("Recorte aleatório no treino: ATIVADO")
+    calibrate = bool(train_cfg.get("calibrate_threshold", False))
+    train_ds = build_dataset(config, "train", extractor, args.smoke,
+                             augmenter=augmenter, random_crop=random_crop)
     dev_ds = build_dataset(config, "dev", extractor, args.smoke)
 
     num_workers = 0 if args.smoke else train_cfg["num_workers"]
@@ -111,9 +133,11 @@ def main() -> None:
                                  weight_decay=train_cfg["weight_decay"])
 
     weight = None
-    if train_cfg.get("class_weights", "none") == "auto":
-        weight = class_weights_from(train_ds.labels, config["model"].get("n_classes", 2), device)
-        print(f"Pesos de classe (auto): bonafide={weight[0]:.3f}  spoof={weight[1]:.3f}")
+    cw_mode = train_cfg.get("class_weights", "none")
+    if cw_mode in ("auto", "sqrt"):
+        weight = class_weights_from(train_ds.labels, config["model"].get("n_classes", 2),
+                                    device, mode=cw_mode)
+        print(f"Pesos de classe ({cw_mode}): bonafide={weight[0]:.3f}  spoof={weight[1]:.3f}")
     criterion = nn.CrossEntropyLoss(weight=weight)
 
     scheduler = None
@@ -135,7 +159,11 @@ def main() -> None:
     epochs_no_improve = 0
     history: list[dict] = []
 
+    best_threshold = 0.5
     for epoch in range(1, epochs + 1):
+        # Varia a semente do recorte aleatório a cada época (no-op sem random_crop).
+        if hasattr(train_ds, "set_epoch"):
+            train_ds.set_epoch(epoch)
         model.train()
         running_loss = 0.0
         for features, labels in tqdm(train_loader, desc=f"Época {epoch}/{epochs}", leave=False):
@@ -150,7 +178,12 @@ def main() -> None:
             running_loss += loss.item() * labels.size(0)
 
         train_loss = running_loss / len(train_ds)
-        dev_metrics = evaluate_loader(model, dev_loader, device)
+        (dev_labels, dev_preds, dev_scores), dev_threshold = evaluate_loader(
+            model, dev_loader, device)
+        # Com calibração, as métricas usam o corte do EER (medido no dev) em vez
+        # do 0,5 implícito do argmax — que oscila muito com pesos de classe.
+        dev_metrics = compute_metrics(dev_labels, dev_preds, dev_scores,
+                                      threshold=dev_threshold if calibrate else None)
         lr = optimizer.param_groups[0]["lr"]
         print(f"Época {epoch:3d} | lr={lr:.2e} | loss={train_loss:.4f} | "
               f"dev: {format_metrics(dev_metrics)}")
@@ -159,14 +192,19 @@ def main() -> None:
 
         if scheduler is not None:
             scheduler.step(dev_metrics["eer"])
-        torch.save({"model_state": model.state_dict(), "config": config}, last_ckpt)
+        torch.save({"model_state": model.state_dict(), "config": config,
+                    "threshold": dev_threshold}, last_ckpt)
 
         # Melhor modelo pelo EER de validação (NaN é tratado como "pior").
         current_eer = dev_metrics["eer"]
         if not np.isnan(current_eer) and current_eer <= best_eer:
             best_eer = current_eer
+            best_threshold = dev_threshold
             epochs_no_improve = 0
-            torch.save({"model_state": model.state_dict(), "config": config}, best_ckpt)
+            # O threshold calibrado viaja junto com os pesos: assim evaluate.py e
+            # infer.py usam o mesmo ponto de corte escolhido no dev.
+            torch.save({"model_state": model.state_dict(), "config": config,
+                        "threshold": dev_threshold}, best_ckpt)
         else:
             epochs_no_improve += 1
             if early_patience and epochs_no_improve >= early_patience:
@@ -182,6 +220,8 @@ def main() -> None:
     plot_history(history, curves_path)
 
     print(f"\nMelhor EER de validação: {best_eer * 100:.2f}%")
+    if calibrate:
+        print(f"Threshold calibrado no dev: {best_threshold:.4f} (salvo no checkpoint)")
     print(f"Melhor checkpoint: {best_ckpt}")
     print(f"Histórico:         {hist_path}")
     print(f"Curvas:            {curves_path}")

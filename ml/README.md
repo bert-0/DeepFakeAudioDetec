@@ -77,11 +77,64 @@ ligar, edite `audio.augment.enabled: true` no config — adiciona ruído/ganho/s
 aleatórios no treino, melhorando a robustez. Quando ligada, o cache de features
 do treino é automaticamente desativado.
 
+## Versões `v1` × `v2` dos configs
+
+Cada incremento tem dois configs, para permitir a comparação "antes × depois":
+
+- `configs/baseline.yaml` (**v1**) — configuração original, sem as melhorias.
+- `configs/baseline_v2.yaml` (**v2**) — mesmas features e arquitetura, com as
+  cinco melhorias anti-overfitting ligadas.
+
+O mesmo vale para `fusion*` e `attention*`. Como os nomes de experimento diferem
+(`..._v2`), os checkpoints e saídas não se sobrescrevem.
+
+| Melhoria | Chave | v1 | v2 |
+|---|---|---|---|
+| Threshold calibrado no dev | `train.calibrate_threshold` | `false` | `true` |
+| Recorte temporal aleatório | `audio.random_crop` | `false` | `true` |
+| Aumentação no treino | `audio.augment.enabled` | `false` | `true` |
+| Peso de classe suavizado | `train.class_weights` | `auto` | `sqrt` |
+| Pooling estatístico | `model.pooling` | `avg` | `stats` |
+
+### Por que cada uma
+
+- **`calibrate_threshold`** — reporta as métricas no ponto de corte do EER
+  (medido no dev) em vez do 0,5 fixo. Sem isso, accuracy/F1 oscilam muito quando
+  há desbalanceamento e pesos de classe. O threshold escolhido é salvo dentro do
+  checkpoint e reutilizado por `evaluate.py` e `infer.py`.
+- **`random_crop`** — cada época vê um trecho temporal diferente do mesmo áudio
+  (antes era sempre o início), aumentando a diversidade dos dados.
+- **`augment`** — ruído/ganho/deslocamento aleatórios, para generalizar melhor a
+  ataques não vistos no treino.
+- **`class_weights: sqrt`** — compensação mais suave (√ da razão) que `auto`, que
+  no ASVspoof LA chega a ~8,8× e desloca demais o ponto de decisão.
+- **`pooling: stats`** — concatena média **e desvio-padrão** temporais, preservando
+  a variação do sinal que a média global descarta. No modelo de atenção isso vira
+  *Attentive Statistics Pooling*.
+
+> ⚠️ `random_crop` e `augment` desativam automaticamente o cache de features **do
+> treino** (o cache congelaria uma única versão aleatória). Dev e eval seguem
+> usando cache normalmente.
+
+## Calibrando um modelo já treinado
+
+Para corrigir o ponto de operação de um checkpoint antigo **sem retreinar**:
+
+```bash
+python evaluate.py --config configs/baseline.yaml \
+                   --checkpoint checkpoints/baseline_lfcc_cnn.pt \
+                   --partition eval --calibrate-on dev
+```
+
+O threshold é calculado no `dev` e aplicado ao `eval` — nunca calibrando na
+partição de teste. Use `--threshold 0.42` para informar um valor manualmente.
+
 ## Principais ajustes do config (seção `train`)
 
 | Chave | Efeito |
 |-------|--------|
-| `class_weights: auto` | pondera a perda pela frequência das classes (ASVspoof é desbalanceado) |
+| `class_weights` | `auto` (compensação total), `sqrt` (suave) ou `none` |
+| `calibrate_threshold` | reporta métricas no corte do EER em vez de 0,5 |
 | `scheduler` | reduz o learning rate quando o EER de validação estagna |
 | `early_stopping_patience` | interrompe o treino sem melhora por N épocas (0 = desligado) |
 | `amp` | mixed precision em GPU (economiza memória na GTX 1650) |

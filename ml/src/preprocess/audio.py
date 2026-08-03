@@ -31,27 +31,48 @@ def peak_normalize(wav: np.ndarray, eps: float = 1e-9) -> np.ndarray:
     return wav / (peak + eps)
 
 
-def fix_length(wav: np.ndarray, n_samples: int) -> np.ndarray:
+def fix_length(
+    wav: np.ndarray,
+    n_samples: int,
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
     """Ajusta o sinal para exatamente `n_samples` (padding por repetição ou recorte).
 
     O padding repete o próprio sinal (em vez de zeros) para não introduzir
     longos trechos de silêncio que distorceriam as features.
+
+    Se `rng` for informado e o sinal for mais longo que `n_samples`, o recorte é
+    feito em uma posição **aleatória** (random crop). Isso é usado apenas no
+    treino: cada época vê um trecho diferente do mesmo áudio, o que aumenta a
+    diversidade dos dados e reduz o overfitting. Sem `rng` o recorte é
+    determinístico (início do sinal), garantindo avaliação reprodutível.
     """
     if wav.size == n_samples:
         return wav
     if wav.size > n_samples:
-        return wav[:n_samples]
+        if rng is None:
+            return wav[:n_samples]
+        start = int(rng.integers(0, wav.size - n_samples + 1))
+        return wav[start:start + n_samples]
     # wav.size < n_samples -> repete até cobrir o comprimento
     repeats = int(np.ceil(n_samples / wav.size))
     return np.tile(wav, repeats)[:n_samples]
 
 
-def preprocess_waveform(wav: np.ndarray, audio_cfg: dict) -> np.ndarray:
-    """Aplica o pré-processamento completo a um waveform já carregado."""
+def preprocess_waveform(
+    wav: np.ndarray,
+    audio_cfg: dict,
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
+    """Aplica o pré-processamento completo a um waveform já carregado.
+
+    `rng` habilita o recorte aleatório (ver `fix_length`); deve ser passado
+    apenas no conjunto de treino.
+    """
     if audio_cfg.get("trim_silence", False):
         wav = trim_silence(wav, audio_cfg.get("top_db", 30))
     if audio_cfg.get("peak_normalize", False):
         wav = peak_normalize(wav)
     n_samples = int(audio_cfg["sample_rate"] * audio_cfg["duration"])
-    wav = fix_length(wav, n_samples)
+    wav = fix_length(wav, n_samples, rng=rng)
     return wav.astype(np.float32)

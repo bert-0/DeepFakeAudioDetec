@@ -20,7 +20,13 @@ from torch.utils.data import DataLoader
 from src.config import load_config, resolve_device, set_seed
 from src.data import build_dataset
 from src.features import FeatureExtractor
-from src.metrics import compute_metrics, format_metrics, plot_confusion_matrix, save_score_file
+from src.metrics import (
+    compute_eer_with_threshold,
+    compute_metrics,
+    format_metrics,
+    plot_confusion_matrix,
+    save_score_file,
+)
 from src.models import build_model
 
 OUTPUT_DIR = Path("outputs")
@@ -35,6 +41,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--device", default=None)
     p.add_argument("--score-file", default=None,
                    help="se definido, salva um arquivo de scores por utterance (estilo ASVspoof)")
+    p.add_argument("--threshold", type=float, default=None,
+                   help="sobrescreve o threshold do checkpoint (padrão: o calibrado no dev)")
+    p.add_argument("--calibrate-on", default=None, choices=["train", "dev"],
+                   help="calcula o threshold nesta partição antes de avaliar. Permite "
+                        "calibrar um modelo já treinado sem precisar retreinar.")
     return p.parse_args()
 
 
@@ -71,14 +82,36 @@ def main() -> None:
     print(f"Modelo: {config['model']['name']} | partição: {args.partition} | "
           f"dispositivo: {device}")
 
+    # Threshold calibrado no dev durante o treino. Aplicá-lo aqui evita reportar
+    # métricas no corte fixo de 0,5, que é enviesado pelo desbalanceamento.
+    threshold = ckpt.get("threshold") if config["train"].get("calibrate_threshold") else None
+    origem = "calibrado no treino"
+
+    if args.calibrate_on:
+        # Calibra agora, numa partição que NÃO é a de teste — assim é possível
+        # corrigir o ponto de operação de um modelo já treinado.
+        cal_ds = build_dataset(config, args.calibrate_on, extractor, args.smoke)
+        cal_loader = DataLoader(cal_ds, batch_size=batch_size, shuffle=False,
+                                num_workers=0 if args.smoke else config["train"]["num_workers"])
+        cal_labels, _, cal_scores = run_inference(model, cal_loader, device)
+        cal_eer, threshold = compute_eer_with_threshold(cal_labels, cal_scores)
+        origem = f"calibrado agora em '{args.calibrate_on}' (EER={cal_eer * 100:.2f}%)"
+
+    if args.threshold is not None:
+        threshold, origem = args.threshold, "informado via --threshold"
+    if threshold is not None:
+        print(f"Threshold aplicado: {threshold:.4f} ({origem})")
+
     labels, preds, scores = run_inference(model, loader, device)
-    metrics = compute_metrics(labels, preds, scores)
+    metrics = compute_metrics(labels, preds, scores, threshold=threshold)
     print(f"\nResultados ({args.partition}): {format_metrics(metrics)}")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     name = config["experiment"]["name"]
     cm_path = OUTPUT_DIR / f"{name}_{args.partition}_confusion.png"
     metrics_path = OUTPUT_DIR / f"{name}_{args.partition}_metrics.json"
+    if threshold is not None:
+        preds = (scores >= threshold).astype(int)
     plot_confusion_matrix(labels, preds, cm_path)
     with open(metrics_path, "w", encoding="utf-8") as fh:
         json.dump(metrics, fh, indent=2)

@@ -54,6 +54,8 @@ class ASVspoofDataset(Dataset):
         cache_dir: str | Path | None = None,
         file_ext: str = ".flac",
         augmenter=None,
+        random_crop: bool = False,
+        seed: int = 0,
     ):
         self.items = parse_protocol(protocol_path)
         self.labels = [label for _, label in self.items]
@@ -63,22 +65,35 @@ class ASVspoofDataset(Dataset):
         self.extractor = extractor
         self.file_ext = file_ext
         self.augmenter = augmenter
-        # Aumentação aleatória e cache são incompatíveis (o cache congelaria uma
-        # única versão aumentada), então o cache é desativado quando há augmenter.
-        self.cache_dir = Path(cache_dir) if (cache_dir and augmenter is None) else None
+        self.random_crop = random_crop
+        self.seed = seed
+        self._epoch = 0
+        # Cache guarda uma única versão das features, então é incompatível com
+        # qualquer aleatoriedade por época (aumentação ou recorte aleatório).
+        stochastic = augmenter is not None or random_crop
+        self.cache_dir = Path(cache_dir) if (cache_dir and not stochastic) else None
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             self._cache_key = _config_fingerprint(audio_cfg, extractor.types)
+
+    def set_epoch(self, epoch: int) -> None:
+        """Varia a semente por época para que o recorte aleatório mude a cada uma."""
+        self._epoch = int(epoch)
 
     def __len__(self) -> int:
         return len(self.items)
 
     def __getitem__(self, idx: int):
         file_name, label = self.items[idx]
-        features = self._load_features(file_name)
+        features = self._load_features(file_name, idx)
         return features, label
 
-    def _load_features(self, file_name: str) -> dict[str, torch.Tensor]:
+    def _rng(self, idx: int) -> np.random.Generator | None:
+        if not self.random_crop:
+            return None
+        return np.random.default_rng((self.seed, self._epoch, idx))
+
+    def _load_features(self, file_name: str, idx: int) -> dict[str, torch.Tensor]:
         cache_path = None
         if self.cache_dir:
             cache_path = self.cache_dir / f"{file_name}_{self._cache_key}.pt"
@@ -87,7 +102,7 @@ class ASVspoofDataset(Dataset):
 
         wav = load_audio(self.audio_dir / f"{file_name}{self.file_ext}",
                          self.audio_cfg["sample_rate"])
-        wav = preprocess_waveform(wav, self.audio_cfg)
+        wav = preprocess_waveform(wav, self.audio_cfg, rng=self._rng(idx))
         if self.augmenter is not None:
             wav = self.augmenter(wav)
         features = self.extractor(wav)
@@ -158,11 +173,13 @@ def build_dataset(
     extractor: FeatureExtractor,
     smoke: bool,
     augmenter=None,
+    random_crop: bool = False,
 ) -> Dataset:
     """Constrói o dataset de uma partição ('train' | 'dev' | 'eval').
 
     `augmenter`: callable opcional `wav -> wav` aplicado após o pré-processamento
     (aumentação no treino ou perturbação na avaliação de robustez).
+    `random_crop`: recorte temporal aleatório — usar apenas no treino.
     """
     if smoke:
         smoke_cfg = config["smoke"]
@@ -180,6 +197,8 @@ def build_dataset(
         extractor=extractor,
         cache_dir=cache_dir,
         augmenter=augmenter,
+        random_crop=random_crop,
+        seed=config["experiment"]["seed"],
     )
 
 

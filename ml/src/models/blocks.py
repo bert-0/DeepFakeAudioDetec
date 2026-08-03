@@ -37,6 +37,29 @@ class CNNEncoder(nn.Module):
         return self.net(x)
 
 
+class StatsPool(nn.Module):
+    """Pooling estatístico: concatena média e desvio-padrão no eixo temporal.
+
+    O pooling por média global (`AdaptiveAvgPool2d((1,1))`) descarta a *variação*
+    do sinal ao longo do tempo — justamente onde ficam os artefatos transientes
+    da síntese de voz. Guardar também o desvio-padrão preserva essa informação
+    e dobra a dimensão do vetor de saída (2*C em vez de C).
+
+    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2*C)
+    """
+
+    def __init__(self, channels: int):
+        super().__init__()
+        self.out_dim = 2 * channels
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.mean(dim=2)                       # média na frequência -> (B, C, T)
+        mean = x.mean(dim=-1)
+        # clamp evita NaN no gradiente do sqrt quando a variância é ~0.
+        std = x.var(dim=-1, unbiased=False).clamp(min=1e-8).sqrt()
+        return torch.cat([mean, std], dim=1)    # (B, 2*C)
+
+
 class TemporalAttentionPool(nn.Module):
     """Pooling com atenção sobre o eixo temporal (mecanismo de atenção).
 
@@ -48,8 +71,33 @@ class TemporalAttentionPool(nn.Module):
     def __init__(self, channels: int):
         super().__init__()
         self.score = nn.Conv1d(channels, 1, kernel_size=1)
+        self.out_dim = channels
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.mean(dim=2)                       # média na frequência -> (B, C, T)
         weights = torch.softmax(self.score(x), dim=-1)  # (B, 1, T)
         return (x * weights).sum(dim=-1)        # soma ponderada -> (B, C)
+
+
+class AttentiveStatsPool(nn.Module):
+    """Attentive Statistics Pooling: média E desvio-padrão ponderados por atenção.
+
+    Une as duas ideias anteriores — a atenção escolhe quais frames importam, e a
+    estatística preserva tanto o nível médio quanto a variação temporal desses
+    frames. Técnica consagrada em tarefas de voz (Okabe et al., 2018).
+
+    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2*C)
+    """
+
+    def __init__(self, channels: int):
+        super().__init__()
+        self.score = nn.Conv1d(channels, 1, kernel_size=1)
+        self.out_dim = 2 * channels
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.mean(dim=2)                               # (B, C, T)
+        weights = torch.softmax(self.score(x), dim=-1)  # (B, 1, T)
+        mean = (x * weights).sum(dim=-1)                # (B, C)
+        var = (x.pow(2) * weights).sum(dim=-1) - mean.pow(2)
+        std = var.clamp(min=1e-8).sqrt()
+        return torch.cat([mean, std], dim=1)            # (B, 2*C)

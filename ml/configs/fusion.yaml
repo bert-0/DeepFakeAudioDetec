@@ -10,6 +10,7 @@ audio:
   trim_silence: true
   top_db: 30
   peak_normalize: true
+  random_crop: false     # recorte temporal aleatorio no treino (anti-overfitting)
   augment:                # aumentacao no treino (desativada p/ comparacao justa entre incrementos)
     enabled: false
     noise: {prob: 0.5, snr_db: [10, 30]}
@@ -33,6 +34,7 @@ features:
 
 model:
   name: fusion
+  pooling: avg            # avg | stats (media + desvio temporais)
   n_classes: 2
   dropout: 0.3
 
@@ -44,7 +46,8 @@ train:
   num_workers: 4
   device: cuda
   cache_features: true
-  class_weights: auto
+  class_weights: auto     # auto | sqrt (mais suave) | none
+  calibrate_threshold: false   # reporta metricas no corte do EER (calibrado no dev)
   amp: true
   early_stopping_patience: 7
   scheduler:
