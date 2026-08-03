@@ -44,6 +44,30 @@ def test_model_backward_no_nan(name):
     assert grads and all(torch.isfinite(g).all() for g in grads)
 
 
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        # Chaves gravadas pelos checkpoints treinados antes do pooling
+        # configurável. Um checkpoint antigo precisa continuar carregando com
+        # pooling="avg" — por isso a numeração das camadas não pode mudar.
+        ("baseline_cnn", {"classifier.2.weight", "classifier.2.bias"}),
+        ("fusion", {"classifier.1.weight", "classifier.4.weight"}),
+        ("attention", {"lfcc_attn.score.weight", "spec_attn.score.weight"}),
+    ],
+)
+def test_avg_pooling_keeps_legacy_state_dict_keys(name, expected):
+    keys = set(build_model({"name": name, "pooling": "avg"}).state_dict())
+    assert expected <= keys, f"chaves ausentes: {sorted(expected - keys)}"
+
+
+@pytest.mark.parametrize("name", ["baseline_cnn", "fusion", "attention"])
+def test_checkpoint_roundtrip_with_avg_pooling(name):
+    """Salvar e recarregar com pooling='avg' não pode exigir strict=False."""
+    src = build_model({"name": name, "pooling": "avg"})
+    dst = build_model({"name": name, "pooling": "avg"})
+    dst.load_state_dict(src.state_dict())  # levanta RuntimeError se divergir
+
+
 def test_unknown_model_raises():
     with pytest.raises(ValueError):
         build_model({"name": "inexistente"})

@@ -33,7 +33,12 @@ class BaselineCNN(nn.Module):
         else:
             raise ValueError(f"pooling desconhecido: {pooling!r} (use 'avg' ou 'stats')")
 
+        # O nn.Flatten() é mantido como primeira camada do Sequential (mesmo com
+        # pooling "stats", onde ele é um no-op sobre um tensor já 2D) para que os
+        # índices das camadas — e portanto as chaves do state_dict — continuem
+        # compatíveis com checkpoints treinados antes do pooling configurável.
         self.classifier = nn.Sequential(
+            nn.Flatten(),
             nn.Dropout(dropout),
             nn.Linear(feat_dim, n_classes),
         )
@@ -41,6 +46,4 @@ class BaselineCNN(nn.Module):
     def forward(self, features: dict[str, torch.Tensor]) -> torch.Tensor:
         h = self.encoder(features["lfcc"])
         h = self.pool(h)
-        if self.pooling == "avg":
-            h = torch.flatten(h, 1)
         return self.classifier(h)
