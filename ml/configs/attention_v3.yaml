@@ -61,12 +61,13 @@ train:
   cache_features: true
   class_weights: sqrt
   calibrate_threshold: true
-  amp: true
+  amp: false
   early_stopping_patience: 12
   scheduler:
     enabled: true
     factor: 0.5
     patience: 3
+  grad_clip: 5.0
 smoke:
   n_train: 240
   n_dev: 80

@@ -50,6 +50,7 @@ train:
   class_weights: auto     # auto | sqrt (mais suave) | none
   calibrate_threshold: false   # reporta metricas no corte do EER (calibrado no dev)
   amp: true
+  grad_clip: 0            # 0 = desligado; >0 limita a norma do gradiente
   early_stopping_patience: 7
   scheduler:
     enabled: true

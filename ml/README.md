@@ -154,6 +154,25 @@ bloco convolucional com aquele número de canais.
 > treino** (o cache congelaria uma única versão aleatória). Dev e eval seguem
 > usando cache normalmente.
 
+## Estabilidade numérica (AMP)
+
+Os configs `v3` usam **`amp: false`** de propósito. Em GPUs sem Tensor Cores
+(caso da GTX 1650) o ganho de velocidade do mixed precision é pequeno, e os
+modelos aqui são de poucos MB — não há pressão de memória que compense o risco.
+
+O risco é concreto: em fp16 a variância calculada pelo pooling estatístico é uma
+soma de quadrados que ultrapassa o alcance do tipo (~65504), virando `inf` e
+depois `NaN`. O NaN contamina as estatísticas do BatchNorm e o modelo passa a
+emitir `NaN` para sempre em modo `eval`.
+
+Proteções no código (valem mesmo com AMP ligado):
+
+- O pooling estatístico calcula média/desvio sempre em **float32**.
+- Batches com loss `inf`/`NaN` são descartados, com aviso ao fim da época.
+- `grad_clip` limita a norma do gradiente.
+- Se o dev produzir `NaN`, o treino **encerra de forma limpa** preservando o
+  melhor checkpoint, em vez de estourar exceção e perder a execução.
+
 ## Calibrando um modelo já treinado
 
 Para corrigir o ponto de operação de um checkpoint antigo **sem retreinar**:
@@ -175,7 +194,8 @@ partição de teste. Use `--threshold 0.42` para informar um valor manualmente.
 | `calibrate_threshold` | reporta métricas no corte do EER em vez de 0,5 |
 | `scheduler` | reduz o learning rate quando o EER de validação estagna |
 | `early_stopping_patience` | interrompe o treino sem melhora por N épocas (0 = desligado) |
-| `amp` | mixed precision em GPU (economiza memória na GTX 1650) |
+| `amp` | mixed precision em GPU — ver aviso abaixo |
+| `grad_clip` | limita a norma do gradiente (`0` desliga); ajuda contra divergência |
 | `cache_features` | salva features em disco para acelerar épocas seguintes |
 
 ## Testes

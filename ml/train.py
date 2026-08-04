@@ -149,6 +149,9 @@ def main() -> None:
 
     scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
     early_patience = int(train_cfg.get("early_stopping_patience", 0))
+    grad_clip = float(train_cfg.get("grad_clip", 0) or 0)
+    if grad_clip:
+        print(f"Clipping de gradiente: norma máxima {grad_clip}")
 
     # ----- loop de treino -----
     CHECKPOINT_DIR.mkdir(exist_ok=True)
@@ -166,20 +169,47 @@ def main() -> None:
             train_ds.set_epoch(epoch)
         model.train()
         running_loss = 0.0
+        seen = 0
+        skipped = 0
         for features, labels in tqdm(train_loader, desc=f"Época {epoch}/{epochs}", leave=False):
             features = {k: v.to(device) for k, v in features.items()}
             labels = labels.to(device)
             optimizer.zero_grad()
             with torch.amp.autocast(device_type=device.type, enabled=use_amp):
                 loss = criterion(model(features), labels)
+
+            # Um batch com loss inf/NaN propagaria o estrago para os pesos e para
+            # as estatísticas do BatchNorm; descartar é mais seguro que treinar
+            # com ele. Se acontecer sempre, o aviso no fim da época denuncia.
+            if not torch.isfinite(loss):
+                skipped += 1
+                continue
+
             scaler.scale(loss).backward()
+            if grad_clip:
+                scaler.unscale_(optimizer)  # desfaz a escala antes de medir a norma
+                nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             scaler.step(optimizer)
             scaler.update()
             running_loss += loss.item() * labels.size(0)
+            seen += labels.size(0)
 
-        train_loss = running_loss / len(train_ds)
+        if skipped:
+            print(f"  [aviso] {skipped} batch(es) descartados por loss inf/NaN nesta época.")
+        train_loss = running_loss / max(seen, 1)
         (dev_labels, dev_preds, dev_scores), dev_threshold = evaluate_loader(
             model, dev_loader, device)
+
+        # Se o modelo passou a emitir NaN, treinar mais não recupera (pesos e/ou
+        # estatísticas do BatchNorm já estão contaminados). Encerra de forma
+        # limpa preservando o melhor checkpoint, em vez de estourar exceção.
+        if not np.isfinite(dev_scores).all():
+            print(f"\n[ERRO] A época {epoch} produziu scores NaN/inf no dev — "
+                  "o modelo divergiu numericamente.")
+            print("       O melhor checkpoint anterior foi preservado.")
+            print("       Sugestões: desligar AMP (train.amp: false), reduzir o "
+                  "learning rate ou ativar train.grad_clip.")
+            break
         # Com calibração, as métricas usam o corte do EER (medido no dev) em vez
         # do 0,5 implícito do argmax — que oscila muito com pesos de classe.
         dev_metrics = compute_metrics(dev_labels, dev_preds, dev_scores,

@@ -5,6 +5,11 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+# Piso da variância antes do sqrt. Precisa ser representável em float16 caso o
+# tensor chegue em meia precisão (o menor normal do fp16 é ~6e-5), por isso
+# 1e-4 em vez de valores como 1e-8, que virariam zero.
+EPS_VAR = 1e-4
+
 
 def conv_block(in_ch: int, out_ch: int) -> nn.Sequential:
     """Conv 3x3 -> BatchNorm -> ReLU -> MaxPool 2x2."""
@@ -53,11 +58,16 @@ class StatsPool(nn.Module):
         self.out_dim = 2 * channels
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x.mean(dim=2)                       # média na frequência -> (B, C, T)
-        mean = x.mean(dim=-1)
-        # clamp evita NaN no gradiente do sqrt quando a variância é ~0.
-        std = x.var(dim=-1, unbiased=False).clamp(min=1e-8).sqrt()
-        return torch.cat([mean, std], dim=1)    # (B, 2*C)
+        # Estatísticas sempre em float32: sob AMP (fp16) a variância é uma soma
+        # de quadrados que estoura facilmente o alcance do tipo (máx. ~65504),
+        # virando inf -> NaN. O NaN então contamina as estatísticas do BatchNorm
+        # e o modelo passa a produzir NaN para sempre em modo eval.
+        with torch.amp.autocast(x.device.type, enabled=False):
+            x = x.float().mean(dim=2)           # média na frequência -> (B, C, T)
+            mean = x.mean(dim=-1)
+            # clamp evita gradiente infinito do sqrt quando a variância é ~0.
+            std = x.var(dim=-1, unbiased=False).clamp(min=EPS_VAR).sqrt()
+            return torch.cat([mean, std], dim=1)  # (B, 2*C)
 
 
 class TemporalAttentionPool(nn.Module):
@@ -95,9 +105,13 @@ class AttentiveStatsPool(nn.Module):
         self.out_dim = 2 * channels
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x.mean(dim=2)                               # (B, C, T)
-        weights = torch.softmax(self.score(x), dim=-1)  # (B, 1, T)
-        mean = (x * weights).sum(dim=-1)                # (B, C)
-        var = (x.pow(2) * weights).sum(dim=-1) - mean.pow(2)
-        std = var.clamp(min=1e-8).sqrt()
-        return torch.cat([mean, std], dim=1)            # (B, 2*C)
+        weights = torch.softmax(self.score(x.mean(dim=2)), dim=-1)  # (B, 1, T)
+        # Mesma proteção do StatsPool: a soma de quadrados sai do alcance do
+        # fp16 sob AMP, então as estatísticas são calculadas em float32.
+        with torch.amp.autocast(x.device.type, enabled=False):
+            x = x.float().mean(dim=2)                   # (B, C, T)
+            w = weights.float()
+            mean = (x * w).sum(dim=-1)                  # (B, C)
+            var = (x.pow(2) * w).sum(dim=-1) - mean.pow(2)
+            std = var.clamp(min=EPS_VAR).sqrt()
+            return torch.cat([mean, std], dim=1)        # (B, 2*C)

@@ -45,7 +45,10 @@ features:
 model:
   name: baseline_cnn
   pooling: stats
-  channels: [16, 32, 64]  # IGUAL ao v2 — a ablacao muda so o n_filter
+  channels:
+  - 16
+  - 32
+  - 64
   n_classes: 2
   dropout: 0.3
 train:
@@ -58,12 +61,13 @@ train:
   cache_features: true
   class_weights: sqrt
   calibrate_threshold: true
-  amp: true
+  amp: false
   early_stopping_patience: 7
   scheduler:
     enabled: true
     factor: 0.5
     patience: 3
+  grad_clip: 5.0
 smoke:
   n_train: 240
   n_dev: 80

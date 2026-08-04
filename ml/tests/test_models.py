@@ -89,6 +89,44 @@ def test_channels_default_matches_legacy():
     legacy.load_state_dict(explicit.state_dict())
 
 
+@pytest.mark.parametrize("pool_cls", ["StatsPool", "AttentiveStatsPool"])
+def test_stats_pool_survives_large_values(pool_cls):
+    """Valores grandes fazem a soma de quadrados estourar o fp16.
+
+    Reproduz a divergência que ocorria sob AMP: com x~1e3, x^2~1e6 passa do
+    máximo do float16 (~65504). O pooling calcula em float32, então a saída
+    precisa continuar finita.
+    """
+    from src.models import blocks
+
+    pool = getattr(blocks, pool_cls)(8)
+    x = torch.randn(2, 8, 10, 50) * 1000.0
+    out = pool(x)
+    assert torch.isfinite(out).all()
+
+
+@pytest.mark.parametrize("pool_cls", ["StatsPool", "AttentiveStatsPool"])
+def test_stats_pool_zero_variance_has_finite_grad(pool_cls):
+    """Variância exatamente zero: o sqrt teria gradiente infinito sem o clamp."""
+    from src.models import blocks
+
+    pool = getattr(blocks, pool_cls)(4)
+    x = torch.ones(2, 4, 6, 20, requires_grad=True)  # variância temporal = 0
+    pool(x).sum().backward()
+    assert torch.isfinite(x.grad).all()
+
+
+@pytest.mark.parametrize("name", ["baseline_cnn", "fusion", "attention"])
+def test_stats_models_finite_with_large_inputs(name):
+    """Modelo inteiro com entradas de magnitude alta não pode gerar NaN."""
+    model = build_model({"name": name, "pooling": "stats"})
+    model.eval()
+    with torch.no_grad():
+        big = {k: v * 500.0 for k, v in _features().items()}
+        logits = model(big)
+    assert torch.isfinite(logits).all()
+
+
 def test_unknown_model_raises():
     with pytest.raises(ValueError):
         build_model({"name": "inexistente"})

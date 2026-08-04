@@ -73,6 +73,31 @@ def test_compute_metrics_without_threshold_uses_preds():
     assert "threshold" not in m
 
 
+def test_eer_with_nan_scores_returns_nan_not_raises():
+    """Modelo divergido: precisa devolver NaN, não estourar dentro do sklearn."""
+    labels = np.array([0, 1, 0, 1])
+    scores = np.array([0.1, np.nan, 0.7, 0.9])
+    eer, thr = compute_eer_with_threshold(labels, scores)
+    assert math.isnan(eer)
+    assert thr == 0.5
+
+
+def test_eer_with_inf_scores_returns_nan():
+    labels = np.array([0, 1])
+    scores = np.array([0.1, np.inf])
+    eer, _ = compute_eer_with_threshold(labels, scores)
+    assert math.isnan(eer)
+
+
+def test_compute_metrics_with_nan_scores_does_not_raise():
+    labels = np.array([0, 1, 0, 1])
+    preds = np.array([0, 1, 0, 1])
+    scores = np.array([0.1, np.nan, 0.2, 0.9])
+    m = compute_metrics(labels, preds, scores)
+    assert math.isnan(m["eer"])
+    assert 0.0 <= m["accuracy"] <= 1.0
+
+
 def test_save_score_file(tmp_path):
     out = tmp_path / "scores.txt"
     save_score_file(["a", "b"], [0, 1], [0.1, 0.9], out)

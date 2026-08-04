@@ -35,9 +35,13 @@ def compute_eer_with_threshold(
     a perda usa pesos de classe.
     """
     labels = np.asarray(labels)
-    scores = np.asarray(scores)
+    scores = np.asarray(scores, dtype=float)
     if np.unique(labels).size < 2:
         # Sem ambas as classes (bonafide e spoof) o EER é indefinido.
+        return float("nan"), 0.5
+    if not np.isfinite(scores).all():
+        # Modelo divergiu (NaN/inf). Devolve NaN em vez de estourar dentro do
+        # sklearn, para que quem chamou possa tratar o caso com uma mensagem útil.
         return float("nan"), 0.5
     fpr, tpr, thresholds = roc_curve(labels, scores, pos_label=1)
     fnr = 1.0 - tpr
