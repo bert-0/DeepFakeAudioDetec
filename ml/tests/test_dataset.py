@@ -4,6 +4,28 @@ from src.data.dataset import SmokeDataset, build_dataset, parse_protocol
 from src.features import FeatureExtractor
 
 
+def test_parse_protocol_with_systems(tmp_path):
+    proto = tmp_path / "proto.txt"
+    proto.write_text(
+        "LA_0001 utt_0 - - bonafide\n"
+        "LA_0001 utt_1 - A07 spoof\n"
+        "LA_0002 utt_2 - A17 spoof\n"
+    )
+    from src.data.dataset import parse_protocol_with_systems
+
+    items = parse_protocol_with_systems(proto)
+    assert items == [("utt_0", 0, "-"), ("utt_1", 1, "A07"), ("utt_2", 1, "A17")]
+
+
+def test_smoke_dataset_exposes_system_ids(audio_cfg, feat_cfg):
+    extractor = FeatureExtractor(audio_cfg, feat_cfg)
+    ds = SmokeDataset(6, audio_cfg, extractor, seed=1)
+    assert len(ds.system_ids) == 6
+    # bonafide sempre "-"; spoof sempre um Axx
+    for label, system in zip(ds.labels, ds.system_ids):
+        assert (system == "-") == (label == 0)
+
+
 def test_parse_protocol(tmp_path):
     proto = tmp_path / "proto.txt"
     proto.write_text(

@@ -70,6 +70,21 @@ python scripts/robustness_eval.py --config configs/attention.yaml \
                                   --checkpoint checkpoints/attention_fusion.pt
 ```
 
+## Análise por tipo de ataque (TC1 §5.4)
+
+O EER global esconde *onde* o modelo falha: 20% pode ser "20% em todos os
+ataques" ou "0% em doze e 90% em um". Este script calcula o EER por algoritmo
+de síntese (A07…A19), sempre contra todos os bonafide — o protocolo padrão de
+reporte da ASVspoof:
+
+```bash
+python scripts/per_attack_eval.py --config configs/baseline_v3a.yaml \
+                                  --checkpoint checkpoints/baseline_lfcc_cnn_v3a.pt
+```
+
+Gera uma tabela ordenada, um JSON e um gráfico de barras destacando os ataques
+acima do EER global. Não exige retreinar o modelo.
+
 ## Aumentação de dados (treino)
 
 Desativada por padrão (para uma comparação justa entre os incrementos). Para

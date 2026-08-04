@@ -27,21 +27,30 @@ LABEL_MAP = {"bonafide": 0, "spoof": 1}
 # --------------------------------------------------------------------------- #
 # ASVspoof 2019 LA
 # --------------------------------------------------------------------------- #
-def parse_protocol(protocol_path: str | Path) -> list[tuple[str, int]]:
-    """Lê um arquivo de protocolo e devolve [(audio_file_name, label), ...].
+def parse_protocol_with_systems(
+    protocol_path: str | Path,
+) -> list[tuple[str, int, str]]:
+    """Lê o protocolo e devolve [(audio_file_name, label, system_id), ...].
 
     Formato esperado: `SPEAKER  FILE  -  SYSTEM_ID  KEY`, KEY ∈ {bonafide, spoof}.
+    O `system_id` identifica o algoritmo de síntese (A01…A19) e vale "-" para
+    áudios bonafide. É o que permite avaliar o desempenho por tipo de ataque.
     """
-    items: list[tuple[str, int]] = []
+    items: list[tuple[str, int, str]] = []
     with open(protocol_path, "r", encoding="utf-8") as fh:
         for line in fh:
             parts = line.split()
             if len(parts) < 5:
                 continue
-            file_name, key = parts[1], parts[4]
+            file_name, system_id, key = parts[1], parts[3], parts[4]
             if key in LABEL_MAP:
-                items.append((file_name, LABEL_MAP[key]))
+                items.append((file_name, LABEL_MAP[key], system_id))
     return items
+
+
+def parse_protocol(protocol_path: str | Path) -> list[tuple[str, int]]:
+    """Lê o protocolo e devolve [(audio_file_name, label), ...]."""
+    return [(name, label) for name, label, _ in parse_protocol_with_systems(protocol_path)]
 
 
 class ASVspoofDataset(Dataset):
@@ -57,9 +66,11 @@ class ASVspoofDataset(Dataset):
         random_crop: bool = False,
         seed: int = 0,
     ):
-        self.items = parse_protocol(protocol_path)
-        self.labels = [label for _, label in self.items]
-        self.ids = [name for name, _ in self.items]
+        records = parse_protocol_with_systems(protocol_path)
+        self.items = [(name, label) for name, label, _ in records]
+        self.labels = [label for _, label, _ in records]
+        self.ids = [name for name, _, _ in records]
+        self.system_ids = [system for _, _, system in records]
         self.audio_dir = Path(audio_dir)
         self.audio_cfg = audio_cfg
         self.extractor = extractor
@@ -136,6 +147,9 @@ class SmokeDataset(Dataset):
         self.n_samples = int(self.sr * audio_cfg["duration"])
         self.labels = [i % 2 for i in range(n)]
         self.ids = [f"smoke_{i:05d}" for i in range(n)]
+        # Dois "ataques" fictícios, só para exercitar a análise por sistema.
+        self.system_ids = ["-" if i % 2 == 0 else f"A{7 + (i // 2) % 2:02d}"
+                           for i in range(n)]
 
     def __len__(self) -> int:
         return self.n
