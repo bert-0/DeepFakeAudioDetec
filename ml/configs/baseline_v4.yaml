@@ -1,0 +1,87 @@
+# Incremento 1 (v4) — LFCC + LCNN (Light CNN com Max-Feature-Map).
+#
+# Duas mudancas em relacao ao v3a:
+#  - encoder: lcnn   -> arquitetura de referencia da literatura para LFCC
+#  - pooling: freq_stats -> preserva a estrutura em frequencia, que os
+#    poolings anteriores descartavam ao tirar a media sobre o eixo espectral
+
+experiment:
+  name: baseline_lcnn_v4
+  seed: 42
+audio:
+  sample_rate: 16000
+  duration: 4.0
+  trim_silence: true
+  top_db: 30
+  peak_normalize: true
+  random_crop: true
+  augment:
+    enabled: true
+    noise:
+      prob: 0.5
+      snr_db:
+      - 10
+      - 30
+    gain:
+      prob: 0.5
+      gain_db:
+      - -6
+      - 6
+    shift:
+      prob: 0.5
+      max_fraction: 0.1
+features:
+  types:
+  - lfcc
+  lfcc:
+    n_lfcc: 20
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_filter: 70
+    deltas: true
+  spectrogram:
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_mels: 80
+model:
+  name: baseline_cnn
+  pooling: freq_stats
+  n_classes: 2
+  dropout: 0.3
+  encoder: lcnn
+  freq_bins: 4
+train:
+  epochs: 50
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  num_workers: 4
+  device: cuda
+  cache_features: true
+  class_weights: sqrt
+  calibrate_threshold: true
+  amp: false
+  early_stopping_patience: 12
+  scheduler:
+    enabled: true
+    factor: 0.5
+    patience: 3
+  grad_clip: 5.0
+smoke:
+  n_train: 240
+  n_dev: 80
+  n_eval: 80
+  epochs: 3
+  batch_size: 16
+data:
+  root: data/LA
+  protocols:
+    train: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.train.trn.txt
+    dev: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.dev.trl.txt
+    eval: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.eval.trl.txt
+  audio_dir:
+    train: data/LA/ASVspoof2019_LA_train/flac
+    dev: data/LA/ASVspoof2019_LA_dev/flac
+    eval: data/LA/ASVspoof2019_LA_eval/flac

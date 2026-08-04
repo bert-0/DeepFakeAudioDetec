@@ -107,6 +107,40 @@ relatório. Como os nomes de experimento diferem, nada se sobrescreve.
 Rodar `v3a` **e** `v3` permite separar quanto veio das *features* e quanto veio
 da *arquitetura* — uma ablação limpa para a seção de resultados.
 
+### Encoder LCNN e preservação da frequência (v4)
+
+Os configs `*_v4.yaml` trocam duas peças em relação ao v3a:
+
+| Chave | v1–v3 | v4 |
+|---|---|---|
+| `model.encoder` | `cnn` | `lcnn` |
+| `model.pooling` | `stats` | `freq_stats` |
+
+**`encoder: lcnn`** — Light CNN com *Max-Feature-Map* (MFM). No lugar da ReLU,
+a MFM divide os canais em duas metades e mantém o máximo elemento a elemento:
+em vez de zerar valores negativos, ela faz uma *seleção* entre respostas
+concorrentes. É a arquitetura de referência da literatura para detecção de
+spoofing com features LFCC.
+
+**`pooling: freq_stats`** — corrige uma perda de informação presente desde o
+início: `avg` e `stats` calculavam a **média ao longo da frequência**, colapsando
+os 60 bins do LFCC em um único valor antes da classificação. Como os artefatos
+de síntese são específicos de faixas de frequência, isso descartava justamente o
+sinal discriminante. O `freq_stats` reduz a frequência a um número fixo de faixas
+(`model.freq_bins`, padrão 4) e as achata nos canais, preservando *onde* no
+espectro cada padrão ocorreu.
+
+Os três incrementos do TC1 continuam valendo — o encoder é ortogonal a eles:
+
+```bash
+python train.py --config configs/baseline_v4.yaml    # Incremento 1: LFCC + LCNN
+python train.py --config configs/fusion_v4.yaml      # Incremento 2: + espectrograma
+python train.py --config configs/attention_v4.yaml   # Incremento 3: + atenção
+```
+
+> O encoder `cnn` segue disponível e inalterado: ele é o baseline exigido pelo
+> TC1 §4.7 e a referência dos resultados já medidos (v1–v3).
+
 ### Por que `n_filter: 20 → 70`
 
 O banco de filtros do LFCC define a resolução espectral da feature:

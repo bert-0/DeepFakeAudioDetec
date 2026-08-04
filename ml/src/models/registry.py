@@ -27,4 +27,6 @@ def build_model(model_cfg: dict) -> nn.Module:
         dropout=model_cfg.get("dropout", 0.3),
         pooling=model_cfg.get("pooling", "avg"),
         channels=tuple(model_cfg.get("channels", (16, 32, 64))),
+        encoder=model_cfg.get("encoder", "cnn"),
+        freq_bins=model_cfg.get("freq_bins", 4),
     )

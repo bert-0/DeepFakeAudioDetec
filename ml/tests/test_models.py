@@ -127,6 +127,72 @@ def test_stats_models_finite_with_large_inputs(name):
     assert torch.isfinite(logits).all()
 
 
+@pytest.mark.parametrize("name", ["baseline_cnn", "fusion", "attention"])
+@pytest.mark.parametrize("pooling", ["avg", "stats", "freq_stats"])
+def test_lcnn_encoder_forward(name, pooling):
+    """A LCNN precisa servir aos três incrementos, em todos os poolings."""
+    model = build_model({"name": name, "encoder": "lcnn", "pooling": pooling})
+    model.eval()
+    with torch.no_grad():
+        logits = model(_features(freq_lfcc=60, freq_spec=80, frames=400))
+    assert logits.shape == (2, 2)
+
+
+def test_mfm_halves_channels_taking_maximum():
+    from src.models.blocks import MFM
+
+    x = torch.tensor([[[[1.0]], [[5.0]], [[9.0]], [[2.0]]]])   # (1, 4, 1, 1)
+    out = MFM()(x)
+    assert out.shape == (1, 2, 1, 1)
+    # max(canal 0, canal 2) = 9 ; max(canal 1, canal 3) = 5
+    assert out[0, 0, 0, 0] == 9.0
+    assert out[0, 1, 0, 0] == 5.0
+
+
+def test_freq_stats_pool_preserves_frequency_information():
+    """Dois sinais com a MESMA média espectral, mas energia em faixas diferentes.
+
+    O StatsPool (que faz média na frequência) não consegue distingui-los;
+    o FreqStatsPool precisa distinguir.
+    """
+    from src.models.blocks import FreqStatsPool, StatsPool
+
+    baixa = torch.zeros(1, 1, 8, 20)
+    baixa[:, :, :4, :] = 1.0          # energia nas frequências baixas
+    alta = torch.zeros(1, 1, 8, 20)
+    alta[:, :, 4:, :] = 1.0           # energia nas frequências altas
+
+    plano = StatsPool(1)
+    assert torch.allclose(plano(baixa), plano(alta))       # indistinguíveis
+
+    preserva = FreqStatsPool(1, freq_bins=4)
+    assert not torch.allclose(preserva(baixa), preserva(alta))
+
+
+def test_freq_stats_pool_output_dim_independent_of_input_freq():
+    """freq_bins fixo: a saída não depende do tamanho do eixo de frequência."""
+    from src.models.blocks import FreqStatsPool
+
+    pool = FreqStatsPool(8, freq_bins=4)
+    for n_freq in (7, 16, 60):
+        out = pool(torch.randn(2, 8, n_freq, 30))
+        assert out.shape == (2, pool.out_dim)
+
+
+@pytest.mark.parametrize("name", ["baseline_cnn", "fusion", "attention"])
+def test_default_encoder_keeps_legacy_state_dict(name):
+    """Sem a chave `encoder`, o modelo deve continuar sendo a CNN de antes."""
+    legacy = build_model({"name": name, "pooling": "avg"})
+    explicit = build_model({"name": name, "pooling": "avg", "encoder": "cnn"})
+    assert set(legacy.state_dict()) == set(explicit.state_dict())
+    legacy.load_state_dict(explicit.state_dict())
+
+
+def test_unknown_encoder_raises():
+    with pytest.raises(ValueError):
+        build_model({"name": "baseline_cnn", "encoder": "inexistente"})
+
+
 def test_unknown_model_raises():
     with pytest.raises(ValueError):
         build_model({"name": "inexistente"})

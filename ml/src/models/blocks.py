@@ -70,6 +70,55 @@ class StatsPool(nn.Module):
             return torch.cat([mean, std], dim=1)  # (B, 2*C)
 
 
+class FreqStatsPool(nn.Module):
+    """Pooling estatístico que **preserva a estrutura em frequência**.
+
+    O `StatsPool` faz `mean(dim=2)`, ou seja, calcula a média ao longo da
+    frequência e descarta onde no espectro cada padrão ocorreu. Como os
+    artefatos de síntese são específicos de faixas de frequência, essa média
+    joga fora justamente o que distingue as classes.
+
+    Aqui a frequência é reduzida a um número fixo de bins (não a 1) e então
+    achatada nos canais, de modo que cada par (canal, faixa de frequência) vira
+    uma característica própria. As estatísticas são calculadas só no tempo.
+
+    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2 * C * freq_bins)
+    """
+
+    def __init__(self, channels: int, freq_bins: int = 4):
+        super().__init__()
+        # None no eixo temporal = mantém o comprimento original.
+        self.freq = nn.AdaptiveAvgPool2d((freq_bins, None))
+        self.out_dim = 2 * channels * freq_bins
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.freq(x)                                # (B, C, freq_bins, T)
+        with torch.amp.autocast(x.device.type, enabled=False):
+            x = x.float()
+            b, c, f, t = x.shape
+            x = x.reshape(b, c * f, t)                  # frequência vira canal
+            mean = x.mean(dim=-1)
+            std = x.var(dim=-1, unbiased=False).clamp(min=EPS_VAR).sqrt()
+            return torch.cat([mean, std], dim=1)        # (B, 2*C*freq_bins)
+
+
+class MFM(nn.Module):
+    """Max-Feature-Map (Wu et al.) — ativação competitiva usada na LCNN.
+
+    Divide os canais em duas metades e devolve o máximo elemento a elemento.
+    Diferente da ReLU, que zera valores negativos, a MFM faz uma *seleção* de
+    características: das duas respostas concorrentes, sobrevive a mais forte.
+    É o componente central das arquiteturas LCNN, que estão entre as mais
+    eficazes em detecção de spoofing com features LFCC.
+
+    Reduz o número de canais pela metade: (B, 2n, ...) -> (B, n, ...).
+    """
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        a, b = torch.chunk(x, 2, dim=1)
+        return torch.max(a, b)
+
+
 class TemporalAttentionPool(nn.Module):
     """Pooling com atenção sobre o eixo temporal (mecanismo de atenção).
 
