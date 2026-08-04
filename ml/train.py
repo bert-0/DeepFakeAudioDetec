@@ -68,6 +68,23 @@ def class_weights_from(labels, n_classes: int, device, mode: str = "auto") -> to
     return torch.tensor(weights, dtype=torch.float32, device=device)
 
 
+def archive_previous_checkpoints(*paths: Path) -> None:
+    """Renomeia checkpoints de execuções anteriores em vez de sobrescrevê-los.
+
+    Na primeira época de um treino novo o melhor EER ainda é infinito, então
+    qualquer resultado é considerado "melhor" e o arquivo antigo seria perdido —
+    mesmo que a execução anterior tivesse chegado a um modelo muito superior.
+    Por isso o arquivo existente vira `<nome>_prev.pt` antes do treino começar.
+    """
+    for path in paths:
+        if not path.exists():
+            continue
+        backup = path.with_name(f"{path.stem}_prev{path.suffix}")
+        backup.unlink(missing_ok=True)
+        path.rename(backup)
+        print(f"Checkpoint anterior preservado em: {backup}")
+
+
 @torch.no_grad()
 def evaluate_loader(model, loader, device) -> tuple[dict[str, float], float]:
     """Roda o modelo em um DataLoader.
@@ -158,6 +175,7 @@ def main() -> None:
     name = config["experiment"]["name"]
     best_ckpt = CHECKPOINT_DIR / f"{name}.pt"
     last_ckpt = CHECKPOINT_DIR / f"{name}_last.pt"
+    archive_previous_checkpoints(best_ckpt, last_ckpt)
     best_eer = float("inf")
     epochs_no_improve = 0
     history: list[dict] = []

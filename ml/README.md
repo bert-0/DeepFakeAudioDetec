@@ -173,6 +173,20 @@ Proteções no código (valem mesmo com AMP ligado):
 - Se o dev produzir `NaN`, o treino **encerra de forma limpa** preservando o
   melhor checkpoint, em vez de estourar exceção e perder a execução.
 
+## Proteção dos checkpoints
+
+Ao iniciar um treino, o melhor EER ainda é infinito — então a primeira época
+sempre salva por cima. Para que um treino novo não destrua o melhor modelo do
+anterior, os arquivos existentes são renomeados antes de começar:
+
+```
+checkpoints/exp.pt        ->  checkpoints/exp_prev.pt
+checkpoints/exp_last.pt   ->  checkpoints/exp_last_prev.pt
+```
+
+O backup guarda a execução **imediatamente anterior**. Para preservar um modelo
+importante por mais tempo, copie-o com outro nome.
+
 ## Calibrando um modelo já treinado
 
 Para corrigir o ponto de operação de um checkpoint antigo **sem retreinar**:
