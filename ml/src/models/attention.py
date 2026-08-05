@@ -21,8 +21,10 @@ class AttentionFusionNet(nn.Module):
 
     def __init__(self, n_classes: int = 2, dropout: float = 0.3, pooling: str = "avg",
                  channels: tuple[int, ...] = (16, 32, 64), encoder: str = "cnn",
-                 freq_bins: int = 4):
+                 freq_bins: int = 4,
+                 branches: tuple[str, str] = ("lfcc", "spectrogram")):
         super().__init__()
+        self.branches = tuple(branches)
         self.lfcc_branch = build_encoder(encoder, in_ch=1, channels=channels)
         self.spec_branch = build_encoder(encoder, in_ch=1, channels=channels)
         self.lfcc_attn, dim_a = build_attention_pooling(
@@ -39,6 +41,7 @@ class AttentionFusionNet(nn.Module):
         )
 
     def forward(self, features: dict[str, torch.Tensor]) -> torch.Tensor:
-        a = self.lfcc_attn(self.lfcc_branch(features["lfcc"]))
-        b = self.spec_attn(self.spec_branch(features["spectrogram"]))
+        first, second = self.branches
+        a = self.lfcc_attn(self.lfcc_branch(features[first]))
+        b = self.spec_attn(self.spec_branch(features[second]))
         return self.classifier(torch.cat([a, b], dim=1))

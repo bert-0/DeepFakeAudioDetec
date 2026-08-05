@@ -107,6 +107,36 @@ Testa quatro regras de combinação e reporta o EER global e por ataque:
 | `max` | prioriza detectar spoof (o modelo mais desconfiado decide) |
 | `min` | prioriza não barrar áudio autêntico |
 
+## Fusão multi-resolução (experimento extra)
+
+`configs/fusion_multires.yaml` e `attention_multires.yaml` usam **dois ramos
+LFCC** com resoluções diferentes (`n_filter` 20 e 70) em vez de LFCC +
+espectrograma.
+
+Motivação empírica: a análise por ataque mostrou que baixa resolução vence no
+núcleo duro (A10/A12/A18) e alta resolução vence nos ataques semelhantes ao
+treino. A fusão de *scores* entre essas duas resoluções levou o EER de 18,99%
+para 15,84% — aqui a mesma complementaridade é explorada **dentro de um único
+modelo**, treinado ponta a ponta.
+
+Isso **complementa**, não substitui, o `fusion_v4`, que segue o TC1 com
+LFCC + espectrograma.
+
+O extrator aceita qualquer número de variantes da mesma feature: o nome do tipo
+define o cálculo pelo prefixo (`lfcc*` ou `spectrogram*`) e o bloco de
+configuração pelo nome completo. `model.branches` escolhe quais features
+alimentam cada ramo:
+
+```yaml
+features:
+  types: [lfcc, lfcc_hi]
+  lfcc:    {n_filter: 20, ...}
+  lfcc_hi: {n_filter: 70, ...}
+model:
+  name: fusion
+  branches: [lfcc, lfcc_hi]   # padrão: [lfcc, spectrogram]
+```
+
 ## Espaço em disco
 
 O cache de features é o item mais pesado do projeto: cerca de **11 GB** por

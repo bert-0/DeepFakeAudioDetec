@@ -29,4 +29,6 @@ def build_model(model_cfg: dict) -> nn.Module:
         channels=tuple(model_cfg.get("channels", (16, 32, 64))),
         encoder=model_cfg.get("encoder", "cnn"),
         freq_bins=model_cfg.get("freq_bins", 4),
+        **({} if name == "baseline_cnn"
+           else {"branches": tuple(model_cfg.get("branches", ("lfcc", "spectrogram")))}),
     )

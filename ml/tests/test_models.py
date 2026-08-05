@@ -193,6 +193,39 @@ def test_unknown_encoder_raises():
         build_model({"name": "baseline_cnn", "encoder": "inexistente"})
 
 
+@pytest.mark.parametrize("name", ["fusion", "attention"])
+def test_branches_select_which_features_feed_each_branch(name):
+    """Com branches=('lfcc','lfcc_hi') o modelo consome as duas resoluções."""
+    model = build_model({"name": name, "encoder": "lcnn", "pooling": "freq_stats",
+                         "branches": ["lfcc", "lfcc_hi"]})
+    model.eval()
+    feats = {"lfcc": torch.randn(2, 1, 60, 400),
+             "lfcc_hi": torch.randn(2, 1, 60, 400)}
+    with torch.no_grad():
+        assert model(feats).shape == (2, 2)
+
+
+@pytest.mark.parametrize("name", ["fusion", "attention"])
+def test_branches_default_to_tc1_pair(name):
+    """Sem a chave `branches`, mantém LFCC + espectrograma (o par do TC1)."""
+    model = build_model({"name": name})
+    assert model.branches == ("lfcc", "spectrogram")
+
+
+def test_each_branch_receives_a_different_feature():
+    """Os dois ramos não podem estar lendo a mesma entrada por engano."""
+    model = build_model({"name": "fusion", "encoder": "lcnn",
+                         "pooling": "freq_stats", "branches": ["lfcc", "lfcc_hi"]})
+    model.eval()
+    a = torch.randn(1, 1, 60, 200)
+    b = torch.randn(1, 1, 60, 200)
+    with torch.no_grad():
+        trocado = model({"lfcc": b, "lfcc_hi": a})
+        normal = model({"lfcc": a, "lfcc_hi": b})
+    # Se ambos os ramos lessem a mesma chave, trocar as entradas não mudaria nada.
+    assert not torch.allclose(normal, trocado)
+
+
 def test_unknown_model_raises():
     with pytest.raises(ValueError):
         build_model({"name": "inexistente"})

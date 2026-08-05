@@ -15,12 +15,21 @@ from .pooling import build_pooling
 
 
 class FeatureFusionNet(nn.Module):
-    """Fusão tardia de dois ramos. Ver `pooling`/`encoder` em BaselineCNN."""
+    """Fusão tardia de dois ramos. Ver `pooling`/`encoder` em BaselineCNN.
+
+    `branches` escolhe **quais** features alimentam cada ramo. O padrão segue o
+    TC1 (LFCC + espectrograma), mas aceita qualquer par presente em
+    `features.types` — inclusive dois LFCC de resoluções diferentes.
+    """
 
     def __init__(self, n_classes: int = 2, dropout: float = 0.3, pooling: str = "avg",
                  channels: tuple[int, ...] = (16, 32, 64), encoder: str = "cnn",
-                 freq_bins: int = 4):
+                 freq_bins: int = 4,
+                 branches: tuple[str, str] = ("lfcc", "spectrogram")):
         super().__init__()
+        self.branches = tuple(branches)
+        # Nomes históricos dos submódulos (lfcc_branch/spec_branch) preservados
+        # para manter a compatibilidade das chaves do state_dict.
         self.lfcc_branch = build_encoder(encoder, in_ch=1, channels=channels)
         self.spec_branch = build_encoder(encoder, in_ch=1, channels=channels)
         self.lfcc_pool, dim_a = build_pooling(
@@ -40,6 +49,7 @@ class FeatureFusionNet(nn.Module):
         return torch.flatten(pool(branch(x)), 1)
 
     def forward(self, features: dict[str, torch.Tensor]) -> torch.Tensor:
-        a = self._encode(self.lfcc_branch, self.lfcc_pool, features["lfcc"])
-        b = self._encode(self.spec_branch, self.spec_pool, features["spectrogram"])
+        first, second = self.branches
+        a = self._encode(self.lfcc_branch, self.lfcc_pool, features[first])
+        b = self._encode(self.spec_branch, self.spec_pool, features[second])
         return self.classifier(torch.cat([a, b], dim=1))

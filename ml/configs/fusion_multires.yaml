@@ -1,0 +1,96 @@
+# EXTRA — Fusao multi-resolucao: dois ramos LFCC (n_filter 20 e 70).
+#
+# Motivacao empirica: a analise por ataque mostrou que baixa resolucao vence
+# no nucleo duro (A10/A12/A18) e alta resolucao vence nos ataques semelhantes
+# ao treino. A fusao de scores entre essas duas resolucoes levou o EER de
+# 18,99% para 15,84%. Aqui a mesma complementaridade e explorada DENTRO de um
+# unico modelo, treinado ponta a ponta.
+#
+# Complementa (nao substitui) o fusion_v4, que segue o TC1 com LFCC+espectrograma.
+
+experiment:
+  name: fusion_multires
+  seed: 42
+audio:
+  sample_rate: 16000
+  duration: 4.0
+  trim_silence: true
+  top_db: 30
+  peak_normalize: true
+  random_crop: true
+  augment:
+    enabled: true
+    noise:
+      prob: 0.5
+      snr_db:
+      - 10
+      - 30
+    gain:
+      prob: 0.5
+      gain_db:
+      - -6
+      - 6
+    shift:
+      prob: 0.5
+      max_fraction: 0.1
+features:
+  types:
+  - lfcc
+  - lfcc_hi
+  lfcc:
+    n_lfcc: 20
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_filter: 20
+    deltas: true
+  lfcc_hi:
+    n_lfcc: 20
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_filter: 70
+    deltas: true
+model:
+  name: fusion
+  pooling: freq_stats
+  n_classes: 2
+  dropout: 0.3
+  encoder: lcnn
+  freq_bins: 4
+  branches:
+  - lfcc
+  - lfcc_hi
+train:
+  epochs: 50
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  num_workers: 4
+  device: cuda
+  cache_features: true
+  class_weights: sqrt
+  calibrate_threshold: true
+  amp: false
+  early_stopping_patience: 12
+  scheduler:
+    enabled: true
+    factor: 0.5
+    patience: 3
+  grad_clip: 5.0
+smoke:
+  n_train: 240
+  n_dev: 80
+  n_eval: 80
+  epochs: 3
+  batch_size: 16
+data:
+  root: data/LA
+  protocols:
+    train: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.train.trn.txt
+    dev: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.dev.trl.txt
+    eval: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.eval.trl.txt
+  audio_dir:
+    train: data/LA/ASVspoof2019_LA_train/flac
+    dev: data/LA/ASVspoof2019_LA_dev/flac
+    eval: data/LA/ASVspoof2019_LA_eval/flac
