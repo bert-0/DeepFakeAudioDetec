@@ -50,48 +50,66 @@ class Augmenter:
           shift: {prob: 0.5, max_fraction: 0.1}
 
     Cada transformação é aplicada com a sua própria probabilidade.
+
+    **O gerador aleatório vem de fora, por amostra.** Guardar um `rng` como
+    estado do objeto não funciona com `DataLoader(num_workers>0)`: cada worker
+    recebe uma *cópia* do dataset com o mesmo estado inicial, então todos
+    produziriam a mesma sequência de aumentação — e, como os workers são
+    recriados a cada época, a sequência ainda se repetiria época após época.
+    Recebendo o `rng` derivado de (semente, época, índice), cada amostra tem
+    aumentação própria, reprodutível e diferente a cada época.
     """
 
     def __init__(self, cfg: dict | None, seed: int | None = None):
         self.cfg = cfg or {}
-        self.rng = np.random.default_rng(seed)
+        self.seed = 0 if seed is None else int(seed)
 
-    def __call__(self, wav: np.ndarray) -> np.ndarray:
+    def __call__(self, wav: np.ndarray,
+                 rng: np.random.Generator | None = None) -> np.ndarray:
         if not self.cfg.get("enabled", False):
             return wav
+        # Sem rng externo (uso avulso, fora do DataLoader), cai num gerador
+        # derivado da semente — determinístico, porém sem variação por época.
+        if rng is None:
+            rng = np.random.default_rng(self.seed)
 
         noise = self.cfg.get("noise")
-        if noise and self.rng.random() < noise.get("prob", 0.0):
+        if noise and rng.random() < noise.get("prob", 0.0):
             lo, hi = noise["snr_db"]
-            wav = add_noise(wav, self.rng.uniform(lo, hi), self.rng)
+            wav = add_noise(wav, rng.uniform(lo, hi), rng)
 
         gain = self.cfg.get("gain")
-        if gain and self.rng.random() < gain.get("prob", 0.0):
+        if gain and rng.random() < gain.get("prob", 0.0):
             lo, hi = gain["gain_db"]
-            wav = apply_gain(wav, self.rng.uniform(lo, hi))
+            wav = apply_gain(wav, rng.uniform(lo, hi))
 
         shift = self.cfg.get("shift")
-        if shift and self.rng.random() < shift.get("prob", 0.0):
+        if shift and rng.random() < shift.get("prob", 0.0):
             max_shift = int(len(wav) * shift.get("max_fraction", 0.1))
             if max_shift > 0:
-                wav = time_shift(wav, self.rng.integers(-max_shift, max_shift + 1))
+                wav = time_shift(wav, rng.integers(-max_shift, max_shift + 1))
 
         return wav
 
 
 def make_perturbation(kind: str, level: float, seed: int = 0):
-    """Devolve um callable determinístico `wav -> wav` para a avaliação de robustez.
+    """Devolve um callable determinístico para a avaliação de robustez.
+
+    Assinatura `(wav, rng=None) -> wav`, compatível com a do `Augmenter` para
+    que o dataset possa usar os dois de forma intercambiável. O `rng` recebido
+    é ignorado: a perturbação usa nível fixo e semente própria, de modo que a
+    mesma condição de teste seja idêntica entre modelos comparados.
 
     kind: 'clean' | 'noise' (level = SNR em dB) | 'gain' (level = dB) |
           'shift' (level = nº de amostras).
     """
-    rng = np.random.default_rng(seed)
+    própria = np.random.default_rng(seed)
     if kind == "clean":
-        return lambda w: w
+        return lambda w, rng=None: w
     if kind == "noise":
-        return lambda w: add_noise(w, level, rng)
+        return lambda w, rng=None: add_noise(w, level, própria)
     if kind == "gain":
-        return lambda w: apply_gain(w, level)
+        return lambda w, rng=None: apply_gain(w, level)
     if kind == "shift":
-        return lambda w: time_shift(w, int(level))
+        return lambda w, rng=None: time_shift(w, int(level))
     raise ValueError(f"perturbação desconhecida: {kind!r}")

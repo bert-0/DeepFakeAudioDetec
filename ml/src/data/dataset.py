@@ -104,9 +104,14 @@ class ASVspoofDataset(Dataset):
         features = self._load_features(file_name, idx)
         return features, label
 
-    def _rng(self, idx: int) -> np.random.Generator | None:
-        if not self.random_crop:
-            return None
+    def _sample_rng(self, idx: int) -> np.random.Generator:
+        """Gerador próprio de cada amostra, derivado de (semente, época, índice).
+
+        Deriva em vez de guardar estado: com `num_workers > 0` o dataset é
+        copiado para cada worker, então um `rng` guardado no objeto daria a
+        mesma sequência em todos eles — e se repetiria a cada época, quando os
+        workers são recriados.
+        """
         return np.random.default_rng((self.seed, self._epoch, idx))
 
     def _load_features(self, file_name: str, idx: int) -> dict[str, torch.Tensor]:
@@ -117,11 +122,13 @@ class ASVspoofDataset(Dataset):
             if cache_path.exists():
                 return torch.load(cache_path)
 
+        rng = self._sample_rng(idx) if (self.random_crop or self.augmenter) else None
         wav = load_audio(self.audio_dir / f"{file_name}{self.file_ext}",
                          self.audio_cfg["sample_rate"])
-        wav = preprocess_waveform(wav, self.audio_cfg, rng=self._rng(idx))
+        wav = preprocess_waveform(wav, self.audio_cfg,
+                                  rng=rng if self.random_crop else None)
         if self.augmenter is not None:
-            wav = self.augmenter(wav)
+            wav = self.augmenter(wav, rng=rng)
         features = self.extractor(wav)
 
         if cache_path is not None:
@@ -143,12 +150,14 @@ class SmokeDataset(Dataset):
     """
 
     def __init__(self, n: int, audio_cfg: dict, extractor: FeatureExtractor,
-                 seed: int = 0, augmenter=None):
+                 seed: int = 0, augmenter=None, random_crop: bool = False):
         self.n = n
         self.audio_cfg = audio_cfg
         self.extractor = extractor
         self.seed = seed
         self.augmenter = augmenter
+        self.random_crop = random_crop
+        self._epoch = 0
         self.sr = audio_cfg["sample_rate"]
         self.n_samples = int(self.sr * audio_cfg["duration"])
         self.labels = [i % 2 for i in range(n)]
@@ -157,30 +166,41 @@ class SmokeDataset(Dataset):
         self.system_ids = ["-" if i % 2 == 0 else f"A{7 + (i // 2) % 2:02d}"
                            for i in range(n)]
 
+    def set_epoch(self, epoch: int) -> None:
+        self._epoch = int(epoch)
+
     def __len__(self) -> int:
         return self.n
 
     def __getitem__(self, idx: int):
         rng = np.random.default_rng(self.seed * 100_000 + idx)
         label = idx % 2  # metade bonafide, metade spoof
-        wav = self._synth(rng, spoof=bool(label))
-        wav = preprocess_waveform(wav, self.audio_cfg)
+        # Sinal mais longo que o alvo quando há recorte aleatório, para que o
+        # modo --smoke exercite de fato esse caminho.
+        wav = self._synth(rng, spoof=bool(label),
+                          n_samples=int(self.n_samples * 1.5) if self.random_crop
+                          else self.n_samples)
+        aug_rng = np.random.default_rng((self.seed, self._epoch, idx))
+        wav = preprocess_waveform(wav, self.audio_cfg,
+                                  rng=aug_rng if self.random_crop else None)
         if self.augmenter is not None:
-            wav = self.augmenter(wav)
+            wav = self.augmenter(wav, rng=aug_rng)
         return self.extractor(wav), label
 
-    def _synth(self, rng: np.random.Generator, spoof: bool) -> np.ndarray:
-        t = np.arange(self.n_samples) / self.sr
+    def _synth(self, rng: np.random.Generator, spoof: bool,
+               n_samples: int | None = None) -> np.ndarray:
+        n = self.n_samples if n_samples is None else n_samples
+        t = np.arange(n) / self.sr
         f0 = rng.uniform(110, 220)  # frequência fundamental
         wav = np.zeros_like(t)
         for k in range(1, 6):  # harmônicos
             wav += (1.0 / k) * np.sin(2 * np.pi * f0 * k * t + rng.uniform(0, 2 * np.pi))
-        wav += 0.01 * rng.standard_normal(self.n_samples)  # ruído de fundo baixo
+        wav += 0.01 * rng.standard_normal(n)  # ruído de fundo baixo
         if spoof:
             # Artefato de alta frequência (tom puro perto de Nyquist) + ruído extra,
             # imitando a "assinatura" espectral de sinais sintéticos.
             wav += 0.3 * np.sin(2 * np.pi * (self.sr * 0.45) * t)
-            wav += 0.03 * rng.standard_normal(self.n_samples)
+            wav += 0.03 * rng.standard_normal(n)
         return wav.astype(np.float32)
 
 
@@ -205,7 +225,8 @@ def build_dataset(
         smoke_cfg = config["smoke"]
         n = smoke_cfg[f"n_{partition}"]
         seed = {"train": 1, "dev": 2, "eval": 3}[partition]
-        return SmokeDataset(n, config["audio"], extractor, seed=seed, augmenter=augmenter)
+        return SmokeDataset(n, config["audio"], extractor, seed=seed,
+                            augmenter=augmenter, random_crop=random_crop)
 
     cache_dir = None
     if config["train"].get("cache_features", False):
@@ -224,15 +245,28 @@ def build_dataset(
     )
 
 
+# Chaves de `audio` que só governam aleatoriedade por época. Não entram no
+# fingerprint porque não podem afetar o que é gravado no cache: quando estão
+# ativas, o cache é desativado para aquele dataset (ver `stochastic` acima), e
+# dev/eval nunca as recebem. Incluí-las apenas duplicaria pastas idênticas.
+_NAO_AFETAM_CACHE = ("augment", "random_crop")
+
+
 def _config_fingerprint(audio_cfg: dict, extractor: FeatureExtractor) -> str:
     """Hash curto de áudio+features para invalidar o cache quando a config muda.
 
     Inclui os *parâmetros* das features (n_filter, n_lfcc, n_mels, ...), não só
     os tipos — caso contrário, alterar `n_filter` reusaria features antigas do
     cache e o experimento seria silenciosamente inválido.
+
+    A lista de exclusões é curta e explícita de propósito: qualquer chave nova
+    de `audio` entra no fingerprint por padrão. Errar para o lado conservador
+    custa espaço; errar para o outro lado corromperia o experimento.
     """
+    audio_relevante = {k: v for k, v in audio_cfg.items()
+                       if k not in _NAO_AFETAM_CACHE}
     payload = json.dumps(
-        {"audio": audio_cfg, "features": extractor.fingerprint()},
+        {"audio": audio_relevante, "features": extractor.fingerprint()},
         sort_keys=True,
     )
     return hashlib.md5(payload.encode()).hexdigest()[:8]

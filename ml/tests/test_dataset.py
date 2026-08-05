@@ -75,6 +75,34 @@ def test_cache_fingerprint_stable_for_same_config(audio_cfg, feat_cfg):
     assert _config_fingerprint(audio_cfg, a) == _config_fingerprint(audio_cfg, b)
 
 
+def test_cache_fingerprint_ignores_augment_and_random_crop(audio_cfg, feat_cfg):
+    """Configs iguais salvo aumentação/recorte devem COMPARTILHAR o cache.
+
+    Esses parâmetros não podem alterar o conteúdo cacheado: quando ativos, o
+    cache é desligado para aquele dataset, e dev/eval nunca os recebem. Incluí-los
+    no fingerprint duplicaria pastas idênticas (~11 GB cada, no ASVspoof LA).
+    """
+    from src.data.dataset import _config_fingerprint
+
+    sem = {**audio_cfg, "random_crop": False, "augment": {"enabled": False}}
+    com = {**audio_cfg, "random_crop": True,
+           "augment": {"enabled": True, "noise": {"prob": 0.5, "snr_db": [10, 30]}}}
+    ex = FeatureExtractor(audio_cfg, feat_cfg)
+    assert _config_fingerprint(sem, ex) == _config_fingerprint(com, ex)
+
+
+def test_cache_fingerprint_still_reacts_to_real_audio_params(audio_cfg, feat_cfg):
+    """A exclusão acima não pode ter afrouxado o resto do bloco `audio`."""
+    from src.data.dataset import _config_fingerprint
+
+    ex = FeatureExtractor(audio_cfg, feat_cfg)
+    base = _config_fingerprint(audio_cfg, ex)
+    for chave, valor in [("sample_rate", 8000), ("duration", 9.0),
+                         ("trim_silence", not audio_cfg["trim_silence"]),
+                         ("top_db", 99), ("peak_normalize", False)]:
+        assert _config_fingerprint({**audio_cfg, chave: valor}, ex) != base, chave
+
+
 def test_cache_fingerprint_ignores_unused_feature(audio_cfg, feat_cfg):
     """Alterar o espectrograma não deve invalidar o cache de um modelo só-LFCC."""
     from src.data.dataset import _config_fingerprint
