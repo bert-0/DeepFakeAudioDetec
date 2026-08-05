@@ -60,6 +60,24 @@ python evaluate.py --config configs/baseline.yaml \
 Cada treino também salva, em `outputs/`: o **histórico por época** (`*_history.json`)
 e as **curvas** de loss/EER/F1 (`*_curves.png`) — úteis para o relatório.
 
+## Executando um experimento completo
+
+Em vez de encadear treino, avaliação e análises manualmente, `run_pipeline.py`
+roda a sequência inteira e imprime uma tabela comparativa ao final:
+
+```bash
+python scripts/run_pipeline.py --config configs/fusion_v4.yaml \
+                               --config configs/attention_v4.yaml
+```
+
+Etapas: verificação da base → treino → avaliação no `eval` (com arquivo de
+scores) → EER por ataque → robustez (com `--robustness`).
+
+- Cada experimento gera `outputs/<nome>_pipeline.log` com toda a saída.
+- Uma falha não derruba os experimentos seguintes; o que falhou é listado no fim.
+- `--skip-train` reavalia modelos já treinados; `--dry-run` mostra o plano sem
+  executar; `--smoke` testa o encadeamento em segundos.
+
 ## Avaliação de robustez (TC1 §5.5)
 
 Mede a degradação do modelo sob ruído de fundo e variações de ganho aplicados
