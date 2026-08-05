@@ -24,6 +24,22 @@ from ..preprocess import load_audio, preprocess_waveform
 LABEL_MAP = {"bonafide": 0, "spoof": 1}
 
 
+def _shared_epoch() -> torch.Tensor:
+    """Contador de época em memória compartilhada entre processos.
+
+    Guardar a época como um `int` comum não funciona com
+    `DataLoader(persistent_workers=True)`: os workers recebem uma *cópia* do
+    dataset ao serem criados e nunca mais a atualizam, então `set_epoch()` no
+    processo principal não os alcança — o recorte aleatório e a aumentação
+    ficariam congelados na época em que o worker nasceu, repetindo o mesmo
+    trecho de áudio e a mesma perturbação em todas as épocas seguintes.
+
+    Um tensor em memória compartilhada é visto por todos os processos, e
+    funciona tanto com `fork` (Linux) quanto com `spawn` (Windows).
+    """
+    return torch.zeros(1, dtype=torch.long).share_memory_()
+
+
 # --------------------------------------------------------------------------- #
 # ASVspoof 2019 LA
 # --------------------------------------------------------------------------- #
@@ -78,7 +94,7 @@ class ASVspoofDataset(Dataset):
         self.augmenter = augmenter
         self.random_crop = random_crop
         self.seed = seed
-        self._epoch = 0
+        self._epoch = _shared_epoch()
         # Cache guarda uma única versão das features, então é incompatível com
         # qualquer aleatoriedade por época (aumentação ou recorte aleatório).
         stochastic = augmenter is not None or random_crop
@@ -94,7 +110,7 @@ class ASVspoofDataset(Dataset):
 
     def set_epoch(self, epoch: int) -> None:
         """Varia a semente por época para que o recorte aleatório mude a cada uma."""
-        self._epoch = int(epoch)
+        self._epoch[0] = int(epoch)
 
     def __len__(self) -> int:
         return len(self.items)
@@ -112,7 +128,7 @@ class ASVspoofDataset(Dataset):
         mesma sequência em todos eles — e se repetiria a cada época, quando os
         workers são recriados.
         """
-        return np.random.default_rng((self.seed, self._epoch, idx))
+        return np.random.default_rng((self.seed, int(self._epoch[0]), idx))
 
     def _load_features(self, file_name: str, idx: int) -> dict[str, torch.Tensor]:
         cache_path = None
@@ -157,7 +173,7 @@ class SmokeDataset(Dataset):
         self.seed = seed
         self.augmenter = augmenter
         self.random_crop = random_crop
-        self._epoch = 0
+        self._epoch = _shared_epoch()
         self.sr = audio_cfg["sample_rate"]
         self.n_samples = int(self.sr * audio_cfg["duration"])
         self.labels = [i % 2 for i in range(n)]
@@ -167,7 +183,7 @@ class SmokeDataset(Dataset):
                            for i in range(n)]
 
     def set_epoch(self, epoch: int) -> None:
-        self._epoch = int(epoch)
+        self._epoch[0] = int(epoch)
 
     def __len__(self) -> int:
         return self.n
@@ -180,7 +196,7 @@ class SmokeDataset(Dataset):
         wav = self._synth(rng, spoof=bool(label),
                           n_samples=int(self.n_samples * 1.5) if self.random_crop
                           else self.n_samples)
-        aug_rng = np.random.default_rng((self.seed, self._epoch, idx))
+        aug_rng = np.random.default_rng((self.seed, int(self._epoch[0]), idx))
         wav = preprocess_waveform(wav, self.audio_cfg,
                                   rng=aug_rng if self.random_crop else None)
         if self.augmenter is not None:

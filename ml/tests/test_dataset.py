@@ -1,5 +1,7 @@
 """Testes de parsing de protocolo e dos datasets."""
 
+import pytest
+
 from src.data.dataset import SmokeDataset, build_dataset, parse_protocol
 from src.features import FeatureExtractor
 
@@ -123,3 +125,49 @@ def test_augmenter_applied_in_smoke(audio_cfg, feat_cfg):
     ds = SmokeDataset(4, audio_cfg, extractor, seed=1, augmenter=pert)
     features, _ = ds[0]
     assert features["lfcc"].ndim == 3
+
+
+# --------------------------------------------------------------------------- #
+# Regressão: set_epoch precisa alcançar workers PERSISTENTES.
+#
+# Com persistent_workers=True os workers recebem uma cópia do dataset e nunca
+# mais a atualizam. Se a época fosse um int comum, o recorte aleatório e a
+# aumentação ficariam congelados na época em que o worker nasceu — repetindo o
+# mesmo trecho de áudio em todas as épocas, sem nenhum aviso.
+# --------------------------------------------------------------------------- #
+def test_epoch_counter_lives_in_shared_memory(audio_cfg, feat_cfg):
+    import torch
+
+    ds = SmokeDataset(4, audio_cfg, FeatureExtractor(audio_cfg, feat_cfg), seed=1)
+    assert isinstance(ds._epoch, torch.Tensor), "época voltou a ser um int comum"
+    assert ds._epoch.is_shared(), "o tensor da época não está em memória compartilhada"
+
+
+@pytest.mark.parametrize("persistent", [False, True])
+def test_set_epoch_reaches_workers(audio_cfg, feat_cfg, persistent):
+    from torch.utils.data import DataLoader
+
+    from src.preprocess.augment import Augmenter
+
+    aug = {"enabled": True, "noise": {"prob": 1.0, "snr_db": [10, 30]}}
+    ds = SmokeDataset(8, audio_cfg, FeatureExtractor(audio_cfg, feat_cfg), seed=1,
+                      augmenter=Augmenter(aug, seed=42), random_crop=True)
+    loader = DataLoader(ds, batch_size=4, num_workers=2,
+                        persistent_workers=persistent)
+    assinaturas = []
+    for epoca in (1, 2, 3):
+        ds.set_epoch(epoca)
+        assinaturas.append(float(next(iter(loader))[0]["lfcc"].sum()))
+    assert len(set(assinaturas)) > 1, "aumentação congelada: set_epoch não chegou aos workers"
+
+
+def test_same_epoch_is_reproducible_across_workers(audio_cfg, feat_cfg):
+    from torch.utils.data import DataLoader
+
+    ds = SmokeDataset(8, audio_cfg, FeatureExtractor(audio_cfg, feat_cfg),
+                      seed=1, random_crop=True)
+    loader = DataLoader(ds, batch_size=4, num_workers=2, persistent_workers=True)
+    ds.set_epoch(7); a = float(next(iter(loader))[0]["lfcc"].sum())
+    ds.set_epoch(9); next(iter(loader))
+    ds.set_epoch(7); b = float(next(iter(loader))[0]["lfcc"].sum())
+    assert abs(a - b) < 1e-9

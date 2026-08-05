@@ -159,13 +159,20 @@ def main() -> None:
 
     num_workers = 0 if args.smoke else train_cfg["num_workers"]
     generator = make_generator(seed)
+    # persistent_workers evita recriar os processos a cada época. No Windows,
+    # que usa `spawn`, cada criação custa a reimportação de torch+librosa
+    # (~2,4 s medidos): com 4 workers e 50 épocas seriam ~8 minutos só de
+    # inicialização. Só é seguro porque `set_epoch` grava num tensor em memória
+    # compartilhada — com um int comum, os workers persistentes ficariam presos
+    # à época em que nasceram e repetiriam o mesmo recorte/aumentação sempre.
+    extras = {"persistent_workers": True} if num_workers > 0 else {}
     train_loader = DataLoader(train_ds, batch_size=train_cfg["batch_size"], shuffle=True,
                               num_workers=num_workers, generator=generator,
-                              worker_init_fn=seed_worker)
+                              worker_init_fn=seed_worker, **extras)
     # dev também recebe worker_init_fn: sem ele os workers da validação abrem
     # uma thread BLAS por núcleo cada um e disputam CPU entre si.
     dev_loader = DataLoader(dev_ds, batch_size=train_cfg["batch_size"], shuffle=False,
-                            num_workers=num_workers, worker_init_fn=seed_worker)
+                            num_workers=num_workers, worker_init_fn=seed_worker, **extras)
 
     # ----- modelo, perda, otimizador -----
     model = build_model(config["model"]).to(device)
