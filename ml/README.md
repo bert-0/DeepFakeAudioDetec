@@ -85,6 +85,43 @@ python scripts/per_attack_eval.py --config configs/baseline_v3a.yaml \
 Gera uma tabela ordenada, um JSON e um gráfico de barras destacando os ataques
 acima do EER global. Não exige retreinar o modelo.
 
+## Fusão de scores entre modelos (ensemble)
+
+Diferente da *fusão de características* do Incremento 2 (dois ramos dentro de um
+mesmo modelo), aqui combinam-se as **saídas** de modelos treinados separadamente
+— prática padrão dos sistemas do ASVspoof. Não exige retreinar nada:
+
+```bash
+python scripts/score_fusion.py \
+    --model configs/baseline_v2.yaml  checkpoints/baseline_lfcc_cnn_v2.pt \
+    --model configs/baseline_v3a.yaml checkpoints/baseline_lfcc_cnn_v3a.pt \
+    --model configs/baseline_v4.yaml  checkpoints/baseline_lcnn_v4.pt
+```
+
+Testa quatro regras de combinação e reporta o EER global e por ataque:
+
+| Regra | Quando ajuda |
+|---|---|
+| `mean` | modelos com calibração parecida |
+| `rank` | **usa só a ordenação** — imune a diferenças de escala entre modelos |
+| `max` | prioriza detectar spoof (o modelo mais desconfiado decide) |
+| `min` | prioriza não barrar áudio autêntico |
+
+## Espaço em disco
+
+O cache de features é o item mais pesado do projeto: cerca de **11 GB** por
+configuração de features (train+dev+eval do ASVspoof LA), ou ~25 GB quando o
+espectrograma também é extraído.
+
+O cache é indexado pelo *fingerprint* da configuração de features, em
+`ml/data/cache/<fingerprint>/`. Experimentos com features idênticas
+**compartilham** os mesmos arquivos — v3a, v3 e v4 (todos com `n_filter: 70`)
+usam uma única pasta.
+
+Apagar `ml/data/cache/` é **sempre seguro**: ele é regenerado automaticamente na
+próxima execução (só a primeira época fica mais lenta). Já `ml/checkpoints/`
+contém os modelos treinados e `ml/outputs/` os resultados — apague com cuidado.
+
 ## Aumentação de dados (treino)
 
 Desativada por padrão (para uma comparação justa entre os incrementos). Para

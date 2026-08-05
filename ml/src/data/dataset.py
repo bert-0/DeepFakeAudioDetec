@@ -82,10 +82,15 @@ class ASVspoofDataset(Dataset):
         # Cache guarda uma única versão das features, então é incompatível com
         # qualquer aleatoriedade por época (aumentação ou recorte aleatório).
         stochastic = augmenter is not None or random_crop
-        self.cache_dir = Path(cache_dir) if (cache_dir and not stochastic) else None
-        if self.cache_dir:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_dir = None
+        if cache_dir and not stochastic:
+            # O cache é indexado pelo *fingerprint* da configuração de features,
+            # não pelo nome do experimento: assim experimentos que usam features
+            # idênticas (ex.: v3a, v3 e v4, todos com n_filter=70) compartilham
+            # os mesmos arquivos em vez de duplicá-los — cada cópia custa ~11 GB.
             self._cache_key = _config_fingerprint(audio_cfg, extractor)
+            self.cache_dir = Path(cache_dir) / self._cache_key
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def set_epoch(self, epoch: int) -> None:
         """Varia a semente por época para que o recorte aleatório mude a cada uma."""
@@ -107,7 +112,8 @@ class ASVspoofDataset(Dataset):
     def _load_features(self, file_name: str, idx: int) -> dict[str, torch.Tensor]:
         cache_path = None
         if self.cache_dir:
-            cache_path = self.cache_dir / f"{file_name}_{self._cache_key}.pt"
+            # O fingerprint já está no nome da pasta.
+            cache_path = self.cache_dir / f"{file_name}.pt"
             if cache_path.exists():
                 return torch.load(cache_path)
 
@@ -203,7 +209,9 @@ def build_dataset(
 
     cache_dir = None
     if config["train"].get("cache_features", False):
-        cache_dir = Path(config["data"]["root"]).parent / "cache" / config["experiment"]["name"]
+        # Base comum a todos os experimentos; o dataset cria dentro dela uma
+        # subpasta por fingerprint de features (ver ASVspoofDataset).
+        cache_dir = Path(config["data"]["root"]).parent / "cache"
     return ASVspoofDataset(
         protocol_path=config["data"]["protocols"][partition],
         audio_dir=config["data"]["audio_dir"][partition],
