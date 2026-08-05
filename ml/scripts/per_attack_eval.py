@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, resolve_device, set_seed  # noqa: E402
+from src.config import load_config, output_name, resolve_device, set_seed  # noqa: E402
 from src.data import build_dataset  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
 from src.metrics import compute_eer  # noqa: E402
@@ -138,7 +138,7 @@ def main() -> None:
     print(f"{len(acima)} de {len(order)} ataques ficam acima do EER global: {', '.join(acima)}")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    name = config["experiment"]["name"]
+    name = output_name(config, args.smoke)
     json_path = OUTPUT_DIR / f"{name}_{args.partition}_per_attack.json"
     plot_path = OUTPUT_DIR / f"{name}_{args.partition}_per_attack.png"
     with open(json_path, "w", encoding="utf-8") as fh:

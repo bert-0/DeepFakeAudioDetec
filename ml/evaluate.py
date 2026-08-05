@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from src.config import load_config, resolve_device, set_seed
+from src.config import load_config, output_name, resolve_device, set_seed
 from src.data import build_dataset
 from src.features import FeatureExtractor
 from src.metrics import (
@@ -107,7 +107,7 @@ def main() -> None:
     print(f"\nResultados ({args.partition}): {format_metrics(metrics)}")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    name = config["experiment"]["name"]
+    name = output_name(config, args.smoke)
     cm_path = OUTPUT_DIR / f"{name}_{args.partition}_confusion.png"
     metrics_path = OUTPUT_DIR / f"{name}_{args.partition}_metrics.json"
     if threshold is not None:

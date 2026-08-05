@@ -38,6 +38,24 @@ def test_skip_train_removes_only_training():
     assert "avaliação (eval)" in labels
 
 
+def test_smoke_name_matches_the_suffix_the_scripts_use():
+    """Os scripts acrescentam `_smoke` aos artefatos; o pipeline precisa seguir.
+
+    Sem isso o pipeline treinaria `x_smoke.pt` e procuraria `x.pt` — todas as
+    análises falhariam com FileNotFoundError.
+    """
+    assert experiment_name("configs/fusion_v4.yaml") == "fusion_lcnn_v4"
+    assert experiment_name("configs/fusion_v4.yaml", smoke=True) == "fusion_lcnn_v4_smoke"
+
+
+def test_smoke_stages_reference_the_smoke_checkpoint():
+    name = experiment_name("configs/fusion_v4.yaml", smoke=True)
+    steps = build_steps("c.yaml", name, _args(smoke=True))
+    for _, cmd in steps:
+        if "--checkpoint" in cmd:
+            assert cmd[cmd.index("--checkpoint") + 1] == "checkpoints/fusion_lcnn_v4_smoke.pt"
+
+
 def test_smoke_skips_data_check_and_propagates_flag():
     steps = build_steps("c.yaml", "exp", _args(smoke=True))
     labels = [l for l, _ in steps]

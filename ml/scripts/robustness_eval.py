@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, resolve_device, set_seed  # noqa: E402
+from src.config import load_config, output_name, resolve_device, set_seed  # noqa: E402
 from src.data import build_dataset  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
 from src.metrics import compute_metrics, format_metrics  # noqa: E402
@@ -101,6 +101,12 @@ def main() -> None:
     model = build_model(config["model"]).to(device)
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
+    # Mesmo ponto de corte usado por evaluate.py/infer.py. Sem ele, accuracy e F1
+    # sairiam no corte fixo de 0,5 e sugeririam um colapso que não existe: sob
+    # ruído os scores descem em bloco sem perder a ordenação (o EER não muda).
+    threshold = ckpt.get("threshold") if config["train"].get("calibrate_threshold") else None
+    if threshold is not None:
+        print(f"Threshold aplicado: {threshold:.4f} (calibrado no treino)")
 
     batch_size = config["smoke"]["batch_size"] if args.smoke else config["train"]["batch_size"]
     print(f"Robustez | modelo: {config['model']['name']} | partição: {args.partition} | "
@@ -112,14 +118,15 @@ def main() -> None:
         ds = build_dataset(config, args.partition, extractor, args.smoke, augmenter=perturbation)
         loader = DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=0)
         labels, preds, scores = run_inference(model, loader, device)
-        metrics = compute_metrics(labels, preds, scores)
+        metrics = compute_metrics(labels, preds, scores, threshold=threshold)
         results[label] = metrics
         print(f"{label:12s} -> {format_metrics(metrics)}")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    name = config["experiment"]["name"]
-    json_path = OUTPUT_DIR / f"{name}_robustness.json"
-    plot_path = OUTPUT_DIR / f"{name}_robustness.png"
+    name = output_name(config, args.smoke)
+    # A partição entra no nome: sem ela, uma execução em dev sobrescreve a de eval.
+    json_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.json"
+    plot_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.png"
     with open(json_path, "w", encoding="utf-8") as fh:
         json.dump(results, fh, indent=2)
     plot_robustness(results, plot_path)

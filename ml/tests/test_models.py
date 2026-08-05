@@ -234,3 +234,36 @@ def test_unknown_model_raises():
 def test_unknown_pooling_raises():
     with pytest.raises(ValueError):
         build_model({"name": "baseline_cnn", "pooling": "inexistente"})
+
+
+# --------------------------------------------------------------------------- #
+# Regressão: pooling 'freq_stats' precisa preservar a frequência TAMBÉM no
+# modelo de atenção. Antes, 'stats' e 'freq_stats' caíam no mesmo ramo e o
+# Incremento 3 descartava o eixo espectral que o Incremento 2 preservava —
+# a comparação entre eles deixava de isolar o efeito da atenção.
+# --------------------------------------------------------------------------- #
+def test_attention_freq_stats_matches_fusion_dimension():
+    fus = build_model({"name": "fusion", "encoder": "lcnn", "pooling": "freq_stats"})
+    att = build_model({"name": "attention", "encoder": "lcnn", "pooling": "freq_stats"})
+    dim_fus = [m for m in fus.classifier if isinstance(m, torch.nn.Linear)][0].in_features
+    dim_att = [m for m in att.classifier if isinstance(m, torch.nn.Linear)][0].in_features
+    assert dim_att == dim_fus, "atenção descartou a frequência que a fusão preserva"
+
+
+@pytest.mark.parametrize("freq_bins", [1, 4, 8])
+def test_attention_freq_stats_honours_freq_bins(freq_bins):
+    m = build_model({"name": "attention", "encoder": "lcnn",
+                     "pooling": "freq_stats", "freq_bins": freq_bins})
+    dim = [x for x in m.classifier if isinstance(x, torch.nn.Linear)][0].in_features
+    assert dim == 2 * 2 * 32 * freq_bins   # 2 ramos x (media+desvio) x canais x faixas
+
+
+def test_attention_freq_stats_distinguishes_frequency_bands():
+    from src.models.blocks import AttentiveFreqStatsPool, AttentiveStatsPool
+
+    baixa = torch.zeros(1, 1, 8, 20); baixa[:, :, :4, :] = 1.0
+    alta = torch.zeros(1, 1, 8, 20); alta[:, :, 4:, :] = 1.0
+    plano = AttentiveStatsPool(1)
+    assert torch.allclose(plano(baixa), plano(alta))          # não distingue
+    preserva = AttentiveFreqStatsPool(1, freq_bins=4)
+    assert not torch.allclose(preserva(baixa), preserva(alta))

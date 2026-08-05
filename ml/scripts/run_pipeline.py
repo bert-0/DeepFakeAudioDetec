@@ -57,8 +57,14 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def experiment_name(config_path: str) -> str:
-    return yaml.safe_load(open(config_path, encoding="utf-8"))["experiment"]["name"]
+def experiment_name(config_path: str, smoke: bool = False) -> str:
+    """Nome dos artefatos do experimento.
+
+    Precisa acompanhar o sufixo `_smoke` que os scripts aplicam, senão o
+    pipeline procuraria checkpoints e JSONs com o nome errado.
+    """
+    nome = yaml.safe_load(open(config_path, encoding="utf-8"))["experiment"]["name"]
+    return f"{nome}_smoke" if smoke else nome
 
 
 def build_steps(config: str, name: str, args: argparse.Namespace) -> list[tuple[str, list[str]]]:
@@ -161,12 +167,21 @@ def main() -> int:
     OUTPUT_DIR.mkdir(exist_ok=True)
     CHECKPOINT_DIR.mkdir(exist_ok=True)
 
+    # Os subprocessos rodam com cwd=ML_DIR, então caminhos relativos ao diretório
+    # atual precisam ser resolvidos aqui — senão o pré-check passa e cada etapa
+    # morre com FileNotFoundError.
+    configs = []
     for cfg in args.config:
-        if not (ML_DIR / cfg).exists() and not Path(cfg).exists():
+        p = Path(cfg)
+        if p.exists():
+            configs.append(str(p.resolve()))
+        elif (ML_DIR / cfg).exists():
+            configs.append(cfg)
+        else:
             print(f"[ERRO] config não encontrado: {cfg}")
             return 1
 
-    planos = [(cfg, experiment_name(cfg)) for cfg in args.config]
+    planos = [(cfg, experiment_name(cfg, args.smoke)) for cfg in configs]
 
     if args.dry_run:
         print("Comandos que seriam executados:\n")

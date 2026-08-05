@@ -23,7 +23,14 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.config import load_config, make_generator, resolve_device, seed_worker, set_seed
+from src.config import (
+    load_config,
+    make_generator,
+    output_name,
+    resolve_device,
+    seed_worker,
+    set_seed,
+)
 from src.data import build_dataset
 from src.features import FeatureExtractor
 from src.metrics import (
@@ -85,6 +92,20 @@ def archive_previous_checkpoints(*paths: Path) -> None:
         print(f"Checkpoint anterior preservado em: {backup}")
 
 
+def save_history(history: list[dict], name: str) -> None:
+    """Grava o histórico de forma atômica (escreve num temporário e renomeia).
+
+    Gravar direto no destino deixaria um JSON truncado se o processo morresse
+    no meio da escrita — e é justamente numa queda que o histórico importa.
+    """
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    destino = OUTPUT_DIR / f"{name}_history.json"
+    temporario = destino.with_suffix(".json.tmp")
+    with open(temporario, "w", encoding="utf-8") as fh:
+        json.dump(history, fh, indent=2)
+    temporario.replace(destino)
+
+
 @torch.no_grad()
 def evaluate_loader(model, loader, device) -> tuple[dict[str, float], float]:
     """Roda o modelo em um DataLoader.
@@ -141,8 +162,10 @@ def main() -> None:
     train_loader = DataLoader(train_ds, batch_size=train_cfg["batch_size"], shuffle=True,
                               num_workers=num_workers, generator=generator,
                               worker_init_fn=seed_worker)
+    # dev também recebe worker_init_fn: sem ele os workers da validação abrem
+    # uma thread BLAS por núcleo cada um e disputam CPU entre si.
     dev_loader = DataLoader(dev_ds, batch_size=train_cfg["batch_size"], shuffle=False,
-                            num_workers=num_workers)
+                            num_workers=num_workers, worker_init_fn=seed_worker)
 
     # ----- modelo, perda, otimizador -----
     model = build_model(config["model"]).to(device)
@@ -172,7 +195,7 @@ def main() -> None:
 
     # ----- loop de treino -----
     CHECKPOINT_DIR.mkdir(exist_ok=True)
-    name = config["experiment"]["name"]
+    name = output_name(config, args.smoke)
     best_ckpt = CHECKPOINT_DIR / f"{name}.pt"
     last_ckpt = CHECKPOINT_DIR / f"{name}_last.pt"
     archive_previous_checkpoints(best_ckpt, last_ckpt)
@@ -214,7 +237,16 @@ def main() -> None:
 
         if skipped:
             print(f"  [aviso] {skipped} batch(es) descartados por loss inf/NaN nesta época.")
-        train_loss = running_loss / max(seen, 1)
+        if seen == 0:
+            # Nenhum batch sobreviveu: `running_loss / max(seen, 1)` reportaria
+            # 0.0000 — uma loss "perfeita" — e um checkpoint com pesos não
+            # treinados poderia ser salvo como o melhor.
+            print(f"\n[ERRO] Época {epoch}: todos os {skipped} batches foram descartados "
+                  "por loss inf/NaN. O treino não avançou.")
+            print("       Sugestões: desligar AMP (train.amp: false), reduzir o "
+                  "learning rate ou ativar train.grad_clip.")
+            break
+        train_loss = running_loss / seen
         (dev_labels, dev_preds, dev_scores), dev_threshold = evaluate_loader(
             model, dev_loader, device)
 
@@ -237,6 +269,9 @@ def main() -> None:
               f"dev: {format_metrics(dev_metrics)}")
         history.append({"epoch": epoch, "lr": lr, "train_loss": train_loss,
                         **{f"dev_{k}": v for k, v in dev_metrics.items()}})
+        # Gravado a cada época: se o processo cair na época 34 de 50, as curvas
+        # do relatório sobrevivem. Não há retomada de treino no checkpoint.
+        save_history(history, name)
 
         if scheduler is not None:
             scheduler.step(dev_metrics["eer"])
@@ -244,8 +279,10 @@ def main() -> None:
                     "threshold": dev_threshold}, last_ckpt)
 
         # Melhor modelo pelo EER de validação (NaN é tratado como "pior").
+        # Comparação estrita: com `<=`, um platô perfeito zeraria o contador de
+        # paciência a cada época e o early stopping nunca dispararia.
         current_eer = dev_metrics["eer"]
-        if not np.isnan(current_eer) and current_eer <= best_eer:
+        if not np.isnan(current_eer) and current_eer < best_eer:
             best_eer = current_eer
             best_threshold = dev_threshold
             epochs_no_improve = 0
@@ -259,19 +296,16 @@ def main() -> None:
                 print(f"Early stopping: sem melhora no EER por {early_patience} épocas.")
                 break
 
-    # ----- histórico + curvas -----
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    hist_path = OUTPUT_DIR / f"{name}_history.json"
+    # ----- curvas (o histórico já foi gravado a cada época) -----
     curves_path = OUTPUT_DIR / f"{name}_curves.png"
-    with open(hist_path, "w", encoding="utf-8") as fh:
-        json.dump(history, fh, indent=2)
-    plot_history(history, curves_path)
+    if history:
+        plot_history(history, curves_path)
 
     print(f"\nMelhor EER de validação: {best_eer * 100:.2f}%")
     if calibrate:
         print(f"Threshold calibrado no dev: {best_threshold:.4f} (salvo no checkpoint)")
     print(f"Melhor checkpoint: {best_ckpt}")
-    print(f"Histórico:         {hist_path}")
+    print(f"Histórico:         {OUTPUT_DIR / f'{name}_history.json'}")
     print(f"Curvas:            {curves_path}")
 
 

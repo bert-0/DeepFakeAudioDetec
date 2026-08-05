@@ -93,11 +93,15 @@ def to_ranks(scores: np.ndarray) -> np.ndarray:
 
     Torna a combinação imune a diferenças de calibração: só a *ordenação* de
     cada modelo importa, não a escala absoluta das suas probabilidades.
+
+    Empates recebem o posto **médio**. Isso não é detalhe: o softmax satura em
+    exatamente 1.0 para muitas amostras (medido: ~60 mil das 71 mil do conjunto
+    de avaliação), e desempatar pela ordem do array inventaria uma ordenação que
+    o modelo não produziu — alterando o EER em vários pontos percentuais.
     """
-    order = scores.argsort()
-    ranks = np.empty_like(order, dtype=float)
-    ranks[order] = np.arange(len(scores))
-    return ranks / max(len(scores) - 1, 1)
+    from scipy.stats import rankdata
+
+    return (rankdata(scores, method="average") - 1) / max(len(scores) - 1, 1)
 
 
 def combine(all_scores: list[np.ndarray], rule: str) -> np.ndarray:

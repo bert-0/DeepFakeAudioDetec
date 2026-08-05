@@ -138,6 +138,39 @@ class TemporalAttentionPool(nn.Module):
         return (x * weights).sum(dim=-1)        # soma ponderada -> (B, C)
 
 
+class AttentiveFreqStatsPool(nn.Module):
+    """Attentive Statistics Pooling que **preserva a frequência**.
+
+    Combina as duas ideias: a frequência é reduzida a um número fixo de faixas
+    (em vez de mediada até virar um único valor, como no `AttentiveStatsPool`) e
+    a atenção pondera os frames de cada par (canal, faixa).
+
+    É o que `pooling: freq_stats` deve produzir no Incremento 3 — sem isso, o
+    modelo de atenção descartaria o eixo espectral enquanto a fusão o preserva,
+    e a comparação entre os incrementos deixaria de isolar a atenção.
+
+    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2 * C * freq_bins)
+    """
+
+    def __init__(self, channels: int, freq_bins: int = 4):
+        super().__init__()
+        self.freq = nn.AdaptiveAvgPool2d((freq_bins, None))
+        self.score = nn.Conv1d(channels * freq_bins, 1, kernel_size=1)
+        self.out_dim = 2 * channels * freq_bins
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.freq(x)                                 # (B, C, freq_bins, T)
+        b, c, f, t = x.shape
+        x = x.reshape(b, c * f, t)                       # frequência vira canal
+        weights = torch.softmax(self.score(x), dim=-1)   # (B, 1, T)
+        with torch.amp.autocast(x.device.type, enabled=False):
+            x32, w = x.float(), weights.float()
+            mean = (x32 * w).sum(dim=-1)
+            var = (x32.pow(2) * w).sum(dim=-1) - mean.pow(2)
+            std = var.clamp(min=EPS_VAR).sqrt()
+            return torch.cat([mean, std], dim=1)         # (B, 2*C*freq_bins)
+
+
 class AttentiveStatsPool(nn.Module):
     """Attentive Statistics Pooling: média E desvio-padrão ponderados por atenção.
 

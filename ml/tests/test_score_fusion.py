@@ -95,3 +95,33 @@ def test_cli_collects_multiple_models(monkeypatch):
             "--model", "configs/c.yaml", "checkpoints/c.pt"]
     monkeypatch.setattr(sys, "argv", argv)
     assert len(parse_args().model) == 3
+
+
+# --------------------------------------------------------------------------- #
+# Regressão: empates precisam receber o posto médio.
+#
+# O softmax satura em exatamente 1.0 para muitas amostras. Desempatar pela
+# ordem do array inventaria uma ordenação que o modelo não produziu.
+# --------------------------------------------------------------------------- #
+def test_ranks_give_equal_scores_the_same_rank():
+    r = to_ranks(np.array([0.5, 0.5, 0.5, 0.9]))
+    assert r[0] == r[1] == r[2], "scores idênticos receberam postos diferentes"
+    assert r[3] > r[0]
+
+
+def test_ranks_preserve_eer_of_original_scores():
+    """A regra rank não pode alterar o EER de um único modelo — só reescalar."""
+    from src.metrics import compute_eer
+
+    rng = np.random.default_rng(0)
+    labels = np.concatenate([np.zeros(200, int), np.ones(200, int)])
+    scores = np.concatenate([rng.uniform(0, 0.6, 200), rng.uniform(0.4, 1.0, 200)])
+    scores[:150] = 1.0          # empates saturados, como no softmax real
+    scores[200:350] = 1.0
+    assert abs(compute_eer(labels, to_ranks(scores)) - compute_eer(labels, scores)) < 1e-9
+
+
+def test_ranks_do_not_launder_nan_into_finite_values():
+    """NaN não pode virar posto finito e escapar da proteção de compute_eer."""
+    r = to_ranks(np.array([0.1, np.nan, 0.9]))
+    assert not np.isfinite(r).all()

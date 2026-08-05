@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import torch.nn as nn
 
-from .blocks import AttentiveStatsPool, FreqStatsPool, StatsPool, TemporalAttentionPool
+from .blocks import (
+    AttentiveFreqStatsPool,
+    AttentiveStatsPool,
+    FreqStatsPool,
+    StatsPool,
+    TemporalAttentionPool,
+)
 
 
 def build_pooling(
@@ -34,13 +40,19 @@ def build_attention_pooling(
 ) -> tuple[nn.Module, int]:
     """Versões com atenção, usadas pelo Incremento 3.
 
-    - "avg"   atenção sobre a média — comportamento original
-    - "stats" / "freq_stats"  Attentive Statistics Pooling
+    Cada modo espelha o equivalente sem atenção em `build_pooling`, para que a
+    comparação entre os incrementos isole de fato o efeito da atenção:
+
+    - "avg"        atenção sobre a média (frequência mediada)
+    - "stats"      Attentive Statistics Pooling (frequência mediada)
+    - "freq_stats" idem, mas **preservando** as faixas de frequência
     """
     if name == "avg":
         pool = TemporalAttentionPool(channels)
-    elif name in ("stats", "freq_stats"):
+    elif name == "stats":
         pool = AttentiveStatsPool(channels)
+    elif name == "freq_stats":
+        pool = AttentiveFreqStatsPool(channels, freq_bins=freq_bins)
     else:
         raise ValueError(
             f"pooling desconhecido: {name!r} (use 'avg', 'stats' ou 'freq_stats')")

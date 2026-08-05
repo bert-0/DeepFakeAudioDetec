@@ -10,3 +10,4 @@ scikit-learn>=1.2
 matplotlib>=3.6
 pyyaml>=6.0
 tqdm>=4.64
+threadpoolctl>=3.0   # limita threads BLAS nos workers do DataLoader
