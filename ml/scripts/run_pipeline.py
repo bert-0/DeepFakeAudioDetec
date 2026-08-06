@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -95,6 +96,26 @@ def build_steps(config: str, name: str, args: argparse.Namespace) -> list[tuple[
     return steps
 
 
+def child_env() -> dict[str, str]:
+    """Ambiente dos subprocessos, com duas variáveis que o Windows exige.
+
+    **`PYTHONUNBUFFERED`** — com o stdout num pipe (e não num terminal), o Python
+    filho passa a usar buffer de bloco (~8 KB) e nenhum `print` de `train.py`
+    chama `flush`. O `bufsize=1` do `Popen` configura o *pai*, não o filho. Sem
+    isto, um treino de horas não imprime nada até terminar: medido aqui, três
+    linhas espaçadas de 0,5 s chegaram todas juntas em t=1,51 s.
+
+    **`PYTHONIOENCODING`** — o `encoding` do `Popen` diz apenas como o *pai
+    decodifica*. Quem escolhe como o *filho codifica* é o `sys.stdout` dele, que
+    no Windows segue o locale (`cp1252`). O pai então lê cp1252 como UTF-8 e cada
+    acento vira `U+FFFD` — corrupção permanente, já que o byte original se perde
+    ao ser gravado no log. Pior: se a saída do próprio pipeline for redirecionada
+    para arquivo, imprimir `U+FFFD` levanta `UnicodeEncodeError`, porque esse
+    caractere não existe em cp1252, e o pipeline morre no meio.
+    """
+    return {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
+
+
 def run_step(label: str, cmd: list[str], log_file) -> tuple[bool, float]:
     """Executa um passo, ecoando a saída na tela e no log. Devolve (ok, segundos)."""
     header = f"\n{'=' * 70}\n>>> {label}\n    {' '.join(cmd)}\n{'=' * 70}"
@@ -104,7 +125,8 @@ def run_step(label: str, cmd: list[str], log_file) -> tuple[bool, float]:
     inicio = time.perf_counter()
     proc = subprocess.Popen(cmd, cwd=ML_DIR, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True,
-                            encoding="utf-8", errors="replace", bufsize=1)
+                            encoding="utf-8", errors="replace", bufsize=1,
+                            env=child_env())
     for linha in proc.stdout:
         print(linha, end="", flush=True)
         log_file.write(linha)

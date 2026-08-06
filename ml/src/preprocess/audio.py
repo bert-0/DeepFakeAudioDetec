@@ -12,9 +12,34 @@ import librosa
 import numpy as np
 
 
+class AudioLoadError(RuntimeError):
+    """Falha ao ler um arquivo de áudio, com o caminho embutido na mensagem."""
+
+
 def load_audio(path: str | Path, sample_rate: int) -> np.ndarray:
-    """Carrega um arquivo de áudio como mono, reamostrado para `sample_rate`."""
-    wav, _ = librosa.load(str(path), sr=sample_rate, mono=True)
+    """Carrega um arquivo de áudio como mono, reamostrado para `sample_rate`.
+
+    Um único `.flac` corrompido entre os 121.461 da base derruba um treino de
+    horas — e sem este tratamento a mensagem não diz **qual**. O `librosa.load`,
+    ao falhar no soundfile, tenta o backend `audioread`; sem ffmpeg instalado
+    isso termina em `NoBackendError` com mensagem **vazia**, descartando o erro
+    real do libsndfile (`flac decoder lost sync`, `Internal psf_fseek() failed`).
+
+    Aqui o caminho vai para a mensagem e a exceção original fica encadeada,
+    acessível por `__cause__`.
+    """
+    try:
+        wav, _ = librosa.load(str(path), sr=sample_rate, mono=True)
+    except FileNotFoundError:
+        raise  # já traz o caminho e é inequívoco
+    except Exception as erro:
+        detalhe = str(erro) or type(erro).__name__
+        raise AudioLoadError(
+            f"falha ao ler o áudio {path}: {detalhe}. "
+            "Arquivo possivelmente truncado ou corrompido — rode "
+            "`python scripts/check_data.py --config <cfg> --deep` para "
+            "localizar todos os arquivos ilegíveis da base."
+        ) from erro
     return wav.astype(np.float32)
 
 
