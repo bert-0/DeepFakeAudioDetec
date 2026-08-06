@@ -16,6 +16,7 @@ import numpy as np
 from scipy.fftpack import dct
 
 from .deltas import add_deltas
+from .stft import power_spectrum
 
 
 @lru_cache(maxsize=8)
@@ -47,20 +48,21 @@ def linear_filterbank(n_filter: int, n_fft: int, sample_rate: int) -> np.ndarray
     return fb
 
 
-def compute_lfcc(wav: np.ndarray, sample_rate: int, cfg: dict) -> np.ndarray:
+def compute_lfcc(wav: np.ndarray, sample_rate: int, cfg: dict,
+                 spec: np.ndarray | None = None) -> np.ndarray:
     """Extrai LFCC (com delta/delta-delta opcionais) de um waveform.
 
     Saída: shape (n_coef, n_frames), onde n_coef = n_lfcc ou 3*n_lfcc com deltas.
+
+    `spec` é o espectro de potência já calculado. Configs de fusão costumam ter
+    dois ramos com o mesmo `n_fft`/`win_length`/`hop_length` (é o caso de
+    `fusion_v4.yaml`, com LFCC e espectrograma), e aí o STFT seria idêntico nos
+    dois — 2,09 ms dos 7,27 ms de extração, medidos. O `FeatureExtractor`
+    calcula uma vez e passa aqui. Sem ele, o cálculo é feito normalmente.
     """
     n_fft = cfg["n_fft"]
-    spec = np.abs(
-        librosa.stft(
-            wav,
-            n_fft=n_fft,
-            win_length=cfg["win_length"],
-            hop_length=cfg["hop_length"],
-        )
-    ) ** 2  # espectro de potência (n_fft//2+1, n_frames)
+    if spec is None:
+        spec = power_spectrum(wav, n_fft, cfg["win_length"], cfg["hop_length"])
 
     fb = linear_filterbank(cfg["n_filter"], n_fft, sample_rate)
     filtered = fb @ spec                       # (n_filter, n_frames)

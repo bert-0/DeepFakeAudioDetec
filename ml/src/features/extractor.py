@@ -13,6 +13,7 @@ import torch
 
 from .lfcc import compute_lfcc
 from .spectrogram import compute_log_mel
+from .stft import power_spectrum, stft_params
 
 
 class FeatureExtractor:
@@ -56,11 +57,22 @@ class FeatureExtractor:
                 **{t: self.cfgs[t] for t in sorted(self.types)}}
 
     def __call__(self, wav: np.ndarray) -> dict[str, torch.Tensor]:
-        """Extrai as features pedidas. Cada tensor tem shape (1, freq, frames)."""
+        """Extrai as features pedidas. Cada tensor tem shape (1, freq, frames).
+
+        Ramos que compartilham `n_fft`/`win_length`/`hop_length` compartilham
+        também o espectro de potência: é o mesmo array, calculado uma vez. Em
+        `fusion_v4.yaml` (LFCC + espectrograma, mesma janela) isso corta 29% da
+        extração. Configs cujos ramos têm janelas diferentes calculam um espectro
+        para cada, exatamente como antes.
+        """
+        espectros: dict[tuple[int, int, int], np.ndarray] = {}
         out: dict[str, torch.Tensor] = {}
         for name in self.types:
-            compute = _kind_of(name)
-            feat = compute(wav, self.sample_rate, self.cfgs[name])
+            cfg = self.cfgs[name]
+            chave = stft_params(cfg)
+            if chave not in espectros:
+                espectros[chave] = power_spectrum(wav, *chave)
+            feat = _kind_of(name)(wav, self.sample_rate, cfg, spec=espectros[chave])
             out[name] = _to_chw(_normalize(feat))
         return out
 

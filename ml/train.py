@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from collections import Counter
 from contextlib import contextmanager
@@ -26,8 +27,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.config import (
+    estimativa_ram_gb,
     load_config,
     make_generator,
+    memoria_total_gb,
     output_name,
     resolve_device,
     seed_worker,
@@ -187,6 +190,56 @@ def print_time_report(history: list[dict], num_workers: int) -> None:
               "menos épocas (train.early_stopping_patience já corta o excesso)")
 
 
+# Quando a saída não é um terminal (o caso do run_pipeline.py, que lê por um
+# pipe), cada refresh da barra vira uma LINHA no log — 794 por época, ~40 mil
+# num treino de 50. O log do experimento fica ilegível e com megabytes de barra.
+# Num terminal de verdade o `\r` sobrescreve no lugar e o comportamento é o de
+# sempre.
+_INTERVALO_BARRA = 0.1 if sys.stderr.isatty() else 30.0
+
+
+def aviso_de_memoria(n_workers_treino: int, n_workers_dev: int) -> bool:
+    """Estima a RAM do treino e avisa se não couber. Devolve True se avisou.
+
+    Existe porque o modo de falha no Windows é silencioso e brutal: não há
+    `MemoryError`: o sistema pagina, a interface congela e a única saída é
+    segurar o botão de energia — perdendo o treino inteiro, já que não há
+    retomada por checkpoint.
+    """
+    est = estimativa_ram_gb(n_workers_treino, n_workers_dev)
+    total = memoria_total_gb()
+    print(f"Workers: {n_workers_treino} treino + {n_workers_dev} dev  |  "
+          f"RAM estimada no pico: ~{est['pico']:.1f} GB "
+          f"({est['workers_treino']:.1f} treino + {est['workers_dev']:.1f} dev + "
+          f"{est['principal']:.1f} principal + {est['sistema']:.1f} sistema)")
+    if total is None:
+        return False
+    # A folga cobre o que o usuário tem aberto: navegador, editor, etc.
+    if est["pico"] <= total - 2.0:
+        return False
+    print(f"[AVISO] a máquina tem {total:.1f} GB. Com ~{est['pico']:.1f} GB de "
+          f"pico a folga é pequena e o sistema pode paginar até travar.\n"
+          f"        Reduza `train.num_workers` e/ou `train.dev_num_workers` "
+          f"(0 desliga os processos do dev),\n"
+          f"        ou use `train.pin_memory: false` para liberar memória "
+          f"não-paginável.")
+    return True
+
+
+def save_checkpoint(payload: dict, destino: Path) -> None:
+    """Grava um checkpoint de forma atômica (temporário + rename).
+
+    Mesmo motivo do `save_history`: `torch.save` direto no destino deixa um
+    `.pt` truncado se a máquina cair no meio da escrita — e cair no meio é
+    exatamente o que acontece quando a RAM estoura e o usuário desliga no botão.
+    Perder o `best.pt` significa perder todo o treino.
+    """
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    temporario = destino.with_suffix(destino.suffix + ".tmp")
+    torch.save(payload, temporario)
+    temporario.replace(destino)
+
+
 def save_history(history: list[dict], name: str) -> None:
     """Grava o histórico de forma atômica (escreve num temporário e renomeia).
 
@@ -271,18 +324,38 @@ def main() -> None:
     # inicialização. Só é seguro porque `set_epoch` grava num tensor em memória
     # compartilhada — com um int comum, os workers persistentes ficariam presos
     # à época em que nasceram e repetiriam o mesmo recorte/aumentação sempre.
-    extras = {"persistent_workers": True} if num_workers > 0 else {}
+    # Workers do dev, contados à parte. Antes o dev herdava `num_workers` e
+    # `persistent_workers` do treino, e os dois conjuntos ficavam vivos ao mesmo
+    # tempo: 8 processos de ~512 MB cada no Windows, 4 deles parados durante
+    # todo o treino, acordando só nos ~50 s da validação. Num notebook de 16 GB
+    # isso somava ~8,5 GB com o sistema e levava a máquina à paginação.
+    #
+    # O dev não precisa do mesmo paralelismo: ele é 100% cache (leitura de
+    # memmap, sem decode de FLAC nem extração), exceto na primeira época. Por
+    # isso o padrão é 2, e `dev_num_workers: 0` elimina os processos de uma vez.
+    dev_workers = int(train_cfg.get("dev_num_workers", min(2, num_workers)))
+    dev_workers = 0 if args.smoke else max(0, min(dev_workers, num_workers))
+
     # pin_memory usa memória não-paginável, de onde a cópia para a GPU é feita
     # por DMA e pode sobrepor-se ao cálculo (com `non_blocking=True` no `.to`).
-    # Só faz sentido com CUDA; em CPU seria custo puro.
-    extras["pin_memory"] = device.type == "cuda"
+    # Só faz sentido com CUDA; em CPU seria custo puro. É justamente a memória
+    # que o SO não consegue liberar sob pressão, então vira `pin_memory: false`
+    # quando a RAM é o gargalo.
+    pin = bool(train_cfg.get("pin_memory", True)) and device.type == "cuda"
+    aviso_de_memoria(num_workers, dev_workers)
+
+    extras = {"persistent_workers": True} if num_workers > 0 else {}
     train_loader = DataLoader(train_ds, batch_size=train_cfg["batch_size"], shuffle=True,
                               num_workers=num_workers, generator=generator,
-                              worker_init_fn=seed_worker, **extras)
+                              worker_init_fn=seed_worker, pin_memory=pin, **extras)
     # dev também recebe worker_init_fn: sem ele os workers da validação abrem
     # uma thread BLAS por núcleo cada um e disputam CPU entre si.
+    # Sem `persistent_workers`: os processos do dev nascem e morrem a cada
+    # validação, então não ocupam RAM durante o treino. Custa ~2,4 s por época
+    # de recriação no Windows, contra 2 GB mantidos ociosos.
     dev_loader = DataLoader(dev_ds, batch_size=train_cfg["batch_size"], shuffle=False,
-                            num_workers=num_workers, worker_init_fn=seed_worker, **extras)
+                            num_workers=dev_workers, worker_init_fn=seed_worker,
+                            pin_memory=pin)
 
     # ----- modelo, perda, otimizador -----
     model = build_model(config["model"]).to(device)
@@ -330,8 +403,11 @@ def main() -> None:
         seen = 0
         skipped = 0
         cronometro = EpochTimer()
-        pin = device.type == "cuda"
-        barra = tqdm(train_loader, desc=f"Época {epoch}/{epochs}", leave=False)
+        # `pin` vem de cima (train.pin_memory): `non_blocking=True` só tem efeito
+        # se a origem estiver realmente em memória paginada-fixa. Redefini-lo
+        # aqui anularia `pin_memory: false`.
+        barra = tqdm(train_loader, desc=f"Época {epoch}/{epochs}", leave=False,
+                     mininterval=_INTERVALO_BARRA)
         for features, labels in cronometro.batches(barra):
             with cronometro.medindo("calculo"):
                 features = {k: v.to(device, non_blocking=pin) for k, v in features.items()}
@@ -399,8 +475,8 @@ def main() -> None:
 
         if scheduler is not None:
             scheduler.step(dev_metrics["eer"])
-        torch.save({"model_state": model.state_dict(), "config": config,
-                    "threshold": dev_threshold}, last_ckpt)
+        save_checkpoint({"model_state": model.state_dict(), "config": config,
+                         "threshold": dev_threshold}, last_ckpt)
 
         # Melhor modelo pelo EER de validação (NaN é tratado como "pior").
         # Comparação estrita: com `<=`, um platô perfeito zeraria o contador de
@@ -412,8 +488,8 @@ def main() -> None:
             epochs_no_improve = 0
             # O threshold calibrado viaja junto com os pesos: assim evaluate.py e
             # infer.py usam o mesmo ponto de corte escolhido no dev.
-            torch.save({"model_state": model.state_dict(), "config": config,
-                        "threshold": dev_threshold}, best_ckpt)
+            save_checkpoint({"model_state": model.state_dict(), "config": config,
+                             "threshold": dev_threshold}, best_ckpt)
         else:
             epochs_no_improve += 1
             if early_patience and epochs_no_improve >= early_patience:

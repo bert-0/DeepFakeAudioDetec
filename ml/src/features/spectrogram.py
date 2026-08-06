@@ -12,6 +12,8 @@ from functools import lru_cache
 import librosa
 import numpy as np
 
+from .stft import power_spectrum
+
 
 @lru_cache(maxsize=8)
 def mel_filterbank(sample_rate: int, n_fft: int, n_mels: int) -> np.ndarray:
@@ -27,15 +29,18 @@ def mel_filterbank(sample_rate: int, n_fft: int, n_mels: int) -> np.ndarray:
     return fb
 
 
-def compute_log_mel(wav: np.ndarray, sample_rate: int, cfg: dict) -> np.ndarray:
+def compute_log_mel(wav: np.ndarray, sample_rate: int, cfg: dict,
+                    spec: np.ndarray | None = None) -> np.ndarray:
     """Extrai o espectrograma log-mel de um waveform.
 
     Saída: shape (n_mels, n_frames), em decibéis.
+
+    `spec` é o espectro de potência já calculado — ver `stft.power_spectrum`.
+    Quando o LFCC do mesmo config usa a mesma janela, o cálculo é compartilhado.
     """
-    spec = np.abs(
-        librosa.stft(y=wav, n_fft=cfg["n_fft"], win_length=cfg["win_length"],
-                     hop_length=cfg["hop_length"])
-    ) ** 2
+    if spec is None:
+        spec = power_spectrum(wav, cfg["n_fft"], cfg["win_length"],
+                              cfg["hop_length"])
     fb = mel_filterbank(sample_rate, cfg["n_fft"], cfg["n_mels"])
     mel = fb @ spec
     log_mel = librosa.power_to_db(mel, ref=np.max)

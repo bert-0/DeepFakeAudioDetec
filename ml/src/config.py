@@ -83,3 +83,57 @@ def _limit_worker_threads() -> None:
         # antes do import do numpy — então aqui resta limitar o próprio torch.
         pass
     torch.set_num_threads(1)
+
+
+def memoria_total_gb() -> float | None:
+    """RAM física da máquina, em GB. `None` se não der para descobrir.
+
+    Sem `psutil` (não é dependência do projeto) e sem depender do SO: no Windows
+    a informação vem da API Win32, no Linux/macOS de `sysconf`. Serve para o
+    treino avisar *antes* de começar quando a configuração não cabe na máquina —
+    no Windows, estourar a RAM não dá `MemoryError`, dá paginação, e a máquina
+    trava a ponto de exigir desligamento no botão.
+    """
+    import ctypes
+    import os
+
+    try:
+        if os.name == "nt":
+            class _Status(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong),
+                            ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong),
+                            ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong),
+                            ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong),
+                            ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+
+            status = _Status()
+            status.dwLength = ctypes.sizeof(_Status)
+            if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+                return None
+            return status.ullTotalPhys / 1e9
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 1e9
+    except (AttributeError, ValueError, OSError):
+        return None
+
+
+# Custo medido de um processo worker no Windows: 512 MB. O `spawn` do Windows
+# recria o processo do zero, reimportando torch e librosa em cada um — no Linux,
+# com `fork`, essas páginas seriam compartilhadas com o pai e o custo real seria
+# uma fração disto.
+RAM_POR_WORKER_GB = 0.5
+RAM_PROCESSO_PRINCIPAL_GB = 1.5   # inclui o contexto CUDA
+RAM_SISTEMA_GB = 3.0              # Windows + serviços, sem navegador
+
+
+def estimativa_ram_gb(n_workers_treino: int, n_workers_dev: int) -> dict[str, float]:
+    """Quanto o treino deve ocupar, por parcela. Ver `RAM_POR_WORKER_GB`."""
+    treino = n_workers_treino * RAM_POR_WORKER_GB
+    dev = n_workers_dev * RAM_POR_WORKER_GB
+    return {"workers_treino": treino, "workers_dev": dev,
+            "principal": RAM_PROCESSO_PRINCIPAL_GB,
+            "sistema": RAM_SISTEMA_GB,
+            "pico": treino + dev + RAM_PROCESSO_PRINCIPAL_GB + RAM_SISTEMA_GB}

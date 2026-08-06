@@ -55,7 +55,15 @@ train:
   batch_size: 32
   lr: 0.001
   weight_decay: 0.0001
-  num_workers: 4
+  num_workers: 2
+  # Cada worker é um processo de ~512 MB no Windows (spawn reimporta torch e
+  # librosa). Com 4 de treino + 4 de dev o pico batia ~8,5 GB com o sistema e
+  # travava notebooks de 16 GB. Aqui: 2 processos, ~5,5 GB de pico.
+  # Não custa tempo: a extração das features (~45 s/época com 2 workers) cabe
+  # folgada dentro dos ~224 s de GPU, então a espera por dados segue perto de 0.
+  dev_num_workers: 0
+  # O dev é 100% cache depois da 1ª época (leitura de memmap, sem decode nem
+  # extração), então não precisa de processo próprio. Só a 1ª época paga ~90 s.
   device: cuda
   cache_features: true
   class_weights: sqrt
