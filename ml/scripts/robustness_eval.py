@@ -24,7 +24,13 @@ from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, output_name, resolve_device, set_seed  # noqa: E402
+from src.config import (  # noqa: E402
+    load_config,
+    output_name,
+    resolve_device,
+    seed_worker,
+    set_seed,
+)
 from src.data import build_dataset  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
 from src.metrics import compute_metrics, format_metrics  # noqa: E402
@@ -116,7 +122,13 @@ def main() -> None:
     for label, kind, level in CONDITIONS:
         perturbation = None if kind is None else make_perturbation(kind, level, seed=seed)
         ds = build_dataset(config, args.partition, extractor, args.smoke, augmenter=perturbation)
-        loader = DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=0)
+        # As perturbações mudam as features, então o cache fica desligado e cada
+        # condição recalcula tudo. Com `num_workers=0` isso era um único processo
+        # extraindo 71.237 áudios seis vezes; as perturbações agora são
+        # serializáveis, então os workers do config valem aqui também.
+        loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
+                            num_workers=0 if args.smoke else config["train"]["num_workers"],
+                            worker_init_fn=seed_worker)
         labels, preds, scores = run_inference(model, loader, device)
         metrics = compute_metrics(labels, preds, scores, threshold=threshold)
         results[label] = metrics

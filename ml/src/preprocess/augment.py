@@ -92,24 +92,49 @@ class Augmenter:
         return wav
 
 
-def make_perturbation(kind: str, level: float, seed: int = 0):
-    """Devolve um callable determinístico para a avaliação de robustez.
+class Perturbation:
+    """Perturbação determinística de nível fixo, para a avaliação de robustez.
 
-    Assinatura `(wav, rng=None) -> wav`, compatível com a do `Augmenter` para
-    que o dataset possa usar os dois de forma intercambiável. O `rng` recebido
-    é ignorado: a perturbação usa nível fixo e semente própria, de modo que a
-    mesma condição de teste seja idêntica entre modelos comparados.
+    Assinatura `(wav, rng=None) -> wav`, igual à do `Augmenter`, para que o
+    dataset use os dois de forma intercambiável.
 
     kind: 'clean' | 'noise' (level = SNR em dB) | 'gain' (level = dB) |
           'shift' (level = nº de amostras).
+
+    **É uma classe, e não uma closure.** A versão anterior devolvia `lambda`, que
+    o pickle não serializa — e o dataset inteiro é serializado para os workers do
+    DataLoader (no Windows, `spawn` faz isso sempre). Por isso a robustez rodava
+    presa a `num_workers=0`: um único processo extraindo features de 71.237
+    áudios, seis vezes (uma por condição), sem poder usar cache — a aumentação
+    muda as features, então elas têm mesmo de ser recalculadas.
+
+    **O ruído passa a ser derivado do `rng` da amostra.** Antes, um único gerador
+    era compartilhado por todas as chamadas, então a perturbação de cada áudio
+    dependia da *ordem* em que ele era processado. Com vários workers essa ordem
+    deixa de existir, e o resultado passaria a variar com o nº de workers. Usando
+    o gerador que o dataset deriva de (semente, época, índice), cada áudio recebe
+    sempre o mesmo ruído — reprodutível com 0, 2 ou 8 workers.
     """
-    própria = np.random.default_rng(seed)
-    if kind == "clean":
-        return lambda w, rng=None: w
-    if kind == "noise":
-        return lambda w, rng=None: add_noise(w, level, própria)
-    if kind == "gain":
-        return lambda w, rng=None: apply_gain(w, level)
-    if kind == "shift":
-        return lambda w, rng=None: time_shift(w, int(level))
-    raise ValueError(f"perturbação desconhecida: {kind!r}")
+
+    def __init__(self, kind: str, level: float | None, seed: int = 0):
+        if kind not in ("clean", "noise", "gain", "shift"):
+            raise ValueError(f"perturbação desconhecida: {kind!r}")
+        self.kind = kind
+        self.level = level
+        self.seed = int(seed)
+
+    def __call__(self, wav: np.ndarray,
+                 rng: np.random.Generator | None = None) -> np.ndarray:
+        if self.kind == "clean":
+            return wav
+        if self.kind == "gain":
+            return apply_gain(wav, self.level)
+        if self.kind == "shift":
+            return time_shift(wav, int(self.level))
+        # Sem `rng` (uso avulso, fora do DataLoader) cai na semente própria.
+        return add_noise(wav, self.level, rng or np.random.default_rng(self.seed))
+
+
+def make_perturbation(kind: str, level: float, seed: int = 0) -> Perturbation:
+    """Atalho para `Perturbation` (mantido pelo nome já usado nos scripts)."""
+    return Perturbation(kind, level, seed)

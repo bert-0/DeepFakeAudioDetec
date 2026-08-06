@@ -1,6 +1,7 @@
 """Testes da aumentação/perturbação de áudio."""
 
 import numpy as np
+import torch
 import pytest
 
 from src.preprocess.augment import Augmenter, add_noise, apply_gain, make_perturbation, time_shift
@@ -104,3 +105,63 @@ def test_same_sample_same_epoch_is_reproducible(sine_wave):
     a = aug(sine_wave.copy(), rng=np.random.default_rng((42, 3, 5)))
     b = aug(sine_wave.copy(), rng=np.random.default_rng((42, 3, 5)))
     assert np.array_equal(a, b)
+
+
+# --------------------------------------------------------------------------- #
+# Perturbações precisam atravessar os workers do DataLoader.
+#
+# Enquanto eram `lambda`, o pickle não as serializava e a avaliação de robustez
+# ficava presa a num_workers=0 — um processo só para 71.237 áudios por condição.
+# --------------------------------------------------------------------------- #
+def test_perturbation_is_picklable():
+    import pickle
+
+    for kind, level in [("clean", None), ("noise", 10), ("gain", -6), ("shift", 100)]:
+        clone = pickle.loads(pickle.dumps(make_perturbation(kind, level, seed=3)))
+        assert clone.kind == kind
+
+
+def test_perturbation_rejects_unknown_kind():
+    with pytest.raises(ValueError, match="desconhecida"):
+        make_perturbation("reverb", 1)
+
+
+def test_noise_is_reproducible_per_sample(sine_wave):
+    """O ruído tem de vir do rng da amostra, não de um gerador compartilhado.
+
+    Com um gerador compartilhado, o ruído de cada áudio dependeria da ORDEM em
+    que ele fosse processado — e essa ordem muda com o nº de workers, o que faria
+    o resultado da robustez variar conforme a máquina.
+    """
+    pert = make_perturbation("noise", 10, seed=7)
+    a = pert(sine_wave, rng=np.random.default_rng((0, 0, 42)))
+    b = pert(sine_wave, rng=np.random.default_rng((0, 0, 42)))
+    np.testing.assert_array_equal(a, b)
+
+    outro = pert(sine_wave, rng=np.random.default_rng((0, 0, 43)))
+    assert not np.array_equal(a, outro), "amostras diferentes receberam o mesmo ruído"
+
+
+def test_robustness_is_independent_of_worker_count(audio_cfg, feat_cfg):
+    """Mesmos scores com 0 e com 2 workers — o ponto da mudança acima."""
+    from torch.utils.data import DataLoader
+
+    from src.data import SmokeDataset
+    from src.features import FeatureExtractor
+
+    def lfccs(num_workers):
+        ds = SmokeDataset(8, audio_cfg, FeatureExtractor(audio_cfg, feat_cfg), seed=1,
+                          augmenter=make_perturbation("noise", 10, seed=7))
+        loader = DataLoader(ds, batch_size=4, shuffle=False, num_workers=num_workers)
+        return torch.cat([lote["lfcc"] for lote, _ in loader])
+
+    assert torch.equal(lfccs(0), lfccs(2))
+
+
+def test_deterministic_perturbations_ignore_the_sample_rng(sine_wave):
+    """Ganho e deslocamento têm nível fixo: o rng não pode alterá-los."""
+    for kind, level in [("gain", -6), ("shift", 100), ("clean", None)]:
+        pert = make_perturbation(kind, level)
+        a = pert(sine_wave, rng=np.random.default_rng(1))
+        b = pert(sine_wave, rng=np.random.default_rng(999))
+        np.testing.assert_array_equal(a, b)

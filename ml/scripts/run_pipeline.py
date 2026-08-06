@@ -54,6 +54,8 @@ def parse_args() -> argparse.Namespace:
                    help="modo rápido com dados sintéticos, para testar o encadeamento")
     p.add_argument("--dry-run", action="store_true",
                    help="apenas mostra os comandos que seriam executados")
+    p.add_argument("--no-report", action="store_true",
+                   help="não consolida as tabelas do relatório ao final")
     return p.parse_args()
 
 
@@ -214,6 +216,15 @@ def main() -> int:
                         break
         tempos[name] = time.perf_counter() - t0
         resultados.append(collect_results(name))
+
+    # As tabelas do relatório saem de uma vez ao final, e não por experimento:
+    # a comparação entre incrementos só existe com todos eles já avaliados.
+    if not args.no_report:
+        cmd = [sys.executable, "scripts/make_report.py"]
+        if args.smoke:
+            cmd.append("--include-smoke")
+        with open(OUTPUT_DIR / "make_report.log", "w", encoding="utf-8") as log_file:
+            run_step("tabelas do relatório", cmd, log_file)
 
     print_summary(resultados, tempos)
     print(f"\nTempo total: {fmt_dur(time.perf_counter() - inicio_total)}")

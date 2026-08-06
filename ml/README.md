@@ -71,12 +71,40 @@ python scripts/run_pipeline.py --config configs/fusion_v4.yaml \
 ```
 
 Etapas: verificação da base → treino → avaliação no `eval` (com arquivo de
-scores) → EER por ataque → robustez (com `--robustness`).
+scores) → EER por ataque → robustez (com `--robustness`) → tabelas do relatório.
 
 - Cada experimento gera `outputs/<nome>_pipeline.log` com toda a saída.
 - Uma falha não derruba os experimentos seguintes; o que falhou é listado no fim.
 - `--skip-train` reavalia modelos já treinados; `--dry-run` mostra o plano sem
   executar; `--smoke` testa o encadeamento em segundos.
+- Ao final roda `make_report.py` e consolida todos os experimentos numa tabela
+  comparativa (`--no-report` desliga).
+
+## Tabelas e figuras do relatório
+
+Cada experimento deixa em `outputs/` vários JSONs soltos. Copiá-los à mão para o
+texto é onde o erro entra — um EER desatualizado numa tabela não dá nenhum sinal
+de que está errado. `make_report.py` lê tudo o que existe e monta as tabelas:
+
+```bash
+python scripts/make_report.py                 # todos os experimentos avaliados
+python scripts/make_report.py --only v4       # só os que têm "v4" no nome
+```
+
+Gera em `outputs/report/`, cada tabela em três formatos — `.md` para conferir,
+`.tex` para colar no documento (já com `\caption` e `\label`), `.csv` para a
+planilha:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `comparativo_eval.*` | EER, acurácia, precisão, recall, F1, limiar, épocas e tempo de treino de cada experimento |
+| `por_ataque_eval.*` | matriz ataque × experimento — mostra *onde* cada modelo falha |
+| `robustez_eval.*` | EER por condição de ruído/ganho |
+| `curvas_comparadas.png` | EER de validação e loss por época, todos no mesmo eixo |
+| `eer_por_ataque.png` | barras agrupadas por ataque |
+
+Execuções `--smoke` ficam de fora por padrão (`--include-smoke` inclui): um teste
+de 30 segundos com áudio sintético não pode entrar na tabela de resultados.
 
 ## Avaliação de robustez (TC1 §5.5)
 
@@ -155,6 +183,35 @@ model:
   branches: [lfcc, lfcc_hi]   # padrão: [lfcc, spectrogram]
 ```
 
+## Onde o tempo do treino vai
+
+Cada época imprime a separação entre **espera por dados** e **cálculo na GPU**, e
+ao final o treino diz qual dos dois é o gargalo:
+
+```
+Época   7 | lr=1.00e-03 | loss=0.2411 | dev: ... EER=16.82%
+           tempo  138.4s  (dados  44.1s | GPU  78.3s | dev  16.0s)
+
+Tempo de treino: 1h52m em 43 época(s)
+Por época (média das 42 últimas): 137s = dados 44s + GPU 78s + dev 16s
+Gargalo: cálculo na GPU (57% da época) — o carregamento já acompanha o treino.
+```
+
+É essa medida que decide qual otimização vale a pena, e a intuição costuma errar:
+se o tempo é quase todo cálculo, aumentar `num_workers` ou ligar cache não muda
+nada. Os tempos também vão para o `*_history.json`, então entram na tabela do
+relatório.
+
+Ordens de grandeza medidas neste projeto (por áudio, uma thread): decode do FLAC
+1,3 ms, pré-processamento 0,6 ms, aumentação 0,6 ms, extração LFCC+deltas 4,0 ms
+(6,2 ms com espectrograma). Com 25.380 áudios de treino, algumas horas por
+experimento é o esperado — não é sintoma de nada errado.
+
+> **AMP na GTX 1650.** Os configs `v3`/`v4` usam `amp: false` (ver *Estabilidade
+> numérica* abaixo). Se o relatório de tempo apontar a GPU como gargalo, vale
+> medir `amp: true` numa execução curta: a Turing faz fp16 em taxa dobrada, e as
+> proteções contra `NaN` já estão no código. Compare o EER antes de adotar.
+
 ## Espaço em disco
 
 O cache de features é o item mais pesado do projeto: cerca de **11 GB** por
@@ -162,13 +219,34 @@ configuração de features (train+dev+eval do ASVspoof LA), ou ~25 GB quando o
 espectrograma também é extraído.
 
 O cache é indexado pelo *fingerprint* da configuração de features, em
-`ml/data/cache/<fingerprint>/`. Experimentos com features idênticas
+`ml/data/cache/<fingerprint>/<partição>/`. Experimentos com features idênticas
 **compartilham** os mesmos arquivos — v3a, v3 e v4 (todos com `n_filter: 70`)
 usam uma única pasta.
+
+Cada partição são três arquivos (`data.npy`, `filled.npy`, `meta.json`) em vez de
+um `.pt` por áudio. O formato antigo criava ~96 mil arquivos pequenos, reabertos
+a cada época: medido, `torch.load` de um `.pt` custa 0,32 ms contra 0,01 ms de
+uma linha do arquivo mapeado em memória. Se você tem caches do formato antigo, o
+treino avisa quanto espaço dá para recuperar apagando-os.
 
 Apagar `ml/data/cache/` é **sempre seguro**: ele é regenerado automaticamente na
 próxima execução (só a primeira época fica mais lenta). Já `ml/checkpoints/`
 contém os modelos treinados e `ml/outputs/` os resultados — apague com cuidado.
+
+## Scores salvos e reaproveitados
+
+`evaluate.py` grava os scores da partição em `outputs/<nome>_<partição>_scores.npz`
+(precisão total). `per_attack_eval.py` e `score_fusion.py` os reaproveitam em vez
+de repetir a inferência — no `eval` do LA, cada passada percorre 71.237 áudios.
+
+O arquivo só é aceito se **a lista de áudios, a partição e os pesos do
+checkpoint** baterem. Retreinou o modelo? O reuso é recusado e a inferência
+refeita, com o motivo impresso. `--recompute` força o recálculo.
+
+O `.txt` no estilo ASVspoof continua sendo gerado por `--score-file`: ele é o
+artefato legível e a entrada do script oficial de t-DCF. O `.npz` existe à parte
+porque o `.txt` arredonda em seis casas, o que criaria empates artificiais no
+cálculo do EER.
 
 ## Aumentação de dados (treino)
 
@@ -345,6 +423,13 @@ partição de teste. Use `--threshold 0.42` para informar um valor manualmente.
 | `amp` | mixed precision em GPU — ver aviso abaixo |
 | `grad_clip` | limita a norma do gradiente (`0` desliga); ajuda contra divergência |
 | `cache_features` | salva features em disco para acelerar épocas seguintes |
+| `cudnn_benchmark` | deixa o cuDNN escolher o algoritmo de convolução mais rápido (padrão `true`) |
+
+> **`cudnn_benchmark`** só ajuda porque `audio.duration` fixa o comprimento do
+> sinal: as features chegam sempre com o mesmo shape, então o cuDNN mede os
+> algoritmos disponíveis na primeira iteração e reusa a escolha no resto do
+> treino. Em troca, a escolha pode variar entre máquinas, o que mexe nos últimos
+> dígitos do resultado. Para uma execução bit-a-bit reprodutível, use `false`.
 
 ## Testes
 
@@ -370,8 +455,10 @@ ml/
 ├── src/
 │   ├── config.py         # carga de YAML + utilidades (seed, device)
 │   ├── metrics.py        # accuracy, precision, recall, F1, EER, matriz
+│   ├── scores.py         # scores salvos/reaproveitados entre as análises
 │   ├── data/
-│   │   └── dataset.py    # ASVspoofDataset + SmokeDataset
+│   │   ├── dataset.py    # ASVspoofDataset + SmokeDataset
+│   │   └── cache.py      # cache de features em arquivo mapeado em memória
 │   ├── preprocess/
 │   │   ├── audio.py      # PreProcessador: resample, mono, fix-length, silêncio
 │   │   └── augment.py    # aumentação (treino) e perturbações (robustez)
@@ -388,6 +475,10 @@ ml/
 │       └── registry.py   # build_model(config)
 ├── scripts/
 │   ├── check_data.py     # valida a estrutura/conteúdo da base antes do treino
+│   ├── run_pipeline.py   # encadeia treino + avaliação + análises
+│   ├── per_attack_eval.py# EER por algoritmo de síntese (TC1 §5.4)
+│   ├── score_fusion.py   # fusão de scores entre modelos treinados
+│   ├── make_report.py    # tabelas e figuras do relatório
 │   └── robustness_eval.py# avaliação de robustez sob ruído/ganho (TC1 §5.5)
 ├── tests/                # suíte pytest (métricas, features, modelos, etc.)
 ├── train.py
