@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-import librosa
 import numpy as np
 from scipy.fftpack import dct
 
