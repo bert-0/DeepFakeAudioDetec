@@ -28,6 +28,7 @@ from src.metrics import (
     save_score_file,
 )
 from src.models import build_model
+from src.scores import checkpoint_fingerprint, save_scores, scores_path
 
 OUTPUT_DIR = Path("outputs")
 
@@ -121,6 +122,17 @@ def main() -> None:
     if args.score_file:
         save_score_file(ds.ids, labels, scores, args.score_file)
         print(f"Arquivo de scores:  {args.score_file}")
+
+    # Guarda os scores em precisão total para que `per_attack_eval.py` e
+    # `score_fusion.py` não repitam esta mesma passada de inferência — no `eval`
+    # do LA são 71.237 áudios por passada.
+    npz_path = scores_path(OUTPUT_DIR, name, args.partition)
+    save_scores(npz_path,
+                ids=ds.ids, labels=labels, scores=scores,
+                systems=getattr(ds, "system_ids", ["-"] * len(ds.ids)),
+                fingerprint=checkpoint_fingerprint(ckpt["model_state"]),
+                partition=args.partition)
+    print(f"Scores (reuso):     {npz_path}")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from collections import Counter
+from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
@@ -92,6 +94,99 @@ def archive_previous_checkpoints(*paths: Path) -> None:
         print(f"Checkpoint anterior preservado em: {backup}")
 
 
+class EpochTimer:
+    """Separa o tempo da época em *espera por dados* e *cálculo na GPU*.
+
+    É a medida que decide qual otimização vale a pena: se a maior parte do tempo
+    é espera por dados, o gargalo é CPU/disco (mais `num_workers`, cache de
+    features); se é cálculo, o gargalo é a GPU e mexer no carregamento não muda
+    nada. Sem separar os dois, a intuição erra com frequência.
+
+    A cronometragem do cálculo é honesta porque `loss.item()` sincroniza com a
+    GPU a cada iteração — sem isso, as chamadas CUDA voltariam na hora e o tempo
+    apareceria todo do lado dos dados.
+    """
+
+    def __init__(self):
+        self.dados = 0.0
+        self.calculo = 0.0
+        self.dev = 0.0
+        self._t0 = time.perf_counter()
+
+    def batches(self, loader):
+        """Itera o loader medindo quanto se esperou por cada lote."""
+        inicio = time.perf_counter()
+        for lote in loader:
+            self.dados += time.perf_counter() - inicio
+            yield lote
+            inicio = time.perf_counter()
+
+    @contextmanager
+    def medindo(self, campo: str):
+        inicio = time.perf_counter()
+        yield
+        setattr(self, campo, getattr(self, campo) + time.perf_counter() - inicio)
+
+    @property
+    def total(self) -> float:
+        return time.perf_counter() - self._t0
+
+    def resumo(self) -> str:
+        return (f"tempo {self.total:6.1f}s  (dados {self.dados:5.1f}s | "
+                f"GPU {self.calculo:5.1f}s | dev {self.dev:5.1f}s)")
+
+    def as_dict(self) -> dict[str, float]:
+        return {"t_epoch": self.total, "t_data": self.dados,
+                "t_compute": self.calculo, "t_dev": self.dev}
+
+
+def format_duration(segundos: float) -> str:
+    h, resto = divmod(int(segundos), 3600)
+    m, s = divmod(resto, 60)
+    return f"{h}h{m:02d}m" if h else (f"{m}m{s:02d}s" if m else f"{s}s")
+
+
+def print_time_report(history: list[dict], num_workers: int) -> None:
+    """Diz onde o tempo do treino foi gasto e qual é o próximo passo útil.
+
+    A primeira época é deixada de fora da média: é ela que preenche o cache de
+    features e onde o cuDNN ainda está medindo algoritmos de convolução, então
+    ela é sistematicamente mais lenta e não representa o regime do treino.
+    """
+    total = sum(h.get("t_epoch", 0.0) for h in history)
+    print(f"\nTempo de treino: {format_duration(total)} em {len(history)} época(s)")
+    regime = history[1:]
+    if not regime:
+        return
+
+    dados = sum(h.get("t_data", 0.0) for h in regime) / len(regime)
+    calculo = sum(h.get("t_compute", 0.0) for h in regime) / len(regime)
+    dev = sum(h.get("t_dev", 0.0) for h in regime) / len(regime)
+    epoca = sum(h.get("t_epoch", 0.0) for h in regime) / len(regime)
+    if epoca <= 0:
+        return
+
+    print(f"Por época (média das {len(regime)} últimas): {epoca:.0f}s = "
+          f"dados {dados:.0f}s + GPU {calculo:.0f}s + dev {dev:.0f}s")
+
+    fracao = dados / epoca
+    if fracao > 0.35:
+        print(f"Gargalo: espera por dados ({fracao * 100:.0f}% da época) — a GPU "
+              "fica ociosa esperando o carregamento.")
+        print(f"  - suba train.num_workers (está em {num_workers}); um bom ponto "
+              "de partida é o nº de núcleos físicos da CPU")
+        print("  - ative train.cache_features se estiver desligado")
+        print("  - se `audio.augment` e `audio.random_crop` estão ligados, o cache "
+              "do treino é desativado de propósito e as features são recalculadas "
+              "toda época: esse é o preço da aumentação")
+    else:
+        print(f"Gargalo: cálculo na GPU ({calculo / epoca * 100:.0f}% da época) — "
+              "o carregamento já acompanha o treino.")
+        print("  - mexer em num_workers ou no cache não vai ajudar")
+        print("  - o que reduz tempo aqui é modelo menor, batch maior ou "
+              "menos épocas (train.early_stopping_patience já corta o excesso)")
+
+
 def save_history(history: list[dict], name: str) -> None:
     """Grava o histórico de forma atômica (escreve num temporário e renomeia).
 
@@ -143,6 +238,17 @@ def main() -> None:
     use_amp = bool(train_cfg.get("amp", False)) and device.type == "cuda"
     print(f"Dispositivo: {device} | épocas: {epochs} | smoke: {args.smoke} | AMP: {use_amp}")
 
+    # `audio.duration` fixa o comprimento do sinal, então as features chegam
+    # sempre com o mesmo shape. Nessa condição o cuDNN mede os algoritmos de
+    # convolução disponíveis na primeira iteração e reusa a escolha no resto do
+    # treino — o custo é pago uma vez e as épocas seguintes ficam mais rápidas.
+    # Em troca, a escolha do algoritmo pode variar entre máquinas/execuções, o
+    # que muda os últimos dígitos do resultado; `cudnn_benchmark: false` desliga.
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = bool(train_cfg.get("cudnn_benchmark", True))
+        if not torch.backends.cudnn.benchmark:
+            print("cuDNN benchmark: DESLIGADO (cudnn_benchmark: false)")
+
     # ----- dados (aumentação só no treino) -----
     extractor = FeatureExtractor(config["audio"], config["features"])
     aug_cfg = config["audio"].get("augment", {})
@@ -166,6 +272,10 @@ def main() -> None:
     # compartilhada — com um int comum, os workers persistentes ficariam presos
     # à época em que nasceram e repetiriam o mesmo recorte/aumentação sempre.
     extras = {"persistent_workers": True} if num_workers > 0 else {}
+    # pin_memory usa memória não-paginável, de onde a cópia para a GPU é feita
+    # por DMA e pode sobrepor-se ao cálculo (com `non_blocking=True` no `.to`).
+    # Só faz sentido com CUDA; em CPU seria custo puro.
+    extras["pin_memory"] = device.type == "cuda"
     train_loader = DataLoader(train_ds, batch_size=train_cfg["batch_size"], shuffle=True,
                               num_workers=num_workers, generator=generator,
                               worker_init_fn=seed_worker, **extras)
@@ -219,28 +329,32 @@ def main() -> None:
         running_loss = 0.0
         seen = 0
         skipped = 0
-        for features, labels in tqdm(train_loader, desc=f"Época {epoch}/{epochs}", leave=False):
-            features = {k: v.to(device) for k, v in features.items()}
-            labels = labels.to(device)
-            optimizer.zero_grad()
-            with torch.amp.autocast(device_type=device.type, enabled=use_amp):
-                loss = criterion(model(features), labels)
+        cronometro = EpochTimer()
+        pin = device.type == "cuda"
+        barra = tqdm(train_loader, desc=f"Época {epoch}/{epochs}", leave=False)
+        for features, labels in cronometro.batches(barra):
+            with cronometro.medindo("calculo"):
+                features = {k: v.to(device, non_blocking=pin) for k, v in features.items()}
+                labels = labels.to(device, non_blocking=pin)
+                optimizer.zero_grad()
+                with torch.amp.autocast(device_type=device.type, enabled=use_amp):
+                    loss = criterion(model(features), labels)
 
-            # Um batch com loss inf/NaN propagaria o estrago para os pesos e para
-            # as estatísticas do BatchNorm; descartar é mais seguro que treinar
-            # com ele. Se acontecer sempre, o aviso no fim da época denuncia.
-            if not torch.isfinite(loss):
-                skipped += 1
-                continue
+                # Um batch com loss inf/NaN propagaria o estrago para os pesos e
+                # para as estatísticas do BatchNorm; descartar é mais seguro que
+                # treinar com ele. Se acontecer sempre, o aviso no fim denuncia.
+                if not torch.isfinite(loss):
+                    skipped += 1
+                    continue
 
-            scaler.scale(loss).backward()
-            if grad_clip:
-                scaler.unscale_(optimizer)  # desfaz a escala antes de medir a norma
-                nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-            scaler.step(optimizer)
-            scaler.update()
-            running_loss += loss.item() * labels.size(0)
-            seen += labels.size(0)
+                scaler.scale(loss).backward()
+                if grad_clip:
+                    scaler.unscale_(optimizer)  # desfaz a escala antes da norma
+                    nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                scaler.step(optimizer)
+                scaler.update()
+                running_loss += loss.item() * labels.size(0)
+                seen += labels.size(0)
 
         if skipped:
             print(f"  [aviso] {skipped} batch(es) descartados por loss inf/NaN nesta época.")
@@ -254,8 +368,9 @@ def main() -> None:
                   "learning rate ou ativar train.grad_clip.")
             break
         train_loss = running_loss / seen
-        (dev_labels, dev_preds, dev_scores), dev_threshold = evaluate_loader(
-            model, dev_loader, device)
+        with cronometro.medindo("dev"):
+            (dev_labels, dev_preds, dev_scores), dev_threshold = evaluate_loader(
+                model, dev_loader, device)
 
         # Se o modelo passou a emitir NaN, treinar mais não recupera (pesos e/ou
         # estatísticas do BatchNorm já estão contaminados). Encerra de forma
@@ -274,8 +389,10 @@ def main() -> None:
         lr = optimizer.param_groups[0]["lr"]
         print(f"Época {epoch:3d} | lr={lr:.2e} | loss={train_loss:.4f} | "
               f"dev: {format_metrics(dev_metrics)}")
+        print(f"           {cronometro.resumo()}")
         history.append({"epoch": epoch, "lr": lr, "train_loss": train_loss,
-                        **{f"dev_{k}": v for k, v in dev_metrics.items()}})
+                        **{f"dev_{k}": v for k, v in dev_metrics.items()},
+                        **cronometro.as_dict()})
         # Gravado a cada época: se o processo cair na época 34 de 50, as curvas
         # do relatório sobrevivem. Não há retomada de treino no checkpoint.
         save_history(history, name)
@@ -307,6 +424,8 @@ def main() -> None:
     curves_path = OUTPUT_DIR / f"{name}_curves.png"
     if history:
         plot_history(history, curves_path)
+
+    print_time_report(history, num_workers)
 
     print(f"\nMelhor EER de validação: {best_eer * 100:.2f}%")
     if calibrate:

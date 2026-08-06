@@ -5,6 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import pytest  # noqa: E402
+
 from train import archive_previous_checkpoints, class_weights_from  # noqa: E402
 
 
@@ -66,3 +68,90 @@ def test_class_weights_sqrt_is_milder():
     assert abs(float(sqrt[0]) - math.sqrt(float(auto[0]))) < 1e-5
     # A razão entre as classes fica menor (compensação mais suave).
     assert float(sqrt[0]) / float(sqrt[1]) < float(auto[0]) / float(auto[1])
+
+
+# --------------------------------------------------------------------------- #
+# Cronômetro por época
+#
+# A separação entre "espera por dados" e "cálculo" é o que decide qual
+# otimização vale a pena. Se ela medir errado, aponta para o lado errado.
+# --------------------------------------------------------------------------- #
+def test_timer_separates_waiting_from_computing():
+    import time
+
+    from train import EpochTimer
+
+    def loader_lento():
+        for _ in range(3):
+            time.sleep(0.02)   # tempo do "DataLoader"
+            yield "lote"
+
+    cronometro = EpochTimer()
+    for _ in cronometro.batches(loader_lento()):
+        with cronometro.medindo("calculo"):
+            time.sleep(0.04)   # tempo da "GPU"
+
+    assert cronometro.dados == pytest.approx(0.06, abs=0.05)
+    assert cronometro.calculo == pytest.approx(0.12, abs=0.06)
+    assert cronometro.calculo > cronometro.dados
+
+
+def test_timer_records_time_of_skipped_batches():
+    """`continue` dentro do bloco medido ainda precisa fechar a medição."""
+    import time
+
+    from train import EpochTimer
+
+    cronometro = EpochTimer()
+    for _ in cronometro.batches(range(3)):
+        with cronometro.medindo("calculo"):
+            time.sleep(0.01)
+            continue   # imita o descarte de um lote com loss NaN
+
+    assert cronometro.calculo > 0.02
+
+
+def test_timer_history_fields():
+    from train import EpochTimer
+
+    campos = EpochTimer().as_dict()
+    assert set(campos) == {"t_epoch", "t_data", "t_compute", "t_dev"}
+
+
+def test_time_report_points_at_the_data_stage(capsys):
+    from train import print_time_report
+
+    history = [{"t_epoch": 100, "t_data": 70, "t_compute": 20, "t_dev": 10}] * 3
+    print_time_report(history, num_workers=2)
+    saida = capsys.readouterr().out
+    assert "espera por dados" in saida
+    assert "num_workers" in saida
+
+
+def test_time_report_points_at_the_gpu(capsys):
+    from train import print_time_report
+
+    history = [{"t_epoch": 100, "t_data": 5, "t_compute": 85, "t_dev": 10}] * 3
+    print_time_report(history, num_workers=2)
+    saida = capsys.readouterr().out
+    assert "GPU" in saida
+    assert "não vai ajudar" in saida
+
+
+def test_time_report_ignores_the_first_epoch(capsys):
+    """A 1ª época enche o cache e mede algoritmos do cuDNN — não é o regime."""
+    from train import print_time_report
+
+    history = [{"t_epoch": 900, "t_data": 880, "t_compute": 15, "t_dev": 5},
+               {"t_epoch": 100, "t_data": 5, "t_compute": 85, "t_dev": 10},
+               {"t_epoch": 100, "t_data": 5, "t_compute": 85, "t_dev": 10}]
+    print_time_report(history, num_workers=4)
+    saida = capsys.readouterr().out
+    assert "espera por dados" not in saida, "a 1ª época contaminou a média"
+
+
+def test_time_report_survives_a_single_epoch(capsys):
+    from train import print_time_report
+
+    print_time_report([{"t_epoch": 10, "t_data": 3, "t_compute": 5, "t_dev": 2}], 4)
+    assert "Tempo de treino" in capsys.readouterr().out

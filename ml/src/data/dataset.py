@@ -20,6 +20,7 @@ from torch.utils.data import Dataset
 
 from ..features import FeatureExtractor
 from ..preprocess import load_audio, preprocess_waveform
+from .cache import FeatureCache, legacy_pt_files
 
 LABEL_MAP = {"bonafide": 0, "spoof": 1}
 
@@ -69,6 +70,17 @@ def parse_protocol(protocol_path: str | Path) -> list[tuple[str, int]]:
     return [(name, label) for name, label, _ in parse_protocol_with_systems(protocol_path)]
 
 
+def protocol_ids_and_systems(config: dict, partition: str) -> tuple[list[str], list[str]]:
+    """Ids e algoritmos de síntese de uma partição, direto do protocolo.
+
+    Permite conferir scores salvos em disco sem abrir um único áudio: se eles
+    ainda valem para este modelo, o dataset (e o cache de features) nem chega a
+    ser construído.
+    """
+    registros = parse_protocol_with_systems(config["data"]["protocols"][partition])
+    return [nome for nome, _, _ in registros], [sis for _, _, sis in registros]
+
+
 class ASVspoofDataset(Dataset):
     def __init__(
         self,
@@ -81,6 +93,7 @@ class ASVspoofDataset(Dataset):
         augmenter=None,
         random_crop: bool = False,
         seed: int = 0,
+        partition: str = "train",
     ):
         records = parse_protocol_with_systems(protocol_path)
         self.items = [(name, label) for name, label, _ in records]
@@ -94,19 +107,46 @@ class ASVspoofDataset(Dataset):
         self.augmenter = augmenter
         self.random_crop = random_crop
         self.seed = seed
+        self.partition = partition
         self._epoch = _shared_epoch()
         # Cache guarda uma única versão das features, então é incompatível com
         # qualquer aleatoriedade por época (aumentação ou recorte aleatório).
         stochastic = augmenter is not None or random_crop
         self.cache_dir = None
-        if cache_dir and not stochastic:
+        self.cache = None
+        if cache_dir and not stochastic and self.items:
             # O cache é indexado pelo *fingerprint* da configuração de features,
             # não pelo nome do experimento: assim experimentos que usam features
             # idênticas (ex.: v3a, v3 e v4, todos com n_filter=70) compartilham
             # os mesmos arquivos em vez de duplicá-los — cada cópia custa ~11 GB.
             self._cache_key = _config_fingerprint(audio_cfg, extractor)
             self.cache_dir = Path(cache_dir) / self._cache_key
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self.cache = self._open_cache()
+
+    def _open_cache(self) -> FeatureCache | None:
+        """Abre o cache da partição, descobrindo os shapes com uma extração.
+
+        Os shapes só são conhecidos depois de extrair uma amostra — e como a
+        matriz em disco precisa do tamanho da linha para ser criada, essa
+        primeira extração acontece aqui, no processo principal. Ela não é
+        desperdiçada: o resultado já é gravado na posição 0.
+        """
+        quantos, tamanho = legacy_pt_files(self.cache_dir)
+        if quantos:
+            print(f"[cache] {quantos} arquivos .pt do formato antigo em "
+                  f"{self.cache_dir} (~{tamanho / 1e9:.1f} GB). O novo formato "
+                  "não os usa — podem ser apagados com segurança.")
+        try:
+            features = self._extract(0)
+            cache = FeatureCache(self.cache_dir / self.partition, self.ids,
+                                 {k: tuple(v.shape) for k, v in features.items()})
+            cache.put(0, features)
+        except OSError as erro:
+            # Falta de espaço ou permissão não deve derrubar o treino: sem cache
+            # ele continua, só recalculando as features a cada época.
+            print(f"[cache] desativado para '{self.partition}': {erro}")
+            return None
+        return cache
 
     def set_epoch(self, epoch: int) -> None:
         """Varia a semente por época para que o recorte aleatório mude a cada uma."""
@@ -116,9 +156,8 @@ class ASVspoofDataset(Dataset):
         return len(self.items)
 
     def __getitem__(self, idx: int):
-        file_name, label = self.items[idx]
-        features = self._load_features(file_name, idx)
-        return features, label
+        _, label = self.items[idx]
+        return self._load_features(idx), label
 
     def _sample_rng(self, idx: int) -> np.random.Generator:
         """Gerador próprio de cada amostra, derivado de (semente, época, índice).
@@ -130,14 +169,19 @@ class ASVspoofDataset(Dataset):
         """
         return np.random.default_rng((self.seed, int(self._epoch[0]), idx))
 
-    def _load_features(self, file_name: str, idx: int) -> dict[str, torch.Tensor]:
-        cache_path = None
-        if self.cache_dir:
-            # O fingerprint já está no nome da pasta.
-            cache_path = self.cache_dir / f"{file_name}.pt"
-            if cache_path.exists():
-                return torch.load(cache_path)
+    def _load_features(self, idx: int) -> dict[str, torch.Tensor]:
+        if self.cache is not None:
+            cached = self.cache.get(idx)
+            if cached is not None:
+                return cached
+        features = self._extract(idx)
+        if self.cache is not None:
+            self.cache.put(idx, features)
+        return features
 
+    def _extract(self, idx: int) -> dict[str, torch.Tensor]:
+        """Caminho completo: lê o áudio, pré-processa, aumenta e extrai."""
+        file_name, _ = self.items[idx]
         rng = self._sample_rng(idx) if (self.random_crop or self.augmenter) else None
         wav = load_audio(self.audio_dir / f"{file_name}{self.file_ext}",
                          self.audio_cfg["sample_rate"])
@@ -145,11 +189,7 @@ class ASVspoofDataset(Dataset):
                                   rng=rng if self.random_crop else None)
         if self.augmenter is not None:
             wav = self.augmenter(wav, rng=rng)
-        features = self.extractor(wav)
-
-        if cache_path is not None:
-            torch.save(features, cache_path)
-        return features
+        return self.extractor(wav)
 
 
 # --------------------------------------------------------------------------- #
@@ -258,6 +298,7 @@ def build_dataset(
         augmenter=augmenter,
         random_crop=random_crop,
         seed=config["experiment"]["seed"],
+        partition=partition,
     )
 
 

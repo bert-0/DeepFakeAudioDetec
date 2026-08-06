@@ -36,11 +36,13 @@ from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, resolve_device, set_seed  # noqa: E402
+from src.config import load_config, output_name, resolve_device, set_seed  # noqa: E402
 from src.data import build_dataset  # noqa: E402
+from src.data.dataset import protocol_ids_and_systems  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_eer, format_metrics, compute_metrics  # noqa: E402
+from src.metrics import compute_eer  # noqa: E402
 from src.models import build_model  # noqa: E402
+from src.scores import checkpoint_fingerprint, load_scores, scores_path  # noqa: E402
 
 OUTPUT_DIR = Path("outputs")
 RULES = ("mean", "rank", "max", "min")
@@ -57,25 +59,51 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--device", default=None)
     p.add_argument("--name", default="fusion_scores", help="prefixo dos arquivos de saída")
+    p.add_argument("--recompute", action="store_true",
+                   help="refaz a inferência mesmo havendo scores salvos por evaluate.py")
     return p.parse_args()
 
 
 @torch.no_grad()
 def scores_of_model(config_path: str, ckpt_path: str, partition: str,
-                    smoke: bool, device_arg: str | None):
-    """Roda um modelo na partição e devolve (labels, scores, system_ids, ids)."""
+                    smoke: bool, device_arg: str | None, recompute: bool = False):
+    """Scores de um modelo na partição: (labels, scores, system_ids, ids).
+
+    Reaproveita o `.npz` deixado por `evaluate.py` quando ele descreve este mesmo
+    checkpoint e protocolo — a fusão combina N modelos, e sem isso seriam N
+    passadas completas de inferência só para reobter números já calculados.
+    """
     config = load_config(config_path)
     set_seed(config["experiment"]["seed"])
-    device = resolve_device(device_arg or config["train"]["device"])
+    name = output_name(config, smoke)
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    impressao = checkpoint_fingerprint(ckpt["model_state"])
 
-    extractor = FeatureExtractor(config["audio"], config["features"])
-    ds = build_dataset(config, partition, extractor, smoke)
+    ds = None
+    if smoke:
+        extractor = FeatureExtractor(config["audio"], config["features"])
+        ds = build_dataset(config, partition, extractor, smoke)
+        ids, sistemas = list(ds.ids), list(ds.system_ids)
+    else:
+        ids, sistemas = protocol_ids_and_systems(config, partition)
+
+    if not recompute:
+        reuso, motivo = load_scores(scores_path(OUTPUT_DIR, name, partition),
+                                    ids=ids, fingerprint=impressao, partition=partition)
+        if reuso is not None:
+            labels, scores, systems = reuso
+            print(f"  scores {motivo} (inferência não repetida)")
+            return labels, scores, systems, ids
+
+    device = resolve_device(device_arg or config["train"]["device"])
+    if ds is None:
+        extractor = FeatureExtractor(config["audio"], config["features"])
+        ds = build_dataset(config, partition, extractor, smoke)
     batch = config["smoke"]["batch_size"] if smoke else config["train"]["batch_size"]
     loader = DataLoader(ds, batch_size=batch, shuffle=False,
                         num_workers=0 if smoke else config["train"]["num_workers"])
 
     model = build_model(config["model"]).to(device)
-    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
@@ -141,7 +169,8 @@ def main() -> None:
         tag = Path(cfg_path).stem
         print(f"Rodando {tag} ...", flush=True)
         labels, scores, sys_ids, ids = scores_of_model(
-            cfg_path, ckpt_path, args.partition, args.smoke, args.device)
+            cfg_path, ckpt_path, args.partition, args.smoke, args.device,
+            recompute=args.recompute)
         if labels_ref is None:
             labels_ref, ids_ref, systems = labels, ids, sys_ids
         elif ids_ref != ids:

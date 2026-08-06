@@ -26,9 +26,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import load_config, output_name, resolve_device, set_seed  # noqa: E402
 from src.data import build_dataset  # noqa: E402
+from src.data.dataset import protocol_ids_and_systems  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
 from src.metrics import compute_eer  # noqa: E402
 from src.models import build_model  # noqa: E402
+from src.scores import checkpoint_fingerprint, load_scores, scores_path  # noqa: E402
 
 OUTPUT_DIR = Path("outputs")
 
@@ -40,6 +42,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--partition", default="eval", choices=["train", "dev", "eval"])
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--device", default=None)
+    p.add_argument("--recompute", action="store_true",
+                   help="refaz a inferência mesmo havendo scores salvos por evaluate.py")
     return p.parse_args()
 
 
@@ -102,24 +106,50 @@ def main() -> None:
     config = load_config(args.config)
     set_seed(config["experiment"]["seed"])
     device = resolve_device(args.device or config["train"]["device"])
+    name = output_name(config, args.smoke)
 
     extractor = FeatureExtractor(config["audio"], config["features"])
-    ds = build_dataset(config, args.partition, extractor, args.smoke)
-    if not hasattr(ds, "system_ids"):
-        raise SystemExit("O dataset não expõe system_ids — protocolo incompatível.")
+    ckpt = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
+    impressao = checkpoint_fingerprint(ckpt["model_state"])
 
-    batch_size = config["smoke"]["batch_size"] if args.smoke else config["train"]["batch_size"]
-    loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
-                        num_workers=0 if args.smoke else config["train"]["num_workers"])
+    ds = None
+    if args.smoke:
+        ds = build_dataset(config, args.partition, extractor, args.smoke)
+        ids, systems = ds.ids, np.array(ds.system_ids)
+    else:
+        ids, sistemas = protocol_ids_and_systems(config, args.partition)
+        systems = np.array(sistemas)
 
-    model = build_model(config["model"]).to(device)
-    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    model.load_state_dict(ckpt["model_state"])
-    print(f"Modelo: {config['model']['name']} | partição: {args.partition} | "
-          f"dispositivo: {device}\n")
+    # `evaluate.py` já percorreu esta partição com este mesmo checkpoint. Repetir
+    # a inferência daria exatamente os mesmos scores — no `eval` do LA, 71.237
+    # áudios de novo. O arquivo só é aceito se o modelo e o protocolo baterem.
+    reuso, motivo = (None, "recálculo pedido com --recompute")
+    if not args.recompute:
+        reuso, motivo = load_scores(scores_path(OUTPUT_DIR, name, args.partition),
+                                    ids=ids, fingerprint=impressao,
+                                    partition=args.partition)
 
-    labels, scores = collect_scores(model, loader, device)
-    systems = np.array(ds.system_ids)
+    if reuso is not None:
+        labels, scores, systems = reuso
+        print(f"Scores {motivo} de {scores_path(OUTPUT_DIR, name, args.partition)} "
+              "— inferência não repetida.\n")
+    else:
+        print(f"Rodando a inferência ({motivo}).")
+        if ds is None:
+            ds = build_dataset(config, args.partition, extractor, args.smoke)
+        if not hasattr(ds, "system_ids"):
+            raise SystemExit("O dataset não expõe system_ids — protocolo incompatível.")
+        systems = np.array(ds.system_ids)
+        batch_size = (config["smoke"]["batch_size"] if args.smoke
+                      else config["train"]["batch_size"])
+        loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
+                            num_workers=0 if args.smoke else config["train"]["num_workers"])
+        model = build_model(config["model"]).to(device)
+        model.load_state_dict(ckpt["model_state"])
+        print(f"Modelo: {config['model']['name']} | partição: {args.partition} | "
+              f"dispositivo: {device}\n")
+        labels, scores = collect_scores(model, loader, device)
+
     global_eer = compute_eer(labels, scores)
     results = eer_per_attack(labels, scores, systems)
 
@@ -138,7 +168,6 @@ def main() -> None:
     print(f"{len(acima)} de {len(order)} ataques ficam acima do EER global: {', '.join(acima)}")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    name = output_name(config, args.smoke)
     json_path = OUTPUT_DIR / f"{name}_{args.partition}_per_attack.json"
     plot_path = OUTPUT_DIR / f"{name}_{args.partition}_per_attack.png"
     with open(json_path, "w", encoding="utf-8") as fh:
