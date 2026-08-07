@@ -81,18 +81,27 @@ def test_timer_separates_waiting_from_computing():
 
     from train import EpochTimer
 
+    ESPERA, CALCULO, N = 0.05, 0.10, 3
+
     def loader_lento():
-        for _ in range(3):
-            time.sleep(0.02)   # tempo do "DataLoader"
+        for _ in range(N):
+            time.sleep(ESPERA)   # tempo do "DataLoader"
             yield "lote"
 
     cronometro = EpochTimer()
     for _ in cronometro.batches(loader_lento()):
         with cronometro.medindo("calculo"):
-            time.sleep(0.04)   # tempo da "GPU"
+            time.sleep(CALCULO)  # tempo da "GPU"
 
-    assert cronometro.dados == pytest.approx(0.06, abs=0.05)
-    assert cronometro.calculo == pytest.approx(0.12, abs=0.06)
+    # Limites só por baixo, com folga por cima: `time.sleep` garante dormir *no
+    # mínimo* o pedido, e no Windows a granularidade do timer é de ~15 ms. Uma
+    # tolerância simétrica apertada torna o teste intermitente sob carga — o que
+    # de fato aconteceu aqui. O que importa é a *separação* das duas parcelas.
+    assert cronometro.dados >= N * ESPERA * 0.9
+    assert cronometro.calculo >= N * CALCULO * 0.9
+    assert cronometro.dados < N * ESPERA + 0.5
+    assert cronometro.calculo < N * CALCULO + 0.5
+    # A relação entre elas é o que o cronômetro existe para mostrar.
     assert cronometro.calculo > cronometro.dados
 
 

@@ -55,16 +55,17 @@ train:
   batch_size: 32
   lr: 0.001
   weight_decay: 0.0001
-  num_workers: 2
-  # Cada worker é um processo de ~512 MB no Windows (spawn reimporta torch e
-  # librosa). Com 4 de treino + 4 de dev o pico batia ~8,5 GB com o sistema e
-  # travava notebooks de 16 GB. Aqui: 2 processos, ~5,5 GB de pico.
-  # Não custa tempo: a extração das features (~45 s/época com 2 workers) cabe
-  # folgada dentro dos ~224 s de GPU, então a espera por dados segue perto de 0.
+  num_workers: 4
+  # Medido: o loader de treino entrega 226 amostras/s com 4 workers e 173 com 2,
+  # contra 113/s que a GPU consome. Os 2 ainda dariam conta AQUI, mas o log real
+  # do usuário mostrava `dados 32,9s` — ou seja, na máquina dele o loader já não
+  # acompanhava. Cortar workers de treino economizaria 1 GB e arriscaria o dobro
+  # do tempo de época; não compensa.
   dev_num_workers: 0
-  # O dev é 100% cache depois da 1ª época (leitura de memmap, sem decode nem
-  # extração), então não precisa de processo próprio. Só a 1ª época paga ~90 s.
-  device: cuda
+  # Este é o corte que vale: 2 GB, e o dev fica MAIS RÁPIDO. Depois da 1ª época
+  # o dev é leitura de memmap pura, e o custo de serializar tensores de 219 KiB
+  # entre processos domina. Medido: 5.927 amostras/s com 0 workers contra 1.686
+  # com 2 — a partição inteira em 4,2s em vez de 14,7s.
   cache_features: true
   class_weights: sqrt
   calibrate_threshold: true
