@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from src.config import load_config, output_name, resolve_device, set_seed
+from src.config import load_config, seed_worker, output_name, resolve_device, set_seed
 from src.data import build_dataset
 from src.features import FeatureExtractor
 from src.metrics import (
@@ -74,7 +74,8 @@ def main() -> None:
     ds = build_dataset(config, args.partition, extractor, args.smoke)
     batch_size = config["smoke"]["batch_size"] if args.smoke else config["train"]["batch_size"]
     loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
-                        num_workers=0 if args.smoke else config["train"]["num_workers"])
+                        num_workers=0 if args.smoke else config["train"]["num_workers"],
+                        worker_init_fn=seed_worker)
 
     model = build_model(config["model"]).to(device)
     # weights_only=False: o checkpoint é nosso e inclui o dicionário de config.
@@ -93,7 +94,8 @@ def main() -> None:
         # corrigir o ponto de operação de um modelo já treinado.
         cal_ds = build_dataset(config, args.calibrate_on, extractor, args.smoke)
         cal_loader = DataLoader(cal_ds, batch_size=batch_size, shuffle=False,
-                                num_workers=0 if args.smoke else config["train"]["num_workers"])
+                                num_workers=0 if args.smoke else config["train"]["num_workers"],
+                                worker_init_fn=seed_worker)
         cal_labels, _, cal_scores = run_inference(model, cal_loader, device)
         cal_eer, threshold = compute_eer_with_threshold(cal_labels, cal_scores)
         origem = f"calibrado agora em '{args.calibrate_on}' (EER={cal_eer * 100:.2f}%)"

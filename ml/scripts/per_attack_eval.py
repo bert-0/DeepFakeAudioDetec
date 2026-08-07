@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, output_name, resolve_device, set_seed  # noqa: E402
+from src.config import load_config, seed_worker, output_name, resolve_device, set_seed  # noqa: E402
 from src.data import build_dataset  # noqa: E402
 from src.data.dataset import protocol_ids_and_systems  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
@@ -143,7 +143,8 @@ def main() -> None:
         batch_size = (config["smoke"]["batch_size"] if args.smoke
                       else config["train"]["batch_size"])
         loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
-                            num_workers=0 if args.smoke else config["train"]["num_workers"])
+                            num_workers=0 if args.smoke else config["train"]["num_workers"],
+                            worker_init_fn=seed_worker)
         model = build_model(config["model"]).to(device)
         model.load_state_dict(ckpt["model_state"])
         print(f"Modelo: {config['model']['name']} | partição: {args.partition} | "

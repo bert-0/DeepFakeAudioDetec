@@ -66,6 +66,7 @@ train:
   # o dev é leitura de memmap pura, e o custo de serializar tensores de 219 KiB
   # entre processos domina. Medido: 5.927 amostras/s com 0 workers contra 1.686
   # com 2 — a partição inteira em 4,2s em vez de 14,7s.
+  device: cuda
   cache_features: true
   class_weights: sqrt
   calibrate_threshold: true
