@@ -11,3 +11,8 @@ matplotlib>=3.6
 pyyaml>=6.0
 tqdm>=4.64
 threadpoolctl>=3.0   # limita threads BLAS nos workers do DataLoader
+
+# Opcional — só para o monitor de chamada ao vivo (monitor.py).
+# No Windows dá acesso ao loopback WASAPI, que captura a saída do sistema.
+# Não é necessário para treinar nem avaliar.
+# soundcard>=0.4

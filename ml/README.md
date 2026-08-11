@@ -447,6 +447,52 @@ python infer.py --config configs/baseline.yaml \
 
 Saída: classificação (`bonafide`/`spoof`) e a probabilidade associada.
 
+## Monitor de chamada ao vivo (`monitor.py`)
+
+Analisa uma chamada **em andamento** capturando a saída de áudio do sistema
+(loopback WASAPI no Windows). Como pega o que sai da caixa de som, funciona com
+Microsoft Teams, Meet, Zoom ou qualquer outro — **sem publicar aplicativo em
+tenant nenhum**, sem Azure e sem consentimento de administrador.
+
+```bash
+pip install soundcard                    # só para o modo ao vivo
+
+python monitor.py --listar-dispositivos  # descobrir a saída a escutar
+
+# durante uma chamada, gravando o que ouviu
+python monitor.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
+    --gravar outputs/chamada.wav --json outputs/chamada.json
+
+# reprocessar a gravação (mesmos scores, bit a bit)
+python monitor.py --config ... --checkpoint ... --arquivo outputs/chamada.wav
+```
+
+O áudio é cortado em janelas do tamanho de `audio.duration` com metade de
+sobreposição, e cada janela passa pelo **mesmo** caminho do `infer.py`:
+`preprocess_waveform` -> `FeatureExtractor` -> modelo -> softmax. Janelas em
+silêncio são marcadas e ficam fora das médias — o modelo nunca viu silêncio
+rotulado, e incluí-lo tornaria o resumo sem sentido numa chamada real.
+
+### Duas limitações que precisam ser ditas
+
+**O áudio é o mix.** O loopback entrega a soma de todos os participantes. Não há
+atribuição por pessoa — para isso só o bot de mídia do Teams serviria, que é
+exatamente o caminho que este módulo evita. O resultado é sobre o *trecho*, não
+sobre quem falou.
+
+**O canal não foi medido.** O modelo foi treinado no ASVspoof: áudio limpo, 16
+kHz, sem codec. Uma chamada passou por microfone, sala, supressão de ruído,
+ganho automático e o codec Opus. Metade do banco de filtros do LFCC (35 de 70,
+com `n_filter: 70`) olha acima de 4 kHz — justamente o que um canal estreito não
+transmite. Enquanto essa degradação não tiver número, o monitor mostra **score**,
+não veredito.
+
+É para isso que serve o `--gravar`: toque numa chamada real áudios do ASVspoof
+com rótulo conhecido, capture o que chega do outro lado e avalie. Isso mede o
+canal **de verdade** — com o Opus real e o processamento real — em vez de uma
+simulação. O par gravar/`--arquivo` garante que o resultado seja reproduzível.
+
 ## Estrutura
 
 ```
