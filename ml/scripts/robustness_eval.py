@@ -36,6 +36,11 @@ from src.features import FeatureExtractor  # noqa: E402
 from src.metrics import compute_metrics, format_metrics  # noqa: E402
 from src.models import build_model  # noqa: E402
 from src.preprocess.augment import make_perturbation  # noqa: E402
+from src.preprocess.channel import (  # noqa: E402
+    ChannelChain,
+    ChannelDegradation,
+    medir_taxa_kbps,
+)
 
 OUTPUT_DIR = Path("outputs")
 
@@ -49,6 +54,35 @@ CONDITIONS = [
     ("gain_+6dB", "gain", 6),
 ]
 
+# Condições de CANAL: o que uma chamada de Teams/Meet/Zoom faz com o áudio.
+# Separadas das acústicas acima porque respondem a outra pergunta — não "o
+# modelo aguenta um ambiente ruidoso?", e sim "o modelo sobrevive ao meio de
+# transmissão?". É a pergunta que decide se o monitor ao vivo (monitor.py) tem
+# base para existir.
+#
+# `nivel` do opus é o compression_level em [0,1]; a taxa em kbps resultante
+# depende do conteúdo (o Opus é VBR) e é medida e reportada em tempo de
+# execução, em vez de anunciada.
+# Os níveis foram calibrados para cair na faixa que o Teams usa de fato
+# (16-32 kbps para voz), medida em ruído rosa de 4 s:
+#   0.90 -> 30 kbps    0.92 -> 25 kbps    0.94 -> 19 kbps
+#   0.96 -> 15 kbps    1.00 ->  6 kbps
+# Varrer de 130 a 6 kbps testaria sobretudo faixas que uma chamada nunca usa.
+CHANNEL_CONDITIONS = [
+    ("opus_30kbps", [("opus", 0.90)]),        # rede boa
+    ("opus_25kbps", [("opus", 0.92)]),        # típico
+    ("opus_15kbps", [("opus", 0.96)]),        # rede apertada
+    ("banda_estreita", [("band", 8000)]),     # telefonia: nada acima de 4 kHz
+    ("banda_estreita_opus", [("band", 8000), ("opus", 0.92)]),  # o caso realista
+]
+
+
+def construir_canal(etapas, sample_rate):
+    """Monta a degradação de canal de uma condição."""
+    degradacoes = [ChannelDegradation(kind, level, sample_rate)
+                   for kind, level in etapas]
+    return degradacoes[0] if len(degradacoes) == 1 else ChannelChain(degradacoes)
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Avaliação de robustez sob perturbações")
@@ -57,6 +91,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--partition", default="eval", choices=["train", "dev", "eval"])
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--device", default=None)
+    p.add_argument("--sem-canal", action="store_true",
+                   help="roda só as condições acústicas (ruído/ganho), pulando "
+                        "as de canal (codec e banda estreita)")
     return p.parse_args()
 
 
@@ -96,6 +133,33 @@ def plot_robustness(results: dict, out_path: Path) -> None:
     plt.close(fig)
 
 
+def relatar_taxas(sample_rate: int) -> None:
+    """Mostra a taxa que cada nível de compressão produz, medida.
+
+    O Opus é VBR: o `compression_level` é um pedido, não uma garantia. Sem esta
+    medição, o relatório citaria taxas nominais que o arquivo nunca teve.
+    """
+    import numpy as np_
+
+    rng = np_.random.default_rng(0)
+    # Ruído rosa: energia em todas as bandas, decrescente como a da fala. Um tom
+    # puro comprimiria a quase nada e daria uma taxa irrealista.
+    branco = rng.standard_normal(sample_rate * 4)
+    espectro = np_.fft.rfft(branco)
+    freqs = np_.fft.rfftfreq(len(branco), 1 / sample_rate)
+    freqs[0] = freqs[1]
+    referencia = np_.fft.irfft(espectro / np_.sqrt(freqs)).astype("float32")
+    referencia = (0.3 * referencia / np_.abs(referencia).max()).astype("float32")
+
+    print("Taxas do Opus medidas em ruído rosa de 4 s (o áudio real varia):")
+    for label, etapas in CHANNEL_CONDITIONS:
+        for kind, level in etapas:
+            if kind == "opus":
+                kbps = medir_taxa_kbps(referencia, sample_rate, level)
+                print(f"  {label:22s} compression_level={level:<4} -> {kbps:6.1f} kbps")
+    print()
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
@@ -118,9 +182,18 @@ def main() -> None:
     print(f"Robustez | modelo: {config['model']['name']} | partição: {args.partition} | "
           f"dispositivo: {device}\n")
 
+    sample_rate = int(config["audio"]["sample_rate"])
+    condicoes: list[tuple[str, object]] = [
+        (label, None if kind is None else make_perturbation(kind, level, seed=seed))
+        for label, kind, level in CONDITIONS
+    ]
+    if not args.sem_canal:
+        condicoes += [(label, construir_canal(etapas, sample_rate))
+                      for label, etapas in CHANNEL_CONDITIONS]
+        relatar_taxas(sample_rate)
+
     results: dict[str, dict] = {}
-    for label, kind, level in CONDITIONS:
-        perturbation = None if kind is None else make_perturbation(kind, level, seed=seed)
+    for label, perturbation in condicoes:
         ds = build_dataset(config, args.partition, extractor, args.smoke, augmenter=perturbation)
         # As perturbações mudam as features, então o cache fica desligado e cada
         # condição recalcula tudo. Com `num_workers=0` isso era um único processo
