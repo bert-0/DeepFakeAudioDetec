@@ -14,8 +14,14 @@ modelo, direto no waveform:
   3. energia RMS
 
 Para cada um, calcula o EER que um classificador **trivial** obteria usando
-somente aquela grandeza. Se algum deles ficar longe de 50%, a base carrega esse
-atalho — e parte do desempenho do detector pode vir dali, não da voz.
+somente aquela grandeza, e compara com um **teste de permutação**: embaralha os
+rótulos 500 vezes para descobrir o que o acaso produz nesta amostra. Julgar "está
+perto de 50%?" a olho não funciona — com classes desbalanceadas (~9 spoof por
+bonafide no LA) e amostra finita, o acaso não entrega exatamente 50%.
+
+Um EER abaixo do percentil 5 do nulo indica sinal real na grandeza. Isso não
+implica que o detector dependa dele: compare as magnitudes. Um atalho de ~44%
+não explica um modelo de ~19%.
 
 Uso:
     python scripts/check_shortcut.py --config configs/fusion_v4.yaml
@@ -46,6 +52,28 @@ def parse_args() -> argparse.Namespace:
                    help="quantos áudios amostrar (padrão: 3000)")
     p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
+
+
+def teste_permutacao(rotulos: np.ndarray, valores: np.ndarray,
+                     n: int = 500, seed: int = 0) -> tuple[float, float]:
+    """Distribuição nula do EER trivial, embaralhando os rótulos.
+
+    Um EER de 43,8% parece "quase 50%", mas não dá para julgar isso a olho: com
+    classes desbalanceadas (no LA são ~9 spoof por bonafide) e amostra finita, o
+    acaso não produz exatamente 50%. Embaralhar os rótulos preserva os tamanhos
+    das classes e a distribuição dos valores, e mostra o que o acaso realmente
+    produz nesta amostra.
+
+    Devolve (média do nulo, percentil 5). Um EER observado **abaixo** do
+    percentil 5 não é explicável por acaso: há sinal de verdade na grandeza.
+    """
+    rng = np.random.default_rng(seed)
+    nulos = np.empty(n)
+    embaralhado = rotulos.copy()
+    for i in range(n):
+        rng.shuffle(embaralhado)
+        nulos[i] = eer_trivial(embaralhado, valores)
+    return float(nulos.mean()), float(np.percentile(nulos, 5))
 
 
 def eer_trivial(rotulos: np.ndarray, valores: np.ndarray) -> float:
@@ -98,18 +126,24 @@ def main() -> int:
     n_spoof = int((rotulos == 1).sum())
     print(f"\nAmostra: {n_bona} bonafide, {n_spoof} spoof\n")
 
-    print(f"{'grandeza':28s} {'bonafide':>12s} {'spoof':>12s} {'EER trivial':>12s}")
-    print("-" * 68)
+    print(f"{'grandeza':26s} {'bonafide':>10s} {'spoof':>10s} {'EER':>8s} "
+          f"{'acaso':>8s} {'p5':>7s}")
+    print("-" * 78)
     achados = []
     for nome, vals in (("duração original (s)", np.array(dur_bruta)),
                        ("duração sem silêncio (s)", np.array(dur_limpa)),
                        ("energia RMS", np.array(rms))):
         mb, ms = vals[rotulos == 0].mean(), vals[rotulos == 1].mean()
         eer = eer_trivial(rotulos, vals) * 100
-        marca = "  <-- ATALHO" if eer < 40 else ""
-        print(f"{nome:28s} {mb:12.3f} {ms:12.3f} {eer:11.2f}%{marca}")
-        if eer < 40:
-            achados.append((nome, eer))
+        # O que o acaso produz NESTA amostra, com estes tamanhos de classe.
+        nulo, p5 = teste_permutacao(rotulos, vals)
+        nulo, p5 = nulo * 100, p5 * 100
+        significativo = eer < p5
+        marca = "  <-- SINAL REAL" if significativo else ""
+        print(f"{nome:26s} {mb:10.3f} {ms:10.3f} {eer:7.2f}% {nulo:7.2f}% "
+              f"{p5:6.2f}%{marca}")
+        if significativo:
+            achados.append((nome, eer, p5))
 
     # `fix_length` completa por repetição quem tem menos que `duration`; se a
     # proporção de repetidos diferir por classe, o próprio padding vira pista.
@@ -120,13 +154,14 @@ def main() -> int:
 
     print("\n" + "=" * 68)
     if achados:
-        print("[AVISO] a base carrega atalho(s) triviais:")
-        for nome, eer in achados:
-            print(f"          {nome}: EER {eer:.2f}% só com essa grandeza")
-        print("        Parte do desempenho do detector pode vir daqui, e não da voz.")
+        print("[AVISO] há sinal estatisticamente real em grandeza(s) trivial(is):")
+        for nome, eer, p5 in achados:
+            print(f"          {nome}: EER {eer:.2f}% (acaso não desce de {p5:.2f}%)")
+        print("        Isso NÃO significa que o detector dependa disso — compare a\n"
+              "        magnitude: um atalho de ~44% não explica um modelo de ~19%.\n"
+              "        Mas precisa ser declarado na metodologia.")
         return 1
-    print("[ OK ] nenhuma das grandezas triviais separa as classes "
-          "(todas perto de 50%).")
+    print("[ OK ] nenhuma grandeza trivial separa as classes além do acaso.")
     print("       O desempenho do detector não pode ser explicado por elas.")
     return 0
 
