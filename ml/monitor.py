@@ -5,8 +5,8 @@ janela. Como pega o que sai da caixa de som, funciona com Microsoft Teams,
 Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
 
     # ao vivo, durante uma chamada
-    python monitor.py --config configs/baseline_v2.yaml \\
-        --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
+    python monitor.py --config configs/fusion_v4.yaml \\
+        --checkpoint checkpoints/fusion_lcnn_v4.pt
 
     # ao vivo, gravando o que ouviu (é assim que se mede o canal real)
     python monitor.py --config ... --checkpoint ... --gravar chamada.wav
@@ -17,13 +17,31 @@ Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
     # ver os dispositivos disponíveis
     python monitor.py --listar-dispositivos
 
-**Sobre o número que ele mostra.** O modelo foi treinado no ASVspoof: áudio
-limpo, 16 kHz, sem codec. O áudio de uma chamada passou por microfone, sala,
-supressão de ruído, ganho automático e o codec Opus. Metade do banco de filtros
-do LFCC olha acima de 4 kHz, que é justamente o que um canal estreito não
-transmite. Enquanto essa degradação não for medida, o monitor mostra **score**,
-não veredito — e é para isso que serve o `--gravar`: toque áudios de rótulo
-conhecido numa chamada real, capture, e avalie o resultado.
+**Qual modelo usar.** O `fusion_lcnn_v4`, e não o melhor modelo do benchmark.
+Em áudio limpo o `baseline_lfcc_cnn_v2` ganha por 1,19 pp, mas sob as condições
+de uma chamada a ordem **se inverte** (medido com `robustness_eval.py` no eval
+completo, 71.237 áudios):
+
+    condição              v2      fusion_v4
+    limpo              18,99%        20,18%
+    opus 25 kbps       20,04%        22,08%
+    banda estreita     35,95%        25,53%   <- v4 ganha por 10,4 pp
+    ruído 5 dB SNR     42,41%        27,42%   <- v4 ganha por 15,0 pp
+    degradação máx.   +23,42 pp     +7,24 pp
+
+**O que degrada, e quanto.** O codec Opus custa pouco: +1,2 a +2,8 pp mesmo a
+15 kbps, abaixo do que o Teams usa. Quem derruba é perder a **banda alta**
+(+5,4 pp) e o **ruído acústico** do interlocutor (+7,2 pp a 5 dB de SNR). Uma
+chamada em banda larga e ambiente silencioso é terreno viável; uma que caiu para
+banda estreita, não.
+
+**Sobre o número que ele mostra.** O limiar gravado no checkpoint foi calibrado
+em áudio limpo, e fora do domínio ele se comporta de forma imprevisível: sob o
+mesmo Opus a 15 kbps o recall do v2 sobe (0,72 -> 0,86) e o do v4 cai
+(0,55 -> 0,39). Por isso o monitor mostra **score**, não veredito. Para um ponto
+de operação confiável, recalibre no canal de destino — é para isso que serve o
+`--gravar`: toque áudios de rótulo conhecido numa chamada real, capture, e
+avalie o resultado.
 """
 
 from __future__ import annotations
@@ -101,10 +119,9 @@ def main() -> int:
     if analisador.threshold is not None:
         print(f"Threshold do checkpoint: {analisador.threshold:.4f} "
               "(calibrado no dev, em áudio LIMPO — ver aviso abaixo)")
-    print("\n[AVISO] o modelo foi treinado em áudio de laboratório, sem codec. "
-          "Numa chamada\n        real o score ainda não tem degradação medida: "
-          "trate como indício, não\n        como veredito. Use --gravar para "
-          "medir o canal.\n")
+    print("\n[AVISO] o limiar acima foi calibrado em áudio LIMPO. Medido no "
+          "eval completo, o canal\n        de uma chamada custa +1 a +3 pp de "
+          "EER pelo codec, +5 pp por banda\n        estreita e +7 pp por ruído — e o recall no limiar herdado varia de\n        forma imprevisível. Trate o número como indício, não como veredito.\n")
 
     try:
         fonte = (FileSource(args.arquivo, analisador.sample_rate) if args.arquivo

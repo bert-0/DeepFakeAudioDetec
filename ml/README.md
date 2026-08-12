@@ -460,8 +460,8 @@ pip install soundcard                    # só para o modo ao vivo
 python monitor.py --listar-dispositivos  # descobrir a saída a escutar
 
 # durante uma chamada, gravando o que ouviu
-python monitor.py --config configs/baseline_v2.yaml \
-    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
+python monitor.py --config configs/fusion_v4.yaml \
+    --checkpoint checkpoints/fusion_lcnn_v4.pt \
     --gravar outputs/chamada.wav --json outputs/chamada.json
 
 # reprocessar a gravação (mesmos scores, bit a bit)
@@ -474,24 +474,43 @@ sobreposição, e cada janela passa pelo **mesmo** caminho do `infer.py`:
 silêncio são marcadas e ficam fora das médias — o modelo nunca viu silêncio
 rotulado, e incluí-lo tornaria o resumo sem sentido numa chamada real.
 
-### Duas limitações que precisam ser ditas
+### O que ficou medido, e o que continua sendo limitação
 
 **O áudio é o mix.** O loopback entrega a soma de todos os participantes. Não há
 atribuição por pessoa — para isso só o bot de mídia do Teams serviria, que é
 exatamente o caminho que este módulo evita. O resultado é sobre o *trecho*, não
 sobre quem falou.
 
-**O canal não foi medido.** O modelo foi treinado no ASVspoof: áudio limpo, 16
-kHz, sem codec. Uma chamada passou por microfone, sala, supressão de ruído,
-ganho automático e o codec Opus. Metade do banco de filtros do LFCC (35 de 70,
-com `n_filter: 70`) olha acima de 4 kHz — justamente o que um canal estreito não
-transmite. Enquanto essa degradação não tiver número, o monitor mostra **score**,
-não veredito.
+**O canal foi medido — e ele inverte a escolha do modelo.** Em áudio limpo o
+`baseline_lfcc_cnn_v2` é o melhor modelo isolado (18,99% contra 20,18%). Sob as
+condições de uma chamada, a ordem se inverte (`robustness_eval.py`, eval
+completo, 71.237 áudios):
+
+| condição | v2 | fusion_v4 | |
+|---|---|---|---|
+| limpo | **18,99%** | 20,18% | v2 |
+| opus 25 kbps | **20,04%** | 22,08% | v2 |
+| banda estreita (8 kHz) | 35,95% | **25,53%** | v4 por 10,4 pp |
+| ruído 5 dB SNR | 42,41% | **27,42%** | v4 por 15,0 pp |
+| **degradação máxima** | +23,42 pp | **+7,24 pp** | |
+
+O codec Opus custa pouco (+1,2 a +2,8 pp até 15 kbps, abaixo do que o Teams
+usa). Quem derruba é perder a banda alta e o ruído acústico do interlocutor. Por
+isso o monitor usa o `fusion_lcnn_v4`: ele perde no benchmark limpo e ganha com
+folga em tudo que se parece com uma chamada real.
+
+**O ponto de operação não transfere.** O limiar gravado no checkpoint foi
+calibrado em áudio limpo, e fora do domínio se comporta de forma imprevisível:
+sob o mesmo Opus a 15 kbps o recall do v2 sobe (0,72 -> 0,86) e o do v4 cai
+(0,55 -> 0,39). Mesma perturbação, direções contrárias. O monitor mostra
+**score**, não veredito, e um ponto de operação confiável exige recalibração no
+canal de destino.
 
 É para isso que serve o `--gravar`: toque numa chamada real áudios do ASVspoof
 com rótulo conhecido, capture o que chega do outro lado e avalie. Isso mede o
-canal **de verdade** — com o Opus real e o processamento real — em vez de uma
-simulação. O par gravar/`--arquivo` garante que o resultado seja reproduzível.
+canal com o Opus real e o processamento real, em vez da simulação. O par
+gravar/`--arquivo` garante que o resultado seja reproduzível.
+
 
 ## Estrutura
 
