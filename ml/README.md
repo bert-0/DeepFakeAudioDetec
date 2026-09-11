@@ -474,6 +474,46 @@ sobreposição, e cada janela passa pelo **mesmo** caminho do `infer.py`:
 silêncio são marcadas e ficam fora das médias — o modelo nunca viu silêncio
 rotulado, e incluí-lo tornaria o resumo sem sentido numa chamada real.
 
+### Resolução temporal: o limite dos 4 segundos
+
+A janela é de `audio.duration` segundos porque **foi assim que os modelos foram
+treinados** — o `fix_length` força esse comprimento em toda amostra. Não é
+parâmetro livre: mudá-la exige retreinar, e as métricas medidas deixam de valer.
+
+A consequência é um limite duro de resolução:
+
+| trecho sintético inserido | janelas 100% sintéticas | pior janela |
+|---|---|---|
+| 1 s | 0 | 25% sintética |
+| 2 s | 0 | 50% |
+| 3 s | 0 | 75% |
+| **4 s** | **1** | 100% |
+| 10 s | 4 | 100% |
+
+**Abaixo de 4 s nenhuma janela é puramente sintética**: o modelo sempre vê uma
+mistura, tendo sido treinado só em áudio homogêneo. Reduzir o passo não resolve —
+é consequência da janela, não da taxa de atualização. Um atacante que insere
+frases curtas de voz clonada está abaixo da resolução do sistema.
+
+O **passo** é livre. Com 99,65% de folga de CPU, `--hop 1` dá reação mais rápida
+sem custo relevante. O primeiro veredito sempre demora 4 s, porque é preciso
+encher a janela.
+
+### Janelas sobrepostas não são observações independentes
+
+Com janela de 4 s e passo de 2 s, janelas vizinhas compartilham metade do áudio:
+
+| N janelas | áudio coberto | independentes |
+|---|---|---|
+| 3 | 8 s | 2,0 |
+| 5 | 12 s | 3,0 |
+| 10 | 22 s | 5,5 |
+| 20 | 42 s | 10,5 |
+
+Uma média de 5 janelas parece 5 observações; são **3**. Por isso o resumo reporta
+`janelas_independentes` além da contagem bruta — sem isso, o número sugeriria
+mais solidez do que existe.
+
 ### O que ficou medido, e o que continua sendo limitação
 
 **O áudio é o mix.** O loopback entrega a soma de todos os participantes. Não há

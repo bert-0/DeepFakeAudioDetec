@@ -4,7 +4,12 @@ Escuta a **saída de áudio do sistema** e classifica o que passa, janela a
 janela. Como pega o que sai da caixa de som, funciona com Microsoft Teams,
 Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
 
-    # ao vivo, durante uma chamada
+    # ao vivo, com FUSÃO dos dois modelos (recomendado: 14,03% contra 20,18%)
+    python monitor.py --config configs/fusion_v4.yaml \\
+        --checkpoint checkpoints/fusion_lcnn_v4.pt \\
+        --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
+
+    # ao vivo, um modelo só
     python monitor.py --config configs/fusion_v4.yaml \\
         --checkpoint checkpoints/fusion_lcnn_v4.pt
 
@@ -62,7 +67,8 @@ OUTPUT_DIR = Path("outputs")
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Monitor de chamada ao vivo")
     p.add_argument("--config", help="YAML de configuração")
-    p.add_argument("--checkpoint", help="checkpoint treinado")
+    p.add_argument("--checkpoint", action="append",
+                   help="checkpoint treinado; repita a opção para fundir modelos")
     p.add_argument("--arquivo", help="analisa um .wav em vez do áudio ao vivo")
     p.add_argument("--gravar", help="salva o áudio capturado neste .wav")
     p.add_argument("--dispositivo-audio", default=None,
@@ -109,10 +115,15 @@ def main() -> int:
     config = load_config(args.config)
     device = resolve_device(args.device or config["train"]["device"])
     analisador = AnalisadorContinuo(config, args.checkpoint, device, hop_s=args.hop)
-    agregador = Agregador()
+    agregador = Agregador(
+        janela_s=analisador.janela.tamanho / analisador.sample_rate,
+        passo_s=analisador.janela.passo / analisador.sample_rate)
 
     origem = "arquivo" if args.arquivo else "saída do sistema (loopback)"
-    print(f"Modelo: {analisador.config['model']['name']} | dispositivo: {device}")
+    if analisador.n_modelos > 1:
+        print(f"Modelos: {analisador.n_modelos} em fusão (média) | dispositivo: {device}")
+    else:
+        print(f"Modelo: {analisador.config['model']['name']} | dispositivo: {device}")
     print(f"Fonte:  {origem}")
     print(f"Janela: {analisador.janela.tamanho / analisador.sample_rate:.1f}s | "
           f"passo: {analisador.janela.passo / analisador.sample_rate:.1f}s")
@@ -133,8 +144,8 @@ def main() -> int:
 
     gravado: list[np.ndarray] = []
     limite = args.segundos
-    print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  sinal")
-    print("-" * 60)
+    print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  sinal")
+    print("-" * 70)
     try:
         with fonte:
             for bloco in fonte.blocos():
@@ -144,11 +155,17 @@ def main() -> int:
                     agregador.adicionar(leitura)
                     if leitura.silencio:
                         print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              "(silêncio)")
+                              f"{'—':>6s}  (silêncio)")
+                        continue
+                    banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
+                             if leitura.qualidade else "    —")
+                    if not leitura.confiavel:
+                        print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
+                              f"{banda:>6s}  {analisador.canal.descricao()}")
                         continue
                     media = agregador.media_movel()
                     print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
-                          f"{media:6.3f}  {barra(leitura.score)}")
+                          f"{media:6.3f}  {banda:>6s}  {barra(leitura.score)}")
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
     except KeyboardInterrupt:
@@ -156,7 +173,7 @@ def main() -> int:
     finally:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
-        relatar(agregador, args.json)
+        relatar(agregador, args.json, analisador.canal)
     return 0
 
 
@@ -170,12 +187,19 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
     print("  Reprocesse com --arquivo para obter exatamente o mesmo resultado.")
 
 
-def relatar(agregador: Agregador, destino: str | None) -> None:
+def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
-          f"({resumo['janelas_uteis']} com áudio, "
-          f"{resumo['janelas_silencio']} em silêncio)")
+          f"({resumo['janelas_uteis']} úteis, "
+          f"{resumo['janelas_silencio']} em silêncio, "
+          f"{resumo['janelas_canal_ruim']} com canal ruim)")
+    # As janelas se sobrepõem, então a contagem infla a confiança: com passo de
+    # metade da janela, 5 janelas equivalem a 3 observações independentes.
+    print(f"Janelas independentes (descontando a sobreposição): "
+          f"{resumo['janelas_independentes']}")
+    if canal is not None:
+        print(f"Canal: {canal.descricao()}")
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
         return

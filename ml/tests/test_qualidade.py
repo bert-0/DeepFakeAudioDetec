@@ -1,8 +1,11 @@
 """Testes do portão de qualidade do canal.
 
 Contexto medido (`robustness_eval.py`, eval completo): o codec Opus custa +1,90
-pp de EER ao `fusion_v4`, mas perder a banda alta custa +5,35 pp. A segunda
-condição é detectável no próprio áudio, e é isso que este módulo faz.
+pp de EER ao `fusion_v4`, mas perder a banda alta custa +5,35 pp.
+
+O ponto central destes testes é a **assimetria**: presença de alta frequência
+prova que o canal a transmite; ausência não prova nada, porque uma vogal
+sustentada também não tem alta frequência.
 """
 
 import sys
@@ -16,116 +19,167 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.capture.qualidade import (  # noqa: E402
     CORTE_HZ,
     FRACAO_MINIMA,
+    EstadoDoCanal,
     avaliar,
     fracao_energia_alta,
 )
-from src.preprocess.channel import limitar_banda, opus_roundtrip  # noqa: E402
+from src.preprocess.channel import limitar_banda  # noqa: E402
 
 SR = 16000
+T = np.arange(SR * 4) / SR
 
 
-@pytest.fixture
-def banda_larga():
-    """Ruído rosa: energia em todas as bandas, como a fala."""
-    rng = np.random.default_rng(0)
-    branco = rng.standard_normal(SR * 4)
-    espectro = np.fft.rfft(branco)
-    f = np.fft.rfftfreq(len(branco), 1 / SR)
-    f[0] = f[1]
-    sinal = np.fft.irfft(espectro / np.sqrt(f)).astype(np.float32)
-    return (0.3 * sinal / np.abs(sinal).max()).astype(np.float32)
+def _vogal(seed=0):
+    """Vogal sustentada: harmônicos com formantes e queda espectral.
+    Não tem energia acima de 4 kHz — como um canal de banda estreita."""
+    rng = np.random.default_rng(seed)
+    s = np.zeros_like(T)
+    for n in range(1, 60):
+        f = 120 * n
+        if f >= SR / 2:
+            break
+        env = sum(np.exp(-((f - fc) / bw) ** 2)
+                  for fc, bw in ((730, 80), (1090, 90), (2440, 120)))
+        s += (env + 0.05 * min(1.0, (500 / max(f, 1)) ** 2)) * \
+            np.sin(2 * np.pi * f * T + rng.uniform(0, 6.28))
+    return (0.3 * s / np.abs(s).max()).astype(np.float32)
+
+
+def _fricativa(seed=0):
+    """/s/: energia concentrada acima de 3 kHz."""
+    rng = np.random.default_rng(seed)
+    b = rng.standard_normal(SR * 4)
+    X = np.fft.rfft(b)
+    f = np.fft.rfftfreq(len(b), 1 / SR)
+    X[f < 3000] *= 0.05
+    w = np.fft.irfft(X).astype(np.float32)
+    return (0.3 * w / np.abs(w).max()).astype(np.float32)
+
+
+def _fala(seed=0):
+    """Fala: vogais na maior parte, fricativas em trechos curtos."""
+    rng = np.random.default_rng(seed)
+    v, fr = _vogal(seed), _fricativa(seed)
+    m = np.zeros_like(T)
+    for i in rng.choice(len(T) - 3200, 6, replace=False):
+        m[i:i + 3200] = 1.0
+    return ((1 - m) * v + m * fr).astype(np.float32)
 
 
 # --------------------------------------------------------------------------- #
-# O caso que o portão existe para pegar
+# A medição por janela: p90 dos quadros, não a média
+#
+# Regressão: a primeira versão usava a média da janela. Fala real dava 5,40% e
+# vogal sustentada 0,00% — indistinguível de banda estreita. O p90 leva a fala
+# real a 81%, porque pergunta "algum quadro teve alta frequência?".
 # --------------------------------------------------------------------------- #
-def test_banda_estreita_e_recusada(banda_larga):
-    q = avaliar(limitar_banda(banda_larga, SR, 8000), SR)
-    assert not q.avaliavel
-    assert q.fracao_alta < 0.01
+def test_fala_real_mostra_alta_frequencia():
+    assert fracao_energia_alta(_fala(), SR) > 10 * FRACAO_MINIMA
 
 
-def test_banda_larga_e_aceita(banda_larga):
-    q = avaliar(banda_larga, SR)
-    assert q.avaliavel
+def test_fricativa_e_quase_toda_alta_frequencia():
+    assert fracao_energia_alta(_fricativa(), SR) > 0.5
 
 
-@pytest.mark.parametrize("nivel", [0.90, 0.92, 0.96])
-def test_opus_na_faixa_do_teams_continua_avaliavel(banda_larga, nivel):
-    """O codec custa ~2 pp de EER; não é motivo para recusar a janela."""
-    assert avaliar(opus_roundtrip(banda_larga, SR, nivel), SR).avaliavel
+def test_vogal_sustentada_nao_mostra_alta_frequencia():
+    """E isso é normal — não é defeito do canal."""
+    assert fracao_energia_alta(_vogal(), SR) < FRACAO_MINIMA
 
 
-def test_banda_estreita_com_codec_tambem_e_recusada(banda_larga):
-    """O caso realista de rede ruim: o Teams cai para banda estreita E comprime."""
-    degradado = opus_roundtrip(limitar_banda(banda_larga, SR, 8000), SR, 0.92)
-    assert not avaliar(degradado, SR).avaliavel
+def test_banda_estreita_zera():
+    assert fracao_energia_alta(limitar_banda(_fala(), SR, 8000), SR) < FRACAO_MINIMA / 10
+
+
+def test_vogal_e_banda_estreita_sao_indistinguiveis_numa_janela():
+    """A justificativa do desenho: por isso o veredito é de sessão."""
+    vogal = fracao_energia_alta(_vogal(), SR)
+    estreita = fracao_energia_alta(limitar_banda(_fala(), SR, 8000), SR)
+    assert vogal < FRACAO_MINIMA and estreita < FRACAO_MINIMA
 
 
 # --------------------------------------------------------------------------- #
-# A separação é ampla, não apertada — é o que torna o limiar defensável
+# O veredito de sessão
 # --------------------------------------------------------------------------- #
-def test_a_separacao_e_ampla_nos_dois_lados(banda_larga):
-    """Margens medidas, com o corte em 2%:
-
-        limpo            11,21%  = 5,61x o corte
-        opus 25 kbps      6,39%  = 3,19x
-        opus 15 kbps      8,33%  = 4,16x
-        banda estreita     0,00%  = 0,00x
-
-    O limiar não está espremido entre os casos: sobra fator 3 de um lado e a
-    banda estreita zera do outro. É isso que o torna defensável.
-    """
-    larga = fracao_energia_alta(banda_larga, SR)
-    estreita = fracao_energia_alta(limitar_banda(banda_larga, SR, 8000), SR)
-    assert larga > 5 * FRACAO_MINIMA, "banda larga fica bem acima do corte"
-    assert estreita < FRACAO_MINIMA / 100, "banda estreita zera"
+def _rodar(janelas):
+    estado = EstadoDoCanal()
+    for w in janelas:
+        estado.observar(avaliar(w, SR))
+    return estado
 
 
-def test_pior_caso_de_banda_larga_ainda_folga_do_corte(banda_larga):
-    """O Opus a 25 kbps é o que menos preserva alta frequência entre os casos
-    aceitáveis — 3,19x o corte. Se ele encostasse no limiar, o portão recusaria
-    uma chamada perfeitamente normal do Teams."""
-    pior = fracao_energia_alta(opus_roundtrip(banda_larga, SR, 0.92), SR)
-    assert pior > 3 * FRACAO_MINIMA
+def test_fala_normal_confirma_banda_larga():
+    e = _rodar([_fala(i) for i in range(3)])
+    assert e.veredito == EstadoDoCanal.LARGA
+    assert e.avaliavel
+
+
+def test_banda_estreita_e_concluida_depois_de_varias_janelas():
+    e = _rodar([limitar_banda(_fala(i), SR, 8000) for i in range(7)])
+    assert e.veredito == EstadoDoCanal.ESTREITA
+    assert not e.avaliavel
+
+
+def test_comeca_indeterminado_e_nao_acusa_cedo_demais():
+    """Sem evidência, o sistema não afirma banda estreita — só não sabe."""
+    e = _rodar([_vogal(seed=i) for i in range(3)])
+    assert e.veredito == EstadoDoCanal.INDETERMINADO
+    assert e.avaliavel, "na dúvida, continua medindo"
+
+
+def test_uma_fricativa_tardia_recupera_o_veredito():
+    """Regressão: a primeira versão reprovaria as vogais iniciais como banda
+    estreita, e o score dessas janelas seria descartado sem motivo."""
+    e = _rodar([_vogal(seed=i) for i in range(3)] + [_fala(0)])
+    assert e.veredito == EstadoDoCanal.LARGA
+
+
+def test_banda_larga_provada_nao_volta_atras():
+    """O canal não muda a cada 2 s; uma sequência de vogais não o desqualifica."""
+    e = _rodar([_fala(0)] + [_vogal(seed=i) for i in range(10)])
+    assert e.veredito == EstadoDoCanal.LARGA
+
+
+def test_estado_novo_e_indeterminado():
+    e = EstadoDoCanal()
+    assert e.veredito == EstadoDoCanal.INDETERMINADO
+    assert e.avaliavel
+    assert e.observadas == 0
+
+
+def test_a_descricao_diz_em_que_pe_esta():
+    assert "banda larga" in _rodar([_fala(0)]).descricao()
+    assert "indeterminado" in _rodar([_vogal()]).descricao()
+    assert "BANDA ESTREITA" in _rodar(
+        [limitar_banda(_fala(i), SR, 8000) for i in range(7)]).descricao()
 
 
 # --------------------------------------------------------------------------- #
 # Bordas
 # --------------------------------------------------------------------------- #
-def test_silencio_nao_e_avaliavel():
-    assert not avaliar(np.zeros(SR, dtype=np.float32), SR).avaliavel
-
-
 def test_sinal_vazio_nao_quebra():
-    q = avaliar(np.zeros(0, dtype=np.float32), SR)
-    assert q.fracao_alta == 0.0
-    assert not q.avaliavel
+    assert fracao_energia_alta(np.zeros(0, dtype=np.float32), SR) == 0.0
+    assert fracao_energia_alta(np.zeros(1, dtype=np.float32), SR) == 0.0
 
 
-def test_janela_curta_nao_quebra(banda_larga):
-    """A janela pode ser menor que o nperseg padrão do Welch."""
-    assert 0.0 <= fracao_energia_alta(banda_larga[:100], SR) <= 1.0
+def test_silencio_absoluto_nao_quebra():
+    """Quadros sem energia nenhuma ficariam 0/0; precisam ser ignorados."""
+    assert fracao_energia_alta(np.zeros(SR, dtype=np.float32), SR) == 0.0
 
 
-def test_fracao_sempre_entre_zero_e_um(banda_larga):
-    for x in (banda_larga, limitar_banda(banda_larga, SR, 8000),
-              np.zeros(SR, dtype=np.float32)):
+def test_janela_curta_nao_quebra():
+    assert 0.0 <= fracao_energia_alta(_fala()[:100], SR) <= 1.0
+
+
+def test_fracao_sempre_entre_zero_e_um():
+    for x in (_fala(), _vogal(), limitar_banda(_fala(), SR, 8000)):
         assert 0.0 <= fracao_energia_alta(x, SR) <= 1.0
 
 
 def test_corte_bate_com_a_nyquist_da_banda_estreita():
-    """8 kHz de amostragem => nada acima de 4 kHz. O corte precisa ser esse."""
     assert CORTE_HZ == 8000 / 2
 
 
-def test_descricao_diz_qual_e_o_problema(banda_larga):
-    assert "BANDA ESTREITA" in avaliar(limitar_banda(banda_larga, SR, 8000), SR).descricao()
-    assert "banda larga" in avaliar(banda_larga, SR).descricao()
-
-
-def test_qualidade_e_imutavel(banda_larga):
-    """Um diagnóstico não pode ser alterado depois de emitido."""
-    q = avaliar(banda_larga, SR)
+def test_qualidade_e_imutavel():
+    q = avaliar(_fala(), SR)
     with pytest.raises(Exception):
-        q.banda_larga = False
+        q.fracao_alta = 0.0
