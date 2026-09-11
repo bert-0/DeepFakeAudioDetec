@@ -30,6 +30,7 @@ import torch
 from ..features import FeatureExtractor
 from ..models import build_model
 from ..preprocess import preprocess_waveform
+from ..preprocess.audio import trim_silence
 from .qualidade import EstadoDoCanal, Qualidade, avaliar
 from .stream import JanelaDeslizante
 
@@ -49,10 +50,33 @@ class Leitura:
     qualidade: Qualidade | None = None   # medição de canal desta janela
     por_modelo: tuple[float, ...] = ()   # score de cada modelo, antes da fusão
     canal: str = EstadoDoCanal.INDETERMINADO   # veredito da SESSÃO neste instante
+    fracao_fala: float = 1.0   # quanto da janela sobrou após remover o silêncio
 
     @property
     def silencio(self) -> bool:
         return self.rms < SILENCIO_RMS
+
+    @property
+    def peso(self) -> float:
+        """Peso desta janela nas médias, em [0, 1].
+
+        **Só a parcela de fala é ponderada; o canal é binário.** A degradação de
+        canal foi medida (+5,35 pp em banda estreita), e a resposta medida é
+        excluir — não atenuar. Inventar um peso contínuo para o canal seria
+        supor uma curva EER×qualidade que ninguém mediu.
+
+        A parcela de fala tem outra justificativa, e ela é estrutural: o
+        `preprocess_waveform` remove o silêncio e completa por **repetição**.
+        Uma janela com 10% de fala vira um trecho de 0,48 s repetido 8 vezes —
+        entrada que não existe no conjunto de treino. Quanto menos fala
+        original, mais a janela se afasta do domínio, e menos ela deve pesar.
+
+        O peso é a própria fração de fala: é a grandeza que causa a repetição,
+        sem constante de ajuste no meio.
+        """
+        if not self.confiavel:
+            return 0.0
+        return max(0.0, min(1.0, self.fracao_fala))
 
     @property
     def confiavel(self) -> bool:
@@ -107,15 +131,24 @@ class Agregador:
         return coberto / self.janela_s
 
     def media_movel(self) -> float | None:
-        """Média dos scores das últimas janelas confiáveis. `None` se não houver."""
+        """Média das últimas janelas confiáveis, **ponderada** pelo peso de cada uma.
+
+        Ver `Leitura.peso`. Se todos os pesos forem iguais, recai na média
+        simples — o comportamento anterior.
+        """
         recentes = self.uteis[-self.janela_media:]
         if not recentes:
             return None
-        return float(np.mean([x.score for x in recentes]))
+        pesos = np.array([x.peso for x in recentes], dtype=float)
+        scores = np.array([x.score for x in recentes], dtype=float)
+        if pesos.sum() <= 0:
+            return None
+        return float(np.average(scores, weights=pesos))
 
     def resumo(self) -> dict:
         uteis = self.uteis
         scores = [x.score for x in uteis]
+        pesos = [x.peso for x in uteis]
         silencio = sum(1 for x in self.leituras if x.silencio)
         descartadas = len(self.leituras) - len(uteis) - silencio
         return {
@@ -124,9 +157,12 @@ class Agregador:
             "janelas_silencio": silencio,
             "janelas_canal_ruim": descartadas,
             "janelas_independentes": round(self.efetivas(len(uteis)), 1),
-            "score_medio": float(np.mean(scores)) if scores else None,
+            "score_medio": (float(np.average(scores, weights=pesos))
+                            if scores and sum(pesos) > 0 else None),
+            "score_medio_simples": float(np.mean(scores)) if scores else None,
             "score_mediano": float(np.median(scores)) if scores else None,
             "score_maximo": float(np.max(scores)) if scores else None,
+            "peso_medio": float(np.mean(pesos)) if pesos else None,
             "duracao_s": uteis[-1].instante if uteis else 0.0,
         }
 
@@ -214,10 +250,14 @@ class AnalisadorContinuo:
         for wav in self.janela.alimentar(bloco):
             rms = float(np.sqrt(np.mean(wav.astype(np.float64) ** 2)))
             if rms < SILENCIO_RMS:
-                score, individuais, qualidade = 0.0, (), None
+                score, individuais, qualidade, fracao_fala = 0.0, (), None, 0.0
             else:
                 qualidade = avaliar(wav, self.sample_rate)
                 self.canal.observar(qualidade)
+                # Quanto da janela é fala, antes de o fix_length completar por
+                # repetição. É o que determina o peso — ver `Leitura.peso`.
+                limpo = trim_silence(wav, self.config["audio"].get("top_db", 30))
+                fracao_fala = len(limpo) / max(wav.size, 1)
                 score, individuais = self._classificar(wav)
             leitura = Leitura(
                 indice=self._n,
@@ -227,6 +267,7 @@ class AnalisadorContinuo:
                 qualidade=qualidade,
                 por_modelo=individuais,
                 canal=self.canal.veredito,
+                fracao_fala=fracao_fala,
             )
             self._n += 1
             yield leitura

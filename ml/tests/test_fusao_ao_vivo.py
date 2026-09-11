@@ -159,3 +159,66 @@ def test_silencio_e_canal_ruim_sao_contados_separados():
     ag.adicionar(_leitura(2, canal=EstadoDoCanal.ESTREITA))
     r = ag.resumo()
     assert (r["janelas_uteis"], r["janelas_silencio"], r["janelas_canal_ruim"]) == (1, 1, 1)
+
+
+# --------------------------------------------------------------------------- #
+# Ponderação
+#
+# O `preprocess_waveform` remove o silêncio e completa por REPETIÇÃO. Medido:
+# uma janela com 10% de fala vira um trecho de 0,48 s repetido 8 vezes — entrada
+# que não existe no treino. Quanto menos fala original, menos a janela pesa.
+#
+# O canal NÃO é ponderado de forma contínua: a degradação foi medida (+5,35 pp
+# em banda estreita) e a resposta medida é excluir, não atenuar.
+# --------------------------------------------------------------------------- #
+def _com_fala(i, score, fracao, canal=EstadoDoCanal.LARGA):
+    return Leitura(indice=i, instante=2.0 * i, score=score, rms=0.1,
+                   canal=canal, fracao_fala=fracao)
+
+
+def test_peso_e_a_fracao_de_fala():
+    assert _com_fala(0, 0.5, 1.0).peso == pytest.approx(1.0)
+    assert _com_fala(0, 0.5, 0.25).peso == pytest.approx(0.25)
+
+
+def test_peso_e_zero_quando_a_janela_nao_e_confiavel():
+    """Banda estreita não entra com peso baixo — não entra."""
+    assert _com_fala(0, 0.5, 1.0, canal=EstadoDoCanal.ESTREITA).peso == 0.0
+
+
+def test_peso_fica_entre_zero_e_um():
+    assert _com_fala(0, 0.5, 5.0).peso == pytest.approx(1.0)
+    assert _com_fala(0, 0.5, -1.0).peso == 0.0
+
+
+def test_janela_esvaziada_quase_nao_influencia():
+    """Regressão: a média simples deixava uma janela de 10% de fala pesar
+    tanto quanto uma janela íntegra."""
+    ag = Agregador()
+    ag.adicionar(_com_fala(0, 0.9, 1.0))
+    ag.adicionar(_com_fala(1, 0.1, 0.1))
+    assert ag.media_movel() == pytest.approx(0.9 / 1.1 + 0.01 / 1.1, abs=1e-6)
+    assert ag.media_movel() > 0.8, "a janela íntegra domina"
+
+
+def test_pesos_iguais_recaem_na_media_simples():
+    ag = Agregador()
+    for i, s in enumerate((0.2, 0.4, 0.6)):
+        ag.adicionar(_com_fala(i, s, 1.0))
+    assert ag.media_movel() == pytest.approx(0.4)
+
+
+def test_o_resumo_traz_as_duas_medias():
+    """A simples fica ao lado da ponderada: sem ela não dá para ver o efeito."""
+    ag = Agregador()
+    ag.adicionar(_com_fala(0, 1.0, 1.0))
+    ag.adicionar(_com_fala(1, 0.0, 0.2))
+    r = ag.resumo()
+    assert r["score_medio"] > r["score_medio_simples"]
+    assert r["peso_medio"] == pytest.approx(0.6)
+
+
+def test_media_e_none_se_todos_os_pesos_zeram():
+    ag = Agregador()
+    ag.adicionar(_com_fala(0, 0.9, 0.0))
+    assert ag.media_movel() is None

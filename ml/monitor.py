@@ -144,8 +144,8 @@ def main() -> int:
 
     gravado: list[np.ndarray] = []
     limite = args.segundos
-    print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  sinal")
-    print("-" * 70)
+    print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  {'peso':>5s}  sinal")
+    print("-" * 78)
     try:
         with fonte:
             for bloco in fonte.blocos():
@@ -155,17 +155,18 @@ def main() -> int:
                     agregador.adicionar(leitura)
                     if leitura.silencio:
                         print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{'—':>6s}  (silêncio)")
+                              f"{'—':>6s}  {'—':>5s}  (silêncio)")
                         continue
                     banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
                              if leitura.qualidade else "    —")
                     if not leitura.confiavel:
                         print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{banda:>6s}  {analisador.canal.descricao()}")
+                              f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
                         continue
                     media = agregador.media_movel()
                     print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
-                          f"{media:6.3f}  {banda:>6s}  {barra(leitura.score)}")
+                          f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
+                          f"{barra(leitura.score)}")
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
     except KeyboardInterrupt:
@@ -203,9 +204,12 @@ def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
         return
-    print(f"Score  médio {resumo['score_medio']:.3f} | "
+    print(f"Score  médio {resumo['score_medio']:.3f} (ponderado) | "
+          f"{resumo['score_medio_simples']:.3f} (simples) | "
           f"mediano {resumo['score_mediano']:.3f} | "
           f"máximo {resumo['score_maximo']:.3f}")
+    print(f"Peso médio das janelas: {resumo['peso_medio']:.2f} "
+          "(1,00 = janela cheia de fala)")
     print("Lembrete: score alto indica *indício* de síntese. A taxa de erro "
           "deste modelo\nem áudio de chamada ainda não foi medida.")
     if destino:

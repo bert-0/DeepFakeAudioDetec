@@ -514,6 +514,31 @@ Uma média de 5 janelas parece 5 observações; são **3**. Por isso o resumo re
 `janelas_independentes` além da contagem bruta — sem isso, o número sugeriria
 mais solidez do que existe.
 
+### Ponderação das janelas
+
+Nem toda janela merece o mesmo peso na média, e a razão é estrutural. O
+`preprocess_waveform` remove o silêncio e depois completa por **repetição**:
+
+| fala na janela | após o trim | o modelo vê |
+|---|---|---|
+| 100% | 4,00 s | sinal íntegro |
+| 50% | 2,08 s | o mesmo trecho 2 vezes |
+| 25% | 1,09 s | o mesmo trecho 4 vezes |
+| 10% | 0,48 s | o mesmo trecho 8 vezes |
+
+A 10% de fala o modelo recebe um trecho de meio segundo repetido oito vezes —
+entrada que **não existe no conjunto de treino**. Por isso o peso de cada janela
+é a própria fração de fala: é a grandeza que causa a repetição, sem constante de
+ajuste no meio.
+
+**O canal não é ponderado de forma contínua.** A degradação por banda estreita
+foi medida (+5,35 pp de EER) e a resposta medida é **excluir**, não atenuar.
+Atribuir um peso intermediário exigiria uma curva EER × qualidade de canal que
+não foi medida — e inventá-la contradiria o resto do trabalho.
+
+O resumo reporta as duas médias, ponderada e simples, lado a lado: sem a segunda
+não dá para ver o efeito da primeira.
+
 ### O que ficou medido, e o que continua sendo limitação
 
 **O áudio é o mix.** O loopback entrega a soma de todos os participantes. Não há
