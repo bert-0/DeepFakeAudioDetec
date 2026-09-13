@@ -408,6 +408,7 @@ controle já divergir do eval limpo, a diferença é do procedimento, não do Te
 | **ASVspoof 2021 DF** | codecs de mídia, áudio recomprimido | avaliação |
 | **CFAD** | 12 tipos de falsificação, versões *clean* / *noisy* / *codec*, splits disjuntos | **avaliação e treino** |
 | **In-the-Wild** | 37,9 h achadas na internet (17,2 h falsas), 58 figuras públicas | avaliação, caso mais difícil |
+| **ASVspoof 5** | fala *crowdsourced* em condições não-estúdio, 32 algoritmos de ataque, ataques adversariais | **avaliação e treino** — ver 10.7 |
 
 **ASVspoof 2021 LA** é a mais direta: por regra do desafio não há partição de
 treino — os sistemas são treinados na 2019 LA, que é a base deste projeto. Os
@@ -481,6 +482,80 @@ nada mais cobre — **música de fundo** — e pouco além disso. Vale como um p
 extra de robustez, não como segunda confirmação da Seção 5. A confirmação
 independente vem do ASVspoof 2021 LA, que é outro idioma, outro grupo e outra
 fonte de áudio autêntico.
+
+### 10.7 ASVspoof 5 — a adição de maior valor, e o que ela custa
+
+Construído sobre o **MLS English**, com ~2.000 locutores em condições acústicas
+diversas (as edições anteriores eram estúdio). Sete partições disjuntas por
+locutor, mais de 20 ataques *crowdsourced* e **7 ataques adversariais**, que
+aparecem pela primeira vez na série.
+
+| partição | locutores | áudios | bonafide |
+|---|---|---|---|
+| train | 400 | 182.357 | 18.797 |
+| dev | 785 | 140.950 | 31.334 |
+| eval (track 1) | 737 | **680.774** | 138.688 |
+
+**Por que é melhor que o CFAD para este trabalho:** é em **inglês**, como a base
+atual. Não há confundidor de idioma — a diferença de desempenho é atribuível a
+condição de aquisição e a ataque, não a língua. É a comparação limpa que o CFAD
+só consegue por subtração.
+
+**O eixo novo que ele traz** não é transmissão, é **aquisição**: microfone
+doméstico, sala qualquer, locutor qualquer. Isso é ortogonal ao canal da Seção 5
+(codec, banda, ruído somado depois) e ortogonal à camada 2 (processamento do
+cliente de conferência). São três degradações distintas.
+
+**Efeito colateral útil para a APS:** com 20,4% de bonafide no eval (contra 10,3%
+no 2019 LA), o classificador trivial "tudo spoof" obtém F1 = **0,8866** — ainda
+acima do RNF02, mas com margem bem menor. Isso reforça a Seção 8.1: o problema é
+a métrica, não o desequilíbrio específico de uma base.
+
+**O custo, calculado com a taxa medida deste projeto** (113 amostras/s
+consumidas pela GPU, registrado em `configs/fusion_v4.yaml`):
+
+| | amostras/época | min/época | treino completo (50 épocas) |
+|---|---|---|---|
+| ASVspoof 2019 LA | 25.380 | 3,7 | **3,1 h** |
+| ASVspoof 5 | 182.357 | 26,9 | **22,4 h** |
+
+São **7,2x mais dados por época** e o eval é **9,6x** maior. Numa máquina que já
+travou durante o treino atual (Seção 11), treinar do zero no ASVspoof 5 é um
+compromisso sério, não um experimento extra.
+
+**Recomendação:** usar o ASVspoof 5 como **avaliação cruzada** — rodar os
+checkpoints já treinados no eval track 1, sem retreinar. Isso é generalização
+entre bases, resultado legítimo e citável, e custa uma avaliação em vez de 22
+horas por config. Treinar nele fica como trabalho futuro explícito.
+
+### 10.8 Bases avaliadas e descartadas, com o motivo
+
+Registrar o descarte vale tanto quanto registrar a adoção: mostra que a seleção
+foi feita, e o motivo é técnico em cada caso.
+
+**LRLspoof** (INTERSPEECH 2026, 66 idiomas, 2.732 h, MIT, 452 GB) — **descartada
+por incompatibilidade de métrica.** A base é **spoof-only**: não há áudio
+bonafide. Sem a classe bonafide não existe taxa de falso aceite, e portanto
+**não existe EER** — a métrica central deste trabalho. A base reporta SRR a um
+limiar fixo calibrado externamente (*threshold transfer*).
+
+Há uma segunda razão, e ela é do próprio resultado deste projeto: a Seção 5
+mediu que **o ponto de operação não transfere** — sob a mesma perturbação, o
+recall de um modelo sobe e o de outro cai. A metodologia da LRLspoof assume
+justamente que esse transporte é válido. Não é motivo para desqualificar a base,
+mas é motivo para não construir um capítulo sobre ela.
+
+**PlaybackSpoof** (165 GB, licença "other", sem artigo localizado) — **descartada
+por ser outra classe de ataque.** É detecção de *replay* (ataque de
+apresentação): o áudio é fala humana genuína, reproduzida por alto-falante e
+recapturada. É a trilha **PA** do ASVspoof, não a **LA**.
+
+O conflito é mais profundo que o escopo. Este trabalho passa a Seção 5 inteira
+ensinando o modelo a **ignorar** artefato de canal e de captura, para que a
+decisão dependa do artefato de síntese. Detecção de replay exige o oposto:
+**atender** ao artefato de reprodução e recaptura, porque é ele que denuncia o
+ataque. Os dois objetivos puxam em direções contrárias — um modelo ajustado para
+um está estruturalmente em desvantagem no outro.
 
 ---
 
