@@ -216,3 +216,93 @@ def test_arquivo_silencioso_nao_recebe_dica_de_dispositivo(capsys):
     saida = capsys.readouterr().out
     assert "Nenhuma janela com áudio" in saida
     assert "--dispositivo-audio" not in saida
+
+
+# --------------------------------------------------------------------------- #
+# Janela final
+#
+# Regressão real: `monitor.py --arquivo <audio do ASVspoof>` devolvia
+# "Janelas analisadas: 0". A janela tem 4 s e o enunciado tipico do ASVspoof e
+# mais curto, entao o `while` de `alimentar` nunca disparava e o resto era
+# descartado em silencio — sem erro, sem aviso, sem resultado.
+# --------------------------------------------------------------------------- #
+def test_audio_mais_curto_que_a_janela_ainda_produz_janela():
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=8, passo=4)
+    assert list(j.alimentar(np.arange(5, dtype=np.float32))) == [], "não cabe"
+
+    final = list(j.finalizar())
+
+    assert len(final) == 1, "o trecho curto precisa virar uma janela"
+    assert np.array_equal(final[0], np.arange(5))
+
+
+def test_finalizar_nao_repete_trecho_ja_coberto():
+    """Com passo = metade, o fim de um áudio longo já cai na última janela."""
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=4, passo=2)
+    list(j.alimentar(np.arange(10, dtype=np.float32)))   # janelas 0-4,2-6,4-8,6-10
+    assert list(j.finalizar()) == [], "o resto 8-10 já estava dentro de 6-10"
+
+
+def test_finalizar_emite_quando_sobra_audio_descoberto():
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=4, passo=2)
+    list(j.alimentar(np.arange(11, dtype=np.float32)))   # cobre até 10
+    final = list(j.finalizar())
+    assert len(final) == 1 and final[0][-1] == 10
+
+
+def test_finalizar_e_idempotente():
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=8, passo=4)
+    list(j.alimentar(np.arange(5, dtype=np.float32)))
+    assert len(list(j.finalizar())) == 1
+    assert list(j.finalizar()) == [], "chamar de novo não pode duplicar"
+
+
+def test_finalizar_sem_nada_no_buffer():
+    from src.capture.stream import JanelaDeslizante
+
+    assert list(JanelaDeslizante(tamanho=4, passo=2).finalizar()) == []
+
+
+def test_instante_da_janela_final_e_a_posicao_real():
+    """A janela final não cai na grade do passo; o instante tem que refletir."""
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=4, passo=2)
+    list(j.alimentar(np.arange(11, dtype=np.float32)))
+    list(j.finalizar())
+    assert j.inicio_da_ultima == 8
+
+
+def test_peso_da_janela_final_cai_com_a_duracao(tmp_path):
+    """Um trecho de 1 s repetido 4x não pode pesar o mesmo que 4 s íntegros."""
+    import torch
+
+    from src.capture.analyzer import AnalisadorContinuo
+    from src.config import load_config
+    from src.models import build_model
+
+    cfg = load_config("configs/baseline_v2.yaml")
+    ck = tmp_path / "m.pt"
+    torch.save({"model_state": build_model(cfg["model"]).state_dict(),
+                "threshold": 0.5, "config": cfg}, ck)
+    an = AnalisadorContinuo(cfg, str(ck), torch.device("cpu"))
+
+    sr = an.sample_rate
+    t = np.arange(int(sr * 1.0)) / sr        # 1 s, contra janela de 4 s
+    curto = (0.3 * np.sin(2 * np.pi * 200 * t)).astype(np.float32)
+
+    assert list(an.processar(curto)) == [], "1 s não fecha uma janela de 4 s"
+    leituras = list(an.finalizar())
+
+    assert len(leituras) == 1, "o áudio curto precisa gerar leitura"
+    assert 0.0 < leituras[0].peso < 0.35, \
+        f"peso {leituras[0].peso:.2f} deveria refletir 1 s em 4 s"
+    assert leituras[0].instante == 0.0

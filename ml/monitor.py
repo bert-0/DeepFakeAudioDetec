@@ -146,29 +146,39 @@ def main() -> int:
     limite = args.segundos
     print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  {'peso':>5s}  sinal")
     print("-" * 78)
+    def _mostrar(leitura) -> None:
+        """Imprime uma leitura — usada tanto no fluxo quanto na janela final."""
+        agregador.adicionar(leitura)
+        if leitura.silencio:
+            print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
+                  f"{'—':>6s}  {'—':>5s}  (silêncio)")
+            return
+        banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
+                 if leitura.qualidade else "    —")
+        if not leitura.confiavel:
+            print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
+                  f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
+            return
+        media = agregador.media_movel()
+        marca = "" if leitura.peso >= 0.95 else "  (janela parcial)"
+        print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
+              f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
+              f"{barra(leitura.score)}{marca}")
+
     try:
         with fonte:
             for bloco in fonte.blocos():
                 if args.gravar:
                     gravado.append(bloco)
                 for leitura in analisador.processar(bloco):
-                    agregador.adicionar(leitura)
-                    if leitura.silencio:
-                        print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{'—':>6s}  {'—':>5s}  (silêncio)")
-                        continue
-                    banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
-                             if leitura.qualidade else "    —")
-                    if not leitura.confiavel:
-                        print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
-                        continue
-                    media = agregador.media_movel()
-                    print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
-                          f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
-                          f"{barra(leitura.score)}")
+                    _mostrar(leitura)
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
+            # O fim da fonte pode deixar um trecho que não completou uma janela.
+            # Num arquivo do ASVspoof isso é a regra, não a exceção: a janela
+            # tem 4 s e o enunciado típico é mais curto.
+            for leitura in analisador.finalizar():
+                _mostrar(leitura)
     except KeyboardInterrupt:
         print("\nEncerrado.")
     finally:

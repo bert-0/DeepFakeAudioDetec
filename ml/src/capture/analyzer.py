@@ -245,29 +245,49 @@ class AnalisadorContinuo:
         individuais = tuple(m.score(pronto) for m in self.modelos)
         return float(np.mean(individuais)), individuais
 
+    def _ler(self, wav: np.ndarray) -> Leitura:
+        """Transforma uma janela (completa ou final) numa leitura."""
+        rms = float(np.sqrt(np.mean(wav.astype(np.float64) ** 2)))
+        if rms < SILENCIO_RMS:
+            score, individuais, qualidade, fracao_fala = 0.0, (), None, 0.0
+        else:
+            qualidade = avaliar(wav, self.sample_rate)
+            self.canal.observar(qualidade)
+            # Quanto da janela é fala, antes de o fix_length completar por
+            # repetição. É o que determina o peso — ver `Leitura.peso`.
+            #
+            # O divisor é o tamanho da JANELA, não o do array: a janela final
+            # chega mais curta, e é justamente essa diferença que o
+            # `preprocess_waveform` cobre repetindo o trecho. Dividir pelo
+            # tamanho do array daria peso 1,00 a um trecho de 1 s repetido
+            # quatro vezes.
+            limpo = trim_silence(wav, self.config["audio"].get("top_db", 30))
+            fracao_fala = len(limpo) / max(self.janela.tamanho, 1)
+            score, individuais = self._classificar(wav)
+        leitura = Leitura(
+            indice=self._n,
+            instante=self.janela.inicio_da_ultima / self.sample_rate,
+            score=score,
+            rms=rms,
+            qualidade=qualidade,
+            por_modelo=individuais,
+            canal=self.canal.veredito,
+            fracao_fala=fracao_fala,
+        )
+        self._n += 1
+        return leitura
+
     def processar(self, bloco: np.ndarray):
         """Consome um bloco da fonte e devolve as leituras que ele completou."""
         for wav in self.janela.alimentar(bloco):
-            rms = float(np.sqrt(np.mean(wav.astype(np.float64) ** 2)))
-            if rms < SILENCIO_RMS:
-                score, individuais, qualidade, fracao_fala = 0.0, (), None, 0.0
-            else:
-                qualidade = avaliar(wav, self.sample_rate)
-                self.canal.observar(qualidade)
-                # Quanto da janela é fala, antes de o fix_length completar por
-                # repetição. É o que determina o peso — ver `Leitura.peso`.
-                limpo = trim_silence(wav, self.config["audio"].get("top_db", 30))
-                fracao_fala = len(limpo) / max(wav.size, 1)
-                score, individuais = self._classificar(wav)
-            leitura = Leitura(
-                indice=self._n,
-                instante=self.janela.instante_da_janela(self._n, self.sample_rate),
-                score=score,
-                rms=rms,
-                qualidade=qualidade,
-                por_modelo=individuais,
-                canal=self.canal.veredito,
-                fracao_fala=fracao_fala,
-            )
-            self._n += 1
-            yield leitura
+            yield self._ler(wav)
+
+    def finalizar(self):
+        """Leitura do trecho final, quando ele não coube numa janela inteira.
+
+        Precisa ser chamado ao fim da fonte. Sem isso, **um áudio mais curto que
+        a janela não gera leitura nenhuma** — e a maioria dos enunciados do
+        ASVspoof é mais curta que os 4 s da janela.
+        """
+        for wav in self.janela.finalizar():
+            yield self._ler(wav)

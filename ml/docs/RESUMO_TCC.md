@@ -287,6 +287,13 @@ janela exigiria retreinar e invalidaria todas as métricas acima.
 janela inteira, e o modelo sempre o vê misturado com áudio real. Passo menor não
 resolve — é limite de resolução, não de amostragem.
 
+O mesmo limite tem uma consequência operacional: um **arquivo** mais curto que a
+janela também não fecha nenhuma janela. O `AnalisadorContinuo.finalizar()` emite
+o trecho final nesse caso, completado por repetição como no treino, com o peso
+reduzido na proporção (um enunciado de 2,6 s pesa 0,65). Sem isso o monitor
+devolvia zero leituras para a maioria dos áudios do ASVspoof, que são mais
+curtos que 4 s.
+
 ### 9.2 Janelas sobrepostas não são observações independentes
 
 Janela de 4 s com passo de 2 s: janelas vizinhas compartilham metade do áudio.

@@ -499,6 +499,22 @@ O **passo** é livre. Com 99,65% de folga de CPU, `--hop 1` dá reação mais r�
 sem custo relevante. O primeiro veredito sempre demora 4 s, porque é preciso
 encher a janela.
 
+#### O trecho final, quando o áudio é mais curto que a janela
+
+A janela deslizante só emite quando acumula 4 s. Um áudio **mais curto que
+isso** nunca fecha uma janela — e a maioria dos enunciados do ASVspoof é mais
+curta que 4 s. Sem tratamento, `monitor.py --arquivo` devolvia
+`Janelas analisadas: 0`, sem erro e sem aviso.
+
+O `finalizar()` emite o trecho restante ao fim da fonte, e só quando ele contém
+áudio que nenhuma janela cobriu — com passo de metade da janela, o fim de um
+arquivo longo normalmente já está dentro da última janela emitida, e repetir
+aquele trecho inflaria a contagem sem acrescentar informação.
+
+O trecho sai mais curto que a janela e o `preprocess_waveform` o completa por
+repetição, como no treino. O peso cai na proporção: um enunciado de 2,6 s pesa
+0,65, e a linha aparece marcada como `(janela parcial)`.
+
 ### Janelas sobrepostas não são observações independentes
 
 Com janela de 4 s e passo de 2 s, janelas vizinhas compartilham metade do áudio:
