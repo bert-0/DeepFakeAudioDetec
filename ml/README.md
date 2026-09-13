@@ -433,6 +433,23 @@ partição de teste. Use `--threshold 0.42` para informar um valor manualmente.
 > treino. Em troca, a escolha pode variar entre máquinas, o que mexe nos últimos
 > dígitos do resultado. Para uma execução bit-a-bit reprodutível, use `false`.
 
+### Leitura de áudio: a truncagem não depende do decodificador
+
+Um `.flac` truncado entre os 121.461 da base derruba um treino de horas, e sem
+tratamento a mensagem não diz **qual** arquivo. Pior: **nem todo decodificador
+falha nele.** No Linux o libsndfile recusa e o erro sobe. No Windows o
+`audioread` decodifica o pedaço que existe e devolve áudio parcial **sem
+reclamar** — o treino consome meio enunciado como se fosse inteiro.
+
+Foi medido: os três testes de truncagem passavam no Linux e falhavam no
+Windows. Por isso o `load_audio` não confia no decodificador — ele confere a
+duração obtida contra a que o cabeçalho declara (o cabeçalho sobrevive à
+truncagem e continua anunciando a duração original). A verificação é a mesma
+nos dois sistemas, qualquer que seja o backend.
+
+O `check_data.py --deep` **não** cobria esse caso: ele usa `sf.read()` direto,
+então valida a base antes do treino, mas não a leitura durante ele.
+
 ## Testes
 
 ```bash
