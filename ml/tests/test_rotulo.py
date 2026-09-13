@@ -104,3 +104,57 @@ def test_aceita_id_ou_caminho(entrada):
 def test_caminho_windows_completo_funciona(projeto, capsys):
     assert _rodar(projeto, r"E:\TCC\ml\data\LA\flac\LA_E_1000148.flac") == 0
     assert "SPOOF" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- #
+# Listagem de exemplos — existe para montar as figuras sem caçar IDs no
+# protocolo de 71.237 linhas.
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def base_grande(tmp_path):
+    linhas = [f"LA_0039 LA_E_{i:07d} - - bonafide" for i in range(1000, 1020)]
+    for a in ("A07", "A10", "A12", "A17"):
+        linhas += [f"LA_0040 LA_E_{a[1:]}{i:05d} - {a} spoof" for i in range(30)]
+    proto = tmp_path / "eval.txt"
+    proto.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    cfg = tmp_path / "c.yaml"
+    cfg.write_text(yaml.safe_dump({"data": {
+        "protocols": {"eval": str(proto)},
+        "audio_dir": {"eval": "data/LA/eval/flac"}}}), encoding="utf-8")
+    return cfg
+
+
+def test_exemplos_trazem_as_duas_classes(base_grande, capsys):
+    sys.argv = ["x", "--config", str(base_grande), "--exemplos", "3"]
+    assert main() == 0
+    saida = capsys.readouterr().out
+    assert saida.count("bonafide") >= 3
+    assert saida.count("spoof") >= 3
+
+
+def test_exemplos_espalham_os_spoof_entre_ataques(base_grande, capsys):
+    """Pegar os primeiros do protocolo daria todos do mesmo algoritmo."""
+    sys.argv = ["x", "--config", str(base_grande), "--exemplos", "4"]
+    main()
+    saida = capsys.readouterr().out
+    for ataque in ("A07", "A10", "A12", "A17"):
+        assert ataque in saida, f"{ataque} ficou de fora da amostra"
+
+
+def test_exemplos_mostram_onde_estao_os_arquivos(base_grande, capsys):
+    sys.argv = ["x", "--config", str(base_grande), "--exemplos", "2"]
+    main()
+    saida = capsys.readouterr().out
+    assert "data/LA/eval/flac" in saida
+    assert "BAIXO = voz humana" in saida
+
+
+def test_exemplos_nao_quebram_com_n_maior_que_a_base(base_grande, capsys):
+    sys.argv = ["x", "--config", str(base_grande), "--exemplos", "500"]
+    assert main() == 0
+
+
+def test_sem_alvo_e_sem_exemplos_explica_o_uso(base_grande):
+    sys.argv = ["x", "--config", str(base_grande)]
+    with pytest.raises(SystemExit):
+        main()
