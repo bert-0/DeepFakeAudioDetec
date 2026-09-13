@@ -105,7 +105,7 @@ def main() -> int:
                 ataque = f" | ataque {sistema}" if sistema != "-" else ""
                 print(f"  ENCONTRADO em '{particao}'")
                 print(f"  Rótulo verdadeiro: {ROTULO[label].upper()}{ataque}")
-                print(f"\n  No monitor, score BAIXO = voz humana, ALTO = sintético.")
+                print("\n  No monitor, score BAIXO = voz humana, ALTO = sintético.")
                 return 0
         diagnostico.append((particao, caminho, len(registros),
                             [n for n, _, _ in registros[:2]]))

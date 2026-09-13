@@ -278,7 +278,6 @@ def test_fluxo_completo_preparar_e_alinhar(tmp_path, monkeypatch, capsys):
 
 def test_preparar_cobre_varios_ataques(tmp_path):
     """Uma playlist pequena não pode sortear só um ataque."""
-    import yaml
 
     from scripts.canal_real import sortear
     from src.data.dataset import parse_protocol_with_systems

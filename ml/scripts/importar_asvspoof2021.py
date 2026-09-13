@@ -73,7 +73,7 @@ def main() -> int:
 
     selecao = filtrar(trials, condicao=args.condicao, codec=args.codec)
     if not selecao:
-        print(f"[ERRO] nenhum trial casa com o filtro pedido. Use --listar.")
+        print("[ERRO] nenhum trial casa com o filtro pedido. Use --listar.")
         return 1
 
     bona = sum(1 for t in selecao if t.chave == "bonafide")

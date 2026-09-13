@@ -1,5 +1,7 @@
 # `ml/` — Pipeline de IA
 
+[![Testes](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml/badge.svg)](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml)
+
 Pipeline de detecção de deepfakes em áudio (pré-processamento → extração de
 características → modelo → métricas), construído nos três incrementos descritos
 no TC1.
@@ -434,8 +436,23 @@ partição de teste. Use `--threshold 0.42` para informar um valor manualmente.
 ## Testes
 
 ```bash
-python -m pytest          # roda a suíte (rápida, ~3 s, não precisa do dataset)
+python -m pytest                       # a suíte inteira (~18 s)
+ruff check --select E9,F .             # as mesmas regras que o CI aplica
 ```
+
+Nenhum teste precisa da base ASVspoof: todos geram o próprio áudio em diretório
+temporário. Por isso a suíte roda inteira num runner limpo.
+
+**No CI.** O `.github/workflows/testes.yml` roda os dois comandos acima a cada
+push e em cada pull request. Ele existe porque os testes só rodavam quando
+alguém lembrava de chamá-los na própria máquina — e dois defeitos reais
+escaparam assim, encontrados só ao operar o programa: um áudio mais curto que a
+janela devolvia zero leituras, e o score aparecia na tela sem dizer em que
+direção crescia.
+
+O ruff roda só com `E9,F` (erro de sintaxe, nome indefinido, comparação
+inválida, import morto). Regras de estilo ficam de fora de propósito: quebrar o
+CI por ponto e vírgula não ajuda ninguém a encontrar defeito.
 
 ## Inferência em um único áudio (RF05/RF06/RF07)
 
