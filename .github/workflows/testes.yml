@@ -10,9 +10,13 @@
 
 name: Testes
 
+# Só o evento de push. O GitHub já associa o run ao pull request aberto a
+# partir da branch (o run aparece na aba de checks do PR), então adicionar
+# `pull_request:` aqui produziria DOIS runs para o mesmo commit — foi o que
+# aconteceu na primeira versão deste arquivo. A exceção seriam PRs vindos de
+# forks, que este repositório não usa.
 on:
   push:
-  pull_request:
 
 # Um push novo na mesma branch cancela a execução anterior, que já não interessa.
 concurrency:
