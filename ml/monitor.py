@@ -98,9 +98,19 @@ def listar_dispositivos() -> int:
     return 0
 
 
-def barra(score: float, largura: int = 28) -> str:
-    cheio = int(round(score * largura))
-    return "#" * cheio + "." * (largura - cheio)
+def barra(score: float, limiar: float | None = None, largura: int = 28) -> str:
+    """Barra do score, com o limiar marcado por `|`.
+
+    Sem a marca, um score de 0,048 e um de 0,71 parecem só "duas barras" — e
+    nada na tela diz de que lado fica a decisão. A marca torna a comparação
+    visível sem transformar o score em veredito.
+    """
+    cheio = min(largura, int(round(score * largura)))
+    celulas = ["#"] * cheio + ["."] * (largura - cheio)
+    if limiar is not None:
+        i = min(largura - 1, max(0, int(round(limiar * largura))))
+        celulas[i] = "|"
+    return "".join(celulas)
 
 
 def main() -> int:
@@ -145,6 +155,9 @@ def main() -> int:
     gravado: list[np.ndarray] = []
     limite = args.segundos
     print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  {'peso':>5s}  sinal")
+    print("          score = P(síntese): 0,00 = voz humana | 1,00 = sintético"
+          + (f"   ('|' marca o limiar {analisador.threshold:.3f})"
+             if analisador.threshold is not None else ""))
     print("-" * 78)
     def _mostrar(leitura) -> None:
         """Imprime uma leitura — usada tanto no fluxo quanto na janela final."""
@@ -163,7 +176,7 @@ def main() -> int:
         marca = "" if leitura.peso >= 0.95 else "  (janela parcial)"
         print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
               f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
-              f"{barra(leitura.score)}{marca}")
+              f"{barra(leitura.score, analisador.threshold)}{marca}")
 
     try:
         with fonte:
@@ -185,7 +198,7 @@ def main() -> int:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
         relatar(agregador, args.json, analisador.canal,
-                ao_vivo=not args.arquivo)
+                ao_vivo=not args.arquivo, limiar=analisador.threshold)
     return 0
 
 
@@ -200,7 +213,7 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
 
 
 def relatar(agregador: Agregador, destino: str | None, canal=None,
-            ao_vivo: bool = False) -> None:
+            ao_vivo: bool = False, limiar: float | None = None) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
@@ -234,6 +247,12 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
           f"máximo {resumo['score_maximo']:.3f}")
     print(f"Peso médio das janelas: {resumo['peso_medio']:.2f} "
           "(1,00 = janela cheia de fala)")
+    if limiar is not None:
+        lado = ("ABAIXO do limiar (indício de voz humana)"
+                if resumo["score_medio"] < limiar
+                else "ACIMA do limiar (indício de síntese)")
+        print(f"Média ponderada {resumo['score_medio']:.3f} {lado} "
+              f"— limiar {limiar:.3f}")
     print("Lembrete: score alto indica *indício* de síntese. A taxa de erro "
           "deste modelo\nem áudio de chamada ainda não foi medida.")
     if destino:
