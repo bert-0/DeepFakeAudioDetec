@@ -60,6 +60,7 @@ import numpy as np
 from src.capture import CaptureError, FileSource, WasapiLoopbackSource
 from src.capture.analyzer import AnalisadorContinuo, Agregador
 from src.config import load_config, resolve_device
+from src.data.dataset import buscar_rotulo
 
 OUTPUT_DIR = Path("outputs")
 
@@ -98,9 +99,19 @@ def listar_dispositivos() -> int:
     return 0
 
 
-def barra(score: float, largura: int = 28) -> str:
-    cheio = int(round(score * largura))
-    return "#" * cheio + "." * (largura - cheio)
+def barra(score: float, limiar: float | None = None, largura: int = 28) -> str:
+    """Barra do score, com o limiar marcado por `|`.
+
+    Sem a marca, um score de 0,048 e um de 0,71 parecem só "duas barras" — e
+    nada na tela diz de que lado fica a decisão. A marca torna a comparação
+    visível sem transformar o score em veredito.
+    """
+    cheio = min(largura, int(round(score * largura)))
+    celulas = ["#"] * cheio + ["."] * (largura - cheio)
+    if limiar is not None:
+        i = min(largura - 1, max(0, int(round(limiar * largura))))
+        celulas[i] = "|"
+    return "".join(celulas)
 
 
 def main() -> int:
@@ -119,12 +130,29 @@ def main() -> int:
         janela_s=analisador.janela.tamanho / analisador.sample_rate,
         passo_s=analisador.janela.passo / analisador.sample_rate)
 
+    # Com um arquivo do dataset dá para mostrar o rótulo verdadeiro ao lado do
+    # score. É o que transforma a execução em verificação: sem rótulo, o score
+    # só mostra que o sistema opera.
+    verdade = None
+    if args.arquivo:
+        achado = buscar_rotulo(config, Path(str(args.arquivo).replace("\\", "/")).stem)
+        if achado:
+            particao, label, sistema = achado
+            verdade = "spoof" if label else "bonafide"
+
     origem = "arquivo" if args.arquivo else "saída do sistema (loopback)"
     if analisador.n_modelos > 1:
         print(f"Modelos: {analisador.n_modelos} em fusão (média) | dispositivo: {device}")
     else:
         print(f"Modelo: {analisador.config['model']['name']} | dispositivo: {device}")
     print(f"Fonte:  {origem}")
+    if verdade:
+        extra = f" (ataque {sistema})" if sistema != "-" else ""
+        print(f"Rótulo verdadeiro: {verdade.upper()}{extra}  "
+              f"— do protocolo de '{particao}'")
+    elif args.arquivo:
+        print("Rótulo verdadeiro: desconhecido (o id não está em nenhum "
+              "protocolo)")
     print(f"Janela: {analisador.janela.tamanho / analisador.sample_rate:.1f}s | "
           f"passo: {analisador.janela.passo / analisador.sample_rate:.1f}s")
     if analisador.threshold is not None:
@@ -145,36 +173,51 @@ def main() -> int:
     gravado: list[np.ndarray] = []
     limite = args.segundos
     print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  {'peso':>5s}  sinal")
+    print("          score = P(síntese): 0,00 = voz humana | 1,00 = sintético"
+          + (f"   ('|' marca o limiar {analisador.threshold:.3f})"
+             if analisador.threshold is not None else ""))
     print("-" * 78)
+    def _mostrar(leitura) -> None:
+        """Imprime uma leitura — usada tanto no fluxo quanto na janela final."""
+        agregador.adicionar(leitura)
+        if leitura.silencio:
+            print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
+                  f"{'—':>6s}  {'—':>5s}  (silêncio)")
+            return
+        banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
+                 if leitura.qualidade else "    —")
+        if not leitura.confiavel:
+            print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
+                  f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
+            return
+        media = agregador.media_movel()
+        marca = "" if leitura.peso >= 0.95 else "  (janela parcial)"
+        print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
+              f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
+              f"{barra(leitura.score, analisador.threshold)}{marca}")
+
     try:
         with fonte:
             for bloco in fonte.blocos():
                 if args.gravar:
                     gravado.append(bloco)
                 for leitura in analisador.processar(bloco):
-                    agregador.adicionar(leitura)
-                    if leitura.silencio:
-                        print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{'—':>6s}  {'—':>5s}  (silêncio)")
-                        continue
-                    banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
-                             if leitura.qualidade else "    —")
-                    if not leitura.confiavel:
-                        print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
-                        continue
-                    media = agregador.media_movel()
-                    print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
-                          f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
-                          f"{barra(leitura.score)}")
+                    _mostrar(leitura)
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
+            # O fim da fonte pode deixar um trecho que não completou uma janela.
+            # Num arquivo do ASVspoof isso é a regra, não a exceção: a janela
+            # tem 4 s e o enunciado típico é mais curto.
+            for leitura in analisador.finalizar():
+                _mostrar(leitura)
     except KeyboardInterrupt:
         print("\nEncerrado.")
     finally:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
-        relatar(agregador, args.json, analisador.canal)
+        relatar(agregador, args.json, analisador.canal,
+                ao_vivo=not args.arquivo, limiar=analisador.threshold,
+                verdade=verdade)
     return 0
 
 
@@ -188,7 +231,9 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
     print("  Reprocesse com --arquivo para obter exatamente o mesmo resultado.")
 
 
-def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
+def relatar(agregador: Agregador, destino: str | None, canal=None,
+            ao_vivo: bool = False, limiar: float | None = None,
+            verdade: str | None = None) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
@@ -203,6 +248,18 @@ def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
         print(f"Canal: {canal.descricao()}")
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
+        if ao_vivo and resumo["janelas_silencio"] == resumo["janelas_total"]:
+            # No Windows o loopback devolve silêncio sem erro nenhum quando não
+            # há nada tocando ou quando o dispositivo aberto não é o que o
+            # sistema está usando. Sem esta dica o sintoma é indistinguível de
+            # uma falha do modelo.
+            print("\nTodas as janelas vieram em silêncio. As duas causas comuns:")
+            print("  1. Não havia áudio tocando. O loopback captura a SAÍDA do")
+            print("     sistema — se nada toca, não há o que capturar.")
+            print("  2. O dispositivo aberto não é o que o Windows está usando")
+            print("     (ex.: som indo para o fone e a captura no alto-falante).")
+            print("     Liste com --listar-dispositivos e escolha com")
+            print("     --dispositivo-audio \"<nome exato>\".")
         return
     print(f"Score  médio {resumo['score_medio']:.3f} (ponderado) | "
           f"{resumo['score_medio_simples']:.3f} (simples) | "
@@ -210,6 +267,17 @@ def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
           f"máximo {resumo['score_maximo']:.3f}")
     print(f"Peso médio das janelas: {resumo['peso_medio']:.2f} "
           "(1,00 = janela cheia de fala)")
+    if limiar is not None:
+        lado = ("ABAIXO do limiar (indício de voz humana)"
+                if resumo["score_medio"] < limiar
+                else "ACIMA do limiar (indício de síntese)")
+        print(f"Média ponderada {resumo['score_medio']:.3f} {lado} "
+              f"— limiar {limiar:.3f}")
+        if verdade:
+            decidiu = "spoof" if resumo["score_medio"] >= limiar else "bonafide"
+            veredito = "COERENTE" if decidiu == verdade else "DIVERGENTE"
+            print(f"Contra o rótulo verdadeiro ({verdade}): {veredito}. "
+                  "Um caso não mede taxa de erro — para isso, evaluate.py.")
     print("Lembrete: score alto indica *indício* de síntese. A taxa de erro "
           "deste modelo\nem áudio de chamada ainda não foi medida.")
     if destino:

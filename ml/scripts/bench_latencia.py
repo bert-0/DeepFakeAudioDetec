@@ -68,6 +68,8 @@ def medir(analisador: AnalisadorContinuo, caminho: Path) -> tuple[float, int]:
     for bloco in fonte.blocos():
         for leitura in analisador.processar(bloco):
             agregador.adicionar(leitura)
+    for leitura in analisador.finalizar():   # o trecho final do arquivo
+        agregador.adicionar(leitura)
     agregador.resumo()
     return time.perf_counter() - inicio, len(agregador.leituras)
 
