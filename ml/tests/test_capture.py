@@ -180,3 +180,39 @@ def test_resumo_sem_leituras_nao_quebra():
     r = Agregador().resumo()
     assert r["janelas_total"] == 0
     assert r["score_medio"] is None
+
+
+# --------------------------------------------------------------------------- #
+# Diagnóstico de captura muda: no Windows o loopback devolve silêncio sem erro
+# quando nada está tocando, ou quando o dispositivo aberto não é o que o sistema
+# usa. Sem dica, o sintoma é indistinguível de falha do modelo.
+# --------------------------------------------------------------------------- #
+def test_captura_toda_em_silencio_explica_as_causas(capsys):
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    for i in range(4):
+        ag.adicionar(Leitura(indice=i, instante=2.0 * i, score=0.5, rms=1e-9))
+
+    relatar(ag, None, ao_vivo=True)
+
+    saida = capsys.readouterr().out
+    assert "Todas as janelas vieram em silêncio" in saida
+    assert "--listar-dispositivos" in saida
+    assert "--dispositivo-audio" in saida
+
+
+def test_arquivo_silencioso_nao_recebe_dica_de_dispositivo(capsys):
+    """A dica é sobre o loopback; num arquivo ela seria ruído."""
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    ag.adicionar(Leitura(indice=0, instante=0.0, score=0.5, rms=1e-9))
+
+    relatar(ag, None, ao_vivo=False)
+
+    saida = capsys.readouterr().out
+    assert "Nenhuma janela com áudio" in saida
+    assert "--dispositivo-audio" not in saida

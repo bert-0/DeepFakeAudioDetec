@@ -174,7 +174,8 @@ def main() -> int:
     finally:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
-        relatar(agregador, args.json, analisador.canal)
+        relatar(agregador, args.json, analisador.canal,
+                ao_vivo=not args.arquivo)
     return 0
 
 
@@ -188,7 +189,8 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
     print("  Reprocesse com --arquivo para obter exatamente o mesmo resultado.")
 
 
-def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
+def relatar(agregador: Agregador, destino: str | None, canal=None,
+            ao_vivo: bool = False) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
@@ -203,6 +205,18 @@ def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
         print(f"Canal: {canal.descricao()}")
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
+        if ao_vivo and resumo["janelas_silencio"] == resumo["janelas_total"]:
+            # No Windows o loopback devolve silêncio sem erro nenhum quando não
+            # há nada tocando ou quando o dispositivo aberto não é o que o
+            # sistema está usando. Sem esta dica o sintoma é indistinguível de
+            # uma falha do modelo.
+            print("\nTodas as janelas vieram em silêncio. As duas causas comuns:")
+            print("  1. Não havia áudio tocando. O loopback captura a SAÍDA do")
+            print("     sistema — se nada toca, não há o que capturar.")
+            print("  2. O dispositivo aberto não é o que o Windows está usando")
+            print("     (ex.: som indo para o fone e a captura no alto-falante).")
+            print("     Liste com --listar-dispositivos e escolha com")
+            print("     --dispositivo-audio \"<nome exato>\".")
         return
     print(f"Score  médio {resumo['score_medio']:.3f} (ponderado) | "
           f"{resumo['score_medio_simples']:.3f} (simples) | "
