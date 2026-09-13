@@ -297,23 +297,72 @@ documentada na Seção 5 ("o ponto de operação não transfere").
 
 São os **únicos dois ataques em que ambos os modelos passam de 30%**. Todos os
 outros casos difíceis são difíceis para *um* dos modelos: A13 derruba o v2 mas
-não o v4; A11 derruba o v4 mas não o v2.
+não o v4; A11 derruba o v4 mas não o v2. `fusion_v4` no A12 dá 47,99%, que é
+indistinguível do acaso.
 
-Isso torna a afirmação muito mais forte do que "A10 e A12 são difíceis". Eles
-são difíceis de um jeito que **nenhuma das duas arquiteturas alcança**, e são
-o que a fusão de scores não consegue resolver — o único par onde não há um
-modelo bom para compensar o outro.
+### 7.3.1 O que separa os difíceis: geração autorregressiva
 
-`fusion_v4` no A12 dá 47,99%, que é indistinguível do acaso (50%).
+Cruzando os EERs medidos com o gerador de forma de onda de cada ataque:
 
-**Hipótese de mecanismo, a conferir contra o mapeamento de ataques.** O treino
-(A01–A06) é dominado por vocoders paramétricos clássicos, e o detector aprende
-os artefatos de reconstrução espectral que eles deixam — bandas suavizadas,
-fase reconstruída, harmônicos regularizados. Ataques com vocoder neural de
-forma de onda geram amostra a amostra e não deixam essa assinatura. Se A10 e
-A12 forem os representantes dessa família no eval, a falha é de generalização
-por família de geração, não dificuldade acústica. **Isto é hipótese**: confirmar
-contra a tabela de mapeamento A01–A19 antes de afirmar no texto.
+| ataque | v2 | fusion_v4 | gerador de forma de onda |
+|---|---|---|---|
+| A12 | 36,18% | 47,99% | **WaveNet (autorregressivo)** |
+| A10 | 30,63% | 45,54% | **WaveRNN (autorregressivo)** |
+| A15 | 15,02% | 29,37% | **WaveNet (autorregressivo)** |
+| A13 | 36,50% | 6,54% | filtragem + concatenação |
+| A11 | 3,85% | 33,74% | Griffin-Lim |
+| A14 | 12,01% | 17,74% | vocoder clássico |
+| A16 | 22,75% | 0,03% | concatenação |
+| A07 | 22,43% | 0,02% | vocoder clássico |
+| A18 | 15,01% | 4,63% | vocoder clássico |
+| A17 | 11,27% | 0,41% | filtragem de forma de onda |
+| A19 | 6,98% | 0,00% | filtragem espectral |
+| A08 | 3,88% | 0,03% | **neural**, source-filter |
+| A09 | 2,32% | 0,12% | vocoder clássico |
+
+| grupo | v2 | fusion_v4 |
+|---|---|---|
+| autorregressivos (A10, A12, A15) | **27,28%** | **40,97%** |
+| todos os outros (10 ataques) | 13,70% | **6,33%** |
+
+Para o `fusion_v4` a diferença é de **6,5x**. Teste de permutação exato (os 286
+trios possíveis entre os 13 ataques): **p = 0,0070** para o `fusion_v4` — o trio
+autorregressivo é o 2º mais difícil entre 286 — e **p = 0,0490** para o `v2`.
+Significativo nos dois, com folga bem maior no `fusion_v4`.
+
+> **Correção de uma hipótese anterior deste documento.** A versão anterior desta
+> seção atribuía a dificuldade a "vocoder neural", em oposição aos vocoders
+> paramétricos clássicos do treino. **Isso está errado, e o contraexemplo é
+> limpo: o A08 usa gerador neural** (*neural source-filter*) **e é praticamente
+> resolvido pelos dois modelos** — 3,88% e 0,03%.
+>
+> O eixo que separa não é "neural", é **autorregressivo**. WaveNet e WaveRNN
+> geram amostra a amostra, condicionando cada amostra nas anteriores, e não
+> preservam a estrutura fonte-filtro. O *neural source-filter* do A08 é neural
+> mas mantém essa estrutura — e com ela sobrevivem os artefatos que o detector,
+> treinado majoritariamente em vocoders clássicos, aprendeu a procurar.
+
+**Limite desta explicação.** O gerador é necessário mas não suficiente: **A12 e
+A15 usam o mesmo WaveNet** e diferem em 21,16 pp no `baseline_v2` (36,18% contra
+15,02%). Alguma outra coisa no pipeline — modelo acústico, dados de treino do
+ataque — também pesa. E o grupo tem só 3 ataques; a separação é grande e
+mecanicamente plausível, mas a amostra é pequena.
+
+### 7.3.2 A11 é o caso mais instrutivo de complementaridade
+
+| | A11 (Griffin-Lim) |
+|---|---|
+| baseline_v2 | **3,85%** |
+| fusion_v4 | 33,74% |
+
+O Griffin-Lim reconstrói a fase iterativamente a partir da magnitude, e deixa
+um artefato bem característico. O `baseline_v2`, só com LFCC, quase o resolve;
+o `fusion_v4`, que acrescenta um ramo de espectrograma log-mel, **piora 30 pp**.
+
+Acrescentar uma representação não é gratuito: o ramo extra pode diluir a
+evidência em que o ramo original se apoiava. Isto é o lado negativo da fusão de
+características, medido — e é a contrapartida honesta do ganho de −1,38 pp
+relatado na Seção 3.
 
 ### 7.4 O que escrever a partir disto
 
@@ -326,6 +375,10 @@ contra a tabela de mapeamento A01–A19 antes de afirmar no texto.
   mesmo.
 - A complementaridade medida aqui é a justificativa mecanicista da fusão de
   scores, e liga a Seção 4 à Seção 7.
+- A dificuldade se concentra na **geração autorregressiva** (WaveNet, WaveRNN),
+  não em "vocoder neural" — o A08 é neural e é resolvido. Ver 7.3.1.
+- A fusão de características tem um custo medido: no A11 ela **piora 30 pp**.
+  O ganho agregado de −1,38 pp é um saldo, não um ganho uniforme.
 
 ## 8. Requisitos da APS — o que foi atendido e o que não foi
 
