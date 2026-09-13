@@ -415,6 +415,47 @@ treino — os sistemas são treinados na 2019 LA, que é a base deste projeto. O
 checkpoints avaliam nela sem nenhuma mudança. Ressalva: é codec + transmissão,
 **não** inclui o processamento de um cliente de conferência.
 
+**Por que LA e não DF.** A trilha DF traz codecs de mídia (armazenamento) e
+inclui todo o áudio dos dois *Voice Conversion Challenge* (2018 e 2020) além do
+ASVspoof 2019 — cerca de 600 mil enunciados. Isso mistura três mudanças de uma
+vez: corpus de origem novo, vocoders novos e compressão. Não há como atribuir a
+diferença a nenhuma delas.
+
+A LA tem a estrutura oposta, e é ela que serve aqui:
+
+- **Os ataques são os mesmos A07–A19** do eval de 2019. A tabela por ataque da
+  Seção 7 transfere linha a linha.
+- **Existe uma condição de referência sem codec e sem transmissão**, equivalente
+  ao cenário de 2019. É o controle pareado dentro da própria base.
+- **Uma das condições é OPUS real, sobre rede real.** A Seção 5 mede Opus
+  *simulado*. Comparar as duas quantifica o quanto a simulação subestima — que é
+  exatamente a afirmação de "limite inferior" feita em 10.1, hoje sem número.
+
+DF responde a outra pergunta — generalização a fontes e vocoders novos — e é uma
+segunda etapa legítima. Mas responde com três variáveis mudando juntas, enquanto
+LA responde com uma.
+
+**Detalhe operacional que trava a importação.** Os rótulos vêm no
+`trial_metadata.txt` do *eval-package*, com oito campos e em ordem diferente do
+protocolo de 2019:
+
+```
+2019:  LA_0079 LA_E_1234567 -     A07    spoof
+2021:  LA_0009 LA_E_9332881 alaw  ita_tx A07  spoof notrim eval
+       locutor arquivo      codec canal  ataque chave trim  fase
+```
+
+O `parse_protocol_with_systems` lê o ataque em `parts[3]` e a chave em
+`parts[4]` — no arquivo de 2021 isso daria `ita_tx` e `A07`. Como `A07` não é
+chave válida, **todas as linhas seriam descartadas em silêncio** e o protocolo
+sairia vazio. O `scripts/importar_asvspoof2021.py` converte, listando antes as
+condições presentes:
+
+```bash
+python scripts/importar_asvspoof2021.py --metadata keys/LA/CM/trial_metadata.txt --listar
+python scripts/importar_asvspoof2021.py --metadata ... --codec opus --saida p_opus.txt
+```
+
 **CFAD** permite *treinar* com canal, porque as versões ruidosa e com codec têm
 partição de treino. É em mandarim, o que confunde idioma com canal — mas o
 desenho da base resolve isso: como as três versões partem do mesmo material, o
