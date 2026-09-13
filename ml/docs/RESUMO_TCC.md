@@ -414,18 +414,73 @@ treino — os sistemas são treinados na 2019 LA, que é a base deste projeto. O
 checkpoints avaliam nela sem nenhuma mudança. Ressalva: é codec + transmissão,
 **não** inclui o processamento de um cliente de conferência.
 
-**CFAD** é a que permite *treinar* com canal, porque as versões ruidosa e com
-codec têm partição de treino. É em mandarim, o que confunde idioma com canal —
-mas o desenho da base resolve isso: como as três versões partem do mesmo
-material, o idioma é constante e o **delta** entre `clean` → `noisy` e
-`clean` → `codec` isola o canal. Esse delta é diretamente comparável ao delta da
-Seção 5 (+23,42 pp no v2 contra +7,24 pp no fusion_v4). Se a inversão de ranking
-se repetir em outro idioma, com outros ataques e outro grupo gerador, ela deixa
-de ser peculiaridade da simulação e vira resultado.
+**CFAD** permite *treinar* com canal, porque as versões ruidosa e com codec têm
+partição de treino. É em mandarim, o que confunde idioma com canal — mas o
+desenho da base resolve isso: como as três versões partem do mesmo material, o
+idioma é constante e o **delta** entre `clean` → `noisy` e `clean` → `codec`
+isola o canal. Esse delta é diretamente comparável ao delta da Seção 5
+(+23,42 pp no v2 contra +7,24 pp no fusion_v4). Se a inversão de ranking se
+repetir em outro idioma, com outros ataques e outro grupo gerador, ela deixa de
+ser peculiaridade da simulação e vira resultado.
+
+> **Atenção — o ruído e o codec do CFAD são simulados, não capturados.** A
+> própria descrição da base diz que ruído de fundo e codecs "são simulados".
+> Portanto o CFAD é **camada 1 feita por outro grupo**, não camada 2. O valor
+> dele é a independência (outro idioma, outros geradores, outra equipe), não o
+> realismo do canal. Nenhuma base pública substitui a gravação da Seção 10.2.
 
 Um dos 12 tipos do CFAD é *partially fake* (trecho falso dentro de áudio real).
 O modelo deste projeto decide por enunciado inteiro, então esse tipo mede outra
 tarefa — separar, não jogar na média.
+
+### 10.4 Taxonomia do realismo do canal
+
+Consolidando: nem toda "base com ruído" mede a mesma coisa. Esta tabela decide o
+que cada fonte pode sustentar no texto.
+
+| nível | o que mede | fontes disponíveis |
+|---|---|---|
+| **0 — limpo** | benchmark, sem canal | ASVspoof 2019 LA eval |
+| **1 — canal simulado** | codec, banda, ruído aditivo, música de fundo | `robustness_eval.py` (este projeto), CFAD *noisy*/*codec*, ADD 2022 track LF |
+| **1,5 — transmissão real** | codec real + rede (VoIP, PSTN) | **ASVspoof 2021 LA** |
+| **2 — cliente de conferência** | supressão de ruído, cancelamento de eco, AGC | **só gravando** — `scripts/canal_real.py` |
+
+Os níveis 0 e 1 estão medidos. O 1,5 está disponível publicamente e não exige
+gravação. O 2 não existe em base pública conhecida e é o que o procedimento da
+Seção 10.2 produz.
+
+### 10.5 O que NÃO entra: falsificação parcial
+
+Uma família inteira de bases próximas mede **outra tarefa**: Half-Truth (HAD),
+ADD 2022 track PF e ADD 2023 track 1.2 tratam de *partially fake* — trechos
+sintéticos curtos inseridos dentro de uma gravação autêntica, às vezes só uma ou
+duas regiões por frase.
+
+O modelo deste projeto emite **um score por enunciado**. Detectar falsificação
+parcial exige localizar *onde* está o trecho falso: rótulo por quadro,
+arquitetura com saída temporal e métrica de localização. Não é uma versão mais
+difícil do mesmo problema — é outro problema.
+
+Isso está registrado aqui como **trabalho futuro identificado**, não como
+lacuna: reconhecer a distinção e delimitá-la é resultado de revisão da área.
+A Seção 9.1 já mostra o limite correlato dentro deste trabalho — um trecho
+sintético mais curto que a janela de 4 s nunca ocupa uma janela inteira.
+
+### 10.6 Independência entre as bases candidatas
+
+Bases do mesmo grupo podem compartilhar o áudio autêntico, e nesse caso somá-las
+**não** produz confirmação independente.
+
+Verificado: o áudio real do CFAD vem de **AISHELL-1, AISHELL-3, THCHS-30 e dois
+corpora MAGICDATA**. O ADD 2022 é construído sobre **AISHELL-3**. Os dois
+compartilham fonte bonafide, além de compartilharem idioma e equipe (Yi, Tao et
+al., CAS).
+
+Consequência prática: depois do CFAD, o ADD 2022 LF acrescenta **um** eixo que
+nada mais cobre — **música de fundo** — e pouco além disso. Vale como um ponto
+extra de robustez, não como segunda confirmação da Seção 5. A confirmação
+independente vem do ASVspoof 2021 LA, que é outro idioma, outro grupo e outra
+fonte de áudio autêntico.
 
 ---
 
