@@ -624,6 +624,79 @@ ponta com canal simulado, mas nenhuma chamada real foi medida.
 
 ---
 
+## 12. Plano final do TC2 (escopo fechado)
+
+Escrito sob restrição de tempo. A regra é: **o valor marginal de mais uma base é
+menor que o valor marginal de escrever as seções que já têm dado.**
+
+### 12.1 O que já está medido e só precisa ser escrito
+
+Sete modelos comparados, fusão de scores com grupo de controle, robustez ao
+canal com inversão de ranking, verificação de atalhos em duas camadas, latência
+do RNF01, o achado do RNF02 trivial, custo de operação ao vivo, resolução
+temporal e ponderação das janelas. Nada disso precisa de execução nova.
+
+### 12.2 Fazer (barato, alto valor)
+
+1. **Regenerar as tabelas por ataque** (Seção 7). Duas execuções de minutos. É a
+   seção que explica *por que* o modelo falha, e hoje está marcada
+   `[REGENERAR]`.
+2. **ASVspoof 2021 LA, com subamostragem.** Uma comparação pareada: condição de
+   referência (sem codec) contra Opus real, nos dois modelos principais.
+3. **Obter os baselines oficiais do ASVspoof 2019** (ver Seção 11). Sem eles a
+   comparação com a literatura não tem régua.
+
+**Não rode o eval de 2021 inteiro.** São 181.566 áudios, e não é preciso.
+Simulado no regime deste projeto (EER ≈ 20%, 10,3% de bonafide), a dispersão do
+EER estimado por tamanho de amostra:
+
+| áudios por condição | bonafide | IC 95% do EER |
+|---|---|---|
+| 2.000 | 206 | ± 2,59 pp |
+| 5.000 | 515 | ± 1,81 pp |
+| **10.000** | **1.030** | **± 1,28 pp** |
+| 25.000 | 2.575 | ± 0,85 pp |
+| 71.237 (eval de 2019) | 7.337 | ± 0,49 pp |
+
+Os efeitos a distinguir são a inversão de ranking (10,4 pp) e o ganho da fusão
+de scores (5,86 pp). **10.000 por condição resolve os dois com folga** — e custa
+menos que uma avaliação completa de 2019. O ganho da fusão de características
+(1,38 pp) fica abaixo da resolução dessa amostra, mas ele já está medido no eval
+completo de 2019 e não precisa ser refeito aqui.
+
+### 12.3 Cortar
+
+**A execução da camada 2.** O motivo é que o ASVspoof 2021 LA **absorve a maior
+parte do que ela provaria**: transmissão real, codec real, com controle pareado
+nos mesmos ataques. O que sobra de exclusivo para a camada 2 é apenas o
+processamento do cliente de conferência (supressão de ruído, cancelamento de
+eco, AGC) — incremento mais estreito do que parecia quando o 2021 LA ainda não
+estava na mesa.
+
+**O trabalho da camada 2 não se perde**, e não deve ser omitido do texto. Ele
+entra como **instrumentação validada e trabalho futuro**: o método de
+alinhamento por correlação de envelope, a razão medida de um marcador por bipe
+não funcionar, as margens de correlação (0,798 no canal degradado contra 0,118
+em ruído) e o procedimento com grupo de controle. Construir e validar a
+instrumentação é contribuição; executá-la fica declarado como próximo passo.
+
+**Também cortados:** ASVspoof 5 (só se sobrar tempo, e apenas avaliação
+cruzada), CFAD, ADD, e qualquer retreino.
+
+### 12.4 O que o TC2 conclui
+
+- A fusão de características ajuda (−1,38 pp); a atenção não (Seção 3).
+- A fusão de scores entre modelos **diversos** ajuda muito mais (−5,86 pp), e o
+  grupo de controle mostra que o ganho vem da diversidade (Seção 4).
+- **O ranking dos modelos se inverte sob degradação de canal** (Seção 5) — o
+  resultado central, agora com confirmação em canal real.
+- O modelo aprende artefato, não atalho, com dependência residual de 1–2%
+  (Seção 6).
+- O RNF02 é satisfeito por um classificador trivial; o RNF03 não é atendido
+  (Seção 8). Ambos documentados com evidência.
+
+---
+
 ## Comandos que produzem cada número
 
 ```bash
