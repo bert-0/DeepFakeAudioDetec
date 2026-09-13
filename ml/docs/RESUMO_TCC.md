@@ -211,34 +211,121 @@ artefato, não o atalho** — com a ressalva quantificada.
 
 ---
 
-## 7. Desempenho por ataque — o que é difícil
+## 7. Desempenho por ataque — o resultado que o EER global esconde
 
-`scripts/per_attack_eval.py`. Os 13 ataques do eval não são igualmente difíceis:
-a maior parte do erro se concentra em poucos.
+`scripts/per_attack_eval.py`, eval completo, 4.914 áudios por ataque contra os
+mesmos 7.355 bonafide.
 
-`[REGENERAR]` — cole aqui a tabela de:
+| ataque | baseline_v2 | fusion_v4 | diferença | vence |
+|---|---|---|---|---|
+| A13 | 36,50% | **6,54%** | −29,96 pp | fusion_v4 |
+| A16 | 22,75% | **0,03%** | −22,72 pp | fusion_v4 |
+| A07 | 22,43% | **0,02%** | −22,41 pp | fusion_v4 |
+| A17 | 11,27% | **0,41%** | −10,86 pp | fusion_v4 |
+| A18 | 15,01% | **4,63%** | −10,38 pp | fusion_v4 |
+| A19 | 6,98% | **0,00%** | −6,98 pp | fusion_v4 |
+| A08 | 3,88% | **0,03%** | −3,85 pp | fusion_v4 |
+| A09 | 2,32% | **0,12%** | −2,20 pp | fusion_v4 |
+| A14 | **12,01%** | 17,74% | +5,73 pp | v2 |
+| A12 | **36,18%** | 47,99% | +11,81 pp | v2 |
+| A15 | **15,02%** | 29,37% | +14,35 pp | v2 |
+| A10 | **30,63%** | 45,54% | +14,91 pp | v2 |
+| A11 | **3,85%** | 33,74% | +29,89 pp | v2 |
+| **EER global** | **18,99%** | 20,18% | | |
 
-```bash
-python scripts/per_attack_eval.py --config configs/baseline_v2.yaml \
-    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
-python scripts/per_attack_eval.py --config configs/fusion_v4.yaml \
-    --checkpoint checkpoints/fusion_lcnn_v4.pt
-```
+### 7.1 Os dois modelos erram em ataques diferentes
 
-**Por que A10 e A12 são difíceis.** Os dois usam vocoder neural de forma de onda
-(família WaveNet/WaveRNN) em vez dos vocoders paramétricos clássicos que
-dominam o conjunto de **treino** (A01–A06). O detector aprendeu a reconhecer os
-artefatos de reconstrução espectral do vocoder paramétrico — bandas suavizadas,
-fase reconstruída, harmônicos regularizados. O vocoder neural gera a forma de
-onda amostra a amostra e **não deixa esses artefatos**. É falha de
-generalização por família de geração, não por dificuldade acústica: o modelo
-procura uma assinatura que nesses ataques não existe.
+É o achado central desta seção. Os EERs globais são quase iguais (18,99% contra
+20,18%) e **os perfis são quase opostos**: `fusion_v4` vence em 8 dos 13
+ataques, `baseline_v2` nos outros 5, com diferenças de até 30 pp nos dois
+sentidos.
 
-Consequência para o texto: o número agregado esconde isso. O EER de 18,99% é a
-média entre ataques quase resolvidos e ataques em que o modelo está perto do
-acaso.
+O par A13 / A11 resume tudo:
 
----
+- **A13** é o pior ataque do `baseline_v2` (36,50%) e o `fusion_v4` quase o
+  resolve (6,54%).
+- **A11** é quase resolvido pelo `baseline_v2` (3,85%) e derruba o `fusion_v4`
+  (33,74%).
+
+Mesma base, mesmos ataques, dois modelos com EER global equivalente — e o erro
+distribuído de formas incompatíveis.
+
+**Isto explica a Seção 4.** A fusão de scores rende 5,86 pp (18,99% → 13,13%)
+porque os modelos são complementares, e agora isso está *medido*, não inferido.
+O grupo de controle da Seção 4 já apontava nessa direção; aqui se vê o
+mecanismo. A correlação de Spearman entre os dois perfis é ρ = +0,344
+(p = 0,250) — com 13 ataques não dá para afirmar independência, mas também não
+há evidência de que errem juntos.
+
+**O teto da fusão.** Tomando o melhor dos dois modelos em cada ataque — um
+oráculo que sabe qual ataque está enfrentando — o EER médio seria **8,42%**. É
+um limite superior inatingível na prática, porque essa informação não existe em
+operação, mas mostra que a fusão medida (13,13%) captura boa parte da margem
+disponível. Vale registrar que **8,42% atenderia o RNF03**, e que o que separa
+o sistema disso não é capacidade de discriminação, e sim não saber qual ataque
+está vendo.
+
+### 7.2 O EER global penaliza o fusion_v4 por outra coisa
+
+| | média dos EERs por ataque | EER global | custo do agrupamento |
+|---|---|---|---|
+| baseline_v2 | 16,83% | 18,99% | **+2,16 pp** |
+| fusion_v4 | **14,32%** | 20,18% | **+5,86 pp** |
+
+Na média por ataque o `fusion_v4` é o **melhor** dos dois (14,32% contra
+16,83%) — o inverso do ranking global. A diferença está no custo de agrupar:
+o EER global usa **um limiar só** para os 13 ataques, e o `fusion_v4` distribui
+os scores de cada ataque em faixas muito diferentes (desvio de 18,46 pp entre
+ataques, contra 11,98 pp do v2). Um limiar único o serve mal.
+
+Ou seja: o que o EER global mede no `fusion_v4` não é falta de capacidade de
+discriminar, e sim **inconsistência da escala de score entre ataques**. Isso
+reposiciona o incremento de fusão de características — ele não é pior; ele é
+pior *sob um ponto de operação único*, que é exatamente a fragilidade já
+documentada na Seção 5 ("o ponto de operação não transfere").
+
+> Ressalva de método: cada EER por ataque usa o seu próprio limiar ótimo. A
+> média deles não é uma métrica operacional — é diagnóstico. Nenhum sistema
+> real escolhe limiar por ataque, porque não sabe qual ataque está enfrentando.
+
+### 7.3 A10 e A12 são os únicos que resistem aos dois
+
+| | A10 | A12 |
+|---|---|---|
+| baseline_v2 | 30,63% | 36,18% |
+| fusion_v4 | 45,54% | 47,99% |
+
+São os **únicos dois ataques em que ambos os modelos passam de 30%**. Todos os
+outros casos difíceis são difíceis para *um* dos modelos: A13 derruba o v2 mas
+não o v4; A11 derruba o v4 mas não o v2.
+
+Isso torna a afirmação muito mais forte do que "A10 e A12 são difíceis". Eles
+são difíceis de um jeito que **nenhuma das duas arquiteturas alcança**, e são
+o que a fusão de scores não consegue resolver — o único par onde não há um
+modelo bom para compensar o outro.
+
+`fusion_v4` no A12 dá 47,99%, que é indistinguível do acaso (50%).
+
+**Hipótese de mecanismo, a conferir contra o mapeamento de ataques.** O treino
+(A01–A06) é dominado por vocoders paramétricos clássicos, e o detector aprende
+os artefatos de reconstrução espectral que eles deixam — bandas suavizadas,
+fase reconstruída, harmônicos regularizados. Ataques com vocoder neural de
+forma de onda geram amostra a amostra e não deixam essa assinatura. Se A10 e
+A12 forem os representantes dessa família no eval, a falha é de generalização
+por família de geração, não dificuldade acústica. **Isto é hipótese**: confirmar
+contra a tabela de mapeamento A01–A19 antes de afirmar no texto.
+
+### 7.4 O que escrever a partir disto
+
+- O EER global de 18,99% é uma média entre ataques quase resolvidos (A09 com
+  2,32%) e ataques em que o modelo está perto do acaso (A13 com 36,50%).
+  Reportar só o agregado esconde os dois extremos.
+- O `fusion_v4` tem perfil **bimodal**: seis ataques abaixo de 0,5% e cinco
+  acima de 17%. O `baseline_v2` é mais uniforme. São modelos com
+  comportamentos qualitativamente distintos, não versões melhores e piores do
+  mesmo.
+- A complementaridade medida aqui é a justificativa mecanicista da fusão de
+  scores, e liga a Seção 4 à Seção 7.
 
 ## 8. Requisitos da APS — o que foi atendido e o que não foi
 
