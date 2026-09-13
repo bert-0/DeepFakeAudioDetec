@@ -70,6 +70,23 @@ def parse_protocol(protocol_path: str | Path) -> list[tuple[str, int]]:
     return [(name, label) for name, label, _ in parse_protocol_with_systems(protocol_path)]
 
 
+def buscar_rotulo(config: dict, audio_id: str) -> tuple[str, int, str] | None:
+    """Procura o rótulo verdadeiro de um áudio nas três partições.
+
+    Devolve `(partição, label, system_id)` ou `None` se o id não estiver em
+    nenhum protocolo — o que acontece quando o arquivo veio de outra base ou
+    foi renomeado. Protocolo ausente é ignorado em silêncio: quem precisa de
+    diagnóstico usa `scripts/rotulo.py`, que existe para isso.
+    """
+    for particao, caminho in config.get("data", {}).get("protocols", {}).items():
+        if not Path(caminho).is_file():
+            continue
+        for nome, label, sistema in parse_protocol_with_systems(caminho):
+            if nome == audio_id:
+                return particao, label, sistema
+    return None
+
+
 def protocol_ids_and_systems(config: dict, partition: str) -> tuple[list[str], list[str]]:
     """Ids e algoritmos de síntese de uma partição, direto do protocolo.
 

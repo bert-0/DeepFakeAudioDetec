@@ -158,3 +158,93 @@ def test_sem_alvo_e_sem_exemplos_explica_o_uso(base_grande):
     sys.argv = ["x", "--config", str(base_grande)]
     with pytest.raises(SystemExit):
         main()
+
+
+# --------------------------------------------------------------------------- #
+# Rótulo verdadeiro dentro do monitor
+#
+# Sem ele, rodar o monitor num arquivo mostra que o sistema opera e nada mais.
+# Com ele, a mesma execução vira verificação — e foi a falta disso que deixou
+# um score de 0,048 ser lido como "o programa disse que é sintético".
+# --------------------------------------------------------------------------- #
+def test_busca_encontra_nas_tres_particoes(projeto):
+    from src.config import load_config
+    from src.data.dataset import buscar_rotulo
+
+    cfg = load_config(str(projeto))
+    assert buscar_rotulo(cfg, "LA_E_1000147") == ("eval", 0, "-")
+    assert buscar_rotulo(cfg, "LA_E_1000148") == ("eval", 1, "A10")
+    assert buscar_rotulo(cfg, "LA_T_1000002") == ("train", 1, "A01")
+
+
+def test_busca_devolve_none_para_id_de_fora(projeto):
+    from src.config import load_config
+    from src.data.dataset import buscar_rotulo
+
+    assert buscar_rotulo(load_config(str(projeto)), "LA_E_A9898607") is None
+
+
+def test_busca_ignora_protocolo_ausente_sem_quebrar(tmp_path):
+    from src.data.dataset import buscar_rotulo
+
+    cfg = {"data": {"protocols": {"eval": str(tmp_path / "sumiu.txt")}}}
+    assert buscar_rotulo(cfg, "qualquer") is None
+
+
+def test_busca_sem_secao_de_dados(tmp_path):
+    from src.data.dataset import buscar_rotulo
+
+    assert buscar_rotulo({}, "x") is None
+
+
+def test_resumo_confronta_o_score_com_o_rotulo():
+    import io
+    from contextlib import redirect_stdout
+
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    def _saida(score, verdade):
+        ag = Agregador()
+        ag.adicionar(Leitura(indice=0, instante=0.0, score=score, rms=0.1))
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            relatar(ag, None, limiar=0.7173, verdade=verdade)
+        return buf.getvalue()
+
+    assert "COERENTE" in _saida(0.048, "bonafide")
+    assert "COERENTE" in _saida(0.910, "spoof")
+    assert "DIVERGENTE" in _saida(0.048, "spoof")
+    assert "DIVERGENTE" in _saida(0.910, "bonafide")
+
+
+def test_resumo_avisa_que_um_caso_nao_e_taxa_de_erro():
+    """O confronto é ilustrativo; a métrica sai do evaluate.py."""
+    import io
+    from contextlib import redirect_stdout
+
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    ag.adicionar(Leitura(indice=0, instante=0.0, score=0.048, rms=0.1))
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        relatar(ag, None, limiar=0.7173, verdade="bonafide")
+    assert "não mede taxa de erro" in buf.getvalue()
+
+
+def test_sem_rotulo_o_resumo_nao_inventa_veredito():
+    import io
+    from contextlib import redirect_stdout
+
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    ag.adicionar(Leitura(indice=0, instante=0.0, score=0.048, rms=0.1))
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        relatar(ag, None, limiar=0.7173)
+    saida = buf.getvalue()
+    assert "COERENTE" not in saida and "DIVERGENTE" not in saida

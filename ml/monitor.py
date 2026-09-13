@@ -60,6 +60,7 @@ import numpy as np
 from src.capture import CaptureError, FileSource, WasapiLoopbackSource
 from src.capture.analyzer import AnalisadorContinuo, Agregador
 from src.config import load_config, resolve_device
+from src.data.dataset import buscar_rotulo
 
 OUTPUT_DIR = Path("outputs")
 
@@ -129,12 +130,29 @@ def main() -> int:
         janela_s=analisador.janela.tamanho / analisador.sample_rate,
         passo_s=analisador.janela.passo / analisador.sample_rate)
 
+    # Com um arquivo do dataset dá para mostrar o rótulo verdadeiro ao lado do
+    # score. É o que transforma a execução em verificação: sem rótulo, o score
+    # só mostra que o sistema opera.
+    verdade = None
+    if args.arquivo:
+        achado = buscar_rotulo(config, Path(str(args.arquivo).replace("\\", "/")).stem)
+        if achado:
+            particao, label, sistema = achado
+            verdade = "spoof" if label else "bonafide"
+
     origem = "arquivo" if args.arquivo else "saída do sistema (loopback)"
     if analisador.n_modelos > 1:
         print(f"Modelos: {analisador.n_modelos} em fusão (média) | dispositivo: {device}")
     else:
         print(f"Modelo: {analisador.config['model']['name']} | dispositivo: {device}")
     print(f"Fonte:  {origem}")
+    if verdade:
+        extra = f" (ataque {sistema})" if sistema != "-" else ""
+        print(f"Rótulo verdadeiro: {verdade.upper()}{extra}  "
+              f"— do protocolo de '{particao}'")
+    elif args.arquivo:
+        print("Rótulo verdadeiro: desconhecido (o id não está em nenhum "
+              "protocolo)")
     print(f"Janela: {analisador.janela.tamanho / analisador.sample_rate:.1f}s | "
           f"passo: {analisador.janela.passo / analisador.sample_rate:.1f}s")
     if analisador.threshold is not None:
@@ -198,7 +216,8 @@ def main() -> int:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
         relatar(agregador, args.json, analisador.canal,
-                ao_vivo=not args.arquivo, limiar=analisador.threshold)
+                ao_vivo=not args.arquivo, limiar=analisador.threshold,
+                verdade=verdade)
     return 0
 
 
@@ -213,7 +232,8 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
 
 
 def relatar(agregador: Agregador, destino: str | None, canal=None,
-            ao_vivo: bool = False, limiar: float | None = None) -> None:
+            ao_vivo: bool = False, limiar: float | None = None,
+            verdade: str | None = None) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
@@ -253,6 +273,11 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
                 else "ACIMA do limiar (indício de síntese)")
         print(f"Média ponderada {resumo['score_medio']:.3f} {lado} "
               f"— limiar {limiar:.3f}")
+        if verdade:
+            decidiu = "spoof" if resumo["score_medio"] >= limiar else "bonafide"
+            veredito = "COERENTE" if decidiu == verdade else "DIVERGENTE"
+            print(f"Contra o rótulo verdadeiro ({verdade}): {veredito}. "
+                  "Um caso não mede taxa de erro — para isso, evaluate.py.")
     print("Lembrete: score alto indica *indício* de síntese. A taxa de erro "
           "deste modelo\nem áudio de chamada ainda não foi medida.")
     if destino:
