@@ -806,7 +806,8 @@ p. 1008-1012.
 
 WANG, Xin et al. ASVspoof 2019: a large-scale public database of synthesized,
 converted and replayed speech. *Computer Speech & Language*, v. 64, 101114,
-2020.
+2020. DOI: 10.1016/j.csl.2020.101114.
+*(Conferido em 25/09/2026: volume, número do artigo e DOI.)*
 
 > As páginas, cidades e números de artigo acima foram escritos de memória.
 > Conferir cada um na fonte (DOI ou anais) antes da entrega.
