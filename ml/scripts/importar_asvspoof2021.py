@@ -5,6 +5,17 @@ redes reais (VoIP e PSTN) com codecs reais, e traz uma condição de referência
 sem codec e sem transmissão. Isso dá o experimento pareado que a simulação da
 Seção 5 só consegue aproximar: mesmo ataque, canal real.
 
+Onde ficam os arquivos (a pasta inteira está no .gitignore):
+
+    ml/data/ASVspoof2021_LA/
+    ├── <o que sai do Zenodo 4837263>/flac/*.flac      ← áudio, SEM rótulo
+    └── keys/LA/CM/trial_metadata.txt                  ← rótulos: LA-keys-full.tar.gz
+                                                          de www.asvspoof.org/asvspoof2021/
+
+As chaves NÃO estão no repositório asvspoof-challenge/2021 do GitHub — lá só
+há a descrição do formato. E não confunda com o `.trl.txt` que vem junto do
+áudio no Zenodo: ele lista os arquivos sem rótulo, e este script o recusa.
+
 Uso:
     # 1. ver quais condições existem no metadado
     python scripts/importar_asvspoof2021.py --metadata <keys>/LA/CM/trial_metadata.txt --listar
