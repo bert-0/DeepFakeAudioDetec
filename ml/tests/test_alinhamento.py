@@ -292,3 +292,37 @@ def test_preparar_cobre_varios_ataques(tmp_path):
     ataques = {s for _, lab, s in escolhidos if lab == 1}
     assert ataques == {"A07", "A10", "A12", "A17"}, ataques
     assert sum(1 for _, lab, _ in escolhidos if lab == 0) == 8
+
+
+def test_alinhar_gera_config_que_nao_sobrescreve_2019(tmp_path, capsys):
+    """O texto antigo mandava copiar o config e rodar `rm -rf` num cache."""
+    import soundfile as sf
+    import yaml
+
+    from scripts.canal_real import cmd_alinhar, cmd_preparar
+    from src.config import load_config
+
+    proto = _base_falsa(tmp_path / "base")
+    cfg = {
+        "audio": {"sample_rate": SR, "duration": 4.0, "trim_silence": False,
+                  "top_db": 30, "peak_normalize": False},
+        "data": {"protocols": {"eval": str(proto)},
+                 "audio_dir": {"eval": str(tmp_path / "base" / "flac")}},
+    }
+    caminho_cfg = tmp_path / "c.yaml"
+    caminho_cfg.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    saida = tmp_path / "canal"
+    cmd_preparar(argparse.Namespace(config=str(caminho_cfg), n_por_classe=4,
+                                    seed=1, saida=str(saida)))
+    ref, _ = sf.read(saida / "referencia.wav", dtype="float32")
+    sf.write(tmp_path / "g.wav", _atrasar(ref, 0.5), SR)
+
+    assert cmd_alinhar(argparse.Namespace(
+        pasta=str(saida), gravacao=str(tmp_path / "g.wav"),
+        config_base="configs/fusion_v4.yaml")) == 0
+
+    gerado = load_config(saida / "config_canal_real.yaml")
+    assert gerado["experiment"]["name"] != "fusion_lcnn_v4"
+    assert gerado["train"]["cache_features"] is False
+    texto = capsys.readouterr().out
+    assert "rm -rf" not in texto and "cp configs" not in texto

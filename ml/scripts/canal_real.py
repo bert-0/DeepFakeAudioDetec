@@ -47,7 +47,7 @@ from src.capture.alinhamento import (  # noqa: E402
     recortar,
     salvar_mapa,
 )
-from src.config import load_config  # noqa: E402
+from src.config import config_derivado, load_config, salvar_config  # noqa: E402
 from src.data.dataset import parse_protocol_with_systems  # noqa: E402
 from src.preprocess import load_audio  # noqa: E402
 
@@ -207,24 +207,27 @@ def cmd_alinhar(args) -> int:
 
     print(f"\nÁudio recortado em {saida}/  ({len(pedacos)} arquivos)")
     print(f"Protocolo em {proto}")
-    print(_como_avaliar(pasta, proto, saida))
+
+    # Config gerado, não copiado à mão: com o `experiment.name` original, a
+    # avaliação gravaria por cima dos resultados do eval de 2019.
+    base_path = getattr(args, "config_base", None) or "configs/fusion_v4.yaml"
+    cfg = config_derivado(load_config(base_path), f"canal_real_{pasta.name}",
+                          proto, saida)
+    destino = salvar_config(cfg, pasta / "config_canal_real.yaml")
+    print(f"Config derivado: {destino}  (experimento {cfg['experiment']['name']})")
+    print(_como_avaliar(destino))
     return 0
 
 
-def _como_avaliar(pasta: Path, proto: Path, audio: Path) -> str:
+def _como_avaliar(config: Path) -> str:
     return f"""
 ─────────────────────────── COMO OBTER O EER ───────────────────────────
-Copie o config e aponte a partição de eval para o que foi capturado:
-
-  cp configs/fusion_v4.yaml configs/canal_real.yaml
-  # em configs/canal_real.yaml, dentro de `data`:
-  #   protocols.eval: {proto}
-  #   audio_dir.eval: {audio}
-  # e apague o cache antigo para não reaproveitar features do áudio limpo:
-  #   rm -rf {pasta}/../cache   (ou o cache_dir do seu config)
-
-  python evaluate.py --config configs/canal_real.yaml \\
+  python evaluate.py --config {config.as_posix()} \\
       --checkpoint checkpoints/fusion_lcnn_v4.pt --partition eval
+
+O config acima foi GERADO com outro nome de experimento e sem cache. Não copie
+o config do modelo trocando só os caminhos: os resultados sairiam com o mesmo
+nome dos do eval de 2019 e gravariam por cima deles.
 
 COMPARE com três números que você já tem:
   eval limpo (mesmo subconjunto)   ..... rode com o config original
@@ -250,6 +253,8 @@ def main() -> int:
     b = sub.add_parser("alinhar", help="recorta a gravação e emite o protocolo")
     b.add_argument("--pasta", default="outputs/canal_real")
     b.add_argument("--gravacao", required=True)
+    b.add_argument("--config-base", default="configs/fusion_v4.yaml",
+                   help="config do modelo; o de avaliação é derivado dele")
     b.set_defaults(func=cmd_alinhar)
 
     args = p.parse_args()

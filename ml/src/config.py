@@ -44,6 +44,41 @@ def output_name(config: dict, smoke: bool = False) -> str:
     return f"{nome}_smoke" if smoke else nome
 
 
+def config_derivado(base: dict, sufixo: str, protocolo_eval: str | Path,
+                    audio_eval: str | Path) -> dict[str, Any]:
+    """Config para avaliar um modelo já treinado num conjunto de áudio NOVO.
+
+    Existe porque o caminho óbvio — copiar o config do modelo e trocar só os
+    caminhos do `eval` — **sobrescreve os resultados originais**. Os artefatos
+    levam o nome `experiment.name` + partição, então avaliar o `fusion_v4` no
+    ASVspoof 2021 com o nome intacto grava por cima de
+    `outputs/fusion_lcnn_v4_eval_metrics.json` e do `_eval_scores.npz` que o
+    `per_attack_eval.py` e o `score_fusion.py` reaproveitam. E o cache de
+    features do `eval`, indexado pela partição, seria apagado e recriado com o
+    áudio novo — as ~11 GB do eval de 2019 perdidas por uma avaliação de 10 mil.
+
+    Aqui o nome ganha um sufixo e o cache é desligado: a avaliação é uma passada
+    só, e o `_scores.npz` já guarda o que precisaria ser reaproveitado.
+    """
+    import copy
+
+    cfg = copy.deepcopy(base)
+    sufixo = "".join(c if c.isalnum() or c in "-_" else "_" for c in sufixo)
+    cfg["experiment"]["name"] = f"{base['experiment']['name']}__{sufixo}"
+    cfg.setdefault("data", {}).setdefault("protocols", {})["eval"] = str(protocolo_eval)
+    cfg["data"].setdefault("audio_dir", {})["eval"] = str(audio_eval)
+    cfg.setdefault("train", {})["cache_features"] = False
+    return cfg
+
+
+def salvar_config(cfg: dict, destino: str | Path) -> Path:
+    destino = Path(destino)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True),
+                       encoding="utf-8")
+    return destino
+
+
 def make_generator(seed: int) -> torch.Generator:
     """Gerador semeado para o embaralhamento reprodutível do DataLoader."""
     generator = torch.Generator()

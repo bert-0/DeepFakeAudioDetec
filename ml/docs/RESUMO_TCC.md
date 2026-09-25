@@ -600,8 +600,16 @@ condições presentes:
 
 ```bash
 python scripts/importar_asvspoof2021.py --metadata keys/LA/CM/trial_metadata.txt --listar
-python scripts/importar_asvspoof2021.py --metadata ... --codec opus --saida p_opus.txt
+python scripts/importar_asvspoof2021.py --metadata ... --codec opus --amostra 10000 \
+    --config-base configs/fusion_v4.yaml --audio-dir <flac do 2021>
 ```
+
+O script **gera o config** de avaliação em vez de pedir que ele seja copiado à
+mão. Copiar `fusion_v4.yaml` e trocar só os caminhos manteria o
+`experiment.name`, e como os artefatos do `evaluate.py` são nomeados por ele, a
+avaliação do 2021 gravaria **por cima** das métricas e dos scores do eval de
+2019 — e o cache de features do eval seria apagado e recriado com o áudio novo.
+O config derivado muda o nome e desliga o cache.
 
 **CFAD** permite *treinar* com canal, porque as versões ruidosa e com codec têm
 partição de treino. É em mandarim, o que confunde idioma com canal — mas o

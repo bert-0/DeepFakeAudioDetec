@@ -115,6 +115,37 @@ def filtrar(trials: list[Trial], condicao: str | None = None,
     return saida
 
 
+def subamostrar(trials: list[Trial], n: int, seed: int = 42) -> list[Trial]:
+    """Subamostra estratificada por (chave, ataque), preservando as proporções.
+
+    O eval do 2021 tem 181.566 trials e não é preciso rodar todos: no regime
+    deste projeto (EER ~20%, ~10% de bonafide), 10.000 por condição dão IC 95%
+    de ±1,28 pp — suficiente para os efeitos em jogo (ver RESUMO_TCC, 12.2).
+
+    Estratificar importa porque uma amostra aleatória simples pode sub-representar
+    justamente A10 e A12, que dominam o erro. Cada estrato recebe a sua fração
+    proporcional, arredondada; a mesma semente dá a mesma amostra, então duas
+    condições sorteadas com a mesma semente são comparáveis entre si.
+    """
+    import random
+
+    if n <= 0 or n >= len(trials):
+        return list(trials)
+    estratos: dict[tuple[str, str], list[Trial]] = {}
+    for t in trials:
+        estratos.setdefault((t.chave, t.ataque), []).append(t)
+
+    rng = random.Random(seed)
+    fracao = n / len(trials)
+    escolhidos: list[Trial] = []
+    for chave in sorted(estratos):
+        grupo = estratos[chave]
+        k = max(1, round(len(grupo) * fracao))
+        escolhidos.extend(rng.sample(grupo, min(k, len(grupo))))
+    rng.shuffle(escolhidos)
+    return escolhidos
+
+
 def linha_de_protocolo(t: Trial) -> str:
     """Converte para o formato de 2019, que o `evaluate.py` já lê."""
     return f"{t.locutor} {t.arquivo} - {t.ataque} {t.chave}"

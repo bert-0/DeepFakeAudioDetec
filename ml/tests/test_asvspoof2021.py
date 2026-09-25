@@ -189,3 +189,153 @@ def test_cli_gera_protocolo_utilizavel(metadata, tmp_path, capsys):
                 "--saida", str(destino)]
     assert main() == 0
     assert len(parse_protocol_with_systems(destino)) == 2
+
+
+# --------------------------------------------------------------------------- #
+# Config derivado — a regressão que motiva a função
+#
+# Os artefatos do evaluate.py levam o nome `experiment.name` + partição. O
+# procedimento anterior mandava copiar o config do modelo e trocar só os
+# caminhos do eval: a avaliação do 2021 gravaria POR CIMA dos resultados do
+# eval de 2019 (métricas, scores reaproveitados) e recriaria o cache do eval.
+# --------------------------------------------------------------------------- #
+def _base():
+    import yaml
+    return yaml.safe_load(Path("configs/fusion_v4.yaml").read_text(encoding="utf-8"))
+
+
+def test_config_derivado_nao_colide_com_os_artefatos_de_2019():
+    from src.config import config_derivado, output_name
+    from src.scores import scores_path
+
+    base = _base()
+    novo = config_derivado(base, "2021_opus_n10000", "p.txt", "flac/")
+
+    assert output_name(novo) != output_name(base)
+    assert scores_path("outputs", output_name(novo), "eval") != \
+        scores_path("outputs", output_name(base), "eval"), \
+        "o _eval_scores.npz de 2019 seria sobrescrito"
+
+
+def test_config_derivado_desliga_o_cache():
+    """O cache é indexado pela partição: ligado, apagaria o do eval de 2019."""
+    from src.config import config_derivado
+
+    assert config_derivado(_base(), "x", "p", "a")["train"]["cache_features"] is False
+
+
+def test_config_derivado_aponta_o_eval_para_o_audio_novo():
+    from src.config import config_derivado
+
+    cfg = config_derivado(_base(), "x", "outputs/p.txt", "data/2021/flac")
+    assert cfg["data"]["protocols"]["eval"] == "outputs/p.txt"
+    assert cfg["data"]["audio_dir"]["eval"] == "data/2021/flac"
+
+
+def test_config_derivado_nao_altera_o_original():
+    from src.config import config_derivado
+
+    base = _base()
+    antes = (base["experiment"]["name"], base["data"]["protocols"]["eval"],
+             base["train"]["cache_features"])
+    config_derivado(base, "x", "p", "a")
+    assert (base["experiment"]["name"], base["data"]["protocols"]["eval"],
+            base["train"]["cache_features"]) == antes
+
+
+def test_config_derivado_preserva_audio_features_e_modelo():
+    """Tem que extrair as MESMAS features com que o modelo foi treinado."""
+    from src.config import config_derivado
+
+    base = _base()
+    cfg = config_derivado(base, "x", "p", "a")
+    for secao in ("audio", "features", "model"):
+        assert cfg[secao] == base[secao]
+
+
+def test_sufixo_com_caracteres_de_caminho_e_saneado():
+    from src.config import config_derivado
+
+    nome = config_derivado(_base(), "2021/opus ita_tx", "p", "a")["experiment"]["name"]
+    assert "/" not in nome and " " not in nome
+
+
+# --------------------------------------------------------------------------- #
+# Subamostragem estratificada
+# --------------------------------------------------------------------------- #
+def _muitos_trials():
+    from src.data.asvspoof2021 import Trial
+
+    trials = [Trial("S", f"B{i}", "opus", "tx", "-", "bonafide") for i in range(1000)]
+    for a in ("A07", "A10", "A12", "A19"):
+        trials += [Trial("S", f"{a}_{i}", "opus", "tx", a, "spoof") for i in range(2250)]
+    return trials                                    # 10.000, 10% bonafide
+
+
+def test_subamostra_preserva_a_proporcao_das_classes():
+    from src.data.asvspoof2021 import subamostrar
+
+    amostra = subamostrar(_muitos_trials(), 1000, seed=1)
+    bona = sum(1 for t in amostra if t.chave == "bonafide")
+    assert abs(bona / len(amostra) - 0.10) < 0.01
+
+
+def test_subamostra_nao_perde_nenhum_ataque():
+    """Amostra simples poderia deixar A10 ou A12 de fora — os que mais importam."""
+    from src.data.asvspoof2021 import subamostrar
+
+    ataques = {t.ataque for t in subamostrar(_muitos_trials(), 50, seed=3)}
+    assert {"A07", "A10", "A12", "A19"} <= ataques
+
+
+def test_mesma_semente_da_mesma_amostra():
+    from src.data.asvspoof2021 import subamostrar
+
+    a = [t.arquivo for t in subamostrar(_muitos_trials(), 500, seed=7)]
+    b = [t.arquivo for t in subamostrar(_muitos_trials(), 500, seed=7)]
+    assert a == b
+
+
+def test_amostra_zero_ou_maior_que_a_base_devolve_tudo():
+    from src.data.asvspoof2021 import subamostrar
+
+    trials = _muitos_trials()
+    assert len(subamostrar(trials, 0)) == len(trials)
+    assert len(subamostrar(trials, 10**9)) == len(trials)
+
+
+# --------------------------------------------------------------------------- #
+# CLI com config derivado
+# --------------------------------------------------------------------------- #
+def test_cli_gera_config_seguro_e_carregavel(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+    from src.config import load_config
+
+    destino = tmp_path / "opus.txt"
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(destino),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", "data/2021/flac"])
+    assert codigo == 0
+
+    cfg = load_config(destino.with_suffix(".yaml"))
+    assert cfg["experiment"]["name"] == "fusion_lcnn_v4__2021_opus"
+    assert cfg["data"]["protocols"]["eval"] == str(destino)
+    assert cfg["train"]["cache_features"] is False
+    assert "evaluate.py --config" in capsys.readouterr().out
+
+
+def test_cli_config_base_sem_audio_dir_e_recusado(metadata, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    assert main(["--metadata", str(metadata), "--codec", "opus",
+                 "--config-base", "configs/fusion_v4.yaml"]) == 1
+    assert "--audio-dir" in capsys.readouterr().out
+
+
+def test_cli_sem_config_base_avisa_para_nao_copiar_a_mao(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "opus",
+          "--saida", str(tmp_path / "p.txt")])
+    assert "sobrescreve os resultados" in capsys.readouterr().out
