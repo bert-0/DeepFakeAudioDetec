@@ -758,11 +758,43 @@ um está estruturalmente em desvantagem no outro.
 ## 11. Limitações e pendências
 
 **Pendência externa — baselines oficiais do ASVspoof 2019 LA.** A Seção 5.9 do
-TC1 precisa dos EERs oficiais de B01/B02 (pooled, eval) de Wang et al. (2020) /
-Todisco et al. (2019) como régua externa. **Não foram obtidos**: o proxy do
-ambiente bloqueia arxiv, isca-archive, asvspoof.org e datashare.ed.ac.uk, e as
-buscas devolveram números contraditórios. **Não citar de memória** — puxar da
-fonte primária.
+TC1 precisa dos EERs oficiais de B01/B02 (pooled, eval) de Todisco et al. (2019)
+como régua externa. **Ainda não confirmados**: o proxy do ambiente bloqueia os
+PDFs, e as buscas devolvem dois conjuntos de números:
+
+| | LFCC-GMM (B02) | CQCC-GMM (B01) |
+|---|---|---|
+| conjunto A | 8,09% (t-DCF 0,2116) | 9,57% (t-DCF 0,2366) |
+| conjunto B | 21,13% (t-DCF 0,5836) | 15,80% (t-DCF 0,4948) |
+
+A hipótese mais provável é que o conjunto B pertença ao **ASVspoof 2021 LA**, e
+não ao 2019: ele vem acompanhado de RawNet2 com 9,50% / 0,4257, números
+associados aos baselines de 2021. **Isso é hipótese.** Confirmar na tabela de
+resultados de Todisco et al. (2019), Interspeech, antes de citar qualquer um.
+Se a hipótese se confirmar, o conjunto B serve de régua para a avaliação no
+2021 LA (Seção 12.2).
+
+**Como escrever a comparação: a régua não é equivalente.** Se o conjunto A se
+confirmar, o baseline oficial LFCC-GMM (8,09%) fica bem abaixo do
+`baseline_lfcc_cnn_v2` (18,99%). Isso tem explicação documentada, e ela não é
+"o modelo é pior":
+
+- Müller et al. (2021), *Speech is Silver, Silence is Golden*, mostram que no
+  ASVspoof 2019 os áudios bonafide têm silêncio inicial e final mais longo que os
+  spoof. Um modelo treinado **só na duração do silêncio inicial** chega a EER de
+  15%. E **remover o silêncio no pré-processamento piora** os detectores
+  estabelecidos.
+- Os baselines oficiais processam o áudio com o silêncio. **Este projeto remove
+  o silêncio** (`trim_silence: true` em todos os configs).
+- A Seção 6 deste trabalho mediu o mesmo atalho de forma independente: depois
+  do trim, a duração sozinha ainda dá EER de 43,80% (perto do acaso, 50%),
+  e a dependência do modelo em duração e energia fica em 1–2% da variância.
+
+Ou seja: parte do que os baselines oficiais medem é o atalho do silêncio, e
+este projeto o removeu de propósito. A comparação direta subestima o modelo
+daqui. O jeito honesto de escrever é apresentar os dois números **e** essa
+diferença de protocolo, citando Müller et al. — não esconder o baseline, e não
+comparar como se fossem equivalentes.
 
 **O áudio ao vivo é o mix.** O loopback entrega a soma de todos os
 participantes. Não há atribuição por pessoa; o resultado é sobre o *trecho*, não
