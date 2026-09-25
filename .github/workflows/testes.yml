@@ -58,7 +58,13 @@ jobs:
         run: ruff check --select E9,F --output-format=github .
 
       - name: Testes
+        # Da RAIZ do repositório, não de `ml/`. Rodando só de dentro de `ml/`,
+        # o CI passava enquanto 14 testes falhavam para quem chamava o pytest
+        # da raiz — caminhos relativos como `configs/fusion_v4.yaml` só existem
+        # a partir de `ml/`. O conftest agora fixa o diretório; rodar daqui é o
+        # que garante que ele continue fixando.
+        working-directory: .
         env:
           MPLBACKEND: Agg          # o runner não tem display
           PYTHONHASHSEED: "0"      # torna reprodutível o que depender de hash
-        run: pytest tests/ -q --durations=10
+        run: pytest ml/tests -q --durations=10
