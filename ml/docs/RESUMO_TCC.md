@@ -625,17 +625,38 @@ Cruzando os EERs medidos com o gerador de forma de onda de cada ataque:
 | A11 | 3,85% | 33,74% | Griffin-Lim |
 | A14 | 12,01% | 17,74% | vocoder clássico (STRAIGHT) |
 | A16 | 22,75% | 0,03% | concatenação |
-| A07 | 22,43% | 0,02% | vocoder clássico (WORLD) |
-| A18 | 15,01% | 4,63% | vocoder clássico (vocoder MFCC) |
+| A07 | 22,43% | 0,02% | vocoder clássico (WORLD + pós-filtro GAN) |
+| A18 | 15,01% | 4,63% | vocoder MFCC (ou vocoder glotal DNN — ver nota) |
 | A17 | 11,27% | 0,41% | filtragem de forma de onda |
 | A19 | 6,98% | 0,00% | filtragem espectral |
 | A08 | 3,88% | 0,03% | **neural**, source-filter |
 | A09 | 2,32% | 0,12% | vocoder clássico (Vocaine) |
 
-> Os nomes dos vocoders seguem a tabela de ataques de Wang et al. (2020), a
-> descrição da base ASVspoof 2019. **Conferir na fonte antes de publicar.** A
+> **Conferência em 25/09/2026.** Os sites dos artigos estão bloqueados no
+> ambiente de nuvem, então a conferência foi feita por busca (resumos de
+> Wang et al., 2020, e Todisco et al., 2019), e não na tabela original:
+>
+> | ataque | modelo acústico | gerador | situação |
+> |---|---|---|---|
+> | A07 | RNN | WORLD + GAN | confirmado; acrescentado o GAN |
+> | A08 | RNN autorregressivo | neural source-filter | confirmado |
+> | A09 | RNN | Vocaine | confirmado |
+> | A10 | Tacotron 2 (+ codificador de locutor) | WaveRNN | confirmado |
+> | A11 | Tacotron 2 | Griffin-Lim | confirmado |
+> | A12 | RNN | WaveNet | confirmado |
+> | A13 | VC com *moment matching* | concatenação + filtragem de forma de onda | Todisco confirma; uma fonte diz "spectral filtering" |
+> | A14 | RNN | STRAIGHT | confirmado |
+> | A15 | RNN | WaveNet | confirmado |
+> | A16 | CART | concatenação (= A04) | confirmado |
+> | A17 | VAE | filtragem de forma de onda | confirmado |
+> | A18 | i-vector/PLDA (VC) | **conflito:** "MFCC vocoder" × "DNN glottal vocoder" | **abrir a tabela de Wang et al. (2020)** |
+> | A19 | GMM-UBM | filtragem espectral (= A06) | confirmado |
+>
+> Nenhum item muda o argumento da 7.3.1: A10, A12 e A15 continuam os únicos com
+> gerador autorregressivo. Detalhe para o texto: o A08 tem **modelo acústico**
+> autorregressivo e **gerador** não autorregressivo — o eixo é o gerador. A
 > cópia de agosto deste resumo rotulava A09, A14 e A18 como "WORLD" e A08 como
-> "WaveNet" — os quatro rótulos estavam errados.
+> "WaveNet"; os quatro estavam errados.
 
 | grupo | v2 | fusion_v4 |
 |---|---|---|
@@ -1141,14 +1162,23 @@ parâmetros, não para atenção em geral. Ver Seção 3.
 **Canal real não avaliado.** ASVspoof 2021 LA: só o importador. Camada 2: só a
 instrumentação.
 
-**t-DCF não calculado.** Com os scores ASV fornecidos pelos organizadores do
-ASVspoof 2019, o script oficial dá o min t-DCF, comparável direto com a Tabela
-1 de Todisco et al. (2019). Custo: uma rodada rápida, sem retreino — mas o
-arquivo do `save_score_file` (`src/metrics.py`) **precisa de conversão antes**:
-ele grava 3 colunas (`utt_id key score`) com o score = probabilidade de
-**spoof**, e o script oficial lê 4 colunas (`utt_id ataque key score`) com
-score **maior = bonafide**. É preciso acrescentar o ataque (do protocolo) e
-inverter o sinal do score (ou usar `1 − p`); sem isso o t-DCF sai invertido.
+**t-DCF — script pronto, falta rodar.** `scripts/tdcf.py` lê os
+`outputs/*_eval_scores.npz` (sem refazer inferência) e o arquivo ASV que vem
+no LA.zip, e já faz as duas conversões que o script oficial exigiria à mão
+(sentido do score e colunas). Também trata empates: o softmax satura em 1,0 em
+dezenas de milhares de áudios, e a curva só é avaliada em limiares distintos.
+
+```powershell
+python scripts/tdcf.py `
+  --asv-scores data/LA/ASVspoof2019_LA_asv_scores/ASVspoof2019.LA.asv.eval.gi.trl.scores.txt `
+  --scores outputs/baseline_lfcc_cnn_v2_eval_scores.npz outputs/fusion_lcnn_v4_eval_scores.npz `
+  --fundir --exportar outputs/tdcf
+```
+
+A coluna "EER CM" da saída tem de bater com o `make_report` (18,99% e 20,18%);
+se não bater, o `.npz` não é o do checkpoint certo. Referência: B02 0,2116,
+B01 0,2366 (Todisco et al., 2019, Tab. 1). `--exportar` grava os scores no
+formato do script oficial, para conferência cruzada.
 
 **MP3 não avaliado.** O teste de robustez usou Opus.
 

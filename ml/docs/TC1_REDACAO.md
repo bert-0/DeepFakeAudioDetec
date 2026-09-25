@@ -229,9 +229,9 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > • *tandem Detection Cost Function* (t-DCF): métrica oficial do desafio
 > ASVspoof. Ela avalia a contramedida em conjunto com um sistema de verificação
 > automática de locutor e pondera o custo de cada tipo de erro (KINNUNEN et al.,
-> 2018). O min t-DCF foi calculado com o *script* e os scores de verificação de
-> locutor fornecidos pelos organizadores.
-> [PENDENTE: rodar o t-DCF; ver RESUMO_TCC §11. Se não rodar, retirar este item.]
+> 2018). O min t-DCF foi calculado com os parâmetros de custo do ASVspoof 2019
+> e os scores de verificação de locutor fornecidos pelos organizadores.
+> [PENDENTE: valores — `python scripts/tdcf.py`, ver RESUMO_TCC §11.]
 
 ## 4.12 Arquitetura do Modelo — seção nova
 
@@ -426,7 +426,7 @@ Fonte: Autoria própria; Müller et al. (2021), Tabela 2.
 
 | ataque | gerador de forma de onda | baseline_v2 | fusion_v4 |
 |---|---|---|---|
-| A07 | vocoder (WORLD) | 22,43 | **0,02** |
+| A07 | vocoder WORLD com pós-filtro GAN | 22,43 | **0,02** |
 | A08 | *neural source-filter* | 3,88 | **0,03** |
 | A09 | vocoder (Vocaine) | 2,32 | **0,12** |
 | A10 | WaveRNN (autorregressivo) | **30,63** | 45,54 |
@@ -437,14 +437,18 @@ Fonte: Autoria própria; Müller et al. (2021), Tabela 2.
 | A15 | WaveNet (autorregressivo) | **15,02** | 29,37 |
 | A16 | concatenação | 22,75 | **0,03** |
 | A17 | filtragem de forma de onda | 11,27 | **0,41** |
-| A18 | vocoder (MFCC) | 15,01 | **4,63** |
+| A18 | vocoder MFCC¹ | 15,01 | **4,63** |
 | A19 | filtragem espectral | 6,98 | **0,00** |
 | **global** | | **18,99** | 20,18 |
 
 Fonte: Autoria própria; geradores segundo Wang et al. (2020).
 
-<!-- RESUMO_TCC §7. CONFERIR a coluna de geradores na tabela de ataques de
-     Wang et al. (2020) antes de entregar. -->
+¹ Conferir: Todisco et al. (2019) descrevem o A18 como conversão de voz
+i-vector/PLDA com *vocoder* glotal baseado em DNN.
+
+<!-- RESUMO_TCC §7.3.1. Geradores conferidos por busca em 25/09/2026:
+     11 de 13 confirmados; A07 ganhou o pós-filtro GAN; A18 tem duas
+     descrições conflitantes — conferir na tabela de Wang et al. (2020). -->
 
 > **Os modelos erram em ataques diferentes.** Os EERs globais são próximos, mas
 > os perfis são quase opostos. O fusion_v4 vence em oito dos treze ataques, e o
@@ -490,7 +494,7 @@ Fonte: Autoria própria.
 > dos treze ataques, e os perfis com e sem atenção têm correlação de 0,97.
 >
 > **A geração autorregressiva concentra a dificuldade.** Os três ataques com
-> geradores autorregressivos (A10, A12 e A15) têm EER médio de 27,28% no
+> geradores de forma de onda autorregressivos (A10, A12 e A15) têm EER médio de 27,28% no
 > baseline_v2 e de 40,97% no fusion_v4. Nos outros dez ataques, as médias são de
 > 13,70% e 6,33%. Um teste de permutação exato, sobre os 286 trios possíveis
 > entre os treze ataques, dá p = 0,0070 para o fusion_v4 e p = 0,0035 para o
