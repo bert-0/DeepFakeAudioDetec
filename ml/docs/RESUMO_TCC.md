@@ -60,15 +60,36 @@ duração original e passaria despercebido até derrubar o treino horas depois.
 
 EER no eval completo (71.237 áudios). Menor é melhor.
 
-| modelo | EER eval |
-|---|---|
-| **baseline_lfcc_cnn_v2** | **18,99%** |
-| fusion_lcnn_v4 | 20,18% |
-| baseline_lfcc_cnn | 20,78% |
-| baseline_lfcc_cnn_v3 | 21,10% |
-| attention_lcnn_v4 | 21,13% |
-| baseline_lfcc_cnn_v3a | 21,23% |
-| baseline_lcnn_v4 | 21,56% |
+| modelo | EER eval | precisão | recall | F1 |
+|---|---|---|---|---|
+| **baseline_lfcc_cnn_v2** | **18,99%** | 0,9838 | 0,7184 | **0,8304** |
+| fusion_lcnn_v4 | 20,18% | 0,9999 | 0,5508 | 0,7103 |
+| baseline_lfcc_cnn | 20,78% | 0,9814 | 0,7004 | 0,8174 |
+| baseline_lfcc_cnn_v3 | 21,10% | 0,9987 | 0,5749 | 0,7297 |
+| attention_lcnn_v4 | 21,13% | 0,9998 | 0,5374 | 0,6990 |
+| baseline_lfcc_cnn_v3a | 21,23% | 0,9986 | 0,6196 | 0,7647 |
+| baseline_lcnn_v4 | 21,56% | 0,9985 | 0,5284 | 0,6911 |
+
+Precisão, recall e F1 com classe positiva = spoof, no limiar calibrado no dev.
+Fonte: `scripts/make_report.py` (`outputs/report/comparativo_eval.md`), rodado
+em 25/09/2026.
+
+**O limiar do dev é conservador demais no eval.** Precisão de 0,98 a 0,9999 e
+recall de 0,53 a 0,72: quase nenhum falso alarme, mas de um quarto a metade do
+spoof passa. No dev os ataques são os do treino e o spoof pontua alto; nos
+ataques inéditos, boa parte dos scores cai abaixo do corte. É por isso que o
+fusion_v4 tem EER perto do v2 e F1 bem menor: o EER independe do limiar, o F1
+não. É mais uma face de "o ponto de operação não transfere" (Seção 5).
+
+**EER de dev por modelo — `[REGENERAR]`.** Necessário para o achado "o dev não
+prevê o eval". Não está no `make_report`; sai do histórico de treino:
+
+```powershell
+python -c "import json,glob;[print(f, min((h['dev_eer'],h['epoch']) for h in json.load(open(f)) if isinstance(h.get('dev_eer'),(int,float)))) for f in sorted(glob.glob('outputs/*_history.json'))]"
+```
+
+Pista no git: o commit 9e4882c registra "dev EER estável em ~10%" no v1, cujo
+eval é 20,78%.
 
 **Os dois incrementos do TC1, isolados.** Cada incremento é comparado com o
 modelo imediatamente anterior, de modo que só uma coisa muda por vez:

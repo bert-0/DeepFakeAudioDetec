@@ -300,39 +300,40 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 
 ## 5.2 Validação Quantitativa — substituir por inteiro
 
-**Tabela 2 – EER e F1 dos modelos isolados no conjunto de avaliação**
+**Tabela 2 – Desempenho dos modelos isolados no conjunto de avaliação**
 
-| modelo | EER (%) | F1 |
-|---|---|---|
-| baseline_lfcc_cnn_v2 | **18,99** | 0,8304 |
-| fusion_lcnn_v4 | 20,18 | 0,7103 |
-| baseline_lfcc_cnn | 20,78 | [PENDENTE] |
-| baseline_lfcc_cnn_v3 | 21,10 | [PENDENTE] |
-| attention_lcnn_v4 | 21,13 | [PENDENTE] |
-| baseline_lfcc_cnn_v3a | 21,23 | [PENDENTE] |
-| baseline_lcnn_v4 | 21,56 | [PENDENTE] |
+| modelo | EER (%) | *precision* | *recall* | F1 | *accuracy* |
+|---|---|---|---|---|---|
+| baseline_lfcc_cnn_v2 | **18,99** | 0,9838 | 0,7184 | **0,8304** | 0,7368 |
+| fusion_lcnn_v4 | 20,18 | 0,9999 | 0,5508 | 0,7103 | 0,5971 |
+| baseline_lfcc_cnn | 20,78 | 0,9814 | 0,7004 | 0,8174 | 0,7194 |
+| baseline_lfcc_cnn_v3 | 21,10 | 0,9987 | 0,5749 | 0,7297 | 0,6181 |
+| attention_lcnn_v4 | 21,13 | 0,9998 | 0,5374 | 0,6990 | 0,5851 |
+| baseline_lfcc_cnn_v3a | 21,23 | 0,9986 | 0,6196 | 0,7647 | 0,6581 |
+| baseline_lcnn_v4 | 21,56 | 0,9985 | 0,5284 | 0,6911 | 0,5764 |
 
-Fonte: Autoria própria.
+Fonte: Autoria própria. Classe positiva: *spoof*. *Precision*, *recall*, F1 e
+*accuracy* no limiar calibrado no conjunto de validação.
 
-<!-- RESUMO_TCC §3 e §8. Os F1 que faltam estão no metrics.json de cada modelo
-     (evaluate.py); `python scripts/make_report.py` gera a tabela. Não estão
-     versionados. -->
+<!-- scripts/make_report.py, outputs/report/comparativo_eval.md (25/09/2026) -->
 
-> Os sete modelos ficam entre 18,99% e 21,56% de EER. O de melhor resultado é a
-> linha de base v2, uma CNN convencional com apenas LFCC. No limiar calibrado na
-> validação, o F1 varia de 0,69 a 0,83.
+> Os sete modelos ficam entre 18,99% e 21,56% de EER. O melhor é a linha de
+> base v2, uma CNN convencional só com LFCC. O F1 varia de 0,69 a 0,83, e
+> nenhum modelo atinge o 0,85 do RNF04.
 >
-> [PENDENTE: parágrafo "a validação não prevê a avaliação", com a tabela
-> validação × avaliação da cópia de agosto do resumo. Atenção: a cópia de agosto
-> registra r = 0,951 entre validação e avaliação, o que à primeira vista
-> **contradiz** o achado. Antes de escrever, conferir o que esse r mede, se é
-> entre modelos, por época ou por ataque.]
+> A decomposição do F1 mostra por quê. A *precision* fica entre 0,98 e 0,9999:
+> quase tudo o que os modelos classificam como *spoof* é de fato *spoof*. O
+> *recall* fica entre 0,53 e 0,72: de um quarto a metade dos áudios sintéticos
+> passa como autêntico. O limiar calibrado na validação é, portanto,
+> conservador demais para a avaliação. Na validação, os ataques são os mesmos do
+> treino e os scores de *spoof* ficam altos. Nos ataques inéditos, boa parte dos
+> scores de *spoof* cai abaixo desse limiar. O efeito é mais forte nos modelos
+> LCNN (*recall* de 0,53 a 0,55) do que nas CNNs v1 e v2 (0,70 a 0,72). Isso
+> explica por que o fusion_v4 tem EER próximo ao do v2 e F1 bem menor: o EER
+> não depende de limiar, e o F1 depende.
 >
-> [Pista no histórico do git: o commit 9e4882c (03/08) registra, para o v1,
-> "dev EER estável em ~10%", e o eval do v1 é 20,78%. A validação só tem os
-> ataques A01–A06 do treino, o que explica o descolamento. É um valor
-> aproximado, tirado da mensagem de commit: para o texto, é preciso o EER de
-> validação exato de cada modelo, que está no checkpoint/histórico de treino.]
+> [PENDENTE: parágrafo "a validação não prevê a avaliação", com o EER de
+> validação de cada modelo (ver comando em RESUMO_TCC §3).]
 
 ## 5.3 Comparação com Baseline — substituir por inteiro
 
