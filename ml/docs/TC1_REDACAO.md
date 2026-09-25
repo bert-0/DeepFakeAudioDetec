@@ -351,7 +351,10 @@ no conjunto de validação.
 > conjunto de avaliação que reutilizam algoritmos do treinamento (A16 e A19
 > repetem A04 e A06) e perde nos ataques realmente novos. Como a validação só
 > contém os ataques A01 a A06, ela mede o que o modelo aprendeu desses ataques
-> e nada informa sobre os demais. A seleção do *checkpoint* e a calibração do
+> e nada informa sobre os demais. O mesmo ocorre com os sistemas de referência
+> oficiais: o B01 tem EER de 0,43% na validação e de 9,57% na avaliação, e
+> Wang et al. (2020) atribuem a diferença aos ataques novos. A seleção do
+> *checkpoint* e a calibração do
 > limiar pela validação, prática padrão na área e adotada aqui, escolhem
 > portanto por um critério que não prevê o desempenho em ataques inéditos. O
 > *recall* baixo discutido acima é uma consequência direta disso.
@@ -426,29 +429,24 @@ Fonte: Autoria própria; Müller et al. (2021), Tabela 2.
 
 | ataque | gerador de forma de onda | baseline_v2 | fusion_v4 |
 |---|---|---|---|
-| A07 | vocoder WORLD com pós-filtro GAN | 22,43 | **0,02** |
+| A07 | WORLD com pós-processamento GAN | 22,43 | **0,02** |
 | A08 | *neural source-filter* | 3,88 | **0,03** |
 | A09 | vocoder (Vocaine) | 2,32 | **0,12** |
 | A10 | WaveRNN (autorregressivo) | **30,63** | 45,54 |
 | A11 | Griffin-Lim | **3,85** | 33,74 |
 | A12 | WaveNet (autorregressivo) | **36,18** | 47,99 |
-| A13 | concatenação e filtragem | 36,50 | **6,54** |
+| A13 | filtragem de forma de onda | 36,50 | **6,54** |
 | A14 | vocoder (STRAIGHT) | **12,01** | 17,74 |
 | A15 | WaveNet (autorregressivo) | **15,02** | 29,37 |
 | A16 | concatenação | 22,75 | **0,03** |
 | A17 | filtragem de forma de onda | 11,27 | **0,41** |
-| A18 | vocoder MFCC¹ | 15,01 | **4,63** |
+| A18 | vocoder MFCC | 15,01 | **4,63** |
 | A19 | filtragem espectral | 6,98 | **0,00** |
 | **global** | | **18,99** | 20,18 |
 
-Fonte: Autoria própria; geradores segundo Wang et al. (2020).
+Fonte: Autoria própria; geradores segundo Wang et al. (2020, Tabela 1).
 
-¹ Conferir: Todisco et al. (2019) descrevem o A18 como conversão de voz
-i-vector/PLDA com *vocoder* glotal baseado em DNN.
-
-<!-- RESUMO_TCC §7.3.1. Geradores conferidos por busca em 25/09/2026:
-     11 de 13 confirmados; A07 ganhou o pós-filtro GAN; A18 tem duas
-     descrições conflitantes — conferir na tabela de Wang et al. (2020). -->
+<!-- Geradores conferidos na Tabela 1 de Wang et al. (2020), 25/09/2026. -->
 
 > **Os modelos erram em ataques diferentes.** Os EERs globais são próximos, mas
 > os perfis são quase opostos. O fusion_v4 vence em oito dos treze ataques, e o
@@ -464,6 +462,15 @@ i-vector/PLDA com *vocoder* glotal baseado em DNN.
 > nos ataques que reutilizam algoritmos do treinamento (A07, A16 e A19) e acerta
 > o A11. A segunda resolve esses ataques e falha em A12, A13 e A18. A terceira
 > resolve também A13, A17 e A18, mas falha em A10, A11, A14 e A15.
+>
+> A falha da primeira família não depende do classificador. O sistema de
+> referência B02 usa a mesma representação (LFCC com 20 filtros lineares) com
+> um classificador GMM e falha nos mesmos três ataques: 12,86% no A07, 6,31% no
+> A16 e 13,94% no A19, que o B01, baseado em CQCC, resolve (WANG et al., 2020,
+> Tabela 8). A correlação de postos entre os perfis por ataque de v1/v2 e do
+> B02 é de 0,62 a 0,64. Com a mesma representação e classificadores diferentes,
+> as falhas se repetem; com 70 filtros, desaparecem. A causa é a resolução
+> espectral da representação.
 >
 > **Os incrementos, ataque a ataque.** A Tabela 6 decompõe os contrastes
 > controlados da Tabela 3 por ataque.
@@ -493,6 +500,14 @@ Fonte: Autoria própria.
 > EER global não seja. A atenção, ao contrário, altera menos de 3 p.p. em doze
 > dos treze ataques, e os perfis com e sem atenção têm correlação de 0,97.
 >
+> Os maiores ganhos do ramo de espectrograma estão em A13, A17 e A18, ataques
+> que geram a forma de onda filtrando ou modificando uma fala existente (WANG et
+> al., 2020). Nesses três ataques, o EER médio cai de 29,60% (baseline_lcnn_v4)
+> para 3,86% (fusion_lcnn_v4). Wang et al. (2020) apontam a filtragem de forma
+> de onda como o método mais difícil para os sistemas de referência. Como essa
+> associação foi observada depois dos experimentos e envolve três ataques, ela
+> é apresentada como hipótese para trabalhos futuros, e não como resultado.
+>
 > **A geração autorregressiva concentra a dificuldade.** Os três ataques com
 > geradores de forma de onda autorregressivos (A10, A12 e A15) têm EER médio de 27,28% no
 > baseline_v2 e de 40,97% no fusion_v4. Nos outros dez ataques, as médias são de
@@ -502,7 +517,10 @@ Fonte: Autoria própria.
 > no limite da significância. O A08, cujo gerador de forma de onda é neural mas
 > não autorregressivo (*neural source-filter*), é resolvido pelos dois modelos
 > (3,88% e 0,03%), embora o seu modelo acústico seja um RNN autorregressivo. Isso indica que o eixo relevante não é a
-> distinção entre gerador neural e clássico. A explicação tem, contudo, um
+> distinção entre gerador neural e clássico. Wang et al. (2020) chegam a
+> conclusão semelhante a partir do par A10 e A11, que tem o mesmo modelo
+> acústico e difere só no gerador: o método de geração da forma de onda pesa
+> mais que o modelo acústico. A explicação tem, contudo, um
 > limite: A12 e A15 usam o mesmo WaveNet e diferem em 21,16 p.p. no baseline_v2.
 > Outras partes do sistema de ataque também pesam. A10 e A12 são os únicos
 > ataques em que **todos os sete modelos** passam de 30% de EER, com médias de
@@ -692,7 +710,10 @@ Fonte: Autoria própria.
 > Cinco modelos alcançaram EER de validação abaixo de 0,71% e ficaram todos
 > acima de 20% na avaliação. Os dois com pior validação foram o primeiro e o
 > terceiro na avaliação. A validação contém apenas os ataques do treinamento, e
-> selecionar modelos por ela favorece o que foi aprendido desses ataques.
+> selecionar modelos por ela favorece o que foi aprendido desses ataques. O
+> contraste entre 20 e 70 filtros mostra o mecanismo, e o sistema de
+> referência B02, com a mesma representação de 20 filtros e outro
+> classificador, falha nos mesmos ataques.
 >
 > Segundo, a fusão de scores de modelos diferentes reduziu o EER para 13,13%. O
 > grupo de controle mostra que o ganho vem da diversidade entre os modelos, que
@@ -721,30 +742,34 @@ Fonte: Autoria própria.
 > sementes; avaliar os modelos em canal real (ASVspoof 2021 LA) e em vozes
 > externas à base; calcular o t-DCF; investigar mecanismos de atenção mais
 > expressivos; e usar encoders pré-treinados em fala, direção apontada pela
-> literatura para os ataques autorregressivos.
+> literatura para os ataques autorregressivos. Fica também como hipótese a
+> testar a associação entre o ramo de espectrograma e os ataques por filtragem
+> de forma de onda (A13, A17 e A18).
 
 ---
 
-## APÊNDICE A – EER (%) por ataque dos sete modelos
+## APÊNDICE A – EER (%) por ataque dos sete modelos e dos sistemas de referência
 
-| ataque | v1 | v2 | v3a | v3 | lcnn_v4 | fusion_v4 | attention_v4 |
-|---|---|---|---|---|---|---|---|
-| A07 | 22,28 | 22,43 | 0,24 | 0,13 | 0,27 | 0,02 | 0,01 |
-| A08 | 2,68 | 3,88 | 0,05 | 0,00 | 0,59 | 0,03 | 0,05 |
-| A09 | 1,19 | 2,32 | 0,19 | 0,19 | 0,29 | 0,12 | 0,08 |
-| A10 | 31,24 | 30,63 | 32,62 | 35,88 | 37,50 | 45,54 | 44,61 |
-| A11 | 4,60 | 3,85 | 4,42 | 11,69 | 7,96 | 33,74 | 32,03 |
-| A12 | 43,50 | 36,18 | 56,47 | 50,05 | 52,28 | 47,99 | 48,11 |
-| A13 | 34,59 | 36,50 | 59,58 | 48,31 | 44,19 | 6,54 | 5,51 |
-| A14 | 10,71 | 12,01 | 0,96 | 2,08 | 12,14 | 17,74 | 28,49 |
-| A15 | 19,23 | 15,02 | 8,75 | 12,05 | 9,54 | 29,37 | 32,33 |
-| A16 | 22,08 | 22,75 | 0,70 | 0,30 | 0,75 | 0,03 | 0,09 |
-| A17 | 11,20 | 11,27 | 10,28 | 8,22 | 10,50 | 0,41 | 0,39 |
-| A18 | 21,48 | 15,01 | 30,14 | 32,41 | 34,11 | 4,63 | 5,56 |
-| A19 | 8,99 | 6,98 | 0,13 | 0,10 | 0,37 | 0,00 | 0,03 |
-| **global** | 20,78 | **18,99** | 21,23 | 21,10 | 21,56 | 20,18 | 21,13 |
+| ataque | B01¹ | B02¹ | v1 | v2 | v3a | v3 | lcnn_v4 | fusion_v4 | attention_v4 |
+|---|---|---|---|---|---|---|---|---|---|
+| A07 | 0,00 | 12,86 | 22,28 | 22,43 | 0,24 | 0,13 | 0,27 | 0,02 | 0,01 |
+| A08 | 0,04 | 0,37 | 2,68 | 3,88 | 0,05 | 0,00 | 0,59 | 0,03 | 0,05 |
+| A09 | 0,14 | 0,00 | 1,19 | 2,32 | 0,19 | 0,19 | 0,29 | 0,12 | 0,08 |
+| A10 | 15,16 | 18,97 | 31,24 | 30,63 | 32,62 | 35,88 | 37,50 | 45,54 | 44,61 |
+| A11 | 0,08 | 0,12 | 4,60 | 3,85 | 4,42 | 11,69 | 7,96 | 33,74 | 32,03 |
+| A12 | 4,74 | 4,92 | 43,50 | 36,18 | 56,47 | 50,05 | 52,28 | 47,99 | 48,11 |
+| A13 | 26,15 | 9,57 | 34,59 | 36,50 | 59,58 | 48,31 | 44,19 | 6,54 | 5,51 |
+| A14 | 10,85 | 1,22 | 10,71 | 12,01 | 0,96 | 2,08 | 12,14 | 17,74 | 28,49 |
+| A15 | 1,26 | 2,22 | 19,23 | 15,02 | 8,75 | 12,05 | 9,54 | 29,37 | 32,33 |
+| A16 | 0,00 | 6,31 | 22,08 | 22,75 | 0,70 | 0,30 | 0,75 | 0,03 | 0,09 |
+| A17 | 19,62 | 7,71 | 11,20 | 11,27 | 10,28 | 8,22 | 10,50 | 0,41 | 0,39 |
+| A18 | 3,81 | 3,58 | 21,48 | 15,01 | 30,14 | 32,41 | 34,11 | 4,63 | 5,56 |
+| A19 | 0,04 | 13,94 | 8,99 | 6,98 | 0,13 | 0,10 | 0,37 | 0,00 | 0,03 |
+| **global** | 9,57 | 8,09 | 20,78 | **18,99** | 21,23 | 21,10 | 21,56 | 20,18 | 21,13 |
 
-Fonte: Autoria própria.
+Fonte: Autoria própria; B01 e B02: Wang et al. (2020, Tabela 8).
+
+¹ Com o silêncio preservado; comparar a ordem entre ataques, não os valores.
 
 > A figura `outputs/report/eer_por_ataque.png` (gráfico de barras desta matriz)
 > e `outputs/report/curvas_comparadas.png` (EER de validação e *loss* por

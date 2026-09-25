@@ -621,42 +621,44 @@ Cruzando os EERs medidos com o gerador de forma de onda de cada ataque:
 | A12 | 36,18% | 47,99% | **WaveNet (autorregressivo)** |
 | A10 | 30,63% | 45,54% | **WaveRNN (autorregressivo)** |
 | A15 | 15,02% | 29,37% | **WaveNet (autorregressivo)** |
-| A13 | 36,50% | 6,54% | filtragem + concatenação |
+| A13 | 36,50% | 6,54% | filtragem de forma de onda (VC sobre voz de TTS por seleção de unidades) |
 | A11 | 3,85% | 33,74% | Griffin-Lim |
 | A14 | 12,01% | 17,74% | vocoder clássico (STRAIGHT) |
 | A16 | 22,75% | 0,03% | concatenação |
 | A07 | 22,43% | 0,02% | vocoder clássico (WORLD + pós-filtro GAN) |
-| A18 | 15,01% | 4,63% | vocoder MFCC (ou vocoder glotal DNN — ver nota) |
+| A18 | 15,01% | 4,63% | vocoder MFCC (modifica o resíduo da fala de origem) |
 | A17 | 11,27% | 0,41% | filtragem de forma de onda |
 | A19 | 6,98% | 0,00% | filtragem espectral |
 | A08 | 3,88% | 0,03% | **neural**, source-filter |
 | A09 | 2,32% | 0,12% | vocoder clássico (Vocaine) |
 
-> **Conferência em 25/09/2026.** Os sites dos artigos estão bloqueados no
-> ambiente de nuvem, então a conferência foi feita por busca (resumos de
-> Wang et al., 2020, e Todisco et al., 2019), e não na tabela original:
+> **Conferido na fonte em 25/09/2026** — Wang et al. (2020), Tabela 1
+> ("Summary of LA spoofing systems"), arXiv 1911.01601v4, p. 6:
 >
-> | ataque | modelo acústico | gerador | situação |
+> | ataque | entrada | modelo acústico / conversão | gerador de forma de onda |
 > |---|---|---|---|
-> | A07 | RNN | WORLD + GAN | confirmado; acrescentado o GAN |
-> | A08 | RNN autorregressivo | neural source-filter | confirmado |
-> | A09 | RNN | Vocaine | confirmado |
-> | A10 | Tacotron 2 (+ codificador de locutor) | WaveRNN | confirmado |
-> | A11 | Tacotron 2 | Griffin-Lim | confirmado |
-> | A12 | RNN | WaveNet | confirmado |
-> | A13 | VC com *moment matching* | concatenação + filtragem de forma de onda | Todisco confirma; uma fonte diz "spectral filtering" |
-> | A14 | RNN | STRAIGHT | confirmado |
-> | A15 | RNN | WaveNet | confirmado |
-> | A16 | CART | concatenação (= A04) | confirmado |
-> | A17 | VAE | filtragem de forma de onda | confirmado |
-> | A18 | i-vector/PLDA (VC) | **conflito:** "MFCC vocoder" × "DNN glottal vocoder" | **abrir a tabela de Wang et al. (2020)** |
-> | A19 | GMM-UBM | filtragem espectral (= A06) | confirmado |
+> | A07 | texto | RNN | WORLD + pós-processamento GAN |
+> | A08 | texto | RNN autorregressivo | neural source-filter |
+> | A09 | texto | RNN | Vocaine |
+> | A10 | texto | Tacotron 2 + d-vector | WaveRNN |
+> | A11 | texto | Tacotron 2 + d-vector (igual ao A10) | Griffin-Lim |
+> | A12 | texto | RNN | WaveNet (AR) |
+> | A13 | fala de TTS (seleção de unidades) | *moment matching* (VC) | filtragem de forma de onda |
+> | A14 | fala de TTS | RNN sobre features de ASR (VC) | STRAIGHT |
+> | A15 | fala de TTS | RNN sobre features de ASR (VC) | WaveNet (AR) |
+> | A16 | texto | CART | concatenação (= A04) |
+> | A17 | fala humana | VAE (VC) | filtragem de forma de onda |
+> | A18 | fala humana | i-vector/PLDA linear (VC) | **vocoder MFCC** |
+> | A19 | fala humana | GMM-UBM (VC) | filtragem espectral + OLA (= A06) |
 >
-> Nenhum item muda o argumento da 7.3.1: A10, A12 e A15 continuam os únicos com
-> gerador autorregressivo. Detalhe para o texto: o A08 tem **modelo acústico**
-> autorregressivo e **gerador** não autorregressivo — o eixo é o gerador. A
-> cópia de agosto deste resumo rotulava A09, A14 e A18 como "WORLD" e A08 como
-> "WaveNet"; os quatro estavam errados.
+> O conflito do A18 está **resolvido: vocoder MFCC** (a descrição "vocoder
+> glotal DNN" veio de um resumo de busca e estava errada). A13 não é
+> "concatenação": a *fonte* é uma voz de TTS por seleção de unidades, e o
+> gerador é filtragem de forma de onda. A10, A12 e A15 continuam os únicos com
+> gerador autorregressivo. O A08 tem modelo acústico autorregressivo e gerador
+> não autorregressivo — o eixo é o gerador. A cópia de agosto deste resumo
+> rotulava A09, A14 e A18 como "WORLD" e A08 como "WaveNet"; os quatro estavam
+> errados.
 
 | grupo | v2 | fusion_v4 |
 |---|---|---|
@@ -739,6 +741,65 @@ relatado na Seção 3.
 - A atenção quase não muda o perfil (ρ = 0,97 com o fusion_v4).
 - Os modelos se agrupam em três famílias de perfil (7.0), e a fusão de scores
   rende mais quanto mais distantes as famílias (Seção 4).
+
+### 7.5 Os baselines oficiais por ataque confirmam três achados
+
+Wang et al. (2020), Tabela 8, dão o EER por ataque de B01 (CQCC-GMM) e B02
+(LFCC-GMM) no eval. **Ressalva: os baselines usam o áudio com silêncio**; os
+valores absolutos não são comparáveis aos deste projeto, a ordem entre ataques
+é o que interessa.
+
+| ataque | B01 CQCC | B02 LFCC-20 | v2 LFCC-20 | v3a LFCC-70 | lcnn_v4 | fusion_v4 |
+|---|---|---|---|---|---|---|
+| A07 | 0,00 | **12,86** | **22,43** | 0,24 | 0,27 | 0,02 |
+| A08 | 0,04 | 0,37 | 3,88 | 0,05 | 0,59 | 0,03 |
+| A09 | 0,14 | 0,00 | 2,32 | 0,19 | 0,29 | 0,12 |
+| A10 | 15,16 | 18,97 | 30,63 | 32,62 | 37,50 | 45,54 |
+| A11 | 0,08 | 0,12 | 3,85 | 4,42 | 7,96 | 33,74 |
+| A12 | 4,74 | 4,92 | 36,18 | 56,47 | 52,28 | 47,99 |
+| A13 | **26,15** | 9,57 | 36,50 | 59,58 | 44,19 | **6,54** |
+| A14 | 10,85 | 1,22 | 12,01 | 0,96 | 12,14 | 17,74 |
+| A15 | 1,26 | 2,22 | 15,02 | 8,75 | 9,54 | 29,37 |
+| A16 | 0,00 | **6,31** | **22,75** | 0,70 | 0,75 | 0,03 |
+| A17 | **19,62** | 7,71 | 11,27 | 10,28 | 10,50 | **0,41** |
+| A18 | 3,81 | 3,58 | 15,01 | 30,14 | 34,11 | 4,63 |
+| A19 | 0,04 | **13,94** | **6,98** | 0,13 | 0,37 | 0,00 |
+| global | 9,57 | 8,09 | 18,99 | 21,23 | 21,56 | 20,18 |
+
+**1. A falha do LFCC com 20 filtros se repete com outro classificador.** O B02
+usa LFCC com 20 filtros lineares — a mesma resolução do v1/v2 — e um GMM em vez
+de CNN. Falha **nos mesmos três ataques**: A07, A16 e A19 (12,86%, 6,31% e
+13,94%), que o B01 (CQCC) resolve (≤ 0,04%). O v1/v2 falha nos mesmos (7–23%),
+e o v3a, com 70 filtros, os resolve (≤ 0,70%). Correlação de postos dos perfis:
+v1/v2 × B02 = 0,62–0,64; v3a/lcnn_v4 × B01 = 0,78–0,81. **Mesma representação,
+classificadores diferentes, mesmas falhas: a causa é a resolução espectral, não
+o classificador.** Isso sustenta a explicação da Seção 3.1 com evidência
+externa. Wang et al. registram o mesmo: o B02 "já é fraco em A04 e A06", e por
+isso não se beneficia de A16/A19 serem algoritmos do treino.
+
+**2. O gerador de forma de onda pesa mais que o modelo acústico — conclusão do
+próprio artigo.** A10 e A11 têm o **mesmo** modelo acústico e diferem só no
+gerador (WaveRNN × Griffin-Lim); Wang et al. usam esse par para concluir que o
+gerador domina. É o mesmo eixo da 7.3.1, agora com citação: "the acoustic model
+seemed to have less of an impact than the waveform generation method".
+
+**3. O dev também não previa o eval nos baselines oficiais.** B01: 0,43% no
+dev, 9,57% no eval (Wang et al., Tabelas 7 e 8), atribuído pelos autores aos
+ataques novos. A Seção 3.1 não é peculiaridade deste projeto.
+
+**Hipótese nova (post hoc, 3 ataques): o ramo de espectrograma captura os
+métodos de filtragem.** A13 e A17 geram a onda **filtrando uma fala existente**,
+e o A18 modifica o resíduo da fala de origem. Wang et al. apontam a filtragem
+(A13, A17) como o que os baselines mais erram. Média desses três ataques:
+lcnn_v4 **29,60%**, fusion_v4 **3,86%**, attention_v4 3,82%. É onde está quase
+todo o ganho do incremento 2 (Tabela da 7.0: −37,65, −10,09 e −29,48 pp). Foi
+formulada **depois** de ver os dados, então no texto entra como hipótese, não
+como resultado.
+
+**Divergência a registrar, sem interpretar além do que se mede:** o A12
+(WaveNet) é fácil para os baselines (4,7–4,9%) e está entre os mais difíceis
+aqui (36–56%). Os baselines usam o silêncio; é possível que parte da facilidade
+do A12 venha dele (Müller et al., 2021), mas isso não foi medido.
 
 ## 8. Requisitos da APS — o que foi atendido e o que não foi
 
