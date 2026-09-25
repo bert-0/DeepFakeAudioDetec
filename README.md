@@ -27,8 +27,8 @@ para instruções de uso.
 ## Incrementos do modelo (TC1 §4.7)
 
 1. **Baseline** — LFCC + CNN convencional.
-2. **Fusão de características** — adiciona espectrograma + delta/delta-delta.
-3. **Atenção** — mecanismo de atenção sobre os ramos antes da fusão.
+2. **Fusão de características** — adiciona o espectrograma log-mel (os deltas do LFCC já estão no baseline).
+3. **Atenção** — *pooling* com atenção em cada ramo, antes da concatenação.
 
 Cada incremento tem um arquivo de configuração em `ml/configs/` e pode ser
 treinado/avaliado de forma independente para comparação (TC1 §5.3).

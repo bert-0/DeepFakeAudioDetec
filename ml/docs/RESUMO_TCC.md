@@ -966,10 +966,14 @@ parâmetros, não para atenção em geral. Ver Seção 3.
 **Canal real não avaliado.** ASVspoof 2021 LA: só o importador. Camada 2: só a
 instrumentação.
 
-**t-DCF não calculado.** O `save_score_file` já grava os scores no formato
-oficial; com os scores ASV fornecidos pelos organizadores do ASVspoof 2019, o
-script oficial dá o min t-DCF, comparável direto com a Tabela 1 de Todisco et
-al. (2019). Custo: uma rodada rápida, sem retreino.
+**t-DCF não calculado.** Com os scores ASV fornecidos pelos organizadores do
+ASVspoof 2019, o script oficial dá o min t-DCF, comparável direto com a Tabela
+1 de Todisco et al. (2019). Custo: uma rodada rápida, sem retreino — mas o
+arquivo do `save_score_file` (`src/metrics.py`) **precisa de conversão antes**:
+ele grava 3 colunas (`utt_id key score`) com o score = probabilidade de
+**spoof**, e o script oficial lê 4 colunas (`utt_id ataque key score`) com
+score **maior = bonafide**. É preciso acrescentar o ataque (do protocolo) e
+inverter o sinal do score (ou usar `1 − p`); sem isso o t-DCF sai invertido.
 
 **MP3 não avaliado.** O teste de robustez usou Opus.
 
@@ -1085,6 +1089,8 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   −1,38 pp; atenção não melhora; fusão de scores entre modelos diferentes
   13,13%; ranking se inverte sob canal (+23,42 pp no v2 contra +7,24 pp no
   fusion_v4).
+- **Rascunho redigido** destas mudanças, no estilo e na numeração do TC1:
+  `ml/docs/TC1_REDACAO.md`.
 - **Arquitetura:** seção nova, a partir da Seção 3-0 deste resumo.
 - **§4.7 (ciclo incremental):** usar a linhagem v1 → v4 da Seção 3; deltas já
   no baseline; linha de base = `baseline_lcnn_v4`.
@@ -1099,15 +1105,19 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
 
 ### 13.3 Promessas do texto sem entrega no repositório
 
-Decisão da equipe: cortar do texto ou fazer.
-
-- **Vozes dos colaboradores** (TC1 4.9, 5.1, 5.5, 5.6, 7.1 e conclusão). O
-  repositório só tem a pasta prevista no README, sem script nem resultado. A
-  7.1 afirma que os termos de consentimento foram assinados — se a coleta não
-  aconteceu, a afirmação sai.
-- **API (FastAPI) e front-end (React)**, Marcos 5 a 7. O README diz que só
-  `ml/` está implementado. Confirmar se existem em outro repositório.
-- **MP3.** Declarar que o teste de robustez usou Opus.
+- **Vozes dos colaboradores — a coleta NÃO aconteceu (confirmado, set/2026).**
+  Sai do texto em 4.9, 5.1, 5.5, 5.6, 7.1, Marco 2 e conclusão, e do
+  Resumo/Abstract. A frase da 7.1 sobre termos de consentimento assinados é
+  **falsa** e precisa sair. O papel que a coleta teria (bonafide fora da
+  ASVspoof) fica como trabalho futuro. Redação de substituição em
+  `ml/docs/TC1_REDACAO.md`.
+- **API (FastAPI) e front-end (React)**, Marcos 5 a 7: **estão com o Pedro**,
+  fora deste repositório, e ainda não foram recebidos. Até chegarem, o texto
+  não pode descrevê-los como prontos nem citar números deles; nada nesta
+  documentação os mede.
+- **MP3.** Declarar que o teste de robustez usou Opus. O RF01/RNF05 (aceitar
+  MP3) é atendido na entrada do `infer.py`, mas não há avaliação de desempenho
+  em MP3.
 
 ### 13.4 Pendência: fundir com a cópia de agosto
 
