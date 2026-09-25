@@ -8,9 +8,11 @@ Convenções:
 
 - `[PENDENTE: ...]` marca um valor que ainda não existe ou que não está
   versionado. **Não entregar o texto com essas marcas.**
-- As tabelas estão numeradas na ordem em que aparecem (Tabelas 1 a 7). As duas
-  tabelas do cronograma (hoje Tabela 1 e Tabela 2) passam a ser a **Tabela 8 e a
-  Tabela 9**.
+- As tabelas estão numeradas na ordem em que aparecem (Tabelas 1 a 8). As duas
+  tabelas do cronograma (hoje Tabela 1 e Tabela 2) passam a ser a **Tabela 9 e a
+  Tabela 10**.
+- Números de 25/09/2026: `scripts/make_report.py` (comparativo, por ataque,
+  robustez) e `outputs/*_history.json` (EER de validação).
 - Citações no formato autor-data da ABNT (NBR 10520). As referências novas e as
   correções estão no fim do arquivo.
 - Termos estrangeiros (*deepfake*, *spoof*, *bonafide*, *pooling*) em itálico no
@@ -33,7 +35,9 @@ características e mecanismo de atenção, avaliando o ganho de cada componente
 sobre uma linha de base e a robustez dos modelos à degradação de canal. Foram
 treinados sete modelos na trilha *Logical Access* da base ASVspoof 2019 e
 avaliados em 71.237 áudios gerados por treze ataques ausentes do treino, com
-remoção de silêncio. A fusão tardia de LFCC e espectrograma log-mel, com
+remoção de silêncio. O desempenho na validação não antecipou o da avaliação:
+modelos com EER de validação entre 0,03% e 9,74% ficaram todos entre 18,99% e
+21,56% na avaliação. A fusão tardia de LFCC e espectrograma log-mel, com
 encoders LCNN, reduziu o EER de 21,56% para 20,18% (−1,38 ponto percentual). A
 atenção no *pooling*, acrescentada ao modelo com fusão, não trouxe ganho
 (+0,95 p.p.). A combinação de scores de dois modelos de arquiteturas diferentes
@@ -58,7 +62,9 @@ attention mechanism, measuring the gain of each component over a baseline and
 the models' robustness to channel degradation. Seven models were trained on
 the ASVspoof 2019 Logical Access track and evaluated on 71,237 utterances
 produced by thirteen attacks unseen in training, with leading and trailing
-silence removed. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
+silence removed. Validation performance did not anticipate evaluation
+performance: models with validation EER between 0.03% and 9.74% all scored
+between 18.99% and 21.56% on evaluation. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
 reduced the EER from 21.56% to 20.18% (−1.38 percentage points). Attentive
 pooling added to the fused model did not help (+0.95 p.p.). Score-level fusion
 of two architecturally different models reached 13.13% EER, whereas a control
@@ -302,18 +308,19 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 
 **Tabela 2 – Desempenho dos modelos isolados no conjunto de avaliação**
 
-| modelo | EER (%) | *precision* | *recall* | F1 | *accuracy* |
-|---|---|---|---|---|---|
-| baseline_lfcc_cnn_v2 | **18,99** | 0,9838 | 0,7184 | **0,8304** | 0,7368 |
-| fusion_lcnn_v4 | 20,18 | 0,9999 | 0,5508 | 0,7103 | 0,5971 |
-| baseline_lfcc_cnn | 20,78 | 0,9814 | 0,7004 | 0,8174 | 0,7194 |
-| baseline_lfcc_cnn_v3 | 21,10 | 0,9987 | 0,5749 | 0,7297 | 0,6181 |
-| attention_lcnn_v4 | 21,13 | 0,9998 | 0,5374 | 0,6990 | 0,5851 |
-| baseline_lfcc_cnn_v3a | 21,23 | 0,9986 | 0,6196 | 0,7647 | 0,6581 |
-| baseline_lcnn_v4 | 21,56 | 0,9985 | 0,5284 | 0,6911 | 0,5764 |
+| modelo | EER validação (%) | EER avaliação (%) | *precision* | *recall* | F1 | *accuracy* |
+|---|---|---|---|---|---|---|
+| baseline_lfcc_cnn_v2 | 9,35 | **18,99** | 0,9838 | 0,7184 | **0,8304** | 0,7368 |
+| fusion_lcnn_v4 | **0,03** | 20,18 | 0,9999 | 0,5508 | 0,7103 | 0,5971 |
+| baseline_lfcc_cnn | 9,74 | 20,78 | 0,9814 | 0,7004 | 0,8174 | 0,7194 |
+| baseline_lfcc_cnn_v3 | 0,48 | 21,10 | 0,9987 | 0,5749 | 0,7297 | 0,6181 |
+| attention_lcnn_v4 | 0,04 | 21,13 | 0,9998 | 0,5374 | 0,6990 | 0,5851 |
+| baseline_lfcc_cnn_v3a | 0,71 | 21,23 | 0,9986 | 0,6196 | 0,7647 | 0,6581 |
+| baseline_lcnn_v4 | 0,48 | 21,56 | 0,9985 | 0,5284 | 0,6911 | 0,5764 |
 
-Fonte: Autoria própria. Classe positiva: *spoof*. *Precision*, *recall*, F1 e
-*accuracy* no limiar calibrado no conjunto de validação.
+Fonte: Autoria própria. EER de validação do *checkpoint* selecionado. Classe
+positiva: *spoof*. *Precision*, *recall*, F1 e *accuracy* no limiar calibrado
+no conjunto de validação.
 
 <!-- scripts/make_report.py, outputs/report/comparativo_eval.md (25/09/2026) -->
 
@@ -332,8 +339,22 @@ Fonte: Autoria própria. Classe positiva: *spoof*. *Precision*, *recall*, F1 e
 > explica por que o fusion_v4 tem EER próximo ao do v2 e F1 bem menor: o EER
 > não depende de limiar, e o F1 depende.
 >
-> [PENDENTE: parágrafo "a validação não prevê a avaliação", com o EER de
-> validação de cada modelo (ver comando em RESUMO_TCC §3).]
+> **A validação não antecipa a avaliação.** Cinco dos sete modelos praticamente
+> resolvem o conjunto de validação (EER de 0,03% a 0,71%), e todos ficam acima
+> de 20% na avaliação. Os dois modelos com pior validação (9,35% e 9,74%) são
+> o primeiro e o terceiro na avaliação. A correlação de postos entre o EER de
+> validação e o de avaliação é ρ = −0,11 (p = 0,84, teste de permutação exato).
+> O contraste controlado entre v2 e v3a, que difere essencialmente no número de
+> filtros do LFCC (20 e 70), mostra o mecanismo. A resolução maior reduz o EER
+> de validação de 9,35% para 0,71% e aumenta o de avaliação de 18,99% para
+> 21,23%. A seção 5.4 mostra que a resolução maior resolve os ataques do
+> conjunto de avaliação que reutilizam algoritmos do treinamento (A16 e A19
+> repetem A04 e A06) e perde nos ataques realmente novos. Como a validação só
+> contém os ataques A01 a A06, ela mede o que o modelo aprendeu desses ataques
+> e nada informa sobre os demais. A seleção do *checkpoint* e a calibração do
+> limiar pela validação, prática padrão na área e adotada aqui, escolhem
+> portanto por um critério que não prevê o desempenho em ataques inéditos. O
+> *recall* baixo discutido acima é uma consequência direta disso.
 
 ## 5.3 Comparação com Baseline — substituir por inteiro
 
@@ -359,8 +380,8 @@ Fonte: Autoria própria.
 > As duas variações têm magnitude menor que a variação entre execuções que
 > Müller et al. (2021) observam para modelos semelhantes nesta base (de 1,4 a
 > 5,2 p.p.). Como cada modelo foi treinado uma única vez, nenhuma das duas pode
-> ser atribuída ao método com segurança. A seção 5.4 apresenta evidência mais
-> forte sobre o efeito da fusão.
+> ser atribuída ao método com segurança pelo EER global. A seção 5.4 mostra
+> que, ataque a ataque, os efeitos da fusão são muito maiores (Tabela 6).
 >
 > **Comparação com a literatura.** Os sistemas de referência oficiais do desafio
 > alcançam 8,09% (B02, LFCC-GMM) e 9,57% (B01, CQCC-GMM) de EER no mesmo conjunto
@@ -399,6 +420,7 @@ Fonte: Autoria própria; Müller et al. (2021), Tabela 2.
 > O EER global resume em um único número ataques de dificuldade muito diferente.
 > A Tabela 5 separa o desempenho dos dois modelos principais por ataque. Cada
 > ataque tem 4.914 áudios e é comparado com os mesmos 7.355 áudios *bonafide*.
+> A matriz completa dos sete modelos está no Apêndice A.
 
 **Tabela 5 – EER (%) por ataque**
 
@@ -429,36 +451,73 @@ Fonte: Autoria própria; geradores segundo Wang et al. (2020).
 > baseline_v2 nos outros cinco, com diferenças de até 30 p.p. nos dois sentidos.
 > O A13 é o pior ataque para o baseline_v2 (36,50%) e é quase resolvido pelo
 > fusion_v4 (6,54%). Com o A11 acontece o inverso: 3,85% no baseline_v2 e 33,74%
-> no fusion_v4. O A11 também mostra o custo da fusão de características. No
-> ataque por Griffin-Lim, o ramo de espectrograma acrescentado piora o modelo em
-> 30 p.p. em relação ao modelo só com LFCC. O ganho agregado de 1,38 p.p. é,
-> portanto, um saldo entre ataques, e não um ganho uniforme.
+> no fusion_v4.
+>
+> Os sete modelos se agrupam em três famílias de perfil por ataque, com
+> correlação de postos de 0,97 dentro de cada família: LFCC com 20 filtros
+> (v1 e v2); LFCC com 70 filtros em um ramo (v3a, v3 e baseline_lcnn_v4); e
+> LFCC com espectrograma (fusion_v4 e attention_v4). A primeira família falha
+> nos ataques que reutilizam algoritmos do treinamento (A07, A16 e A19) e acerta
+> o A11. A segunda resolve esses ataques e falha em A12, A13 e A18. A terceira
+> resolve também A13, A17 e A18, mas falha em A10, A11, A14 e A15.
+>
+> **Os incrementos, ataque a ataque.** A Tabela 6 decompõe os contrastes
+> controlados da Tabela 3 por ataque.
+>
+**Tabela 6 – Variação do EER por ataque em cada incremento (p.p.)**
+
+| ataque | fusão (baseline_lcnn_v4 → fusion_lcnn_v4) | atenção (fusion_lcnn_v4 → attention_lcnn_v4) |
+|---|---|---|
+| A13 | −37,65 | −1,03 |
+| A18 | −29,48 | +0,93 |
+| A17 | −10,09 | −0,02 |
+| A12 | −4,29 | +0,12 |
+| A11 | +25,78 | −1,71 |
+| A15 | +19,83 | +2,96 |
+| A10 | +8,04 | −0,93 |
+| A14 | +5,60 | +10,75 |
+| demais (A07, A08, A09, A16, A19) | −0,72 a −0,17 | −0,04 a +0,06 |
+| **global** | **−1,38** | **+0,95** |
+
+Fonte: Autoria própria.
+
+> O ramo de espectrograma reduz o EER em 37,65 p.p. no A13 e em 29,48 p.p. no
+> A18, e o aumenta em 25,78 p.p. no A11 e em 19,83 p.p. no A15. O ganho global
+> de 1,38 p.p. é o saldo dessas trocas, que são muito maiores que a variação
+> entre execuções reportada na literatura. O efeito da fusão sobre *quais*
+> ataques o modelo detecta é, portanto, robusto, mesmo que o efeito sobre o
+> EER global não seja. A atenção, ao contrário, altera menos de 3 p.p. em doze
+> dos treze ataques, e os perfis com e sem atenção têm correlação de 0,97.
 >
 > **A geração autorregressiva concentra a dificuldade.** Os três ataques com
 > geradores autorregressivos (A10, A12 e A15) têm EER médio de 27,28% no
 > baseline_v2 e de 40,97% no fusion_v4. Nos outros dez ataques, as médias são de
 > 13,70% e 6,33%. Um teste de permutação exato, sobre os 286 trios possíveis
-> entre os treze ataques, dá p = 0,0070 para o fusion_v4 e p = 0,0490 para o
-> baseline_v2. O A08, que usa um gerador neural não autorregressivo, é resolvido
+> entre os treze ataques, dá p = 0,0070 para o fusion_v4 e p = 0,0035 para o
+> attention_v4. Nos outros cinco modelos, o valor fica entre 0,0315 e 0,0664,
+> no limite da significância. O A08, que usa um gerador neural não autorregressivo, é resolvido
 > pelos dois modelos (3,88% e 0,03%). Isso indica que o eixo relevante não é a
 > distinção entre gerador neural e clássico. A explicação tem, contudo, um
 > limite: A12 e A15 usam o mesmo WaveNet e diferem em 21,16 p.p. no baseline_v2.
 > Outras partes do sistema de ataque também pesam. A10 e A12 são os únicos
-> ataques em que os dois modelos passam de 30% de EER.
+> ataques em que **todos os sete modelos** passam de 30% de EER, com médias de
+> 36,86% e 47,80%. Nenhuma das variações testadas (resolução, encoder, segundo
+> ramo, atenção) os resolve.
 >
 > **Fusão de scores.** A complementaridade observada motivou a combinação dos
-> scores de modelos treinados separadamente (Tabela 6).
+> scores de modelos treinados separadamente (Tabela 7).
 
-**Tabela 6 – Fusão de scores**
+**Tabela 7 – Fusão de scores**
 
-| combinação | EER (%) |
-|---|---|
-| baseline_v2 + fusion_v4 | **13,13** |
-| baseline_v2 + attention_v4 | 13,47 |
-| baseline_v2 + baseline_v3 | 15,84 |
-| fusion_v4 + attention_v4 (controle) | 19,88 |
+| combinação | correlação entre os perfis por ataque (ρ) | EER (%) |
+|---|---|---|
+| baseline_v2 + fusion_v4 | 0,34 | **13,13** |
+| baseline_v2 + attention_v4 | 0,39 | 13,47 |
+| baseline_v2 + baseline_v3 | 0,64 | 15,84 |
+| fusion_v4 + attention_v4 (controle) | 0,97 | 19,88 |
 
-Fonte: Autoria própria.
+Fonte: Autoria própria. ρ: correlação de Spearman entre os EERs dos dois
+modelos nos treze ataques.
 
 <!-- RESUMO_TCC §4 -->
 
@@ -466,7 +525,10 @@ Fonte: Autoria própria.
 > do melhor modelo isolado, para 13,13%, um ganho de 5,86 p.p. O par de controle
 > (fusion_v4 e attention_v4) reúne dois modelos quase idênticos e rendeu apenas
 > 0,30 p.p. O ganho vem, portanto, da diversidade entre os modelos, e não do ato
-> de combinar scores. O valor de 13,13% usa a regra de postos, que exige o
+> de combinar scores. A Tabela 7 torna essa diversidade mensurável: quanto
+> menor a correlação entre os perfis por ataque, maior o ganho, e a ordem se
+> mantém nos quatro pares. Com quatro pares, a relação é ilustrativa e não um
+> teste estatístico. O valor de 13,13% usa a regra de postos, que exige o
 > conjunto completo de scores. A média simples, aplicável a um fluxo contínuo de
 > áudio, resulta em 14,03%.
 >
@@ -482,39 +544,51 @@ Fonte: Autoria própria.
 > Para avaliar a robustez ao canal, o conjunto de avaliação completo foi
 > reprocessado sob diferentes degradações: ruído gaussiano branco, variação de
 > ganho, codificação Opus em taxas típicas de voz sobre IP e limitação de banda
-> (reamostragem para 8 kHz e retorno a 16 kHz), como na telefonia. A Tabela 7 mostra as condições
-> mais representativas.
+> (reamostragem para 8 kHz e retorno a 16 kHz), como na telefonia. A Tabela 8
+> apresenta as onze condições para os dois modelos principais.
 
-**Tabela 7 – EER (%) sob degradação de canal**
+**Tabela 8 – EER (%) sob degradação de canal**
 
-| condição | baseline_v2 | fusion_v4 |
-|---|---|---|
-| limpo | **18,99** | 20,18 |
-| Opus, 25 kbps | **20,04** | 22,08 |
-| banda estreita (8 kHz) | 35,95 | **25,53** |
-| ruído, SNR de 5 dB | 42,41 | **27,42** |
-| **pior degradação** | **+23,42 p.p.** | **+7,24 p.p.** |
+| condição | vista no treino | baseline_v2 | fusion_v4 |
+|---|---|---|---|
+| limpo | — | **18,99** | 20,18 |
+| ruído, SNR de 20 dB | sim | 27,75 | **21,27** |
+| ruído, SNR de 10 dB | sim | 34,99 | **23,95** |
+| ruído, SNR de 5 dB | não | 42,41 | **27,42** |
+| ganho de −6 dB | sim | **19,44** | 20,36 |
+| ganho de +6 dB | sim | **19,57** | 20,08 |
+| Opus, 30 kbps | não | **19,75** | 21,38 |
+| Opus, 25 kbps | não | **20,04** | 22,08 |
+| Opus, 15 kbps | não | **20,12** | 23,02 |
+| banda estreita (8 kHz) | não | 35,95 | **25,53** |
+| banda estreita e Opus | não | 32,85 | **25,04** |
+| **pior degradação** | | **+23,42 p.p.** | **+7,24 p.p.** |
 
 Fonte: Autoria própria.
 
-<!-- RESUMO_TCC §5. [PENDENTE: tabela completa das 11 condições, que está na
-     cópia de agosto.] -->
+<!-- outputs/report/robustez_eval.md (25/09/2026) -->
 
 > Sob degradação, o ranking dos modelos se inverte. O baseline_v2 é o melhor no
 > áudio limpo e piora até 23,42 p.p. O fusion_v4 piora no máximo 7,24 p.p. e
-> vence por 10,4 p.p. em banda estreita e por 15,0 p.p. com ruído a 5 dB. A
-> codificação Opus custa pouco, de 1,2 a 2,8 p.p. até 15 kbps. Já a perda da
-> banda alta e o ruído aditivo forte custam muito. Na prática, escolher o modelo
+> vence em todas as condições de ruído e de banda estreita, com vantagem de
+> 6,5 p.p. a 20 dB, 10,4 p.p. em banda estreita e 15,0 p.p. a 5 dB. O
+> baseline_v2 vence nas condições de ganho e de codificação Opus, sempre por
+> menos de 3 p.p. O ganho de ±6 dB praticamente não altera o EER, porque a
+> normalização por pico o desfaz. A codificação Opus custa pouco até 15 kbps:
+> de 0,8 a 1,1 p.p. no baseline_v2 e de 1,2 a 2,8 p.p. no fusion_v4. Já a perda
+> da banda alta e o ruído aditivo custam muito ao baseline_v2. Na prática, escolher o modelo
 > pelo EER no áudio limpo, como a literatura costuma reportar, levaria à escolha
 > errada em uma aplicação com canal degradado.
 >
 > Duas ressalvas delimitam esse resultado. Primeiro, o treinamento usa ruído
 > branco entre 10 e 30 dB e ganho de ±6 dB, gerados pela mesma função dos testes.
 > As condições de ruído a 20 e 10 dB e de ganho, portanto, já estavam na
-> distribuição de treino. As condições realmente inéditas são o ruído a 5 dB, a
-> codificação Opus e a banda estreita, justamente as duas em que a inversão
-> aparece. A comparação entre os modelos continua válida, porque ambos tiveram o
-> mesmo aumento de dados. Segundo, o limiar calibrado em áudio limpo não se
+> distribuição de treino (coluna "vista no treino" da Tabela 8). Ainda assim,
+> a inversão já aparece nelas: com o mesmo ruído de 20 dB visto no treino, o
+> baseline_v2 piora 8,76 p.p. e o fusion_v4, 1,09 p.p. Como os dois modelos
+> receberam o mesmo aumento de dados, a diferença de robustez ao ruído não se
+> explica por um ter visto a perturbação e o outro não. Ela está na
+> representação e na arquitetura. Segundo, o limiar calibrado em áudio limpo não se
 > transfere para o áudio degradado. Sob Opus a 15 kbps, o *recall* do
 > baseline_v2 sobe de 0,72 para 0,86 e o do fusion_v4 cai de 0,55 para 0,39.
 >
@@ -533,7 +607,7 @@ Fonte: Autoria própria.
 |---|---|---|
 | F1 superior a 0,90 | 0,69 a 0,83 | não atingido |
 | EER inferior a 8% | 18,99% (modelo isolado); 13,13% (fusão de scores) | não atingido |
-| ganho a cada incremento | fusão −1,38 p.p.; atenção +0,95 p.p. | só na fusão, dentro da variância entre execuções |
+| ganho a cada incremento | fusão −1,38 p.p.; atenção +0,95 p.p. | só na fusão; no EER global, dentro da variância entre execuções |
 | processamento em até 30 s por amostra (RNF06) | 2,745 s em CPU para um arquivo de 60 s | atingido |
 
 Fonte: Autoria própria.
@@ -549,14 +623,19 @@ Fonte: Autoria própria.
 
 > • **Uma execução por modelo.** Os efeitos dos incrementos (−1,38 e +0,95 p.p.)
 > são menores que a variação entre execuções observada na literatura (1,4 a 5,2
-> p.p.). Os efeitos grandes (diferenças por ataque de até 30 p.p., inversão de
-> ranking de 10,4 e 15,0 p.p. e ganho de 5,86 p.p. da fusão de scores) superam
-> essa faixa.
+> p.p.). Os efeitos grandes superam essa faixa: as trocas por ataque da fusão
+> de características (de −37,65 a +25,78 p.p.), a diferença entre validação e
+> avaliação, a inversão de ranking (6,5 a 15,0 p.p.) e o ganho de 5,86 p.p. da
+> fusão de scores.
 >
 > • **Atenção mínima.** O resultado negativo vale para a forma de atenção
 > avaliada.
 >
-> • **Robustez parcialmente dentro da distribuição.** Ver seção 5.5.
+> • **Robustez parcialmente dentro da distribuição.** Ruído a 20 e 10 dB e ganho
+> estavam no aumento de dados do treino. Ver seção 5.5.
+>
+> • **Robustez medida em dois modelos.** Os outros cinco não foram avaliados sob
+> degradação.
 >
 > • **Canal simulado.** Não houve avaliação em canal real (ASVspoof 2021 LA ou
 > chamada gravada).
@@ -597,26 +676,33 @@ Fonte: Autoria própria.
 > incremental em que cada componente é avaliado contra o modelo imediatamente
 > anterior.
 >
-> A fusão tardia de LFCC e espectrograma log-mel reduziu o EER em 1,38 p.p. A
-> atenção no *pooling* não trouxe ganho. Ambos os efeitos ficam dentro da
-> variação entre execuções reportada na literatura. Quatro achados, porém, têm
-> magnitude que supera essa variação.
+> A fusão tardia de LFCC e espectrograma log-mel reduziu o EER global em 1,38
+> p.p., como saldo de trocas de até 37,65 p.p. por ataque: o segundo ramo muda
+> quais ataques o modelo detecta. A atenção no *pooling*, na forma mínima
+> avaliada, não trouxe ganho e quase não alterou o perfil do modelo. Os efeitos
+> sobre o EER global ficam dentro da variação entre execuções reportada na
+> literatura. Quatro achados, porém, têm magnitude que supera essa variação.
 >
-> Primeiro, o desempenho na validação não antecipa o desempenho na avaliação,
-> porque a validação contém apenas os ataques do treinamento.
-> [PENDENTE: número da tabela validação × avaliação.]
+> Primeiro, o desempenho na validação não antecipa o desempenho na avaliação.
+> Cinco modelos alcançaram EER de validação abaixo de 0,71% e ficaram todos
+> acima de 20% na avaliação. Os dois com pior validação foram o primeiro e o
+> terceiro na avaliação. A validação contém apenas os ataques do treinamento, e
+> selecionar modelos por ela favorece o que foi aprendido desses ataques.
 >
 > Segundo, a fusão de scores de modelos diferentes reduziu o EER para 13,13%. O
 > grupo de controle mostra que o ganho vem da diversidade entre os modelos, que
 > erram em ataques diferentes.
 >
 > Terceiro, o EER agregado esconde os ataques mais fortes. Nos ataques com
-> geração autorregressiva A10 e A12, os dois modelos principais ficam entre
-> 30,63% e 47,99% de EER, próximos do acaso, enquanto outros ataques são
-> resolvidos quase perfeitamente.
+> geração autorregressiva A10 e A12, todos os sete modelos passam de 30% de EER,
+> com médias de 36,86% e 47,80%, próximas do acaso, enquanto outros ataques
+> são resolvidos quase perfeitamente. Nenhuma das variações testadas os
+> resolveu.
 >
 > Quarto, o ranking dos modelos se inverte sob degradação de canal. O melhor
 > modelo no áudio limpo piora até 23,42 p.p., e o modelo com fusão, 7,24 p.p.
+> A inversão aparece inclusive com o nível de ruído usado no aumento de dados
+> do treinamento.
 > Escolher o modelo pelo desempenho em áudio limpo leva, portanto, à escolha
 > errada em cenários reais.
 >
@@ -631,6 +717,36 @@ Fonte: Autoria própria.
 > externas à base; calcular o t-DCF; investigar mecanismos de atenção mais
 > expressivos; e usar encoders pré-treinados em fala, direção apontada pela
 > literatura para os ataques autorregressivos.
+
+---
+
+## APÊNDICE A – EER (%) por ataque dos sete modelos
+
+| ataque | v1 | v2 | v3a | v3 | lcnn_v4 | fusion_v4 | attention_v4 |
+|---|---|---|---|---|---|---|---|
+| A07 | 22,28 | 22,43 | 0,24 | 0,13 | 0,27 | 0,02 | 0,01 |
+| A08 | 2,68 | 3,88 | 0,05 | 0,00 | 0,59 | 0,03 | 0,05 |
+| A09 | 1,19 | 2,32 | 0,19 | 0,19 | 0,29 | 0,12 | 0,08 |
+| A10 | 31,24 | 30,63 | 32,62 | 35,88 | 37,50 | 45,54 | 44,61 |
+| A11 | 4,60 | 3,85 | 4,42 | 11,69 | 7,96 | 33,74 | 32,03 |
+| A12 | 43,50 | 36,18 | 56,47 | 50,05 | 52,28 | 47,99 | 48,11 |
+| A13 | 34,59 | 36,50 | 59,58 | 48,31 | 44,19 | 6,54 | 5,51 |
+| A14 | 10,71 | 12,01 | 0,96 | 2,08 | 12,14 | 17,74 | 28,49 |
+| A15 | 19,23 | 15,02 | 8,75 | 12,05 | 9,54 | 29,37 | 32,33 |
+| A16 | 22,08 | 22,75 | 0,70 | 0,30 | 0,75 | 0,03 | 0,09 |
+| A17 | 11,20 | 11,27 | 10,28 | 8,22 | 10,50 | 0,41 | 0,39 |
+| A18 | 21,48 | 15,01 | 30,14 | 32,41 | 34,11 | 4,63 | 5,56 |
+| A19 | 8,99 | 6,98 | 0,13 | 0,10 | 0,37 | 0,00 | 0,03 |
+| **global** | 20,78 | **18,99** | 21,23 | 21,10 | 21,56 | 20,18 | 21,13 |
+
+Fonte: Autoria própria.
+
+> A figura `outputs/report/eer_por_ataque.png` (gráfico de barras desta matriz)
+> e `outputs/report/curvas_comparadas.png` (EER de validação e *loss* por
+> época) podem entrar como figuras. No ABNT, legenda acima ("Figura N –
+> título") e fonte abaixo. As curvas de validação ilustram bem a seção 5.2:
+> cinco modelos ficam colados em zero, e os dois melhores na avaliação são os
+> que ficam em torno de 10%.
 
 ---
 
