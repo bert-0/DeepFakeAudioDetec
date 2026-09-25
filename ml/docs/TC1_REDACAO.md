@@ -495,8 +495,9 @@ Fonte: Autoria própria.
 > 13,70% e 6,33%. Um teste de permutação exato, sobre os 286 trios possíveis
 > entre os treze ataques, dá p = 0,0070 para o fusion_v4 e p = 0,0035 para o
 > attention_v4. Nos outros cinco modelos, o valor fica entre 0,0315 e 0,0664,
-> no limite da significância. O A08, que usa um gerador neural não autorregressivo, é resolvido
-> pelos dois modelos (3,88% e 0,03%). Isso indica que o eixo relevante não é a
+> no limite da significância. O A08, cujo gerador de forma de onda é neural mas
+> não autorregressivo (*neural source-filter*), é resolvido pelos dois modelos
+> (3,88% e 0,03%), embora o seu modelo acústico seja um RNN autorregressivo. Isso indica que o eixo relevante não é a
 > distinção entre gerador neural e clássico. A explicação tem, contudo, um
 > limite: A12 e A15 usam o mesmo WaveNet e diferem em 21,16 p.p. no baseline_v2.
 > Outras partes do sistema de ataque também pesam. A10 e A12 são os únicos
