@@ -1,5 +1,7 @@
 # `ml/` — Pipeline de IA
 
+[![Testes](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml/badge.svg)](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml)
+
 Pipeline de detecção de deepfakes em áudio (pré-processamento → extração de
 características → modelo → métricas), construído nos três incrementos descritos
 no TC1.
@@ -431,11 +433,43 @@ partição de teste. Use `--threshold 0.42` para informar um valor manualmente.
 > treino. Em troca, a escolha pode variar entre máquinas, o que mexe nos últimos
 > dígitos do resultado. Para uma execução bit-a-bit reprodutível, use `false`.
 
+### Leitura de áudio: a truncagem não depende do decodificador
+
+Um `.flac` truncado entre os 121.461 da base derruba um treino de horas, e sem
+tratamento a mensagem não diz **qual** arquivo. Pior: **nem todo decodificador
+falha nele.** No Linux o libsndfile recusa e o erro sobe. No Windows o
+`audioread` decodifica o pedaço que existe e devolve áudio parcial **sem
+reclamar** — o treino consome meio enunciado como se fosse inteiro.
+
+Foi medido: os três testes de truncagem passavam no Linux e falhavam no
+Windows. Por isso o `load_audio` não confia no decodificador — ele confere a
+duração obtida contra a que o cabeçalho declara (o cabeçalho sobrevive à
+truncagem e continua anunciando a duração original). A verificação é a mesma
+nos dois sistemas, qualquer que seja o backend.
+
+O `check_data.py --deep` **não** cobria esse caso: ele usa `sf.read()` direto,
+então valida a base antes do treino, mas não a leitura durante ele.
+
 ## Testes
 
 ```bash
-python -m pytest          # roda a suíte (rápida, ~3 s, não precisa do dataset)
+python -m pytest                       # a suíte inteira (~18 s)
+ruff check --select E9,F .             # as mesmas regras que o CI aplica
 ```
+
+Nenhum teste precisa da base ASVspoof: todos geram o próprio áudio em diretório
+temporário. Por isso a suíte roda inteira num runner limpo.
+
+**No CI.** O `.github/workflows/testes.yml` roda os dois comandos acima a cada
+push e em cada pull request. Ele existe porque os testes só rodavam quando
+alguém lembrava de chamá-los na própria máquina — e dois defeitos reais
+escaparam assim, encontrados só ao operar o programa: um áudio mais curto que a
+janela devolvia zero leituras, e o score aparecia na tela sem dizer em que
+direção crescia.
+
+O ruff roda só com `E9,F` (erro de sintaxe, nome indefinido, comparação
+inválida, import morto). Regras de estilo ficam de fora de propósito: quebrar o
+CI por ponto e vírgula não ajuda ninguém a encontrar defeito.
 
 ## Inferência em um único áudio (RF05/RF06/RF07)
 
@@ -498,6 +532,22 @@ frases curtas de voz clonada está abaixo da resolução do sistema.
 O **passo** é livre. Com 99,65% de folga de CPU, `--hop 1` dá reação mais rápida
 sem custo relevante. O primeiro veredito sempre demora 4 s, porque é preciso
 encher a janela.
+
+#### O trecho final, quando o áudio é mais curto que a janela
+
+A janela deslizante só emite quando acumula 4 s. Um áudio **mais curto que
+isso** nunca fecha uma janela — e a maioria dos enunciados do ASVspoof é mais
+curta que 4 s. Sem tratamento, `monitor.py --arquivo` devolvia
+`Janelas analisadas: 0`, sem erro e sem aviso.
+
+O `finalizar()` emite o trecho restante ao fim da fonte, e só quando ele contém
+áudio que nenhuma janela cobriu — com passo de metade da janela, o fim de um
+arquivo longo normalmente já está dentro da última janela emitida, e repetir
+aquele trecho inflaria a contagem sem acrescentar informação.
+
+O trecho sai mais curto que a janela e o `preprocess_waveform` o completa por
+repetição, como no treino. O peso cai na proporção: um enunciado de 2,6 s pesa
+0,65, e a linha aparece marcada como `(janela parcial)`.
 
 ### Janelas sobrepostas não são observações independentes
 
@@ -571,10 +621,93 @@ sob o mesmo Opus a 15 kbps o recall do v2 sobe (0,72 -> 0,86) e o do v4 cai
 **score**, não veredito, e um ponto de operação confiável exige recalibração no
 canal de destino.
 
-É para isso que serve o `--gravar`: toque numa chamada real áudios do ASVspoof
-com rótulo conhecido, capture o que chega do outro lado e avalie. Isso mede o
-canal com o Opus real e o processamento real, em vez da simulação. O par
-gravar/`--arquivo` garante que o resultado seja reproduzível.
+
+### Custo de rodar ao vivo (medido)
+
+Medido nesta CPU (4 threads, sem GPU), caminho completo — janela, features,
+rede e agregação:
+
+| | ms/janela | x tempo real | carga |
+|---|---|---|---|
+| 1 modelo (`fusion_v4`) | 80,4 | 25,7x | 3,9% de 1 núcleo |
+| 2 modelos (fusão ao vivo) | 96,9 | 21,3x | 4,7% de 1 núcleo |
+
+Com janela de 4 s e passo de 2 s são **0,5 janelas por segundo** a processar. A
+mesma CPU entrega 71 janelas/s em inferência pura — folga de **143x**. Memória:
+778 MB residentes com os dois modelos carregados, dos quais ~500 MB são o
+próprio PyTorch (os pesos somam 1,5 MB: 23.778 + 348.866 parâmetros).
+
+Comparado com o treino no mesmo hardware, lote de 32:
+
+| | ms/amostra |
+|---|---|
+| treino (forward + backward + otimizador) | 58,2 |
+| inferência (forward puro) | 14,0 |
+
+A razão é **4,16x**, e é estrutural: o backward recalcula gradiente por camada e
+o otimizador mantém dois momentos por parâmetro. Somado a isso, o treino
+atravessa 25.380 amostras por época enquanto o ao vivo processa 0,5 por segundo.
+Rodar ao vivo não se parece com treinar — cabe folgado numa CPU comum, sem GPU.
+
+### Camada 2: avaliação através de uma chamada real (`scripts/canal_real.py`)
+
+O `robustness_eval.py` simula o canal (codec Opus, limitação de banda) e por
+isso é um **limite inferior** da degradação: ele não inclui supressão de ruído,
+cancelamento de eco nem ganho automático, que só existem dentro de um cliente de
+conferência. O `canal_real.py` fecha essa lacuna.
+
+```bash
+# 1. monta uma playlist de áudios ROTULADOS, com silêncio entre eles
+python scripts/canal_real.py preparar --config configs/fusion_v4.yaml \
+    --n-por-classe 40 --saida outputs/canal_real
+#    -> imprime o roteiro da chamada (duas pontas, VB-Cable, controle)
+
+# 2. toque referencia.wav dentro da chamada; grave do outro lado
+python monitor.py --config ... --checkpoint ... --gravar chamada.wav
+
+# 3. localiza cada áudio na gravação, recorta e emite o protocolo ASVspoof
+python scripts/canal_real.py alinhar --pasta outputs/canal_real \
+    --gravacao chamada.wav
+#    -> imprime o comando do evaluate.py que dá o EER da camada 2
+```
+
+**Como o alinhamento funciona, e por que não é um bipe.** A ideia óbvia — um tom
+entre os áudios — falha exatamente no cenário que interessa: a supressão de
+ruído é treinada para remover o que não é fala, e um seno puro é o exemplo
+canônico. O marcador some no caminho.
+
+O que se usa é correlação cruzada do **envelope de energia** contra a referência
+tocada. Codec, supressão de ruído e AGC mudam espectro e amplitude, não *quando*
+a fala acontece; normalizar antes de correlacionar tira o efeito do ganho. O
+ajuste é feito em duas etapas — atraso global da chamada, depois refino por
+trecho — e o refino é sequencial para acompanhar a deriva de relógio entre as
+duas placas de som, que é cumulativa.
+
+Correlação medida em `tests/test_alinhamento.py`, pior caso de cada cenário:
+
+| cenário | correlação |
+|---|---|
+| canal limpo | 0,798 |
+| opus + banda estreita de 8 kHz | 0,798 |
+| ruído puro (microfone errado) | 0,118 |
+
+O limiar de 0,5 fica entre os dois grupos com folga de 1,6x para baixo e 4,2x
+para cima. Trecho abaixo do limiar é **descartado**, não recortado: um recorte
+mal alinhado carrega o rótulo do vizinho e produz um EER que parece resultado.
+
+### Bases públicas que já contêm o canal real
+
+Antes de gravar qualquer chamada, vale usar o que já existe rotulado:
+
+| base | o que traz | serve para |
+|---|---|---|
+| **ASVspoof 2021 LA** | os mesmos ataques do eval de 2019, transmitidos por VoIP e PSTN reais, 6 codecs | camada 2 pronta, sem gravar nada |
+| **ASVspoof 2021 DF** | codecs de mídia e compressão | generalização a áudio recomprimido |
+| **In-the-Wild** | 37,9 h de áudio achado na internet (17,2 h falsos) | canal + domínio, o caso mais difícil |
+
+A 2021 LA é a mais direta: por regra do desafio **não há partição de treino** —
+os sistemas são treinados na 2019 LA, que é exatamente a base deste projeto. O
+modelo já treinado avalia nela sem nenhuma mudança.
 
 
 ## Estrutura

@@ -16,6 +16,29 @@ class AudioLoadError(RuntimeError):
     """Falha ao ler um arquivo de áudio, com o caminho embutido na mensagem."""
 
 
+#: Folga ao comparar a duração decodificada com a declarada no cabeçalho.
+#: Reamostragem e arredondamento mudam o comprimento em alguns quadros, nunca
+#: em fração perceptível do sinal.
+TOLERANCIA_S = 0.01
+TOLERANCIA_RELATIVA = 0.01
+
+
+def _duracao_do_cabecalho(path: str | Path) -> float | None:
+    """Duração que o cabeçalho declara, em segundos, ou `None` se ilegível.
+
+    O cabeçalho **sobrevive à truncagem**: um FLAC cortado pela metade continua
+    anunciando a duração original. É justamente isso que o torna útil aqui —
+    ele diz o que o arquivo deveria ter, para comparar com o que saiu.
+    """
+    try:
+        import soundfile as sf
+
+        info = sf.info(str(path))
+        return info.frames / info.samplerate if info.samplerate else None
+    except Exception:
+        return None   # formato que o libsndfile não abre; nada a comparar
+
+
 def load_audio(path: str | Path, sample_rate: int) -> np.ndarray:
     """Carrega um arquivo de áudio como mono, reamostrado para `sample_rate`.
 
@@ -27,6 +50,16 @@ def load_audio(path: str | Path, sample_rate: int) -> np.ndarray:
 
     Aqui o caminho vai para a mensagem e a exceção original fica encadeada,
     acessível por `__cause__`.
+
+    **Nem todo decodificador falha num arquivo truncado.** No Linux o libsndfile
+    recusa e o erro sobe. No Windows o `audioread`, com os backends que costumam
+    vir instalados, decodifica o pedaço que existe e devolve áudio parcial sem
+    reclamar — e aí o treino consome meio enunciado como se fosse inteiro. Foi
+    medido: os testes de truncagem passam no Linux e falhavam no Windows.
+
+    Por isso a leitura não confia no decodificador: a duração obtida é conferida
+    contra a que o cabeçalho declara. A verificação é a mesma nos dois sistemas,
+    qualquer que seja o backend que o librosa tenha escolhido.
     """
     try:
         wav, _ = librosa.load(str(path), sr=sample_rate, mono=True)
@@ -40,6 +73,19 @@ def load_audio(path: str | Path, sample_rate: int) -> np.ndarray:
             "`python scripts/check_data.py --config <cfg> --deep` para "
             "localizar todos os arquivos ilegíveis da base."
         ) from erro
+
+    esperado = _duracao_do_cabecalho(path)
+    if esperado is not None:
+        obtido = len(wav) / sample_rate
+        folga = max(TOLERANCIA_S, esperado * TOLERANCIA_RELATIVA)
+        if obtido < esperado - folga:
+            raise AudioLoadError(
+                f"falha ao ler o áudio {path}: o cabeçalho declara "
+                f"{esperado:.3f}s mas só {obtido:.3f}s foram decodificados. "
+                "Arquivo possivelmente truncado ou corrompido — rode "
+                "`python scripts/check_data.py --config <cfg> --deep` para "
+                "localizar todos os arquivos ilegíveis da base."
+            )
     return wav.astype(np.float32)
 
 

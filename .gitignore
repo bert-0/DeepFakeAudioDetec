@@ -13,6 +13,10 @@ ml/data/cache/
 
 # Base ASVspoof (grande demais para versionar — baixar localmente)
 ml/data/LA/
+# ASVspoof 2021: o áudio já cairia no *.flac abaixo, mas as chaves
+# (trial_metadata.txt, vários MB) e os scores do baseline são texto e
+# entrariam num `git add -A`.
+ml/data/ASVspoof2021_LA/
 
 # Amostras de voluntarios — voz e dado biometrico sensivel (LGPD): NUNCA versionar
 ml/data/volunteers/

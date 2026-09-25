@@ -1,5 +1,7 @@
 # Detecção de Deepfakes em Áudio
 
+[![Testes](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml/badge.svg)](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml)
+
 Sistema de detecção de *deepfakes* em áudio com **fusão de características** e
 **mecanismos de atenção**, desenvolvido como Trabalho de Conclusão de Curso
 (Ciência da Computação — UNIP).

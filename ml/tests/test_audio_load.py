@@ -22,6 +22,17 @@ def _trunca(caminho: Path, fracao: float = 0.1) -> Path:
     return caminho
 
 
+def _decodificador_permissivo(fracao):
+    """Imita o audioread do Windows: devolve só parte do sinal, sem reclamar."""
+    def load(caminho, sr=None, mono=True, **kwargs):
+        import soundfile as sf
+        info = sf.info(str(caminho))
+        taxa = sr or info.samplerate
+        n = int(info.frames / info.samplerate * taxa * fracao)
+        return np.zeros(n, dtype=np.float32), taxa
+    return load
+
+
 def test_arquivo_integro_e_lido_normalmente(tmp_path):
     """O caminho feliz não pode ter mudado."""
     caminho = _escreve_flac(tmp_path / "bom.flac", segundos=1.0)
@@ -63,14 +74,53 @@ def test_a_mensagem_aponta_para_a_ferramenta_de_diagnostico(tmp_path):
     assert "--deep" in str(exc.value)
 
 
-def test_a_excecao_original_fica_encadeada(tmp_path):
-    """`--deep` recupera a causa real; aqui garantimos que ela não se perde."""
-    caminho = _trunca(_escreve_flac(tmp_path / "ruim.flac"))
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        with pytest.raises(AudioLoadError) as exc:
-            load_audio(caminho, 16000)
+def test_a_excecao_original_fica_encadeada(tmp_path, monkeypatch):
+    """Quando o DECODIFICADOR falha, a causa real não pode se perder.
+
+    O decodificador é simulado de propósito. Existem dois caminhos até o
+    `AudioLoadError`, e eles dão garantias diferentes:
+
+    - o decodificador levanta (libsndfile no Linux) — há exceção original, e
+      ela precisa ficar encadeada, senão o erro real do libsndfile
+      (`flac decoder lost sync`) some;
+    - o decodificador devolve áudio parcial sem levantar (audioread no
+      Windows) — **não existe exceção original**, e quem barra é a conferência
+      de duração.
+
+    Sem a simulação, este teste afirmaria no Windows algo que não pode ser
+    verdade — foi exatamente assim que ele falhou lá.
+    """
+    caminho = _escreve_flac(tmp_path / "ruim.flac")
+
+    def decodificador_que_falha(*args, **kwargs):
+        raise RuntimeError("flac decoder lost sync")
+
+    monkeypatch.setattr("librosa.load", decodificador_que_falha)
+    with pytest.raises(AudioLoadError) as exc:
+        load_audio(caminho, 16000)
+
     assert exc.value.__cause__ is not None
+    assert "lost sync" in str(exc.value), "o erro real do libsndfile some"
+
+
+def test_erro_sem_causa_encadeada_ainda_diz_o_que_houve(tmp_path, monkeypatch):
+    """O outro caminho não tem causa para encadear — a mensagem tem que bastar.
+
+    É o caso do Windows: nenhum componente levantou exceção, então não há
+    `__cause__`. A mensagem precisa, sozinha, dizer o que se esperava, o que
+    veio, e o próximo comando.
+    """
+    caminho = _escreve_flac(tmp_path / "ruim.flac", segundos=4.0)
+    monkeypatch.setattr("librosa.load", _decodificador_permissivo(0.25))
+
+    with pytest.raises(AudioLoadError) as exc:
+        load_audio(caminho, 16000)
+
+    assert exc.value.__cause__ is None, "não há exceção original neste caminho"
+    mensagem = str(exc.value)
+    assert "ruim.flac" in mensagem
+    assert "4.000s" in mensagem and "1.000s" in mensagem
+    assert "--deep" in mensagem
 
 
 def test_erro_de_mensagem_vazia_ainda_identifica_o_tipo(tmp_path, monkeypatch):
@@ -100,3 +150,66 @@ def test_arquivo_inexistente_continua_sendo_filenotfound(tmp_path):
 def test_audio_load_error_e_capturavel_como_runtimeerror(tmp_path):
     """Herda de RuntimeError para não quebrar `except RuntimeError` existente."""
     assert issubclass(AudioLoadError, RuntimeError)
+
+
+# --------------------------------------------------------------------------- #
+# Regressão de plataforma
+#
+# Os três testes de truncagem acima passam no Linux porque o libsndfile recusa
+# o arquivo. No Windows o `audioread` decodifica o pedaço que existe e devolve
+# áudio parcial **sem erro** — foi assim que apareceram, rodando a suíte lá.
+#
+# Um treino nesse estado consome meio enunciado como se fosse inteiro. O
+# `check_data.py --deep` não cobre o buraco: ele usa `sf.read()` direto, então
+# protege a base antes do treino, mas não a leitura durante ele.
+#
+# Estes testes simulam o decodificador permissivo, para que a proteção seja
+# verificada nos dois sistemas e no CI — que roda Linux.
+# --------------------------------------------------------------------------- #
+def test_audio_parcial_e_recusado_mesmo_sem_erro_do_decodificador(tmp_path, monkeypatch):
+    caminho = _escreve_flac(tmp_path / "LA_E_1234567.flac", segundos=4.0)
+    monkeypatch.setattr("librosa.load", _decodificador_permissivo(0.1))
+
+    with pytest.raises(AudioLoadError) as exc:
+        load_audio(caminho, 16000)
+
+    assert "LA_E_1234567.flac" in str(exc.value)
+    assert "4.000s" in str(exc.value), "a mensagem precisa dizer o esperado"
+    assert "0.400s" in str(exc.value), "e o que de fato saiu"
+
+
+def test_a_mensagem_do_truncado_aponta_o_check_data(tmp_path, monkeypatch):
+    caminho = _escreve_flac(tmp_path / "ruim.flac", segundos=2.0)
+    monkeypatch.setattr("librosa.load", _decodificador_permissivo(0.5))
+    with pytest.raises(AudioLoadError) as exc:
+        load_audio(caminho, 16000)
+    assert "check_data.py" in str(exc.value) and "--deep" in str(exc.value)
+
+
+def test_diferenca_de_arredondamento_nao_e_confundida_com_truncagem(tmp_path, monkeypatch):
+    """Reamostrar muda o comprimento em alguns quadros; isso não é defeito."""
+    caminho = _escreve_flac(tmp_path / "bom.flac", segundos=3.0)
+    monkeypatch.setattr("librosa.load", _decodificador_permissivo(0.999))
+    load_audio(caminho, 16000)   # não deve levantar
+
+
+def test_audio_mais_longo_que_o_cabecalho_nao_levanta(tmp_path, monkeypatch):
+    """A checagem é unilateral: sobra não é sinal de corrupção."""
+    caminho = _escreve_flac(tmp_path / "bom.flac", segundos=1.0)
+    monkeypatch.setattr("librosa.load", _decodificador_permissivo(1.5))
+    load_audio(caminho, 16000)
+
+
+def test_formato_sem_cabecalho_legivel_ainda_carrega(tmp_path, monkeypatch):
+    """Se o libsndfile não abre o formato, não há o que comparar — não trava."""
+    caminho = _escreve_flac(tmp_path / "bom.flac", segundos=1.0)
+    monkeypatch.setattr("src.preprocess.audio._duracao_do_cabecalho",
+                        lambda p: None)
+    monkeypatch.setattr("librosa.load", _decodificador_permissivo(0.1))
+    assert len(load_audio(caminho, 16000)) > 0
+
+
+def test_reamostragem_real_nao_dispara_o_alarme(tmp_path):
+    """Caminho real, sem mock: 16k -> 8k precisa continuar passando."""
+    caminho = _escreve_flac(tmp_path / "bom.flac", segundos=2.0, sr=16000)
+    assert abs(len(load_audio(caminho, 8000)) - 16000) <= 2

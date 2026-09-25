@@ -180,3 +180,213 @@ def test_resumo_sem_leituras_nao_quebra():
     r = Agregador().resumo()
     assert r["janelas_total"] == 0
     assert r["score_medio"] is None
+
+
+# --------------------------------------------------------------------------- #
+# Diagnóstico de captura muda: no Windows o loopback devolve silêncio sem erro
+# quando nada está tocando, ou quando o dispositivo aberto não é o que o sistema
+# usa. Sem dica, o sintoma é indistinguível de falha do modelo.
+# --------------------------------------------------------------------------- #
+def test_captura_toda_em_silencio_explica_as_causas(capsys):
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    for i in range(4):
+        ag.adicionar(Leitura(indice=i, instante=2.0 * i, score=0.5, rms=1e-9))
+
+    relatar(ag, None, ao_vivo=True)
+
+    saida = capsys.readouterr().out
+    assert "Todas as janelas vieram em silêncio" in saida
+    assert "--listar-dispositivos" in saida
+    assert "--dispositivo-audio" in saida
+
+
+def test_arquivo_silencioso_nao_recebe_dica_de_dispositivo(capsys):
+    """A dica é sobre o loopback; num arquivo ela seria ruído."""
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    ag.adicionar(Leitura(indice=0, instante=0.0, score=0.5, rms=1e-9))
+
+    relatar(ag, None, ao_vivo=False)
+
+    saida = capsys.readouterr().out
+    assert "Nenhuma janela com áudio" in saida
+    assert "--dispositivo-audio" not in saida
+
+
+# --------------------------------------------------------------------------- #
+# Janela final
+#
+# Regressão real: `monitor.py --arquivo <audio do ASVspoof>` devolvia
+# "Janelas analisadas: 0". A janela tem 4 s e o enunciado tipico do ASVspoof e
+# mais curto, entao o `while` de `alimentar` nunca disparava e o resto era
+# descartado em silencio — sem erro, sem aviso, sem resultado.
+# --------------------------------------------------------------------------- #
+def test_audio_mais_curto_que_a_janela_ainda_produz_janela():
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=8, passo=4)
+    assert list(j.alimentar(np.arange(5, dtype=np.float32))) == [], "não cabe"
+
+    final = list(j.finalizar())
+
+    assert len(final) == 1, "o trecho curto precisa virar uma janela"
+    assert np.array_equal(final[0], np.arange(5))
+
+
+def test_finalizar_nao_repete_trecho_ja_coberto():
+    """Com passo = metade, o fim de um áudio longo já cai na última janela."""
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=4, passo=2)
+    list(j.alimentar(np.arange(10, dtype=np.float32)))   # janelas 0-4,2-6,4-8,6-10
+    assert list(j.finalizar()) == [], "o resto 8-10 já estava dentro de 6-10"
+
+
+def test_finalizar_emite_quando_sobra_audio_descoberto():
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=4, passo=2)
+    list(j.alimentar(np.arange(11, dtype=np.float32)))   # cobre até 10
+    final = list(j.finalizar())
+    assert len(final) == 1 and final[0][-1] == 10
+
+
+def test_finalizar_e_idempotente():
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=8, passo=4)
+    list(j.alimentar(np.arange(5, dtype=np.float32)))
+    assert len(list(j.finalizar())) == 1
+    assert list(j.finalizar()) == [], "chamar de novo não pode duplicar"
+
+
+def test_finalizar_sem_nada_no_buffer():
+    from src.capture.stream import JanelaDeslizante
+
+    assert list(JanelaDeslizante(tamanho=4, passo=2).finalizar()) == []
+
+
+def test_instante_da_janela_final_e_a_posicao_real():
+    """A janela final não cai na grade do passo; o instante tem que refletir."""
+    from src.capture.stream import JanelaDeslizante
+
+    j = JanelaDeslizante(tamanho=4, passo=2)
+    list(j.alimentar(np.arange(11, dtype=np.float32)))
+    list(j.finalizar())
+    assert j.inicio_da_ultima == 8
+
+
+def test_peso_da_janela_final_cai_com_a_duracao(tmp_path):
+    """Um trecho de 1 s repetido 4x não pode pesar o mesmo que 4 s íntegros."""
+    import torch
+
+    from src.capture.analyzer import AnalisadorContinuo
+    from src.config import load_config
+    from src.models import build_model
+
+    cfg = load_config("configs/baseline_v2.yaml")
+    ck = tmp_path / "m.pt"
+    torch.save({"model_state": build_model(cfg["model"]).state_dict(),
+                "threshold": 0.5, "config": cfg}, ck)
+    an = AnalisadorContinuo(cfg, str(ck), torch.device("cpu"))
+
+    sr = an.sample_rate
+    t = np.arange(int(sr * 1.0)) / sr        # 1 s, contra janela de 4 s
+    curto = (0.3 * np.sin(2 * np.pi * 200 * t)).astype(np.float32)
+
+    assert list(an.processar(curto)) == [], "1 s não fecha uma janela de 4 s"
+    leituras = list(an.finalizar())
+
+    assert len(leituras) == 1, "o áudio curto precisa gerar leitura"
+    assert 0.0 < leituras[0].peso < 0.35, \
+        f"peso {leituras[0].peso:.2f} deveria refletir 1 s em 4 s"
+    assert leituras[0].instante == 0.0
+
+
+# --------------------------------------------------------------------------- #
+# Direção do score na interface
+#
+# Regressão de usabilidade: um score de 0,048 (P(síntese) = 4,8%, ou seja voz
+# humana com folga) foi lido como "o programa disse que é sintético". A tabela
+# mostrava o número e uma barra, e nada dizia em que direção a decisão fica.
+# --------------------------------------------------------------------------- #
+def test_barra_marca_a_posicao_do_limiar():
+    from monitor import barra
+
+    b = barra(0.048, limiar=0.7173, largura=28)
+    assert b.count("|") == 1
+    assert b.index("|") == 20, "o limiar precisa cair na posição proporcional"
+    assert b.startswith("#"), "0,048 ainda acende a primeira célula"
+
+
+def test_barra_sem_limiar_nao_marca():
+    from monitor import barra
+
+    assert "|" not in barra(0.5, largura=10)
+
+
+def test_barra_extremos_nao_estouram():
+    from monitor import barra
+
+    assert len(barra(0.0, limiar=0.0, largura=10)) == 10
+    assert len(barra(1.0, limiar=1.0, largura=10)) == 10
+    assert len(barra(1.5, limiar=2.0, largura=10)) == 10
+
+
+def test_resumo_diz_de_que_lado_do_limiar_ficou():
+    """O número sozinho já se mostrou ambíguo para quem lê."""
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    ag.adicionar(Leitura(indice=0, instante=0.0, score=0.048, rms=0.1))
+
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        relatar(ag, None, limiar=0.7173)
+    saida = buf.getvalue()
+
+    assert "ABAIXO do limiar" in saida
+    assert "voz humana" in saida
+
+
+def test_resumo_acusa_indicio_de_sintese_acima_do_limiar():
+    import io
+    from contextlib import redirect_stdout
+
+    from monitor import relatar
+    from src.capture.analyzer import Agregador, Leitura
+
+    ag = Agregador()
+    ag.adicionar(Leitura(indice=0, instante=0.0, score=0.91, rms=0.1))
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        relatar(ag, None, limiar=0.7173)
+    saida = buf.getvalue()
+
+    assert "ACIMA do limiar" in saida
+    assert "indício de síntese" in saida
+
+
+def test_score_é_probabilidade_de_spoof_e_nao_de_bonafide(tmp_path):
+    """Trava a convenção: spoof=1 no LABEL_MAP, e o score é softmax[...][1].
+
+    Se alguém inverter isso, todo EER do projeto vira 1-EER e nenhum teste de
+    formatação perceberia.
+    """
+    from src.data.dataset import LABEL_MAP
+
+    assert LABEL_MAP == {"bonafide": 0, "spoof": 1}
+
+    fonte = Path("src/capture/analyzer.py").read_text(encoding="utf-8")
+    assert "torch.softmax(self.rede(feats), dim=1)[0, 1]" in fonte, \
+        "o índice do softmax mudou; o score deixaria de ser P(síntese)"
