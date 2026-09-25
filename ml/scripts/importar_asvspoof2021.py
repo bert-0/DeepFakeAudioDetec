@@ -49,6 +49,7 @@ from src.data.asvspoof2021 import (  # noqa: E402
     MetadadoInvalido,
     condicoes,
     escrever_protocolo,
+    fases,
     filtrar,
     ler_metadata,
     subamostrar,
@@ -85,14 +86,26 @@ def rotulo(args) -> str:
 
 def main(argv=None) -> int:
     args = parse_args(argv)
+    relatorio: dict = {}
     try:
-        trials = ler_metadata(args.metadata)
+        trials = ler_metadata(args.metadata, relatorio)
     except (OSError, MetadadoInvalido) as erro:
         print(f"[ERRO] {erro}")
         return 1
 
     ataques = sorted({t.ataque for t in trials if t.ataque != "-"})
-    print(f"{len(trials):,} trials | {len(ataques)} ataques: {', '.join(ataques)}")
+    n_bona = sum(1 for t in trials if t.chave == "bonafide")
+    print(f"{len(trials):,} trials ({n_bona:,} bonafide, {len(trials) - n_bona:,} spoof)"
+          f" | {len(ataques)} ataques: {', '.join(ataques)}")
+    if relatorio.get("ignoradas"):
+        print(f"[AVISO] {relatorio['ignoradas']:,} linhas ignoradas. Exemplos:")
+        for linha in relatorio["exemplos"]:
+            print(f"   {linha}")
+    if n_bona == 0 or n_bona == len(trials):
+        print("[ERRO] o metadado inteiro tem uma classe só — quase certamente as "
+              "linhas da outra\n       classe estão sendo descartadas. Não siga "
+              "adiante; mande as primeiras linhas\n       do arquivo.")
+        return 1
 
     if args.listar:
         print(f"\n{'condição (codec/canal)':32s} {'bonafide':>10s} {'spoof':>10s} "
@@ -100,6 +113,9 @@ def main(argv=None) -> int:
         print("-" * 66)
         for nome, bona, spoof in condicoes(trials):
             print(f"{nome:32s} {bona:10,} {spoof:10,} {bona + spoof:10,}")
+        print(f"\n{'fase do desafio':32s} {'bonafide':>10s} {'spoof':>10s}")
+        for fase, (bona, spoof) in fases(trials).items():
+            print(f"{fase:32s} {bona:10,} {spoof:10,}")
         print("\nA condição sem codec e sem transmissão reproduz o cenário do eval"
               "\nde 2019 — é o controle pareado. Gere ela e a do Opus com a mesma"
               "\n--seed e o mesmo --amostra.")

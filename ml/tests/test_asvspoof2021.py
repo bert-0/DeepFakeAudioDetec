@@ -24,16 +24,21 @@ from src.data.asvspoof2021 import (  # noqa: E402
 )
 from src.data.dataset import parse_protocol_with_systems  # noqa: E402
 
-# Linhas no formato real do eval-package:
+# Linhas no formato do eval-package:
 #   locutor arquivo codec canal ataque chave trim fase
+#
+# No arquivo REAL, o bonafide traz `bonafide` também na coluna de ataque. A
+# primeira versão deste fixture usava `-` ali — o formato suposto — e por isso
+# os testes passavam enquanto o parser descartava todo bonafide do arquivo
+# verdadeiro. As duas formas ficam aqui de propósito.
 LINHAS = """\
 LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval
-LA_0009 LA_E_1000001 alaw ita_tx - bonafide notrim eval
+LA_0009 LA_E_1000001 alaw ita_tx bonafide bonafide notrim eval
 LA_0010 LA_E_1000002 opus ita_tx A10 spoof notrim eval
-LA_0010 LA_E_1000003 opus ita_tx - bonafide notrim eval
+LA_0010 LA_E_1000003 opus ita_tx bonafide bonafide notrim progress
 LA_0011 LA_E_1000004 nocodec nocodec A12 spoof notrim eval
 LA_0011 LA_E_1000005 nocodec nocodec - bonafide notrim eval
-LA_0012 LA_E_1000006 gsm pstn A19 spoof notrim eval
+LA_0012 LA_E_1000006 gsm pstn A19 spoof notrim progress
 """
 
 
@@ -47,10 +52,19 @@ def metadata(tmp_path):
 # --------------------------------------------------------------------------- #
 # A regressão que motiva o módulo
 # --------------------------------------------------------------------------- #
-def test_parser_de_2019_falharia_em_silencio(metadata):
-    """Sem conversão, o protocolo sai VAZIO — e nada avisa."""
-    assert parse_protocol_with_systems(metadata) == [], \
-        "se isto passar a devolver linhas, o parser de 2019 mudou"
+def test_parser_de_2019_leria_o_arquivo_de_2021_errado_e_em_silencio(metadata):
+    """Sem conversão, o parser de 2019 devolve lixo plausível, sem erro.
+
+    No formato real do 2021 o bonafide tem `bonafide` na 5ª coluna, que é onde o
+    parser de 2019 procura a chave. Então ele ACEITA as linhas bonafide — com o
+    canal (`ita_tx`) no lugar do ataque — e descarta todos os spoof. O resultado
+    é um protocolo de uma classe só, que parece válido.
+    """
+    lidos = parse_protocol_with_systems(metadata)
+    assert lidos, "se isto voltar a ser vazio, o formato do fixture mudou"
+    assert all(label == 0 for _, label, _ in lidos), "só bonafide sobrevive"
+    assert {sistema for _, _, sistema in lidos} <= {"ita_tx", "nocodec", "pstn", "-"}, \
+        "o 'ataque' lido é na verdade o canal"
 
 
 def test_parser_de_2021_le_todas_as_linhas(metadata):
@@ -339,3 +353,68 @@ def test_cli_sem_config_base_avisa_para_nao_copiar_a_mao(metadata, tmp_path, cap
     main(["--metadata", str(metadata), "--codec", "opus",
           "--saida", str(tmp_path / "p.txt")])
     assert "sobrescreve os resultados" in capsys.readouterr().out
+
+
+
+# --------------------------------------------------------------------------- #
+# Regressão: o formato real do bonafide
+#
+# Rodado no arquivo verdadeiro, o `--listar` devolveu 163.114 trials e ZERO
+# bonafide. As linhas bonafide têm `bonafide` duas vezes (coluna de ataque e
+# coluna de chave), e o parser exigia uma ocorrência só.
+# --------------------------------------------------------------------------- #
+def test_bonafide_no_formato_real_e_lido(tmp_path):
+    p = tmp_path / "m.txt"
+    p.write_text("LA_0007 LA_E_5932896 alaw ita_tx bonafide bonafide notrim eval\n"
+                 "LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval\n",
+                 encoding="utf-8")
+    trials = ler_metadata(p)
+    assert [t.chave for t in trials] == ["bonafide", "spoof"]
+    assert trials[0].ataque == "-", "o bonafide não tem ataque"
+
+
+def test_fixture_tem_as_duas_classes_nas_condicoes_certas(metadata):
+    """O `--listar` real mostrou 0 bonafide em TODA condição; aqui não pode."""
+    achadas = {n: (b, s) for n, b, s in condicoes(ler_metadata(metadata))}
+    assert achadas["alaw/ita_tx"][0] == 1
+    assert achadas["opus/ita_tx"][0] == 1
+
+
+def test_descarte_de_linha_e_relatado(tmp_path):
+    from src.data.asvspoof2021 import ler_metadata as ler
+
+    p = tmp_path / "m.txt"
+    p.write_text("LA_0009 LA_E_1 alaw ita_tx A07 spoof notrim eval\n"
+                 "linha quebrada sem chave nenhuma aqui\n", encoding="utf-8")
+    relatorio: dict = {}
+    ler(p, relatorio)
+    assert relatorio["ignoradas"] == 1
+    assert "linha quebrada" in relatorio["exemplos"][0]
+
+
+def test_cli_para_quando_uma_classe_inteira_some(tmp_path, capsys):
+    """Era o sintoma do defeito: seguir adiante com zero bonafide."""
+    from scripts.importar_asvspoof2021 import main
+
+    p = tmp_path / "m.txt"
+    p.write_text("".join(f"LA_0009 LA_E_{i} alaw ita_tx A07 spoof notrim eval\n"
+                         for i in range(5)), encoding="utf-8")
+    assert main(["--metadata", str(p), "--listar"]) == 1
+    assert "uma classe só" in capsys.readouterr().out
+
+
+def test_listar_mostra_as_fases(metadata, capsys):
+    """O Müller reporta a fase de progresso; a divisão precisa estar visível."""
+    from scripts.importar_asvspoof2021 import main
+
+    assert main(["--metadata", str(metadata), "--listar"]) == 0
+    saida = capsys.readouterr().out
+    assert "progress" in saida and "eval" in saida
+
+
+def test_fases_conta_por_classe(metadata):
+    from src.data.asvspoof2021 import fases
+
+    contagem = fases(ler_metadata(metadata))
+    assert contagem["eval"] == (2, 3)
+    assert contagem["progress"] == (1, 1)

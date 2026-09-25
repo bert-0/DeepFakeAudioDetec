@@ -8,13 +8,18 @@ que o protocolo de 2019, e **em outra ordem**:
            locutor arquivo      codec canal   ataque chave  trim   fase
 
 O parser de 2019 (`parse_protocol_with_systems`) lê o ataque em `parts[3]` e a
-chave em `parts[4]`. Aplicado ao arquivo de 2021 ele leria `ita_tx` e `A07` —
-e como `A07` não é uma chave válida, **descartaria todas as linhas em
-silêncio**, devolvendo uma lista vazia. Falha silenciosa, que é a pior forma.
+chave em `parts[4]`. No arquivo real do 2021 o bonafide traz `bonafide` também
+na coluna de ataque (`... alaw ita_tx bonafide bonafide notrim eval`), então o
+parser de 2019 **aceita as linhas bonafide com o canal no lugar do ataque e
+descarta todos os spoof** — um protocolo de uma classe só, que parece válido.
 
-Por isso este módulo não usa índice fixo: ele **localiza** o token da chave
-(`bonafide`/`spoof`) e deduz os demais a partir dele. Assim funciona para LA e
-sobrevive à ordem diferente dos campos de outras trilhas.
+Por isso este módulo não usa índice fixo: ele **localiza** o último token
+`bonafide`/`spoof` da linha (a chave) e deduz os demais a partir dele.
+
+A primeira versão deste módulo exigia uma única ocorrência desse token, e por
+isso descartava todo bonafide do arquivo real — o `--listar` saiu com 163.114
+trials e zero bonafide. O formato tinha sido suposto, não conferido; os testes
+usavam o formato suposto e passavam. Agora o descarte é sempre relatado.
 
 **Por que isso importa cientificamente.** O metadado traz codec e canal por
 áudio, e os ataques são os mesmos A07–A19 do eval de 2019. Isso permite comparar
@@ -45,6 +50,7 @@ class Trial:
     canal: str        # ita_tx, pstn, … (meio de transmissão)
     ataque: str       # A07…A19, ou "-" para bonafide
     chave: str        # bonafide | spoof
+    fase: str = ""    # progress | eval | … (última coluna, quando houver)
 
     @property
     def condicao(self) -> str:
@@ -56,14 +62,28 @@ class MetadadoInvalido(ValueError):
     """O arquivo não se parece com um trial_metadata do ASVspoof 2021."""
 
 
-def ler_metadata(caminho: str | Path) -> list[Trial]:
+def ler_metadata(caminho: str | Path,
+                 relatorio: dict | None = None) -> list[Trial]:
     """Lê o `trial_metadata.txt` inteiro.
+
+    **A chave é o ÚLTIMO token `bonafide`/`spoof` da linha.** No arquivo real,
+    as linhas bonafide trazem `bonafide` também na coluna de ataque:
+
+        LA_0007 LA_E_5932896 alaw ita_tx bonafide bonafide notrim eval
+
+    A versão anterior exigia uma ocorrência só e descartava essas linhas em
+    silêncio — o `--listar` saiu com 163.114 trials e **zero bonafide**. Os
+    testes não pegaram porque o arquivo de exemplo usava `-` no lugar, que era
+    o formato suposto, não o real.
+
+    `relatorio`, se passado, recebe `ignoradas` e até 3 `exemplos` de linhas
+    descartadas — para que um descarte nunca mais seja silencioso.
 
     Levanta em vez de devolver lista vazia: um protocolo vazio propagado adiante
     vira um EER calculado sobre nada, e ninguém percebe até o número sair errado.
     """
     trials: list[Trial] = []
-    ignoradas = 0
+    ignoradas: list[str] = []
     with open(caminho, "r", encoding="utf-8") as fh:
         for linha in fh:
             partes = linha.split()
@@ -74,24 +94,39 @@ def ler_metadata(caminho: str | Path) -> list[Trial]:
             # `parts[3]` é o ataque, aqui é o canal. Aceitá-lo produziria
             # condições inventadas ("-/A07") que pareceriam canais reais.
             if len(partes) < CAMPOS_MINIMOS_2021:
-                ignoradas += 1
+                ignoradas.append(linha.rstrip())
                 continue
-            # A chave é o âncora: tudo se posiciona em relação a ela.
             indices = [i for i, p in enumerate(partes) if p in CHAVES]
-            if len(indices) != 1 or indices[0] < 4:
-                ignoradas += 1
+            if not indices or indices[-1] < 4:
+                ignoradas.append(linha.rstrip())
                 continue
-            i = indices[0]
+            i = indices[-1]
+            ataque = partes[i - 1]
+            if ataque in CHAVES:        # coluna de ataque do bonafide real
+                ataque = "-"
             trials.append(Trial(locutor=partes[0], arquivo=partes[1],
                                 codec=partes[2], canal=partes[3],
-                                ataque=partes[i - 1], chave=partes[i]))
+                                ataque=ataque, chave=partes[i],
+                                fase=partes[-1] if len(partes) > i + 2 else ""))
+    if relatorio is not None:
+        relatorio["ignoradas"] = len(ignoradas)
+        relatorio["exemplos"] = ignoradas[:3]
     if not trials:
         raise MetadadoInvalido(
             f"{caminho}: nenhuma linha com chave 'bonafide'/'spoof' reconhecida "
-            f"({ignoradas} linhas ignoradas). Confira se é o trial_metadata.txt "
+            f"({len(ignoradas)} linhas ignoradas). Confira se é o trial_metadata.txt "
             f"do eval-package do ASVspoof 2021 (8 campos), e não o protocolo "
             f"de 2019 (5 campos).")
     return trials
+
+
+def fases(trials: list[Trial]) -> dict[str, tuple[int, int]]:
+    """Contagem (bonafide, spoof) por fase do desafio."""
+    saida: dict[str, list[int]] = {}
+    for t in trials:
+        par = saida.setdefault(t.fase or "-", [0, 0])
+        par[0 if t.chave == "bonafide" else 1] += 1
+    return {k: (v[0], v[1]) for k, v in sorted(saida.items())}
 
 
 def condicoes(trials: list[Trial]) -> list[tuple[str, int, int]]:
