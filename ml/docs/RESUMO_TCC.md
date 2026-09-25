@@ -163,6 +163,85 @@ calibrado em áudio limpo. Sob o mesmo Opus a 15 kbps, o recall do v2 **sobe**
 (0,72 → 0,86) e o do v4 **cai** (0,55 → 0,39) — mesma perturbação, direções
 contrárias. Por isso o monitor exibe **score**, não veredito.
 
+### 5.1 Régua externa (Seção 5.9 do TC1)
+
+**Baselines oficiais — confirmados na fonte primária.** Todisco et al. (2019),
+Tabela 1, cenário LA, eval, resultados agrupados sobre todos os ataques:
+
+| sistema | min t-DCF | EER | posição entre 50 |
+|---|---|---|---|
+| B02 (LFCC-GMM) | 0,2116 | **8,09%** | 28ª |
+| B01 (CQCC-GMM) | 0,2366 | **9,57%** | 33ª |
+| melhor sistema (T05) | 0,0069 | 0,22% | 1ª |
+
+27 das 48 equipes superaram o B02. Os números "21,13% / 15,80%" que apareceram
+em buscas anteriores **não** são do eval de 2019 e foram descartados.
+
+**Por que essa régua não é equivalente.** Os baselines oficiais processam o
+áudio **com** o silêncio. Este projeto **remove** o silêncio (`trim_silence:
+true`, `top_db: 30`). Müller et al. (2021) mostram que isso muda o problema:
+
+- No ASVspoof 2019, o bonafide tem silêncio inicial e final bem mais longo. Uma
+  rede densa que recebe **um único número**, a duração do silêncio inicial,
+  chega a **15,12% de EER** no eval (85% de acurácia).
+- O RawNet2, baseline oficial do ASVspoof 2021, passa de **3,61%** com silêncio
+  para **15,50% ± 5,2** com o silêncio removido no treino: cinco vezes pior.
+- Um LSTM treinado com silêncio e avaliado com o silêncio removido do eval vai
+  de 7,35% para **35,32%**.
+
+**A régua equivalente existe, e está no mesmo artigo.** A Tabela 2 de Müller et
+al. treina modelos no ASVspoof 2019 **com o silêncio removido** e avalia no
+eval, o mesmo protocolo deste projeto:
+
+| modelo, silêncio removido | EER eval 2019 |
+|---|---|
+| ResNet (CQT), Müller et al. | 27,23% ± 3,2 |
+| CNN (CQT), Müller et al. | 26,27% ± 3,5 |
+| LSTM (CQT), Müller et al. | 27,28% ± 1,4 |
+| RawNet2, Müller et al. | 15,50% ± 5,2 |
+| **baseline_lfcc_cnn_v2** (este) | **18,99%** |
+| **fusion_lcnn_v4** (este) | **20,18%** |
+| **v2 + fusion_v4, fusão de scores** (este) | **13,13%** |
+
+Sob o protocolo equivalente, **os sete modelos deste projeto (18,99% a 21,56%)
+ficam abaixo dos três modelos CQT de Müller (26–27%)**, e a fusão de scores
+(13,13%) fica abaixo da média do RawNet2 (15,50%). Os modelos isolados ficam
+acima do RawNet2, mas dentro do desvio que o próprio Müller mede para ele
+(15,50 ± 5,2 → até 20,7%).
+
+Diferenças que ficam registradas, para não comparar mais do que é comparável:
+limiar do trim (Müller usa `top_db` 40, este projeto 30 — aqui o corte é um
+pouco mais agressivo); features (CQT e forma de onda contra LFCC e log-mel);
+duração (Müller usa o áudio inteiro, este projeto janela fixa de 4 s); e
+repetições (Müller reporta média ± desvio de várias execuções, este projeto uma
+execução por modelo).
+
+**Como escrever:** citar B01/B02 como os baselines oficiais, dizer
+explicitamente que eles usam o silêncio, citar Müller et al. para o efeito do
+silêncio, e usar a Tabela 2 de Müller como a comparação de mesmo protocolo. Nem
+esconder o 8,09%, nem comparar com ele como se fosse equivalente.
+
+### 5.2 Uma limitação que a régua externa expõe: uma execução por modelo
+
+Müller et al. reportam desvios de **1,4 a 5,2 pp entre execuções do mesmo
+modelo**. Este projeto treinou cada modelo **uma vez** (semente 42). Não há como
+saber a variância daqui sem retreinar, mas se ela for da mesma ordem:
+
+| efeito medido | tamanho | acima de 1,4–5,2 pp? |
+|---|---|---|
+| diferença por ataque entre v2 e v4 (Seção 7) | até 30 pp | **sim** |
+| inversão de ranking sob canal (Seção 5) | 10,4 e 15,0 pp | **sim** |
+| ganho da fusão de scores (Seção 4) | 5,86 pp | **sim** |
+| incremento da fusão de características (Seção 3) | −1,38 pp | **não** |
+| incremento da atenção (Seção 3) | +0,95 pp | **não** |
+
+Os resultados grandes sobrevivem. **Os dois incrementos do TC1 (−1,38 e +0,95
+pp) ficam dentro da faixa de variação entre execuções que Müller observa**, e
+não podem ser atribuídos ao método com uma execução só. Retreinar com mais
+sementes resolveria (≈3 h por treino, medido), mas o caminho barato é declarar
+a limitação no texto e apoiar a conclusão sobre a fusão na Seção 7, onde o
+efeito é por ataque e muito maior.
+
 ---
 
 ## 6. O modelo está mesmo aprendendo? (verificação de atalhos)
@@ -545,7 +624,7 @@ um EER que *parece* resultado.
 O procedimento inclui um **controle**: repetir tudo sem chamada nenhuma. Se o
 controle já divergir do eval limpo, a diferença é do procedimento, não do Teams.
 
-`[REGENERAR]` — resultado da camada 2, quando executada.
+**Não executada** — decisão registrada em 12.3: instrumentação validada, execução como trabalho futuro.
 
 ### 10.3 Bases públicas que já trazem canal
 
@@ -757,44 +836,9 @@ um está estruturalmente em desvantagem no outro.
 
 ## 11. Limitações e pendências
 
-**Pendência externa — baselines oficiais do ASVspoof 2019 LA.** A Seção 5.9 do
-TC1 precisa dos EERs oficiais de B01/B02 (pooled, eval) de Todisco et al. (2019)
-como régua externa. **Ainda não confirmados**: o proxy do ambiente bloqueia os
-PDFs, e as buscas devolvem dois conjuntos de números:
-
-| | LFCC-GMM (B02) | CQCC-GMM (B01) |
-|---|---|---|
-| conjunto A | 8,09% (t-DCF 0,2116) | 9,57% (t-DCF 0,2366) |
-| conjunto B | 21,13% (t-DCF 0,5836) | 15,80% (t-DCF 0,4948) |
-
-A hipótese mais provável é que o conjunto B pertença ao **ASVspoof 2021 LA**, e
-não ao 2019: ele vem acompanhado de RawNet2 com 9,50% / 0,4257, números
-associados aos baselines de 2021. **Isso é hipótese.** Confirmar na tabela de
-resultados de Todisco et al. (2019), Interspeech, antes de citar qualquer um.
-Se a hipótese se confirmar, o conjunto B serve de régua para a avaliação no
-2021 LA (Seção 12.2).
-
-**Como escrever a comparação: a régua não é equivalente.** Se o conjunto A se
-confirmar, o baseline oficial LFCC-GMM (8,09%) fica bem abaixo do
-`baseline_lfcc_cnn_v2` (18,99%). Isso tem explicação documentada, e ela não é
-"o modelo é pior":
-
-- Müller et al. (2021), *Speech is Silver, Silence is Golden*, mostram que no
-  ASVspoof 2019 os áudios bonafide têm silêncio inicial e final mais longo que os
-  spoof. Um modelo treinado **só na duração do silêncio inicial** chega a EER de
-  15%. E **remover o silêncio no pré-processamento piora** os detectores
-  estabelecidos.
-- Os baselines oficiais processam o áudio com o silêncio. **Este projeto remove
-  o silêncio** (`trim_silence: true` em todos os configs).
-- A Seção 6 deste trabalho mediu o mesmo atalho de forma independente: depois
-  do trim, a duração sozinha ainda dá EER de 43,80% (perto do acaso, 50%),
-  e a dependência do modelo em duração e energia fica em 1–2% da variância.
-
-Ou seja: parte do que os baselines oficiais medem é o atalho do silêncio, e
-este projeto o removeu de propósito. A comparação direta subestima o modelo
-daqui. O jeito honesto de escrever é apresentar os dois números **e** essa
-diferença de protocolo, citando Müller et al. — não esconder o baseline, e não
-comparar como se fossem equivalentes.
+**Baselines oficiais — resolvido.** Confirmados em Todisco et al. (2019),
+Tabela 1: B02 8,09%, B01 9,57%. A comparação e a ressalva do silêncio estão em
+5.1; a limitação de uma execução por modelo, em 5.2.
 
 **O áudio ao vivo é o mix.** O loopback entrega a soma de todos os
 participantes. Não há atribuição por pessoa; o resultado é sobre o *trecho*, não
@@ -825,13 +869,24 @@ temporal e ponderação das janelas. Nada disso precisa de execução nova.
 
 ### 12.2 Fazer (barato, alto valor)
 
-1. **Regenerar as tabelas por ataque** (Seção 7). Duas execuções de minutos. É a
-   seção que explica *por que* o modelo falha, e hoje está marcada
-   `[REGENERAR]`.
+1. ~~Regenerar as tabelas por ataque~~ — **feito**, ver Seção 7.
 2. **ASVspoof 2021 LA, com subamostragem.** Uma comparação pareada: condição de
    referência (sem codec) contra Opus real, nos dois modelos principais.
-3. **Obter os baselines oficiais do ASVspoof 2019** (ver Seção 11). Sem eles a
-   comparação com a literatura não tem régua.
+
+   **Régua para o 2021 LA**, de Müller et al. (2021), Tabela 4 e Tabela 1:
+
+   | sistema | LA 2021 |
+   |---|---|
+   | RawNet2 treinado com silêncio | 10,38% |
+   | **RawNet2 treinado sem silêncio** | **27,39%** |
+   | só a duração do silêncio inicial (1 número) | 19,93% |
+
+   A linha que compara com este projeto é a do meio: mesmo protocolo (silêncio
+   removido). Ressalva: são números da fase de progresso da CodaLab, sobre um
+   subconjunto do eval, e não sobre o eval completo.
+3. ~~Obter os baselines oficiais do ASVspoof 2019~~ — **feito**, ver 5.1. Com
+   eles veio a régua de mesmo protocolo (Müller et al., Tabela 2) e a
+   limitação de 5.2.
 
 **Não rode o eval de 2021 inteiro.** São 181.566 áudios, e não é preciso.
 Simulado no regime deste projeto (EER ≈ 20%, 10,3% de bonafide), a dispersão do
