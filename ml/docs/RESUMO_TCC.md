@@ -1123,7 +1123,10 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
 
 A cópia de agosto (no Projeto) está desatualizada, mas tem tabelas que esta
 versão não tem: EER por ataque dos seis modelos, robustez nas 11 condições e
-dev vs. eval com r = 0,951. Essas tabelas precisam ser trazidas para cá —
+dev vs. eval com r = 0,951. **Essa cópia não está no git** (morava em
+`ml/outputs/`, gitignored; o r = 0,951 não aparece em nenhum commit). Das 11
+condições de robustez, o histórico só guarda as quatro da Seção 5 (commit
+7aaf875). Essas tabelas precisam ser trazidas para cá —
 conferindo cada número contra a execução, e corrigindo os rótulos de ataque
 (Seção 7.3.1).
 

@@ -327,6 +327,12 @@ Fonte: Autoria própria.
 > registra r = 0,951 entre validação e avaliação, o que à primeira vista
 > **contradiz** o achado. Antes de escrever, conferir o que esse r mede, se é
 > entre modelos, por época ou por ataque.]
+>
+> [Pista no histórico do git: o commit 9e4882c (03/08) registra, para o v1,
+> "dev EER estável em ~10%", e o eval do v1 é 20,78%. A validação só tem os
+> ataques A01–A06 do treino, o que explica o descolamento. É um valor
+> aproximado, tirado da mensagem de commit: para o texto, é preciso o EER de
+> validação exato de cada modelo, que está no checkpoint/histórico de treino.]
 
 ## 5.3 Comparação com Baseline — substituir por inteiro
 
