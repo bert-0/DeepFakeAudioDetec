@@ -43,6 +43,7 @@ from src.metrics import (
     compute_metrics,
     format_metrics,
     plot_history,
+    probabilidade_e_logodds,
 )
 from src.models import build_model
 from src.preprocess.augment import Augmenter
@@ -262,19 +263,22 @@ def evaluate_loader(model, loader, device) -> tuple[dict[str, float], float]:
     corte calibrado quando `calibrate` está ativo — ver `main`.
     """
     model.eval()
-    all_labels, all_preds, all_scores = [], [], []
+    all_labels, all_preds, all_scores, all_logodds = [], [], [], []
     for features, labels in loader:
         features = {k: v.to(device) for k, v in features.items()}
         logits = model(features)
-        probs = torch.softmax(logits, dim=1)[:, 1]  # P(spoof)
-        all_scores.append(probs.cpu().numpy())
+        probs, logodds = probabilidade_e_logodds(logits)  # P(spoof) e log-odds
+        all_scores.append(probs)
+        all_logodds.append(logodds)
         all_preds.append(logits.argmax(dim=1).cpu().numpy())
         all_labels.append(labels.numpy())
     labels_arr = np.concatenate(all_labels)
     preds_arr = np.concatenate(all_preds)
     scores_arr = np.concatenate(all_scores)
+    # O threshold fica em probabilidade (unidade do checkpoint e do monitor); o
+    # EER, que escolhe o melhor modelo, sai dos log-odds, que não saturam.
     _, threshold = compute_eer_with_threshold(labels_arr, scores_arr)
-    return (labels_arr, preds_arr, scores_arr), threshold
+    return (labels_arr, preds_arr, scores_arr, np.concatenate(all_logodds)), threshold
 
 
 def main() -> None:
@@ -445,7 +449,7 @@ def main() -> None:
             break
         train_loss = running_loss / seen
         with cronometro.medindo("dev"):
-            (dev_labels, dev_preds, dev_scores), dev_threshold = evaluate_loader(
+            (dev_labels, dev_preds, dev_scores, dev_logodds), dev_threshold = evaluate_loader(
                 model, dev_loader, device)
 
         # Se o modelo passou a emitir NaN, treinar mais não recupera (pesos e/ou
@@ -461,7 +465,8 @@ def main() -> None:
         # Com calibração, as métricas usam o corte do EER (medido no dev) em vez
         # do 0,5 implícito do argmax — que oscila muito com pesos de classe.
         dev_metrics = compute_metrics(dev_labels, dev_preds, dev_scores,
-                                      threshold=dev_threshold if calibrate else None)
+                                      threshold=dev_threshold if calibrate else None,
+                                      eer_scores=dev_logodds)
         lr = optimizer.param_groups[0]["lr"]
         print(f"Época {epoch:3d} | lr={lr:.2e} | loss={train_loss:.4f} | "
               f"dev: {format_metrics(dev_metrics)}")

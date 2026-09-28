@@ -28,7 +28,7 @@ from src.config import load_config, seed_worker, output_name, resolve_device, se
 from src.data import build_dataset  # noqa: E402
 from src.data.dataset import protocol_ids_and_systems  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_eer  # noqa: E402
+from src.metrics import compute_eer, probabilidade_e_logodds  # noqa: E402
 from src.models import build_model  # noqa: E402
 from src.scores import checkpoint_fingerprint, load_scores, scores_path  # noqa: E402
 
@@ -49,12 +49,13 @@ def parse_args() -> argparse.Namespace:
 
 @torch.no_grad()
 def collect_scores(model, loader, device) -> tuple[np.ndarray, np.ndarray]:
+    """Rótulos e log-odds. O EER sai do log-odds, que não satura como o softmax."""
     model.eval()
     labels, scores = [], []
     for features, y in loader:
         features = {k: v.to(device) for k, v in features.items()}
-        probs = torch.softmax(model(features), dim=1)[:, 1]
-        scores.append(probs.cpu().numpy())
+        _, logodds = probabilidade_e_logodds(model(features))
+        scores.append(logodds)
         labels.append(y.numpy())
     return np.concatenate(labels), np.concatenate(scores)
 
@@ -130,7 +131,7 @@ def main() -> None:
                                     partition=args.partition)
 
     if reuso is not None:
-        labels, scores, systems = reuso
+        labels, _, systems, scores = reuso  # EER sobre os log-odds
         print(f"Scores {motivo} de {scores_path(OUTPUT_DIR, name, args.partition)} "
               "— inferência não repetida.\n")
     else:

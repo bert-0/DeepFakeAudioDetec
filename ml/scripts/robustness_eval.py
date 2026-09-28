@@ -9,6 +9,14 @@ Uso:
         --checkpoint checkpoints/baseline_lfcc_cnn.pt
     python scripts/robustness_eval.py --config configs/attention.yaml \
         --checkpoint checkpoints/attention_fusion.pt --smoke
+    # conferência barata: 10 mil áudios estratificados por ataque
+    python scripts/robustness_eval.py --config configs/fusion_v4.yaml \
+        --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000
+
+O EER é calculado sobre os log-odds (logit[1] - logit[0]), que não saturam. A
+linha de cada condição mostra também o EER pela probabilidade e quantos
+bonafide saturaram em 1,0: se os dois EERs batem, o número antigo (calculado
+pela probabilidade) continua valendo.
 """
 
 from __future__ import annotations
@@ -20,7 +28,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -33,7 +41,12 @@ from src.config import (  # noqa: E402
 )
 from src.data import build_dataset  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_metrics, format_metrics  # noqa: E402
+from src.metrics import (  # noqa: E402
+    compute_eer,
+    compute_metrics,
+    format_metrics,
+    probabilidade_e_logodds,
+)
 from src.models import build_model  # noqa: E402
 from src.preprocess.augment import make_perturbation  # noqa: E402
 from src.preprocess.channel import (  # noqa: E402
@@ -94,21 +107,48 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sem-canal", action="store_true",
                    help="roda só as condições acústicas (ruído/ganho), pulando "
                         "as de canal (codec e banda estreita)")
+    p.add_argument("--amostra", type=int, default=None, metavar="N",
+                   help="avalia só N áudios, estratificados por ataque (e bonafide), "
+                        "com a semente do config — mesma amostra em toda condição")
     return p.parse_args()
+
+
+def indices_estratificados(labels, systems, n: int, seed: int) -> list[int]:
+    """N índices com a mesma proporção de cada (rótulo, ataque) do conjunto.
+
+    Sortear sem estratificar poderia deixar um ataque raro de fora, e o EER da
+    amostra deixaria de ser comparável ao do conjunto inteiro.
+    """
+    grupos: dict[tuple, list[int]] = {}
+    for i, chave in enumerate(zip(labels, systems)):
+        grupos.setdefault(chave, []).append(i)
+    total = len(labels)
+    if n >= total:
+        return list(range(total))
+    rng = np.random.default_rng(seed)
+    escolhidos: list[int] = []
+    for chave in sorted(grupos, key=str):
+        membros = grupos[chave]
+        k = max(1, round(n * len(membros) / total))
+        escolhidos.extend(rng.choice(membros, size=min(k, len(membros)), replace=False).tolist())
+    return sorted(escolhidos)
 
 
 @torch.no_grad()
 def run_inference(model, loader, device):
+    """Devolve (labels, preds, P(spoof), log-odds)."""
     model.eval()
-    labels, preds, scores = [], [], []
+    labels, preds, scores, logodds = [], [], [], []
     for features, y in loader:
         features = {k: v.to(device) for k, v in features.items()}
         logits = model(features)
-        probs = torch.softmax(logits, dim=1)[:, 1]
-        scores.append(probs.cpu().numpy())
+        probs, lo = probabilidade_e_logodds(logits)
+        scores.append(probs)
+        logodds.append(lo)
         preds.append(logits.argmax(dim=1).cpu().numpy())
         labels.append(y.numpy())
-    return (np.concatenate(labels), np.concatenate(preds), np.concatenate(scores))
+    return (np.concatenate(labels), np.concatenate(preds),
+            np.concatenate(scores), np.concatenate(logodds))
 
 
 def plot_robustness(results: dict, out_path: Path) -> None:
@@ -193,8 +233,14 @@ def main() -> None:
         relatar_taxas(sample_rate)
 
     results: dict[str, dict] = {}
+    indices = None
     for label, perturbation in condicoes:
         ds = build_dataset(config, args.partition, extractor, args.smoke, augmenter=perturbation)
+        if args.amostra:
+            if indices is None:
+                indices = indices_estratificados(ds.labels, ds.system_ids, args.amostra, seed)
+                print(f"Amostra estratificada: {len(indices)} de {len(ds)} áudios\n")
+            ds = Subset(ds, indices)
         # As perturbações mudam as features, então o cache fica desligado e cada
         # condição recalcula tudo. Com `num_workers=0` isso era um único processo
         # extraindo 71.237 áudios seis vezes; as perturbações agora são
@@ -202,13 +248,23 @@ def main() -> None:
         loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
                             num_workers=0 if args.smoke else config["train"]["num_workers"],
                             worker_init_fn=seed_worker)
-        labels, preds, scores = run_inference(model, loader, device)
-        metrics = compute_metrics(labels, preds, scores, threshold=threshold)
+        labels, preds, scores, logodds = run_inference(model, loader, device)
+        metrics = compute_metrics(labels, preds, scores, threshold=threshold,
+                                  eer_scores=logodds)
+        # Conferência da saturação: o EER pela probabilidade é o que as versões
+        # anteriores reportavam. Se bate com o do log-odds, aquele número vale.
+        metrics["eer_probabilidade"] = compute_eer(labels, scores)
+        metrics["bonafide_saturados"] = int((scores[labels == 0] >= 1.0).sum())
+        metrics["n_bonafide"] = int((labels == 0).sum())
         results[label] = metrics
-        print(f"{label:12s} -> {format_metrics(metrics)}")
+        print(f"{label:12s} -> {format_metrics(metrics)}  "
+              f"[EER pela prob.={metrics['eer_probabilidade'] * 100:.2f}%  "
+              f"bonafide em 1,0: {metrics['bonafide_saturados']}/{metrics['n_bonafide']}]")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     name = output_name(config, args.smoke)
+    if args.amostra:
+        name = f"{name}_amostra{args.amostra}"
     # A partição entra no nome: sem ela, uma execução em dev sobrescreve a de eval.
     json_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.json"
     plot_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.png"

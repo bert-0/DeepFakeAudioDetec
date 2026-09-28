@@ -138,6 +138,14 @@ scores. Num fluxo ao vivo existe uma janela por vez, então ela não existe. Os
 
 `scripts/robustness_eval.py`, eval completo, 71.237 áudios por condição.
 
+> **Conferência pendente (saturação, ver 5.3).** Estas tabelas foram calculadas
+> pela probabilidade, e o `robustness_eval.py` não salva scores para checar
+> depois. A versão atual imprime, por condição, o EER pelos log-odds, o EER pela
+> probabilidade e quantos bonafide saturaram em 1,0. Se os dois EERs batem, o
+> número desta seção vale. Conferência barata, numa amostra estratificada:
+> `python scripts/robustness_eval.py --config configs/fusion_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000`
+> (e o mesmo para o `baseline_v2`).
+
 | condição | baseline_v2 | fusion_v4 | vence |
 |---|---|---|---|
 | limpo | **18,99%** | 20,18% | v2 |
@@ -285,17 +293,31 @@ desconhecidas), enquanto a simulação é só o codec numa taxa fixa. A diferen�
 inclui tudo o que a rede faz além do codec — que é justamente o que se queria
 medir.
 
-> **SOB VERIFICAÇÃO — possível artefato de medida.** A análise por ataque do
-> `fusion_v4` no Opus deu EER entre 48,65% e 50,09% em **todos** os ataques, com
-> **quatro ataques idênticos em 48,65%** (tamanhos de amostra diferentes). Esse é
-> o padrão de scores **empatados**: o score salvo é o softmax em float32, que
-> arredonda para exatamente 1,0 quando a margem entre os logits passa de ~17
-> (medido), e o `score_fusion.py` já registrava ~60 mil das 71 mil amostras do
-> eval de 2019 saturadas. Se bonafide e spoof empatam em 1,0, o EER mede o
-> arredondamento, não o modelo — um teste do projeto mostra classes perfeitamente
-> separadas pelo logit dando EER ≥ 40% pelo softmax. O Achado 2, a recomendação
-> para o monitor e **possivelmente os EERs de 2019** dependem de
-> `scripts/checar_saturacao.py`. Não citar estes números até lá.
+> **VERIFICADO — o 49,06% do `fusion_v4` no Opus é artefato de medida.** O
+> score salvo era o softmax em float32, que arredonda para exatamente 1,0 quando
+> a margem entre os logits passa de ~17 (medido). Se bonafide e spoof empatam em
+> 1,0, o EER mede o arredondamento, não o modelo — um teste do projeto mostra
+> classes perfeitamente separadas pelo logit dando EER ≥ 40% pelo softmax.
+> `scripts/checar_saturacao.py` mediu:
+>
+> | arquivo de scores | bonafide em 1,0 | spoof em 1,0 | valores distintos |
+> |---|---|---|---|
+> | todos os de 2019 (eval completo) | **0** | até ~26 mil | — |
+> | 2021 referência (v2 e v4) | **0** | — | — |
+> | 2021 Opus, baseline_v2 | **0** | — | — |
+> | 2021 Opus, fusion_v4 | **975 de 1.002 (97%)** | 8.926 de 8.999 (99%) | 52 |
+>
+> Só o último está contaminado. Spoof em 1,0 com bonafide abaixo é acerto e não
+> muda o EER, então **todos os EERs de 2019, as duas referências de 2021 e o
+> 29,43% do baseline_v2 no Opus valem**. O EER agora é calculado sobre os
+> log-odds (logit[1] − logit[0]), que não saturam; onde não havia saturação o
+> número não muda. **O EER do `fusion_v4` no Opus está pendente de nova
+> execução** — até lá, o Achado 2 e a razão ~16x do Achado 1 não devem ser
+> citados.
+>
+> O que **não** é artefato: 97% dos bonafide recebem probabilidade 1,0. É isso
+> que o monitor mostraria numa chamada real, e é por isso que o Achado 3 vale
+> para o `fusion_v4` independentemente do EER.
 
 **Achado 2 — a ordem entre os modelos se inverte de novo.** Sob banda estreita e
 ruído simulados, o `fusion_v4` era o robusto (Seção 5). Sob transmissão real, ele
@@ -313,9 +335,12 @@ trivial da Seção 8.1, produzido por um canal real e não por construção.
 a contradiz. Até medir a fusão dos dois modelos no Opus real, o `baseline_v2`
 é o modelo com melhor evidência para uso em chamada.
 
-**Pendente, barato (reaproveita os scores salvos):**
+**Pendente:** o `evaluate.py` do `fusion_v4` no Opus precisa rodar de novo (o
+arquivo antigo, com bonafide saturados e sem log-odds, é recusado). Os demais
+reaproveitam os scores salvos:
 
 ```bash
+python evaluate.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
 python scripts/per_attack_eval.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
 python scripts/per_attack_eval.py --config outputs/asvspoof2021/opus_eval_n10000__baseline_lfcc_cnn_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
 python scripts/score_fusion.py --name fusao_2021_opus \

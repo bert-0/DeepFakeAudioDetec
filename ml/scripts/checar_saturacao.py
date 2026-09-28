@@ -2,14 +2,18 @@
 
 O score salvo é o softmax em float32. Quando a diferença entre as duas saídas da
 rede passa de ~17, ele arredonda para EXATAMENTE 1.0 — e a ordem entre esses
-áudios se perde. O `score_fusion.py` já registrava ~60 mil das 71 mil amostras
-do eval de 2019 nessa situação.
+áudios se perde. No eval de 2019 chegam a ~26 mil spoof num mesmo modelo, mas
+nenhum bonafide.
 
 Isso importa para o EER, que depende só da ordem dos scores: se muitos bonafide
 e muitos spoof empatam em 1.0, o limiar não consegue separá-los, e o EER mede o
 arredondamento em vez do modelo. O sintoma foi visto no ASVspoof 2021 LA com
 Opus: quatro ataques com EER idêntico (48,65%), com números de amostras
 diferentes — o EER passou a depender só dos bonafide.
+
+Desde a correção, o `evaluate.py` salva também os log-odds e calcula o EER
+sobre eles; a coluna "log-odds" diz se o arquivo já é desse formato. Nesse caso
+a saturação da probabilidade não afeta mais o EER reportado.
 
 Uso:
     python scripts/checar_saturacao.py                 # todos em outputs/
@@ -41,8 +45,8 @@ def main(argv=None) -> int:
         return 1
 
     print(f"{'arquivo':58s} {'bonafide em 1.0':>18s} {'spoof em 1.0':>16s} "
-          f"{'valores distintos':>18s}")
-    print("-" * 114)
+          f"{'valores distintos':>18s} {'log-odds':>9s}")
+    print("-" * 124)
     for arquivo in arquivos:
         dados = np.load(arquivo)
         scores, labels = dados["scores"], dados["labels"]
@@ -51,11 +55,13 @@ def main(argv=None) -> int:
         s1, _, sn = c["spoof"]
         nome = arquivo.name.replace("_eval_scores.npz", "")
         print(f"{nome[:58]:58s} {b1:>7,}/{bn:<7,} {100*b1/max(bn,1):3.0f}% "
-              f"{s1:>6,}/{sn:<6,} {100*s1/max(sn,1):3.0f}% {len(np.unique(scores)):>12,}")
+              f"{s1:>6,}/{sn:<6,} {100*s1/max(sn,1):3.0f}% {len(np.unique(scores)):>12,} "
+              f"{'sim' if 'logodds' in dados.files else 'não':>9s}")
 
     print("\nComo ler: se uma fração grande dos BONAFIDE e dos SPOOF estão em 1.0, os")
     print("dois grupos empatam no topo e o EER daquele arquivo mede o arredondamento,")
     print("não o modelo. Spoof em 1.0 com bonafide abaixo não é problema: é acerto.")
+    print("Arquivos com log-odds = sim já têm o EER calculado sem a saturação.")
     return 0
 
 

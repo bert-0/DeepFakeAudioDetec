@@ -125,3 +125,23 @@ def test_ranks_do_not_launder_nan_into_finite_values():
     """NaN não pode virar posto finito e escapar da proteção de compute_eer."""
     r = to_ranks(np.array([0.1, np.nan, 0.9]))
     assert not np.isfinite(r).all()
+
+
+def test_rank_rule_uses_logodds_when_given():
+    """Com o softmax saturado, os postos pela probabilidade empatam tudo; os
+    log-odds preservam a separação que o modelo realmente produziu."""
+    from src.metrics import compute_eer
+
+    labels = np.array([0] * 20 + [1] * 20)
+    probs = [np.ones(40), np.ones(40)]
+    logodds = [np.r_[np.full(20, 20.0), np.full(20, 30.0)],
+               np.r_[np.full(20, 18.0), np.full(20, 25.0)]]
+    assert compute_eer(labels, combine(probs, "rank")) >= 0.4
+    assert compute_eer(labels, combine(probs, "rank", logodds)) == 0.0
+
+
+def test_mean_rule_stays_on_probabilities():
+    """`mean` é a conta do monitor ao vivo — continua sobre a probabilidade."""
+    probs = [np.array([0.2, 0.4]), np.array([0.6, 0.8])]
+    logodds = [np.array([-9.0, 9.0]), np.array([-9.0, 9.0])]
+    np.testing.assert_allclose(combine(probs, "mean", logodds), [0.4, 0.6])
