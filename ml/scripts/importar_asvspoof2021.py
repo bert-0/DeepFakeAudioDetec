@@ -80,6 +80,18 @@ def parse_args(argv=None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def audios_faltando(selecao, pasta: str | Path, ext: str = ".flac") -> list[str]:
+    """IDs da seleção cujo arquivo não existe na pasta de áudio.
+
+    Sem esta checagem, um caminho errado ou uma extração incompleta só aparece
+    no `evaluate.py`, como `FileNotFoundError` dentro de um worker do DataLoader,
+    enterrado num traceback de cem linhas. Conferir 10 mil caminhos custa menos
+    de um segundo.
+    """
+    pasta = Path(pasta)
+    return [t.arquivo for t in selecao if not (pasta / f"{t.arquivo}{ext}").is_file()]
+
+
 def rotulo(args) -> str:
     base = args.condicao or args.codec or "todas"
     rot = base.replace("/", "-").replace("-" + "-", "-").rstrip("-")
@@ -155,6 +167,25 @@ def main(argv=None) -> int:
               "\nmodelo trocando só os caminhos — isso sobrescreve os resultados de"
               "\n2019. Rode de novo com --config-base e --audio-dir.")
         return 0
+
+    faltando = audios_faltando(selecao, args.audio_dir)
+    if faltando:
+        pasta = Path(args.audio_dir)
+        existentes = len(list(pasta.glob("*.flac"))) if pasta.is_dir() else 0
+        print(f"\n[ERRO] {len(faltando):,} dos {len(selecao):,} áudios da amostra não "
+              f"estão em {pasta}")
+        print(f"       exemplos: {', '.join(faltando[:3])}")
+        if not pasta.is_dir():
+            print("       A pasta não existe. Confira o nome real da pasta que o "
+                  "Zenodo criou.")
+        else:
+            print(f"       A pasta tem {existentes:,} arquivos .flac; o eval completo "
+                  f"do 2021 tem 181.566.")
+            print("       Se tem menos, a extração está incompleta: o áudio vem em "
+                  "várias partes\n       no Zenodo e todas precisam ser extraídas "
+                  "na mesma pasta.")
+        print("       Nenhum config foi gerado.")
+        return 1
 
     base = load_config(args.config_base)
     cfg = config_derivado(base, f"2021_{tag}", protocolo, args.audio_dir)

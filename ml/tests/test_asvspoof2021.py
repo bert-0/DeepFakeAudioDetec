@@ -329,7 +329,7 @@ def test_cli_gera_config_seguro_e_carregavel(metadata, tmp_path, capsys):
     codigo = main(["--metadata", str(metadata), "--codec", "opus",
                    "--saida", str(destino),
                    "--config-base", "configs/fusion_v4.yaml",
-                   "--audio-dir", "data/2021/flac"])
+                   "--audio-dir", str(_pasta_com_audios(tmp_path, metadata))])
     assert codigo == 0
 
     cfg = load_config(destino.with_name("opus__fusion_lcnn_v4.yaml"))
@@ -462,12 +462,57 @@ def test_dois_modelos_na_mesma_condicao_nao_sobrescrevem_o_config(metadata, tmp_
     from src.config import load_config
 
     destino = tmp_path / "opus.txt"
+    audio = _pasta_com_audios(tmp_path, metadata)
     for base in ("configs/fusion_v4.yaml", "configs/baseline_v2.yaml"):
         assert main(["--metadata", str(metadata), "--codec", "opus",
                      "--saida", str(destino), "--config-base", base,
-                     "--audio-dir", "flac"]) == 0
+                     "--audio-dir", str(audio)]) == 0
 
     nomes = sorted(p.name for p in tmp_path.glob("opus__*.yaml"))
     assert nomes == ["opus__baseline_lfcc_cnn_v2.yaml", "opus__fusion_lcnn_v4.yaml"]
     assert load_config(tmp_path / nomes[0])["model"]["name"] != \
         load_config(tmp_path / nomes[1])["model"]["name"]
+
+
+
+# --------------------------------------------------------------------------- #
+# Áudio ausente — a falha precisa aparecer na importação, não no evaluate.py
+#
+# Com a pasta errada (ou a extração incompleta), o erro só surgia no
+# evaluate.py, como FileNotFoundError dentro de um worker do DataLoader.
+# --------------------------------------------------------------------------- #
+def _pasta_com_audios(tmp_path, metadata):
+    pasta = tmp_path / "flac"
+    pasta.mkdir(exist_ok=True)
+    for t in ler_metadata(metadata):
+        (pasta / f"{t.arquivo}.flac").write_bytes(b"x")
+    return pasta
+
+
+def test_importacao_recusa_amostra_com_audio_faltando(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    (pasta / "LA_E_1000002.flac").write_bytes(b"x")     # só 1 dos 2 do opus
+
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(tmp_path / "p.txt"),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", str(pasta)])
+    saida = capsys.readouterr().out
+
+    assert codigo == 1
+    assert "1 dos 2" in saida and "LA_E_1000003" in saida
+    assert "181.566" in saida, "precisa dizer quanto a pasta deveria ter"
+    assert not list(tmp_path.glob("*.yaml")), "nenhum config pode ser gerado"
+
+
+def test_importacao_explica_pasta_inexistente(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "opus",
+          "--saida", str(tmp_path / "p.txt"),
+          "--config-base", "configs/fusion_v4.yaml",
+          "--audio-dir", str(tmp_path / "nao_existe")])
+    assert "A pasta não existe" in capsys.readouterr().out
