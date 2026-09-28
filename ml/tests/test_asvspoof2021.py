@@ -559,5 +559,30 @@ def test_importacao_avisa_quando_o_libsndfile_nao_le(metadata, tmp_path, capsys)
     saida = capsys.readouterr().out
 
     assert codigo == 0
-    assert "libsndfile não conseguiu abrir" in saida
+    assert "libsndfile não conseguiu decodificar" in saida
     assert "pip install -U soundfile" in saida
+
+
+
+def test_cabecalho_bom_com_decodificacao_quebrada_e_detectado(tmp_path):
+    """O caso que `sf.info` deixava passar.
+
+    No uso real o cabeçalho dos .flac do 2021 abriu sem erro. Um FLAC truncado
+    reproduz a situação: o cabeçalho sobrevive, a decodificação não.
+    """
+    import soundfile as sf
+
+    from scripts.importar_asvspoof2021 import falhas_de_leitura
+    from src.data.asvspoof2021 import Trial
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    t = np.arange(16000 * 2) / 16000
+    sf.write(pasta / "cortado.flac", (0.3 * np.sin(2 * np.pi * 200 * t)).astype("float32"), 16000)
+    dados = (pasta / "cortado.flac").read_bytes()
+    (pasta / "cortado.flac").write_bytes(dados[: len(dados) // 3])
+
+    sf.info(str(pasta / "cortado.flac"))            # o cabeçalho abre sem erro
+
+    _, falhas = falhas_de_leitura([Trial("S", "cortado", "none", "-", "-", "bonafide")], pasta)
+    assert [nome for nome, _ in falhas] == ["cortado"]

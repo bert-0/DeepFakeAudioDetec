@@ -92,14 +92,21 @@ def audios_faltando(selecao, pasta: str | Path, ext: str = ".flac") -> list[str]
     return [t.arquivo for t in selecao if not (pasta / f"{t.arquivo}{ext}").is_file()]
 
 
-def falhas_de_leitura(selecao, pasta: str | Path, n: int = 20,
+def falhas_de_leitura(selecao, pasta: str | Path, n: int = 50,
                       ext: str = ".flac") -> tuple[int, list[tuple[str, str]]]:
-    """Tenta abrir `n` áudios da amostra com o libsndfile, o leitor rápido.
+    """Decodifica `n` áudios da amostra INTEIROS com o libsndfile.
 
     Quando ele falha, o librosa cai em silêncio no `audioread`, que no Windows
     abre um processo do FFmpeg POR ARQUIVO: a avaliação continua funcionando,
     mas fica muito lenta e pesada. O aviso do librosa ("PySoundFile failed")
-    não diz o motivo — aqui a mensagem real do libsndfile é devolvida.
+    não diz o motivo, e aparece uma vez por processo — com 4 workers, não dá
+    para saber se falharam 4 arquivos ou todos.
+
+    **Decodificar, não só abrir.** A primeira versão usava `sf.info`, que lê só
+    o cabeçalho. Rodado nos arquivos reais do 2021, o cabeçalho abriu sem erro
+    (FLAC, 16 kHz, 16 bits) — e a falha do FLAC documentada no python-soundfile
+    ("unknown error in flac decoder") é justamente cabeçalho bom com decodificação
+    quebrada. O mesmo vale para arquivo truncado: o cabeçalho sobrevive.
     """
     import soundfile as sf
 
@@ -108,7 +115,7 @@ def falhas_de_leitura(selecao, pasta: str | Path, n: int = 20,
     falhas = []
     for t in testados:
         try:
-            sf.info(str(pasta / f"{t.arquivo}{ext}"))
+            sf.read(str(pasta / f"{t.arquivo}{ext}"), dtype="float32")
         except Exception as erro:  # noqa: BLE001 — qualquer falha interessa aqui
             falhas.append((t.arquivo, str(erro) or type(erro).__name__))
     return len(testados), falhas
@@ -213,8 +220,9 @@ def main(argv=None) -> int:
     if falhas:
         import soundfile as sf
 
-        print(f"\n[AVISO] o libsndfile não conseguiu abrir {len(falhas)} de {testados} "
-              f"áudios testados.")
+        print(f"\n[AVISO] o libsndfile não conseguiu decodificar {len(falhas)} de "
+              f"{testados} áudios testados.")
+        print(f"        exemplo: {falhas[0][0]}")
         print(f"        erro real: {falhas[0][1]}")
         print(f"        soundfile {sf.__version__}, libsndfile {sf.__libsndfile_version__}")
         print("        A avaliação ainda funciona (o librosa cai no audioread), mas")
