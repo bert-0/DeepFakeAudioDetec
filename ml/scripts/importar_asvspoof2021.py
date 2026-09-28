@@ -92,6 +92,28 @@ def audios_faltando(selecao, pasta: str | Path, ext: str = ".flac") -> list[str]
     return [t.arquivo for t in selecao if not (pasta / f"{t.arquivo}{ext}").is_file()]
 
 
+def falhas_de_leitura(selecao, pasta: str | Path, n: int = 20,
+                      ext: str = ".flac") -> tuple[int, list[tuple[str, str]]]:
+    """Tenta abrir `n` áudios da amostra com o libsndfile, o leitor rápido.
+
+    Quando ele falha, o librosa cai em silêncio no `audioread`, que no Windows
+    abre um processo do FFmpeg POR ARQUIVO: a avaliação continua funcionando,
+    mas fica muito lenta e pesada. O aviso do librosa ("PySoundFile failed")
+    não diz o motivo — aqui a mensagem real do libsndfile é devolvida.
+    """
+    import soundfile as sf
+
+    pasta = Path(pasta)
+    testados = selecao[:n]
+    falhas = []
+    for t in testados:
+        try:
+            sf.info(str(pasta / f"{t.arquivo}{ext}"))
+        except Exception as erro:  # noqa: BLE001 — qualquer falha interessa aqui
+            falhas.append((t.arquivo, str(erro) or type(erro).__name__))
+    return len(testados), falhas
+
+
 def rotulo(args) -> str:
     base = args.condicao or args.codec or "todas"
     rot = base.replace("/", "-").replace("-" + "-", "-").rstrip("-")
@@ -186,6 +208,18 @@ def main(argv=None) -> int:
                   "na mesma pasta.")
         print("       Nenhum config foi gerado.")
         return 1
+
+    testados, falhas = falhas_de_leitura(selecao, args.audio_dir)
+    if falhas:
+        import soundfile as sf
+
+        print(f"\n[AVISO] o libsndfile não conseguiu abrir {len(falhas)} de {testados} "
+              f"áudios testados.")
+        print(f"        erro real: {falhas[0][1]}")
+        print(f"        soundfile {sf.__version__}, libsndfile {sf.__libsndfile_version__}")
+        print("        A avaliação ainda funciona (o librosa cai no audioread), mas")
+        print("        fica MUITO lenta: no Windows, um processo do FFmpeg por arquivo.")
+        print("        Tente primeiro:  pip install -U soundfile")
 
     base = load_config(args.config_base)
     cfg = config_derivado(base, f"2021_{tag}", protocolo, args.audio_dir)

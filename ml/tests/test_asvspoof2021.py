@@ -10,6 +10,7 @@ todas as linhas em silêncio e devolve lista vazia. O teste
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -516,3 +517,47 @@ def test_importacao_explica_pasta_inexistente(metadata, tmp_path, capsys):
           "--config-base", "configs/fusion_v4.yaml",
           "--audio-dir", str(tmp_path / "nao_existe")])
     assert "A pasta não existe" in capsys.readouterr().out
+
+
+
+# --------------------------------------------------------------------------- #
+# Leitura pelo libsndfile — quando falha, o fallback do librosa é lento demais
+#
+# No uso real, o libsndfile falhou em todos os .flac do 2021 e o librosa caiu
+# no audioread (um processo do FFmpeg por arquivo no Windows). A avaliação
+# travou de tão lenta, e o aviso do librosa não dizia o motivo.
+# --------------------------------------------------------------------------- #
+def test_falha_de_leitura_e_detectada_com_o_erro_real(tmp_path):
+    import soundfile as sf
+
+    from scripts.importar_asvspoof2021 import falhas_de_leitura
+    from src.data.asvspoof2021 import Trial
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    sf.write(pasta / "bom.flac", np.zeros(1600, dtype="float32"), 16000)
+    (pasta / "ruim.flac").write_bytes(b"isto nao e um flac")
+
+    trials = [Trial("S", "bom", "none", "-", "-", "bonafide"),
+              Trial("S", "ruim", "none", "-", "A07", "spoof")]
+    testados, falhas = falhas_de_leitura(trials, pasta)
+
+    assert testados == 2
+    assert [nome for nome, _ in falhas] == ["ruim"]
+    assert falhas[0][1], "a mensagem real do libsndfile não pode sumir"
+
+
+def test_importacao_avisa_quando_o_libsndfile_nao_le(metadata, tmp_path, capsys):
+    """Arquivos existem, mas não são legíveis: gera o config, avisando alto."""
+    from scripts.importar_asvspoof2021 import main
+
+    pasta = _pasta_com_audios(tmp_path, metadata)       # bytes que não são FLAC
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(tmp_path / "p.txt"),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", str(pasta)])
+    saida = capsys.readouterr().out
+
+    assert codigo == 0
+    assert "libsndfile não conseguiu abrir" in saida
+    assert "pip install -U soundfile" in saida
