@@ -609,10 +609,22 @@ completo, 71.237 áudios):
 | ruído 5 dB SNR | 42,41% | **27,42%** | v4 por 15,0 pp |
 | **degradação máxima** | +23,42 pp | **+7,24 pp** | |
 
-O codec Opus custa pouco (+1,2 a +2,8 pp até 15 kbps, abaixo do que o Teams
-usa). Quem derruba é perder a banda alta e o ruído acústico do interlocutor. Por
-isso o monitor usa o `fusion_lcnn_v4`: ele perde no benchmark limpo e ganha com
-folga em tudo que se parece com uma chamada real.
+Na simulação, o codec Opus custa pouco (+1,2 a +2,8 pp até 15 kbps) e quem
+derruba é perder a banda alta e o ruído acústico. Foi por isso que o monitor
+passou a usar o `fusion_lcnn_v4`.
+
+**O canal real contradiz essa escolha.** No ASVspoof 2021 LA, com Opus
+transmitido por redes VoIP reais (amostra de 10 mil, fase `eval`):
+
+| | referência | Opus real |
+|---|---|---|
+| baseline_v2 | 18,15% | **29,43%** |
+| fusion_v4 | 19,51% | **49,06%** |
+
+O `fusion_v4` cai ao acaso, e o custo real do Opus é de 11 a 16 vezes o
+simulado. A robustez à degradação simulada não previu o canal real. Até medir a
+fusão dos dois no Opus real, o `baseline_v2` é o modelo com melhor evidência
+para chamada. Detalhes em `docs/RESUMO_TCC.md`, Seção 5.3.
 
 **O ponto de operação não transfere.** O limiar gravado no checkpoint foi
 calibrado em áudio limpo, e fora do domínio se comporta de forma imprevisível:
