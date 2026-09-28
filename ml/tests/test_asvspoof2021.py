@@ -560,7 +560,10 @@ def test_importacao_avisa_quando_o_libsndfile_nao_le(metadata, tmp_path, capsys)
 
     assert codigo == 0
     assert "libsndfile não conseguiu decodificar" in saida
-    assert "pip install -U soundfile" in saida
+    # O conselho antigo era atualizar o soundfile; no uso real ele já estava na
+    # versão mais nova (0.14.0, libsndfile 1.2.2) e o defeito persistia.
+    assert "pip install" not in saida
+    assert "converter_para_wav.py" in saida and "--audio-ext .wav" in saida
 
 
 

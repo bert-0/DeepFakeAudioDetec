@@ -312,6 +312,9 @@ def build_dataset(
         audio_cfg=config["audio"],
         extractor=extractor,
         cache_dir=cache_dir,
+        # `.flac` é o formato do ASVspoof. Outra extensão só aparece quando os
+        # áudios foram convertidos — ver scripts/converter_para_wav.py.
+        file_ext=config["data"].get("file_ext", ".flac"),
         augmenter=augmenter,
         random_crop=random_crop,
         seed=config["experiment"]["seed"],

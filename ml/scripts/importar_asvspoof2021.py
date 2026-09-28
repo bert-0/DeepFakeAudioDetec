@@ -74,7 +74,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--config-base", default=None,
                    help="config do modelo treinado; gera um config derivado seguro")
     p.add_argument("--audio-dir", default=None,
-                   help="pasta de .flac do eval do 2021 (exigida com --config-base)")
+                   help="pasta de áudio do eval do 2021 (exigida com --config-base)")
+    p.add_argument("--audio-ext", default=".flac",
+                   help="extensão dos áudios: .flac (original) ou .wav (convertidos)")
     p.add_argument("--saida", default=None,
                    help="protocolo de saída (padrão: outputs/asvspoof2021/<rótulo>.txt)")
     return p.parse_args(argv)
@@ -197,10 +199,11 @@ def main(argv=None) -> int:
               "\n2019. Rode de novo com --config-base e --audio-dir.")
         return 0
 
-    faltando = audios_faltando(selecao, args.audio_dir)
+    faltando = audios_faltando(selecao, args.audio_dir, args.audio_ext)
     if faltando:
         pasta = Path(args.audio_dir)
-        existentes = len(list(pasta.glob("*.flac"))) if pasta.is_dir() else 0
+        existentes = (len(list(pasta.glob(f"*{args.audio_ext}")))
+                      if pasta.is_dir() else 0)
         print(f"\n[ERRO] {len(faltando):,} dos {len(selecao):,} áudios da amostra não "
               f"estão em {pasta}")
         print(f"       exemplos: {', '.join(faltando[:3])}")
@@ -208,15 +211,15 @@ def main(argv=None) -> int:
             print("       A pasta não existe. Confira o nome real da pasta que o "
                   "Zenodo criou.")
         else:
-            print(f"       A pasta tem {existentes:,} arquivos .flac; o eval completo "
-                  f"do 2021 tem 181.566.")
+            print(f"       A pasta tem {existentes:,} arquivos {args.audio_ext}; o eval "
+                  f"completo do 2021 tem 181.566.")
             print("       Se tem menos, a extração está incompleta: o áudio vem em "
                   "várias partes\n       no Zenodo e todas precisam ser extraídas "
                   "na mesma pasta.")
         print("       Nenhum config foi gerado.")
         return 1
 
-    testados, falhas = falhas_de_leitura(selecao, args.audio_dir)
+    testados, falhas = falhas_de_leitura(selecao, args.audio_dir, ext=args.audio_ext)
     if falhas:
         import soundfile as sf
 
@@ -227,10 +230,15 @@ def main(argv=None) -> int:
         print(f"        soundfile {sf.__version__}, libsndfile {sf.__libsndfile_version__}")
         print("        A avaliação ainda funciona (o librosa cai no audioread), mas")
         print("        fica MUITO lenta: no Windows, um processo do FFmpeg por arquivo.")
-        print("        Tente primeiro:  pip install -U soundfile")
+        print("        Converta a amostra para WAV uma vez e aponte para lá:")
+        print(f"          python scripts/converter_para_wav.py --protocolo {protocolo.as_posix()} "
+              f"--origem {Path(args.audio_dir).as_posix()} --destino <pasta wav>")
+        print("        e rode esta importação de novo com --audio-dir <pasta wav> "
+              "--audio-ext .wav")
 
     base = load_config(args.config_base)
-    cfg = config_derivado(base, f"2021_{tag}", protocolo, args.audio_dir)
+    cfg = config_derivado(base, f"2021_{tag}", protocolo, args.audio_dir,
+                          ext=args.audio_ext)
     # Um config por MODELO: o protocolo é o mesmo para os dois modelos, mas o
     # config não — sem o nome do experimento, avaliar o segundo modelo na mesma
     # condição gravaria por cima do config do primeiro.
