@@ -622,7 +622,9 @@ transmitido por redes VoIP reais (amostra de 10 mil, fase `eval`):
 | fusion_v4 | 19,51% | **49,06%** |
 
 O `fusion_v4` cai ao acaso, e o custo real do Opus é de 11 a 16 vezes o
-simulado. A robustez à degradação simulada não previu o canal real. Até medir a
+simulado. **Sob verificação:** o EER do `fusion_v4` no Opus pode ser artefato de
+saturação do softmax em float32 (scores empatados em exatamente 1,0) — ver
+`scripts/checar_saturacao.py` e `docs/RESUMO_TCC.md`, 5.3. A robustez à degradação simulada não previu o canal real. Até medir a
 fusão dos dois no Opus real, o `baseline_v2` é o modelo com melhor evidência
 para chamada. Detalhes em `docs/RESUMO_TCC.md`, Seção 5.3.
 

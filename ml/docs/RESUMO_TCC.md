@@ -285,6 +285,18 @@ desconhecidas), enquanto a simulação é só o codec numa taxa fixa. A diferen�
 inclui tudo o que a rede faz além do codec — que é justamente o que se queria
 medir.
 
+> **SOB VERIFICAÇÃO — possível artefato de medida.** A análise por ataque do
+> `fusion_v4` no Opus deu EER entre 48,65% e 50,09% em **todos** os ataques, com
+> **quatro ataques idênticos em 48,65%** (tamanhos de amostra diferentes). Esse é
+> o padrão de scores **empatados**: o score salvo é o softmax em float32, que
+> arredonda para exatamente 1,0 quando a margem entre os logits passa de ~17
+> (medido), e o `score_fusion.py` já registrava ~60 mil das 71 mil amostras do
+> eval de 2019 saturadas. Se bonafide e spoof empatam em 1,0, o EER mede o
+> arredondamento, não o modelo — um teste do projeto mostra classes perfeitamente
+> separadas pelo logit dando EER ≥ 40% pelo softmax. O Achado 2, a recomendação
+> para o monitor e **possivelmente os EERs de 2019** dependem de
+> `scripts/checar_saturacao.py`. Não citar estes números até lá.
+
 **Achado 2 — a ordem entre os modelos se inverte de novo.** Sob banda estreita e
 ruído simulados, o `fusion_v4` era o robusto (Seção 5). Sob transmissão real, ele
 cai para **49,06%, indistinguível do acaso**, e o `baseline_v2` vence por 19,6
