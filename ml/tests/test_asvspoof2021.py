@@ -418,3 +418,39 @@ def test_fases_conta_por_classe(metadata):
     contagem = fases(ler_metadata(metadata))
     assert contagem["eval"] == (2, 3)
     assert contagem["progress"] == (1, 1)
+
+
+# --------------------------------------------------------------------------- #
+# Filtro por fase — o metadado real mistura eval, progress e hidden
+# --------------------------------------------------------------------------- #
+def test_filtro_por_fase(metadata):
+    from src.data.asvspoof2021 import filtrar
+
+    so_eval = filtrar(ler_metadata(metadata), fase="eval")
+    assert so_eval and all(t.fase == "eval" for t in so_eval)
+    assert len(so_eval) == 5
+
+
+def test_fase_combina_com_codec(metadata):
+    from src.data.asvspoof2021 import filtrar
+
+    sel = filtrar(ler_metadata(metadata), codec="opus", fase="progress")
+    assert [t.arquivo for t in sel] == ["LA_E_1000003"]
+
+
+def test_cli_avisa_quando_a_fase_nao_e_escolhida(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "alaw",
+          "--saida", str(tmp_path / "p.txt")])
+    assert "--fase eval" in capsys.readouterr().out
+
+
+def test_rotulo_do_arquivo_inclui_a_fase(metadata, tmp_path):
+    """Referência sem codec vira `none_eval_n...`, sem hífen solto do canal `-`."""
+    import argparse
+
+    from scripts.importar_asvspoof2021 import rotulo
+
+    a = argparse.Namespace(condicao="none/-", codec=None, fase="eval", amostra=10000)
+    assert rotulo(a) == "none_eval_n10000"

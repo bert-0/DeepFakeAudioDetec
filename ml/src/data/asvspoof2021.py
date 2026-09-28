@@ -140,13 +140,21 @@ def condicoes(trials: list[Trial]) -> list[tuple[str, int, int]]:
 
 
 def filtrar(trials: list[Trial], condicao: str | None = None,
-            codec: str | None = None) -> list[Trial]:
-    """Seleciona por condição completa (`codec/canal`) ou só por codec."""
+            codec: str | None = None, fase: str | None = None) -> list[Trial]:
+    """Seleciona por condição completa (`codec/canal`), por codec e/ou por fase.
+
+    A fase importa: o metadado mistura três conjuntos do desafio (`eval`,
+    `progress`, `hidden`). Só o `eval` é o conjunto de avaliação oficial — as
+    contagens dele batem com as publicadas (14.816 bonafide, 133.360 spoof).
+    O `hidden` é um subconjunto à parte, que não deve entrar na média.
+    """
     saida = trials
     if condicao:
         saida = [t for t in saida if t.condicao == condicao]
     if codec:
         saida = [t for t in saida if t.codec == codec]
+    if fase:
+        saida = [t for t in saida if t.fase == fase]
     return saida
 
 

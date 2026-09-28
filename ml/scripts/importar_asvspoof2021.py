@@ -66,6 +66,8 @@ def parse_args(argv=None) -> argparse.Namespace:
                    help="só lista as condições encontradas e sai")
     p.add_argument("--condicao", default=None, help="condição exata `codec/canal`")
     p.add_argument("--codec", default=None, help="filtra só pelo codec")
+    p.add_argument("--fase", default=None,
+                   help="filtra pela fase do desafio; use `eval`, o conjunto oficial")
     p.add_argument("--amostra", type=int, default=0,
                    help="subamostra estratificada de N trials (0 = todos)")
     p.add_argument("--seed", type=int, default=42)
@@ -80,7 +82,9 @@ def parse_args(argv=None) -> argparse.Namespace:
 
 def rotulo(args) -> str:
     base = args.condicao or args.codec or "todas"
-    rot = base.replace("/", "-")
+    rot = base.replace("/", "-").replace("-" + "-", "-").rstrip("-")
+    if args.fase:
+        rot = f"{rot}_{args.fase}"
     return f"{rot}_n{args.amostra}" if args.amostra else rot
 
 
@@ -125,7 +129,11 @@ def main(argv=None) -> int:
         print("[ERRO] --config-base exige --audio-dir (a pasta de .flac do 2021).")
         return 1
 
-    selecao = filtrar(trials, condicao=args.condicao, codec=args.codec)
+    selecao = filtrar(trials, condicao=args.condicao, codec=args.codec,
+                      fase=args.fase)
+    if not args.fase:
+        print("[AVISO] sem --fase: a seleção mistura eval, progress e hidden. "
+              "Para o conjunto\n        oficial, use --fase eval.")
     if not selecao:
         print("[ERRO] nenhum trial casa com o filtro pedido. Use --listar.")
         return 1
