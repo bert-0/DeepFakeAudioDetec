@@ -494,8 +494,8 @@ pip install soundcard                    # só para o modo ao vivo
 python monitor.py --listar-dispositivos  # descobrir a saída a escutar
 
 # durante uma chamada, gravando o que ouviu
-python monitor.py --config configs/fusion_v4.yaml \
-    --checkpoint checkpoints/fusion_lcnn_v4.pt \
+python monitor.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
     --gravar outputs/chamada.wav --json outputs/chamada.json
 
 # reprocessar a gravação (mesmos scores, bit a bit)
@@ -611,7 +611,7 @@ completo, 71.237 áudios):
 
 Na simulação, o codec Opus custa pouco (+1,2 a +2,8 pp até 15 kbps) e quem
 derruba é perder a banda alta e o ruído acústico. Foi por isso que o monitor
-passou a usar o `fusion_lcnn_v4`.
+chegou a usar o `fusion_lcnn_v4`.
 
 **O canal real contradiz essa escolha.** No ASVspoof 2021 LA, com Opus
 transmitido por redes VoIP reais (amostra de 10 mil, fase `eval`):
@@ -619,16 +619,19 @@ transmitido por redes VoIP reais (amostra de 10 mil, fase `eval`):
 | | referência | Opus real |
 |---|---|---|
 | baseline_v2 | 18,15% | **29,43%** |
-| fusion_v4 | 19,51% | **49,06%** |
+| fusion_v4 | 19,51% | 32,62% |
+| fusão `rank` | — | **24,94%** |
+| fusão `mean` (a do monitor) | — | 29,41% |
 
-O `fusion_v4` cai ao acaso, e o custo real do Opus é de 11 a 16 vezes o
-simulado. **Verificado:** o 49,06% do `fusion_v4` no Opus é artefato de
-saturação do softmax em float32 (97% dos bonafide empatados com os spoof em
-exatamente 1,0); os demais números valem. O EER agora sai dos log-odds, que não
-saturam, e o do `fusion_v4` no Opus está pendente de nova execução — ver
-`scripts/checar_saturacao.py` e `docs/RESUMO_TCC.md`, 5.3. Até medir a
-fusão dos dois no Opus real, o `baseline_v2` é o modelo com melhor evidência
-para chamada. Detalhes em `docs/RESUMO_TCC.md`, Seção 5.3.
+O `baseline_v2` vence o `fusion_v4` no canal real por 3,19 pp, e o custo real do
+Opus é de 7 a 11 vezes o simulado. A fusão dos dois ganha 4,50 pp pela regra
+`rank`, que precisa do conjunto inteiro; a média das probabilidades — a única
+que funciona janela a janela — empata com o v2 sozinho, porque o `fusion_v4`
+satura em 1,0 para 97% dos bonafide no Opus. **Para chamada, use o
+`baseline_v2` sozinho**: mesmo resultado que a fusão ao vivo, com metade do
+custo. (Uma primeira execução deu 49,06% para o `fusion_v4`: era artefato da
+saturação do softmax no cálculo do EER, corrigido — ver
+`scripts/checar_saturacao.py`.) Detalhes em `docs/RESUMO_TCC.md`, Seção 5.3.
 
 **O ponto de operação não transfere.** O limiar gravado no checkpoint foi
 calibrado em áudio limpo, e fora do domínio se comporta de forma imprevisível:
