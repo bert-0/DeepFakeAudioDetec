@@ -158,7 +158,11 @@ def main(argv=None) -> int:
 
     base = load_config(args.config_base)
     cfg = config_derivado(base, f"2021_{tag}", protocolo, args.audio_dir)
-    destino = salvar_config(cfg, protocolo.with_suffix(".yaml"))
+    # Um config por MODELO: o protocolo é o mesmo para os dois modelos, mas o
+    # config não — sem o nome do experimento, avaliar o segundo modelo na mesma
+    # condição gravaria por cima do config do primeiro.
+    destino = salvar_config(
+        cfg, protocolo.with_name(f"{protocolo.stem}__{base['experiment']['name']}.yaml"))
     print(f"Config derivado: {destino}")
     print(f"   experimento: {cfg['experiment']['name']}  (os de 2019 ficam intactos)")
     print("\nPróximo passo:")

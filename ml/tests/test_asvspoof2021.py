@@ -332,7 +332,7 @@ def test_cli_gera_config_seguro_e_carregavel(metadata, tmp_path, capsys):
                    "--audio-dir", "data/2021/flac"])
     assert codigo == 0
 
-    cfg = load_config(destino.with_suffix(".yaml"))
+    cfg = load_config(destino.with_name("opus__fusion_lcnn_v4.yaml"))
     assert cfg["experiment"]["name"] == "fusion_lcnn_v4__2021_opus"
     assert cfg["data"]["protocols"]["eval"] == str(destino)
     assert cfg["train"]["cache_features"] is False
@@ -454,3 +454,20 @@ def test_rotulo_do_arquivo_inclui_a_fase(metadata, tmp_path):
 
     a = argparse.Namespace(condicao="none/-", codec=None, fase="eval", amostra=10000)
     assert rotulo(a) == "none_eval_n10000"
+
+
+def test_dois_modelos_na_mesma_condicao_nao_sobrescrevem_o_config(metadata, tmp_path):
+    """O protocolo é compartilhado; o config tem que ser um por modelo."""
+    from scripts.importar_asvspoof2021 import main
+    from src.config import load_config
+
+    destino = tmp_path / "opus.txt"
+    for base in ("configs/fusion_v4.yaml", "configs/baseline_v2.yaml"):
+        assert main(["--metadata", str(metadata), "--codec", "opus",
+                     "--saida", str(destino), "--config-base", base,
+                     "--audio-dir", "flac"]) == 0
+
+    nomes = sorted(p.name for p in tmp_path.glob("opus__*.yaml"))
+    assert nomes == ["opus__baseline_lfcc_cnn_v2.yaml", "opus__fusion_lcnn_v4.yaml"]
+    assert load_config(tmp_path / nomes[0])["model"]["name"] != \
+        load_config(tmp_path / nomes[1])["model"]["name"]
