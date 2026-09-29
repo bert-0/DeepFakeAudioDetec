@@ -274,17 +274,31 @@ scores. Num fluxo ao vivo existe uma janela por vez, então ela não existe. Os
 > **Conferido — a saturação não afeta esta seção.** Estas tabelas foram
 > calculadas pela probabilidade, antes da correção da 5.3. A reavaliação numa
 > amostra estratificada de 10.002 áudios (`robustness_eval.py --amostra 10000`,
-> que mostra o EER pelos dois caminhos) deu **nenhum bonafide saturado em
-> nenhuma das 11 condições, nos dois modelos**, e o EER pela probabilidade
-> **idêntico** ao EER pelos log-odds em todas as 22 linhas. A amostra também
-> reproduz o eval completo dentro do IC de ±1,28 pp:
+> rodada em 29/09/2026, que mostra o EER pelos dois caminhos) deu **nenhum
+> bonafide saturado (0 de 1.032) em nenhuma das 11 condições, nos dois
+> modelos**, e o EER pela probabilidade **idêntico** ao EER pelos log-odds em
+> todas as 22 linhas. A amostra reproduz o eval completo:
 >
 > | condição | v2 completo | v2 amostra | v4 completo | v4 amostra |
 > |---|---|---|---|---|
 > | limpo | 18,99% | 19,02% | 20,18% | 20,25% |
-> | opus 25 kbps | 20,04% | 20,32% | 22,08% | 22,40% |
-> | banda estreita | 35,95% | 36,22% | 25,53% | 25,67% |
+> | ruído 20 dB | 27,75% | 27,59% | 21,27% | 21,18% |
+> | ruído 10 dB | 34,99% | **33,23%** | 23,95% | 24,26% |
 > | ruído 5 dB | 42,41% | 41,51% | 27,42% | 27,89% |
+> | ganho −6 dB | 19,44% | 19,26% | 20,36% | 20,25% |
+> | ganho +6 dB | 19,57% | 19,77% | 20,08% | 20,24% |
+> | Opus 30 kbps | 19,75% | 19,96% | 21,38% | 21,71% |
+> | Opus 25 kbps | 20,04% | 20,32% | 22,08% | 22,40% |
+> | Opus 15 kbps | 20,12% | 20,74% | 23,02% | 22,95% |
+> | banda estreita | 35,95% | 36,22% | 25,53% | 25,67% |
+> | banda estreita + Opus | 32,85% | 32,65% | 25,04% | 25,31% |
+>
+> 21 das 22 diferenças ficam dentro de ±1,28 pp; a exceção (v2 com ruído a
+> 10 dB, −1,76 pp) é o esperado por acaso em 22 comparações a 95% (≈ 1,1). A
+> amostra usa o mesmo ruído do eval completo — o `Subset` preserva o índice
+> original, e o ruído é derivado de (semente, época, índice) —, então a
+> diferença é só de amostragem. **O vencedor é o mesmo nas 11 condições** nas
+> duas medidas.
 
 | condição | baseline_v2 | Δ | fusion_v4 | Δ | vence | no treino? |
 |---|---|---|---|---|---|---|
@@ -955,6 +969,13 @@ modelo real. E, ao mesmo tempo, com 89,7% de spoof no eval, um classificador
 que responde **"spoof" para tudo** obtém F1 = **0,9456** — acima do exigido,
 sem olhar para o áudio. Ou seja: o requisito é satisfeito pelo detector inútil
 e não é satisfeito pelos detectores reais.
+
+A degradação simulada também mostra o F1 apontando na direção errada. Na
+amostra de 10.002 áudios (29/09/2026), o `baseline_v2` tem F1 **0,8281** no
+áudio limpo e **0,9056** com Opus a 15 kbps — acima do RNF02 — enquanto o EER
+**piora** de 19,02% para 20,74%. O codec desloca os scores para o lado spoof,
+o recall sobe (0,7149 → 0,8563) e o F1 melhora com um modelo que discrimina
+pior. O `fusion_v4` sofre o deslocamento oposto: recall 0,5547 → 0,3929.
 
 O canal real produziu esse caso sem que ninguém o construísse. No ASVspoof 2021
 LA com Opus (Seção 5.3), o `fusion_v4` classifica **todos** os áudios como spoof

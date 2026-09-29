@@ -657,6 +657,18 @@ Fonte: Autoria própria.
 > representação e na arquitetura. Segundo, o limiar calibrado em áudio limpo não se
 > transfere para o áudio degradado. Sob Opus a 15 kbps, o *recall* do
 > baseline_v2 sobe de 0,72 para 0,86 e o do fusion_v4 cai de 0,55 para 0,39.
+> O efeito aparece até no F1: na amostra de verificação descrita abaixo, com
+> Opus a 15 kbps, o F1 do baseline_v2 sobe de
+> 0,83 para 0,91, acima do exigido pelo RNF04, enquanto o seu EER piora. O F1
+> melhora porque o limiar passou a classificar mais áudios como *spoof*, não
+> porque o modelo discrimine melhor.
+>
+> Nenhum áudio autêntico recebeu probabilidade saturada em 1,0 em nenhuma das
+> condições da Tabela 8, e o EER calculado pela probabilidade coincide com o
+> calculado pelos *log-odds*. Uma reavaliação numa amostra estratificada de
+> 10.002 áudios reproduziu o eval completo em 21 das 22 medidas dentro do
+> intervalo de confiança de 95%, com o mesmo modelo vencedor nas onze
+> condições.
 >
 > **Canal real.** A simulação acima responde se o modelo resiste a cada
 > perturbação isolada. Para saber se ela prevê o comportamento em um canal
