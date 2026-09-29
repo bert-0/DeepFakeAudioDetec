@@ -36,28 +36,29 @@ Decisões da equipe já refletidas aqui:
 Este trabalho investiga a detecção de áudios *deepfake* com fusão de
 características e mecanismo de atenção, avaliando o ganho de cada componente
 sobre uma linha de base e a robustez dos modelos à degradação de canal. Foram
-treinados sete modelos na trilha *Logical Access* da base ASVspoof 2019 e
-avaliados em 71.237 áudios gerados por treze ataques ausentes do treino, com
-remoção de silêncio. O desempenho na validação não antecipou o da avaliação:
-modelos com EER de validação entre 0,03% e 9,74% ficaram todos entre 18,99% e
-21,56% na avaliação. A fusão tardia de LFCC e espectrograma log-mel, com
-encoders LCNN, reduziu o EER de 21,56% para 20,18% (−1,38 ponto percentual). A
-atenção no *pooling*, acrescentada ao modelo com fusão, não trouxe ganho
-(+0,95 p.p.). A combinação de scores de dois modelos de arquiteturas diferentes
-atingiu 13,13% de EER e min t-DCF de 0,3129, e um grupo de controle com modelos semelhantes rendeu
-apenas 0,30 p.p. Isso indica que o ganho vem da diversidade entre os modelos. A
-análise por ataque mostrou que modelos com EER global parecido erram em ataques
-diferentes, e que os ataques com geração autorregressiva (A10, A12 e A15)
-concentram a dificuldade. Sob degradação simulada de canal, o ranking dos
+treinados sete modelos na trilha *Logical Access* da base ASVspoof 2019, com
+remoção de silêncio, e avaliados em 71.237 áudios, dos quais 63.882 sintéticos,
+gerados por treze ataques: onze inéditos e dois que reutilizam algoritmos do
+treino. O desempenho na validação não antecipou o da avaliação: modelos com EER
+de validação entre 0,03% e 9,74% ficaram todos entre 18,99% e 21,56% na
+avaliação. A fusão tardia de LFCC e espectrograma log-mel, com encoders LCNN,
+reduziu o EER de 21,56% para 20,18% (−1,38 ponto percentual). A atenção no
+*pooling*, acrescentada ao modelo com fusão, não trouxe ganho (+0,95 p.p.). A
+combinação de scores de dois modelos de arquiteturas diferentes atingiu 13,13%
+de EER e min t-DCF de 0,3129, e um grupo de controle com modelos semelhantes
+rendeu apenas 0,30 p.p. Isso indica que o ganho vem da diversidade entre os
+modelos. A análise por ataque mostrou que modelos com EER global parecido erram
+em ataques diferentes, e que dois ataques com geração autorregressiva, A10 e
+A12, resistem aos sete modelos. Sob degradação simulada de canal, o ranking dos
 modelos se inverteu: o melhor modelo no áudio limpo piorou até 23,42 p.p.,
 contra 7,24 p.p. do modelo com fusão. Em transmissão real por Opus (ASVspoof
-2021 LA), porém, a inversão não se repetiu, e o custo do canal foi de 7 a 11
-vezes o da simulação. A degradação simulada não previu qual modelo resiste ao
-canal real, enquanto o ganho da fusão de scores se manteve (24,94% contra
-29,43%). Sob o mesmo protocolo sem silêncio, os resultados
-ficam abaixo dos modelos com CQT reportados na literatura (26% a 27%). Nenhum
-modelo atingiu as metas de F1 ≥ 0,85 e EER < 8% fixadas no planejamento, e as
-causas dessa diferença são discutidas.
+2021 LA), porém, a inversão não se repetiu, e o canal custou de 7 a 11 vezes o
+que a simulação do mesmo codec indicava. A degradação simulada não previu qual
+modelo resiste ao canal real, enquanto o ganho da fusão de scores se manteve
+(24,94% contra 29,43%). Sob o mesmo protocolo sem silêncio, os modelos obtiveram
+EER menor que o dos modelos com CQT reportados na literatura (26% a 27%).
+Nenhum modelo atingiu as metas do planejamento, F1 de 0,85 (requisito) a 0,90
+(projeção) e EER inferior a 8%, e as causas dessa diferença são discutidas.
 
 **Palavras-chave:** Deepfake. Áudio. Fusão de características. LFCC. ASVspoof.
 Robustez de canal.
@@ -67,34 +68,48 @@ Robustez de canal.
 This work investigates audio deepfake detection with feature fusion and an
 attention mechanism, measuring the gain of each component over a baseline and
 the models' robustness to channel degradation. Seven models were trained on
-the ASVspoof 2019 Logical Access track and evaluated on 71,237 utterances
-produced by thirteen attacks unseen in training, with leading and trailing
-silence removed. Validation performance did not anticipate evaluation
-performance: models with validation EER between 0.03% and 9.74% all scored
-between 18.99% and 21.56% on evaluation. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
+the ASVspoof 2019 Logical Access track, with leading and trailing silence
+removed, and evaluated on 71,237 utterances, 63,882 of them spoofed by thirteen
+attacks: eleven unseen and two that reuse training algorithms. Validation
+performance did not anticipate evaluation performance: models with validation
+EER between 0.03% and 9.74% all scored between 18.99% and 21.56% on
+evaluation. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
 reduced the EER from 21.56% to 20.18% (−1.38 percentage points). Attentive
 pooling added to the fused model did not help (+0.95 p.p.). Score-level fusion
-of two architecturally different models reached 13.13% EER and a min t-DCF of 0.3129, whereas a control
-pair of similar models gained only 0.30 p.p., indicating that the gain comes
-from model diversity. Per-attack analysis showed that models with similar pooled
-EER fail on different attacks, and that autoregressive waveform generation (A10,
-A12, A15) concentrates the difficulty. Under simulated channel degradation the
-model ranking inverted: the best clean-condition model degraded by up to 23.42
-p.p., against 7.24 p.p. for the fused model. Under real Opus transmission
-(ASVspoof 2021 LA), however, the inversion did not recur, and the channel cost
-7 to 11 times more than in simulation. Simulated degradation did not predict
+of two architecturally different models reached 13.13% EER and a min t-DCF of
+0.3129, whereas a control pair of similar models gained only 0.30 p.p.,
+indicating that the gain comes from model diversity. Per-attack analysis showed
+that models with similar pooled EER fail on different attacks, and that two
+attacks with autoregressive waveform generation, A10 and A12, withstand all
+seven models. Under simulated channel degradation the model ranking inverted:
+the best clean-condition model degraded by up to 23.42 p.p., against 7.24 p.p.
+for the fused model. Under real Opus transmission (ASVspoof 2021 LA), however,
+the inversion did not recur, and the channel cost 7 to 11 times what the
+simulation of the same codec indicated. Simulated degradation did not predict
 which model withstands the real channel, whereas the score-fusion gain held
-(24.94% against 29.43%). Under the same silence-removed
-protocol, results are below those reported for CQT-based models (26% to 27%).
-No model reached the planned targets of F1 ≥ 0.85 and EER < 8%, and the reasons
-for this gap are discussed.
+(24.94% against 29.43%). Under the same silence-removed protocol, the models
+achieved lower EER than CQT-based models reported in the literature (26% to
+27%). No model reached the planned targets of an F1 of 0.85 (requirement) to
+0.90 (projection) and an EER below 8%, and the reasons for this gap are
+discussed.
 
 **Keywords:** Deepfake. Audio. Feature fusion. LFCC. ASVspoof. Channel robustness.
 
-> Contagem: o Resumo tem cerca de 330 palavras, dentro da faixa de 150 a 500
+> Contagem: o Resumo tem cerca de 360 palavras, dentro da faixa de 150 a 500
 > que a NBR 6028 dá para trabalhos acadêmicos.
 
 ---
+
+## Citações "(TODISCO et al., 2021)" — trocar em todo o texto
+
+A obra citada assim é de Wang et al. (2020), a descrição da base (ver
+Referências). No texto do TC1 ela aparece em quatro lugares:
+
+- **3.1**, fim do segundo parágrafo: "(TODISCO et al., 2021)" →
+  "(WANG et al., 2020)".
+- **4.2**, segundo parágrafo: "(TODISCO et al., 2021)" → "(WANG et al., 2020;
+  TODISCO et al., 2019)", porque ali se fala dos desafios ASVspoof.
+- **4.9** e **introdução do capítulo 5**: já substituídas nas redações abaixo.
 
 ## 3.4 Inteligência Artificial Aplicada — trecho a substituir
 
@@ -128,9 +143,7 @@ Na frase "Entre os trabalhos de maior relevância...":
 > Okabe, Koshinaka e Shinoda (2018), sobre o *pooling* com atenção; e Müller et
 > al. (2021), sobre o efeito do silêncio na base ASVspoof.
 
-## 4.3 Levantamento de Requisitos — nota sobre os requisitos
-
-Parágrafo a acrescentar ao fim da 4.6:
+## 4.6 Requisitos Não Funcionais — parágrafo a acrescentar ao fim
 
 > A avaliação dos requisitos não funcionais, feita na seção 5.6, mostrou que o
 > RNF04 está mal especificado para esta base. No conjunto de avaliação, 89,7% dos
@@ -238,11 +251,11 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > antecipada e na calibração do limiar de decisão. O de avaliação é usado apenas
 > uma vez, na medição final.
 >
-> Os treze ataques do conjunto de avaliação (A07 a A19) não aparecem no
-> treinamento. Dois deles, A16 e A19, usam os mesmos algoritmos de A04 e A06, mas
-> em outro conjunto de locutores. Todo resultado de avaliação deste trabalho mede,
-> portanto, generalização para ataques desconhecidos, e não desempenho na
-> distribuição de treino. Esse desenho explica por que os EERs ficam na casa das
+> Dos treze ataques do conjunto de avaliação (A07 a A19), onze são inéditos. Os
+> outros dois, A16 e A19, reutilizam os algoritmos de A04 e A06, com sistemas
+> treinados em outros dados (WANG et al., 2020). Os resultados de avaliação
+> deste trabalho medem, portanto, sobretudo generalização para ataques
+> desconhecidos, e não desempenho na distribuição de treino. Esse desenho explica por que os EERs ficam na casa das
 > dezenas de pontos percentuais.
 
 ## 4.11 Métricas de Avaliação — acrescentar ao fim
@@ -457,8 +470,8 @@ Fonte: Autoria própria; Müller et al. (2021), Tabela 2.
 
 <!-- RESUMO_TCC §5.1 -->
 
-> Os sete modelos ficam abaixo dos três modelos baseados em CQT, e a fusão de
-> scores fica abaixo da média do RawNet2. Algumas diferenças de protocolo
+> Os sete modelos têm EER menor que o dos três modelos baseados em CQT, e a
+> fusão de scores tem EER menor que a média do RawNet2. Algumas diferenças de protocolo
 > permanecem. Müller et al. (2021) usam limiar de remoção de silêncio de 40 dB,
 > contra 30 dB aqui, e o áudio inteiro, contra a janela fixa de 4 s. Eles
 > reportam também média e desvio de várias execuções, enquanto aqui há uma
@@ -754,7 +767,7 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 
 | projeção | obtido | situação |
 |---|---|---|
-| F1 superior a 0,90 | 0,69 a 0,83 | não atingido |
+| F1 superior a 0,90 (projeção) e mínimo de 0,85 (RNF04) | 0,69 a 0,83 | não atingido |
 | EER inferior a 8% | 18,99% (modelo isolado); 13,13% (fusão de scores) | não atingido |
 | ganho a cada incremento | fusão −1,38 p.p.; atenção +0,95 p.p. | só na fusão; no EER global, dentro da variância entre execuções |
 | processamento em até 30 s por amostra (RNF06) | 2,745 s em CPU para um arquivo de 60 s | atingido |
@@ -763,8 +776,8 @@ Fonte: Autoria própria.
 
 > A meta de EER tomou como referência o sistema B02 (8,09%), que processa o
 > áudio com o silêncio. Sob o protocolo sem silêncio, que remove um atalho
-> conhecido da base (MÜLLER et al., 2021), os resultados deste trabalho ficam
-> abaixo dos modelos com CQT da literatura, como mostra a Tabela 4. A meta de F1
+> conhecido da base (MÜLLER et al., 2021), os modelos deste trabalho têm EER
+> menor que o dos modelos com CQT da literatura, como mostra a Tabela 4. A meta de F1
 > esbarra no desequilíbrio das classes, discutido na seção 4.6: o F1 da classe
 > majoritária não mede capacidade de detecção.
 
@@ -870,11 +883,11 @@ Fonte: Autoria própria.
 > essa precisão que o canal real apaga. O ganho da fusão de scores, por outro
 > lado, se manteve no canal real.
 >
-> As metas de F1 superior a 0,90 e EER inferior a 8% não foram atingidas. A
-> segunda se baseava em sistemas que usam o silêncio como atalho. Sob o mesmo
-> protocolo, os resultados ficam abaixo dos modelos com CQT da literatura. A
-> primeira revelou que o F1 da classe majoritária não é métrica adequada para
-> esta base.
+> As metas de F1 (0,85 no RNF04 e 0,90 na projeção do planejamento) e de EER
+> inferior a 8% não foram atingidas. A meta de EER se baseava em sistemas que
+> usam o silêncio como atalho; sob o mesmo protocolo, os modelos deste trabalho
+> têm EER menor que o dos modelos com CQT da literatura. A meta de F1 revelou
+> que o F1 da classe majoritária não é métrica adequada para esta base.
 >
 > Como trabalhos futuros, destacam-se: repetir os treinamentos com várias
 > sementes; estender a avaliação às demais condições da ASVspoof 2021 LA, ao

@@ -39,13 +39,15 @@ uma chamada real.
 |---|---|---|
 | train | 25.380 | A01–A06 |
 | dev | 24.844 | A01–A06 |
-| eval | 71.237 | **A07–A19 (13 ataques inéditos)** |
+| eval | 71.237 | **A07–A19 (11 inéditos + A16/A19, que repetem os algoritmos de A04/A06)** |
 | **total** | **121.461** | |
 
 O eval tem 7.355 bonafide e 63.882 spoof — **4.914 por ataque**, e **89,7% de
 spoof**. Esse desequilíbrio volta a importar na Seção 8.
 
-O ponto metodológico central: **os ataques do eval não aparecem no treino**.
+O ponto metodológico central: **onze dos treze ataques do eval não aparecem no
+treino**; A16 e A19 reutilizam os algoritmos de A04 e A06, com outros dados
+(Wang et al., 2020).
 Todo número de eval neste documento é generalização para ataque não visto, não
 desempenho em distribuição conhecida. É por isso que os EERs são de dezenas de
 pontos percentuais e não de unidades.
