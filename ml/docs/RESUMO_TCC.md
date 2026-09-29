@@ -159,7 +159,7 @@ multi-cabeça) e não deve ser citado como a base deste incremento.
 | v4 | + ramo de espectrograma (**incremento 2**) | `fusion_lcnn_v4` |
 | v4 | + atenção no pooling (**incremento 3**) | `attention_lcnn_v4` |
 
-Dois ajustes para o texto do TC1: (1) os **deltas e delta-deltas do LFCC estão
+Dois ajustes em relação ao texto do TC1, para o relatório do TC2: (1) os **deltas e delta-deltas do LFCC estão
 no baseline em todas as versões** — o incremento 2 acrescenta só o
 espectrograma; (2) a linha de base do contraste controlado é o
 `baseline_lcnn_v4` (LCNN, um ramo), **não** a "CNN convencional" descrita no
@@ -167,7 +167,7 @@ TC1.
 
 ### 3-0. Arquitetura (o que está no código)
 
-Seção que o TC1 ainda não tem. Valores de `configs/*_v4.yaml` e `src/`.
+Seção que o texto do TC1 não tem e o do TC2 precisa ter. Valores de `configs/*_v4.yaml` e `src/`.
 
 - **Pré-processamento:** 16 kHz, janela fixa de **4 s** (`fix_length`, completa
   por repetição), remoção de silêncio (`trim_silence`, `top_db: 30`) e
@@ -1046,7 +1046,7 @@ distingue nada atende o requisito.
 
 Esse achado vale mais que o cumprimento do requisito. É um resultado de
 engenharia de requisitos: **F1 sobre classe majoritária não mede capacidade de
-detecção**. (Convenção a declarar no texto, TC1 §4.11: a classe positiva é o
+detecção**. (Convenção a declarar no texto do TC2, §4.11: a classe positiva é o
 **spoof**, `pos_label=1` em `src/metrics.py`.) A métrica correta para a tarefa é o EER, que é independente de
 limiar e não pode ser enganado dessa forma. Recomendação para a APS: substituir
 o RNF02 por um alvo de EER, ou exigir F1 **macro**.
@@ -1577,7 +1577,7 @@ cruzada), CFAD, ADD, e qualquer retreino.
 
 ---
 
-## 13. O que o texto do TC1 precisa mudar
+## 13. O que o relatório do TC2 muda em relação ao texto do TC1
 
 ### 13.1 Resultados esperados vs. obtidos
 
@@ -1599,8 +1599,8 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   13,13%; o ranking se inverte sob canal simulado (+23,42 pp no v2 contra
   +7,24 pp no fusion_v4), mas não no canal real (ASVspoof 2021 LA: 29,43%
   contra 32,62%).
-- **Rascunho redigido** destas mudanças, no estilo e na numeração do TC1:
-  `ml/docs/TC1_REDACAO.md`.
+- **Rascunho redigido** destas mudanças para o TC2, na numeração do texto do
+  TC1: `ml/docs/TC2_REDACAO.md`.
 - **Arquitetura:** seção nova, a partir da Seção 3-0 deste resumo.
 - **§4.7 (ciclo incremental):** usar a linhagem v1 → v4 da Seção 3; deltas já
   no baseline; linha de base = `baseline_lcnn_v4`.
@@ -1621,7 +1621,7 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   Resumo/Abstract. A frase da 7.1 sobre termos de consentimento assinados é
   **falsa** e precisa sair. O papel que a coleta teria (bonafide fora da
   ASVspoof) fica como trabalho futuro. Redação de substituição em
-  `ml/docs/TC1_REDACAO.md`.
+  `ml/docs/TC2_REDACAO.md`.
 - **API (FastAPI) e front-end (React)**, Marcos 5 a 7: **estão com o Pedro**,
   fora deste repositório, e ainda não foram recebidos. Até chegarem, o texto
   não pode descrevê-los como prontos nem citar números deles; nada nesta

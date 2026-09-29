@@ -1,6 +1,8 @@
-# Redação das seções revisadas do TC1
+# Redação do relatório do TC2
 
-Texto pronto para colar no documento do TC1, na numeração do PDF atual. Todo
+Texto pronto para o relatório do TC2. Ele parte do documento do TC1 (o PDF da
+proposta) e segue a mesma numeração: cada seção abaixo diz se substitui, altera
+ou acrescenta algo ao texto do TC1. Todo
 número vem de `RESUMO_TCC.md`; a seção de origem aparece entre colchetes, em
 comentário, depois de cada tabela ou parágrafo com dado.
 
