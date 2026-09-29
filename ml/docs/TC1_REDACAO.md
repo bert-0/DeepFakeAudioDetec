@@ -42,7 +42,7 @@ modelos com EER de validação entre 0,03% e 9,74% ficaram todos entre 18,99% e
 encoders LCNN, reduziu o EER de 21,56% para 20,18% (−1,38 ponto percentual). A
 atenção no *pooling*, acrescentada ao modelo com fusão, não trouxe ganho
 (+0,95 p.p.). A combinação de scores de dois modelos de arquiteturas diferentes
-atingiu 13,13% de EER, e um grupo de controle com modelos semelhantes rendeu
+atingiu 13,13% de EER e min t-DCF de 0,3129, e um grupo de controle com modelos semelhantes rendeu
 apenas 0,30 p.p. Isso indica que o ganho vem da diversidade entre os modelos. A
 análise por ataque mostrou que modelos com EER global parecido erram em ataques
 diferentes, e que os ataques com geração autorregressiva (A10, A12 e A15)
@@ -72,7 +72,7 @@ performance: models with validation EER between 0.03% and 9.74% all scored
 between 18.99% and 21.56% on evaluation. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
 reduced the EER from 21.56% to 20.18% (−1.38 percentage points). Attentive
 pooling added to the fused model did not help (+0.95 p.p.). Score-level fusion
-of two architecturally different models reached 13.13% EER, whereas a control
+of two architecturally different models reached 13.13% EER and a min t-DCF of 0.3129, whereas a control
 pair of similar models gained only 0.30 p.p., indicating that the gain comes
 from model diversity. Per-attack analysis showed that models with similar pooled
 EER fail on different attacks, and that autoregressive waveform generation (A10,
@@ -259,8 +259,9 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > ASVspoof. Ela avalia a contramedida em conjunto com um sistema de verificação
 > automática de locutor e pondera o custo de cada tipo de erro (KINNUNEN et al.,
 > 2018). O min t-DCF foi calculado com os parâmetros de custo do ASVspoof 2019
-> e os scores de verificação de locutor fornecidos pelos organizadores.
-> [PENDENTE: valores — `python scripts/tdcf.py`, ver RESUMO_TCC §11.]
+> e os scores de verificação de locutor fornecidos pelos organizadores, e foi
+> reportado para os dois modelos principais e para a fusão de scores. Quanto
+> menor, melhor; o valor 1 corresponde a uma contramedida sem utilidade.
 
 ## 4.12 Arquitetura do Modelo — seção nova
 
@@ -424,6 +425,19 @@ Fonte: Autoria própria.
 > a remoção do silêncio piora o RawNet2 de 3,61% para 15,50%. Como este trabalho
 > remove o silêncio, a comparação equivalente é com os modelos que Müller et al.
 > (2021) treinaram e avaliaram sob o mesmo protocolo (Tabela 4).
+>
+> Na métrica oficial do desafio, o min t-DCF é de 0,5075 para o baseline_v2, de
+> 0,3818 para o fusion_v4 e de 0,3129 para a fusão de scores dos dois, contra
+> 0,2116 (B02) e 0,2366 (B01), obtidos com o silêncio (TODISCO et al., 2019).
+> O t-DCF inverte a ordem dada pelo EER entre os dois modelos: pelo EER o
+> baseline_v2 é melhor, e pelo t-DCF o fusion_v4 é bem melhor. As duas métricas
+> olham regiões diferentes da curva de erro. O EER usa o ponto em que as duas
+> taxas de erro se igualam; o t-DCF, com o custo maior atribuído a aceitar um
+> *spoof*, favorece o ponto em que quase nenhum áudio sintético passa, e é
+> nessa região que o fusion_v4 se destaca, por resolver quase por completo seis
+> dos treze ataques (seção 5.4). A escolha da métrica decide, portanto, qual dos
+> dois modelos é o melhor. Não há régua de t-DCF sob o mesmo protocolo sem
+> silêncio, porque Müller et al. (2021) reportam apenas o EER.
 
 **Tabela 4 – Comparação sob o mesmo protocolo (silêncio removido)**
 
@@ -583,7 +597,8 @@ modelos nos treze ataques.
 > mantém nos quatro pares. Com quatro pares, a relação é ilustrativa e não um
 > teste estatístico. O valor de 13,13% usa a regra de postos, que exige o
 > conjunto completo de scores. A média simples, aplicável a um fluxo contínuo de
-> áudio, resulta em 14,03%.
+> áudio, resulta em 14,03%. Pelo min t-DCF, a fusão por postos também é a
+> melhor: 0,3129, contra 0,3818 do melhor modelo isolado nessa métrica.
 >
 > **Verificação de atalhos.** Na ASVspoof 2019, variáveis triviais como duração
 > e energia separam parcialmente as classes. Após a remoção do silêncio, a
@@ -799,9 +814,12 @@ Fonte: Autoria própria.
 > referência B02, com a mesma representação de 20 filtros e outro
 > classificador, falha nos mesmos ataques.
 >
-> Segundo, a fusão de scores de modelos diferentes reduziu o EER para 13,13%. O
+> Segundo, a fusão de scores de modelos diferentes reduziu o EER para 13,13% e
+> o min t-DCF para 0,3129, o melhor resultado do trabalho nas duas métricas. O
 > grupo de controle mostra que o ganho vem da diversidade entre os modelos, que
-> erram em ataques diferentes.
+> erram em ataques diferentes. A comparação entre os modelos isolados, por
+> outro lado, depende da métrica: o baseline_v2 é o melhor pelo EER, e o
+> fusion_v4, pelo t-DCF.
 >
 > Terceiro, o EER agregado esconde os ataques mais fortes. Nos ataques com
 > geração autorregressiva A10 e A12, todos os sete modelos passam de 30% de EER,
@@ -828,7 +846,7 @@ Fonte: Autoria própria.
 > sementes; estender a avaliação às demais condições da ASVspoof 2021 LA, ao
 > processamento de clientes de conferência e a vozes externas à base; calibrar
 > os modelos no canal de destino, o que permitiria aproveitar a fusão de scores
-> em tempo real; calcular o t-DCF; investigar mecanismos de atenção mais
+> em tempo real; investigar mecanismos de atenção mais
 > expressivos; e usar encoders pré-treinados em fala, direção apontada pela
 > literatura para os ataques autorregressivos. Fica também como hipótese a
 > testar a associação entre o ramo de espectrograma e os ataques por filtragem
@@ -899,7 +917,7 @@ KINNUNEN, Tomi et al. t-DCF: a detection cost function for the tandem
 assessment of spoofing countermeasures and automatic speaker verification. In:
 THE SPEAKER AND LANGUAGE RECOGNITION WORKSHOP (ODYSSEY), 2018, Les Sables
 d'Olonne. *Proceedings* [...]. 2018. p. 312-319.
-*(Só se o t-DCF entrar.)*
+*(Citada na 4.11: o t-DCF foi calculado.)*
 
 LAVRENTYEVA, Galina et al. STC antispoofing systems for the ASVspoof2019
 challenge. In: INTERSPEECH, 2019, Graz. *Proceedings* [...]. 2019.

@@ -1361,24 +1361,38 @@ condição Opus contra a referência, 10.000 áudios por condição, dois modelo
 (Seção 5.3). As outras condições do 2021 (a-law, G.722, PSTN etc.) não foram
 rodadas. A camada 2 (cliente de conferência) continua só instrumentação.
 
-**t-DCF — script pronto, falta rodar.** `scripts/tdcf.py` lê os
-`outputs/*_eval_scores.npz` (sem refazer inferência) e o arquivo ASV que vem
-no LA.zip, e já faz as duas conversões que o script oficial exigiria à mão
-(sentido do score e colunas). Usa os `logodds` do `.npz` quando existem (Seção
-5.3), e aceita arquivo antigo só se nenhum bonafide saturou — que é o caso de
-todos os de 2019. A curva só é avaliada em limiares distintos.
+**t-DCF — calculado (29/09/2026).** `scripts/tdcf.py`, eval completo de
+2019, ASV fornecido pelos organizadores:
 
-```powershell
-python scripts/tdcf.py `
-  --asv-scores data/LA/ASVspoof2019_LA_asv_scores/ASVspoof2019.LA.asv.eval.gi.trl.scores.txt `
-  --scores outputs/baseline_lfcc_cnn_v2_eval_scores.npz outputs/fusion_lcnn_v4_eval_scores.npz `
-  --fundir --exportar outputs/tdcf
-```
+| sistema | EER CM | min t-DCF |
+|---|---|---|
+| baseline_lfcc_cnn_v2 | **18,99%** | 0,5075 |
+| fusion_lcnn_v4 | 20,18% | **0,3818** |
+| v2 + fusion_v4, fusão por postos | **13,13%** | **0,3129** |
+| B02 (LFCC-GMM, **com** silêncio) | 8,09% | 0,2116 |
+| B01 (CQCC-GMM, **com** silêncio) | 9,57% | 0,2366 |
 
-A coluna "EER CM" da saída tem de bater com o `make_report` (18,99% e 20,18%);
-se não bater, o `.npz` não é o do checkpoint certo. Referência: B02 0,2116,
-B01 0,2366 (Todisco et al., 2019, Tab. 1). `--exportar` grava os scores no
-formato do script oficial, para conferência cruzada.
+Conferências que validam a medida: o EER CM bate com o `make_report` e com o
+`score_fusion` nas três linhas; o ASV no seu limiar de EER dá Pfa = Pmiss =
+2,46%, contra 2,48% de EER do ASV em Wang et al. (2020, Tab. 6); e as
+contagens (5.370 target, 63.882 spoof) batem com o artigo.
+
+**O t-DCF inverte o ranking do EER entre os dois modelos.** Pelo EER o v2 é
+melhor (18,99% contra 20,18%); pelo min t-DCF o fusion_v4 é bem melhor (0,3818
+contra 0,5075). Não é contradição: o EER olha um único ponto da curva (erros
+iguais), e o t-DCF, com os custos do ASVspoof 2019 (Cfa_cm = 10), procura o
+ponto em que **quase nenhum spoof passa**. É a região em que o fusion_v4 é
+forte — ele zera seis ataques (Seção 7) e tem precisão de 0,9999 (Seção 3). É
+a mesma leitura da 7.2: pela média por ataque o fusion_v4 também é o melhor.
+**A métrica escolhida decide qual modelo "vence"**, e o texto deve dizer isso
+em vez de eleger um.
+
+A fusão por postos melhora nas duas métricas (0,3129), mas continua acima dos
+baselines oficiais — que usam o silêncio (Seção 5.1). Não há régua de t-DCF
+sob o mesmo protocolo: Müller et al. (2021) reportam só EER.
+
+Para os outros cinco modelos, basta acrescentar os `.npz` em `--scores`
+(opcional; os dois principais bastam para o texto).
 
 **MP3 não avaliado.** O teste de robustez usou Opus.
 
