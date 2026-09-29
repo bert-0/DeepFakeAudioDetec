@@ -10,7 +10,7 @@ TC1 (artigo científico) quanto à APS (engenharia de software).
 > Versionado em `ml/docs/` de propósito: a versão anterior morava em
 > `ml/outputs/`, que é gitignored, e se perdeu quando o ambiente foi reciclado.
 
-Última atualização: 25/09/2026 · 455 testes automatizados passando.
+Última atualização: 29/09/2026 · 591 testes automatizados passando (8 avisos).
 
 ---
 
@@ -159,7 +159,7 @@ multi-cabeça) e não deve ser citado como a base deste incremento.
 | v4 | + ramo de espectrograma (**incremento 2**) | `fusion_lcnn_v4` |
 | v4 | + atenção no pooling (**incremento 3**) | `attention_lcnn_v4` |
 
-Dois ajustes para o texto do TC1: (1) os **deltas e delta-deltas do LFCC estão
+Dois ajustes em relação ao texto do TC1, para o relatório do TC2: (1) os **deltas e delta-deltas do LFCC estão
 no baseline em todas as versões** — o incremento 2 acrescenta só o
 espectrograma; (2) a linha de base do contraste controlado é o
 `baseline_lcnn_v4` (LCNN, um ramo), **não** a "CNN convencional" descrita no
@@ -167,7 +167,7 @@ TC1.
 
 ### 3-0. Arquitetura (o que está no código)
 
-Seção que o TC1 ainda não tem. Valores de `configs/*_v4.yaml` e `src/`.
+Seção que o texto do TC1 não tem e o do TC2 precisa ter. Valores de `configs/*_v4.yaml` e `src/`.
 
 - **Pré-processamento:** 16 kHz, janela fixa de **4 s** (`fix_length`, completa
   por repetição), remoção de silêncio (`trim_silence`, `top_db: 30`) e
@@ -274,17 +274,31 @@ scores. Num fluxo ao vivo existe uma janela por vez, então ela não existe. Os
 > **Conferido — a saturação não afeta esta seção.** Estas tabelas foram
 > calculadas pela probabilidade, antes da correção da 5.3. A reavaliação numa
 > amostra estratificada de 10.002 áudios (`robustness_eval.py --amostra 10000`,
-> que mostra o EER pelos dois caminhos) deu **nenhum bonafide saturado em
-> nenhuma das 11 condições, nos dois modelos**, e o EER pela probabilidade
-> **idêntico** ao EER pelos log-odds em todas as 22 linhas. A amostra também
-> reproduz o eval completo dentro do IC de ±1,28 pp:
+> rodada em 29/09/2026, que mostra o EER pelos dois caminhos) deu **nenhum
+> bonafide saturado (0 de 1.032) em nenhuma das 11 condições, nos dois
+> modelos**, e o EER pela probabilidade **idêntico** ao EER pelos log-odds em
+> todas as 22 linhas. A amostra reproduz o eval completo:
 >
 > | condição | v2 completo | v2 amostra | v4 completo | v4 amostra |
 > |---|---|---|---|---|
 > | limpo | 18,99% | 19,02% | 20,18% | 20,25% |
-> | opus 25 kbps | 20,04% | 20,32% | 22,08% | 22,40% |
-> | banda estreita | 35,95% | 36,22% | 25,53% | 25,67% |
+> | ruído 20 dB | 27,75% | 27,59% | 21,27% | 21,18% |
+> | ruído 10 dB | 34,99% | **33,23%** | 23,95% | 24,26% |
 > | ruído 5 dB | 42,41% | 41,51% | 27,42% | 27,89% |
+> | ganho −6 dB | 19,44% | 19,26% | 20,36% | 20,25% |
+> | ganho +6 dB | 19,57% | 19,77% | 20,08% | 20,24% |
+> | Opus 30 kbps | 19,75% | 19,96% | 21,38% | 21,71% |
+> | Opus 25 kbps | 20,04% | 20,32% | 22,08% | 22,40% |
+> | Opus 15 kbps | 20,12% | 20,74% | 23,02% | 22,95% |
+> | banda estreita | 35,95% | 36,22% | 25,53% | 25,67% |
+> | banda estreita + Opus | 32,85% | 32,65% | 25,04% | 25,31% |
+>
+> 21 das 22 diferenças ficam dentro de ±1,28 pp; a exceção (v2 com ruído a
+> 10 dB, −1,76 pp) é o esperado por acaso em 22 comparações a 95% (≈ 1,1). A
+> amostra usa o mesmo ruído do eval completo — o `Subset` preserva o índice
+> original, e o ruído é derivado de (semente, época, índice) —, então a
+> diferença é só de amostragem. **O vencedor é o mesmo nas 11 condições** nas
+> duas medidas.
 
 | condição | baseline_v2 | Δ | fusion_v4 | Δ | vence | no treino? |
 |---|---|---|---|---|---|---|
@@ -509,8 +523,9 @@ a extrapolação dela.
 **Achado 2b — a diversidade entre modelos se confirma no canal real.** A fusão
 `rank` dos dois dá **24,94%**, −4,50 pp sobre o melhor isolado — o mesmo
 fenômeno da Seção 4 (−5,86 pp no eval de 2019), agora sob transmissão real. Por
-ataque, o `fusion_v4` é o melhor justamente onde a fusão mais ganha (A17 14,78%,
-A19 17,26%, A09 17,88%; fundidos, A09 cai para 6,74%), e os dois falham juntos
+ataque, os menores EERs do `fusion_v4` (A17 14,78%, A19 17,26%, A09 17,88%)
+são onde a fusão mais ganha (fundidos, A09 cai para 6,74%) — mas note que ali o
+v2 isolado já é tão bom ou melhor (5,34% no A09; ver 5.3.1). Os dois falham juntos
 em A10 e A12 (42,98% e 37,53% fundidos) — os mesmos dois que já resistiam aos
 dois modelos em 2019 (Seção 7.3).
 
@@ -534,11 +549,71 @@ melhor sozinho (29,43% contra 32,62%), e a fusão pela média — a única
 streamável — empata com ele (29,41%) custando o dobro de processamento. **O
 monitor passa a recomendar o `baseline_v2` sozinho.**
 
+### 5.3.1 O canal real por ataque
+
+`per_attack_eval.py` nos quatro configs do 2021 (29/09/2026). Cada ataque tem
+~690 spoof na amostra, então o IC 95% por ataque é de ±1,5 pp (EER ≈ 5%) a
+±3,4 pp (EER ≈ 40%): **diferenças abaixo de ~5 pp por ataque não se leem.**
+EER (%):
+
+| ataque | v2 2019 | v2 ref. 2021 | v2 Opus real | v4 2019 | v4 ref. 2021 | v4 Opus real |
+|---|---|---|---|---|---|---|
+| A07 | 22,43 | 21,73 | 41,22 | 0,02 | 0,00 | 37,13 |
+| A08 | 3,88 | 3,39 | 9,27 | 0,03 | 0,00 | 21,45 |
+| A09 | 2,32 | 1,31 | **5,34** | 0,12 | 0,17 | 17,88 |
+| A10 | 30,63 | 31,07 | 43,61 | 45,54 | 43,53 | 49,50 |
+| A11 | 3,85 | 3,77 | **19,86** | 33,74 | 30,86 | 48,74 |
+| A12 | 36,18 | 33,13 | 40,55 | 47,99 | 46,20 | 41,80 |
+| A13 | 36,50 | 34,23 | 46,79 | 6,54 | 6,15 | **22,37** |
+| A14 | 12,01 | 10,94 | **21,27** | 17,74 | 16,61 | 41,86 |
+| A15 | 15,02 | 15,35 | **16,93** | 29,37 | 29,00 | 42,68 |
+| A16 | 22,75 | 22,99 | 43,48 | 0,03 | 0,00 | **34,92** |
+| A17 | 11,27 | 9,98 | 15,19 | 0,41 | 1,06 | 14,78 |
+| A18 | 15,01 | 15,79 | 27,86 | 4,63 | 5,07 | **18,13** |
+| A19 | 6,98 | 6,83 | 16,44 | 0,00 | 0,00 | 17,26 |
+| **global** | 18,99 | 18,15 | **29,43** | 20,18 | 19,51 | 32,62 |
+| média por ataque | 16,83 | 16,19 | **26,75** | 14,32 | 13,74 | 31,42 |
+
+**1. A referência de 2021 reproduz 2019 ataque por ataque.** Correlação de
+postos entre os perfis: ρ = 0,99 nos dois modelos; nenhum ataque difere mais
+de 3,05 pp, dentro do IC. Valida a importação do 2021 e a Seção 7 ao mesmo
+tempo: o perfil por ataque é propriedade do modelo, não ruído da amostra.
+
+**2. O Opus real apaga exatamente o que dava vantagem ao `fusion_v4`.** Os
+ataques que ele zerava — A07, A08, A16 e A19, 0,00% na referência — vão a
+17–37%. O perfil do v2 sobrevive ao canal (ρ referência × Opus = 0,92, custo
+espalhado de +2 a +20 pp); o do `fusion_v4` se desfaz (ρ = 0,67, custo de até
++37 pp). Na média por ataque o `fusion_v4` passa de **melhor** (13,74% contra
+16,19%) a **pior** (31,42% contra 26,75%). É o mecanismo da Seção 5.3: a
+vantagem do `fusion_v4` era detecção quase perfeita de alguns ataques, e é essa
+precisão que o canal real destrói. Hipótese compatível, não medida: os ataques
+que ele zerava dependem de detalhe espectral fino (A07/A16/A19 são justamente
+os que a resolução de 70 filtros resolve, Seção 7.5), e o Opus atenua a banda
+alta (−4,4 dB entre 6 e 8 kHz, medido no `channel.py`).
+
+**3. A vantagem nos ataques por filtragem sobrevive, em parte.** Onde o
+`fusion_v4` continua vencendo no Opus real estão A13 (22,37% contra 46,79%) e
+A18 (18,13% contra 27,86%) — dois dos três ataques por filtragem da hipótese da
+7.5; o terceiro, A17, empata dentro do IC (14,78% contra 15,19%). Também segue
+com ele o A16 (34,92% contra 43,48%), e o A07 por margem próxima do IC (4,1 pp). Reforça a hipótese da 7.5 sem
+prová-la (post hoc, poucos ataques).
+
+**4. A diversidade encolhe no canal real, e a fusão rende menos.** ρ entre os
+perfis de v2 e `fusion_v4`: 0,34 em 2019, 0,36 na referência, **0,48** no Opus
+real. A fusão rende −5,86 pp em 2019 e −4,50 pp no Opus. Mesmo sentido da
+relação da Seção 4 (perfis mais parecidos, ganho menor) — um quinto ponto,
+ainda ilustrativo. O oráculo (melhor dos dois por ataque) vai de 8,21% na
+referência a 23,12% no Opus.
+
+**5. A10 e A12 continuam os piores** para os dois modelos nas três condições.
+
 Comandos desta seção:
 
 ```bash
 python evaluate.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
 python scripts/per_attack_eval.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
+# os quatro configs (none/opus × v2/v4), como na 5.3.1:
+# for cfg in outputs/asvspoof2021/*__*.yaml: per_attack_eval.py --config cfg --checkpoint <do modelo>
 python scripts/score_fusion.py --name fusao_2021_opus \
     --model outputs/asvspoof2021/opus_eval_n10000__baseline_lfcc_cnn_v2.yaml checkpoints/baseline_lfcc_cnn_v2.pt \
     --model outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml checkpoints/fusion_lcnn_v4.pt
@@ -956,6 +1031,13 @@ que responde **"spoof" para tudo** obtém F1 = **0,9456** — acima do exigido,
 sem olhar para o áudio. Ou seja: o requisito é satisfeito pelo detector inútil
 e não é satisfeito pelos detectores reais.
 
+A degradação simulada também mostra o F1 apontando na direção errada. Na
+amostra de 10.002 áudios (29/09/2026), o `baseline_v2` tem F1 **0,8281** no
+áudio limpo e **0,9056** com Opus a 15 kbps — acima do RNF02 — enquanto o EER
+**piora** de 19,02% para 20,74%. O codec desloca os scores para o lado spoof,
+o recall sobe (0,7149 → 0,8563) e o F1 melhora com um modelo que discrimina
+pior. O `fusion_v4` sofre o deslocamento oposto: recall 0,5547 → 0,3929.
+
 O canal real produziu esse caso sem que ninguém o construísse. No ASVspoof 2021
 LA com Opus (Seção 5.3), o `fusion_v4` classifica **todos** os áudios como spoof
 no limiar calibrado (recall 1,0000, precisão 0,8998 = a proporção de spoof da
@@ -964,7 +1046,7 @@ distingue nada atende o requisito.
 
 Esse achado vale mais que o cumprimento do requisito. É um resultado de
 engenharia de requisitos: **F1 sobre classe majoritária não mede capacidade de
-detecção**. (Convenção a declarar no texto, TC1 §4.11: a classe positiva é o
+detecção**. (Convenção a declarar no texto do TC2, §4.11: a classe positiva é o
 **spoof**, `pos_label=1` em `src/metrics.py`.) A métrica correta para a tarefa é o EER, que é independente de
 limiar e não pode ser enganado dessa forma. Recomendação para a APS: substituir
 o RNF02 por um alvo de EER, ou exigir F1 **macro**.
@@ -1367,24 +1449,38 @@ condição Opus contra a referência, 10.000 áudios por condição, dois modelo
 (Seção 5.3). As outras condições do 2021 (a-law, G.722, PSTN etc.) não foram
 rodadas. A camada 2 (cliente de conferência) continua só instrumentação.
 
-**t-DCF — script pronto, falta rodar.** `scripts/tdcf.py` lê os
-`outputs/*_eval_scores.npz` (sem refazer inferência) e o arquivo ASV que vem
-no LA.zip, e já faz as duas conversões que o script oficial exigiria à mão
-(sentido do score e colunas). Usa os `logodds` do `.npz` quando existem (Seção
-5.3), e aceita arquivo antigo só se nenhum bonafide saturou — que é o caso de
-todos os de 2019. A curva só é avaliada em limiares distintos.
+**t-DCF — calculado (29/09/2026).** `scripts/tdcf.py`, eval completo de
+2019, ASV fornecido pelos organizadores:
 
-```powershell
-python scripts/tdcf.py `
-  --asv-scores data/LA/ASVspoof2019_LA_asv_scores/ASVspoof2019.LA.asv.eval.gi.trl.scores.txt `
-  --scores outputs/baseline_lfcc_cnn_v2_eval_scores.npz outputs/fusion_lcnn_v4_eval_scores.npz `
-  --fundir --exportar outputs/tdcf
-```
+| sistema | EER CM | min t-DCF |
+|---|---|---|
+| baseline_lfcc_cnn_v2 | **18,99%** | 0,5075 |
+| fusion_lcnn_v4 | 20,18% | **0,3818** |
+| v2 + fusion_v4, fusão por postos | **13,13%** | **0,3129** |
+| B02 (LFCC-GMM, **com** silêncio) | 8,09% | 0,2116 |
+| B01 (CQCC-GMM, **com** silêncio) | 9,57% | 0,2366 |
 
-A coluna "EER CM" da saída tem de bater com o `make_report` (18,99% e 20,18%);
-se não bater, o `.npz` não é o do checkpoint certo. Referência: B02 0,2116,
-B01 0,2366 (Todisco et al., 2019, Tab. 1). `--exportar` grava os scores no
-formato do script oficial, para conferência cruzada.
+Conferências que validam a medida: o EER CM bate com o `make_report` e com o
+`score_fusion` nas três linhas; o ASV no seu limiar de EER dá Pfa = Pmiss =
+2,46%, contra 2,48% de EER do ASV em Wang et al. (2020, Tab. 6); e as
+contagens (5.370 target, 63.882 spoof) batem com o artigo.
+
+**O t-DCF inverte o ranking do EER entre os dois modelos.** Pelo EER o v2 é
+melhor (18,99% contra 20,18%); pelo min t-DCF o fusion_v4 é bem melhor (0,3818
+contra 0,5075). Não é contradição: o EER olha um único ponto da curva (erros
+iguais), e o t-DCF, com os custos do ASVspoof 2019 (Cfa_cm = 10), procura o
+ponto em que **quase nenhum spoof passa**. É a região em que o fusion_v4 é
+forte — ele zera seis ataques (Seção 7) e tem precisão de 0,9999 (Seção 3). É
+a mesma leitura da 7.2: pela média por ataque o fusion_v4 também é o melhor.
+**A métrica escolhida decide qual modelo "vence"**, e o texto deve dizer isso
+em vez de eleger um.
+
+A fusão por postos melhora nas duas métricas (0,3129), mas continua acima dos
+baselines oficiais — que usam o silêncio (Seção 5.1). Não há régua de t-DCF
+sob o mesmo protocolo: Müller et al. (2021) reportam só EER.
+
+Para os outros cinco modelos, basta acrescentar os `.npz` em `--scores`
+(opcional; os dois principais bastam para o texto).
 
 **MP3 não avaliado.** O teste de robustez usou Opus.
 
@@ -1487,7 +1583,7 @@ cruzada), CFAD, ADD, e qualquer retreino.
 
 ---
 
-## 13. O que o texto do TC1 precisa mudar
+## 13. O que o relatório do TC2 muda em relação ao texto do TC1
 
 ### 13.1 Resultados esperados vs. obtidos
 
@@ -1509,8 +1605,8 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   13,13%; o ranking se inverte sob canal simulado (+23,42 pp no v2 contra
   +7,24 pp no fusion_v4), mas não no canal real (ASVspoof 2021 LA: 29,43%
   contra 32,62%).
-- **Rascunho redigido** destas mudanças, no estilo e na numeração do TC1:
-  `ml/docs/TC1_REDACAO.md`.
+- **Rascunho redigido** destas mudanças para o TC2, na numeração do texto do
+  TC1: `ml/docs/TC2_REDACAO.md`.
 - **Arquitetura:** seção nova, a partir da Seção 3-0 deste resumo.
 - **§4.7 (ciclo incremental):** usar a linhagem v1 → v4 da Seção 3; deltas já
   no baseline; linha de base = `baseline_lcnn_v4`.
@@ -1531,7 +1627,7 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   Resumo/Abstract. A frase da 7.1 sobre termos de consentimento assinados é
   **falsa** e precisa sair. O papel que a coleta teria (bonafide fora da
   ASVspoof) fica como trabalho futuro. Redação de substituição em
-  `ml/docs/TC1_REDACAO.md`.
+  `ml/docs/TC2_REDACAO.md`.
 - **API (FastAPI) e front-end (React)**, Marcos 5 a 7: **estão com o Pedro**,
   fora deste repositório, e ainda não foram recebidos. Até chegarem, o texto
   não pode descrevê-los como prontos nem citar números deles; nada nesta

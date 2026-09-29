@@ -1,6 +1,8 @@
-# Redação das seções revisadas do TC1
+# Redação do relatório do TC2
 
-Texto pronto para colar no documento do TC1, na numeração do PDF atual. Todo
+Texto pronto para o relatório do TC2. Ele parte do documento do TC1 (o PDF da
+proposta) e segue a mesma numeração: cada seção abaixo diz se substitui, altera
+ou acrescenta algo ao texto do TC1. Todo
 número vem de `RESUMO_TCC.md`; a seção de origem aparece entre colchetes, em
 comentário, depois de cada tabela ou parágrafo com dado.
 
@@ -42,7 +44,7 @@ modelos com EER de validação entre 0,03% e 9,74% ficaram todos entre 18,99% e
 encoders LCNN, reduziu o EER de 21,56% para 20,18% (−1,38 ponto percentual). A
 atenção no *pooling*, acrescentada ao modelo com fusão, não trouxe ganho
 (+0,95 p.p.). A combinação de scores de dois modelos de arquiteturas diferentes
-atingiu 13,13% de EER, e um grupo de controle com modelos semelhantes rendeu
+atingiu 13,13% de EER e min t-DCF de 0,3129, e um grupo de controle com modelos semelhantes rendeu
 apenas 0,30 p.p. Isso indica que o ganho vem da diversidade entre os modelos. A
 análise por ataque mostrou que modelos com EER global parecido erram em ataques
 diferentes, e que os ataques com geração autorregressiva (A10, A12 e A15)
@@ -72,7 +74,7 @@ performance: models with validation EER between 0.03% and 9.74% all scored
 between 18.99% and 21.56% on evaluation. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
 reduced the EER from 21.56% to 20.18% (−1.38 percentage points). Attentive
 pooling added to the fused model did not help (+0.95 p.p.). Score-level fusion
-of two architecturally different models reached 13.13% EER, whereas a control
+of two architecturally different models reached 13.13% EER and a min t-DCF of 0.3129, whereas a control
 pair of similar models gained only 0.30 p.p., indicating that the gain comes
 from model diversity. Per-attack analysis showed that models with similar pooled
 EER fail on different attacks, and that autoregressive waveform generation (A10,
@@ -259,8 +261,9 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > ASVspoof. Ela avalia a contramedida em conjunto com um sistema de verificação
 > automática de locutor e pondera o custo de cada tipo de erro (KINNUNEN et al.,
 > 2018). O min t-DCF foi calculado com os parâmetros de custo do ASVspoof 2019
-> e os scores de verificação de locutor fornecidos pelos organizadores.
-> [PENDENTE: valores — `python scripts/tdcf.py`, ver RESUMO_TCC §11.]
+> e os scores de verificação de locutor fornecidos pelos organizadores, e foi
+> reportado para os dois modelos principais e para a fusão de scores. Quanto
+> menor, melhor; o valor 1 corresponde a uma contramedida sem utilidade.
 
 ## 4.12 Arquitetura do Modelo — seção nova
 
@@ -424,6 +427,19 @@ Fonte: Autoria própria.
 > a remoção do silêncio piora o RawNet2 de 3,61% para 15,50%. Como este trabalho
 > remove o silêncio, a comparação equivalente é com os modelos que Müller et al.
 > (2021) treinaram e avaliaram sob o mesmo protocolo (Tabela 4).
+>
+> Na métrica oficial do desafio, o min t-DCF é de 0,5075 para o baseline_v2, de
+> 0,3818 para o fusion_v4 e de 0,3129 para a fusão de scores dos dois, contra
+> 0,2116 (B02) e 0,2366 (B01), obtidos com o silêncio (TODISCO et al., 2019).
+> O t-DCF inverte a ordem dada pelo EER entre os dois modelos: pelo EER o
+> baseline_v2 é melhor, e pelo t-DCF o fusion_v4 é bem melhor. As duas métricas
+> olham regiões diferentes da curva de erro. O EER usa o ponto em que as duas
+> taxas de erro se igualam; o t-DCF, com o custo maior atribuído a aceitar um
+> *spoof*, favorece o ponto em que quase nenhum áudio sintético passa, e é
+> nessa região que o fusion_v4 se destaca, por resolver quase por completo seis
+> dos treze ataques (seção 5.4). A escolha da métrica decide, portanto, qual dos
+> dois modelos é o melhor. Não há régua de t-DCF sob o mesmo protocolo sem
+> silêncio, porque Müller et al. (2021) reportam apenas o EER.
 
 **Tabela 4 – Comparação sob o mesmo protocolo (silêncio removido)**
 
@@ -583,7 +599,8 @@ modelos nos treze ataques.
 > mantém nos quatro pares. Com quatro pares, a relação é ilustrativa e não um
 > teste estatístico. O valor de 13,13% usa a regra de postos, que exige o
 > conjunto completo de scores. A média simples, aplicável a um fluxo contínuo de
-> áudio, resulta em 14,03%.
+> áudio, resulta em 14,03%. Pelo min t-DCF, a fusão por postos também é a
+> melhor: 0,3129, contra 0,3818 do melhor modelo isolado nessa métrica.
 >
 > **Verificação de atalhos.** Na ASVspoof 2019, variáveis triviais como duração
 > e energia separam parcialmente as classes. Após a remoção do silêncio, a
@@ -642,6 +659,18 @@ Fonte: Autoria própria.
 > representação e na arquitetura. Segundo, o limiar calibrado em áudio limpo não se
 > transfere para o áudio degradado. Sob Opus a 15 kbps, o *recall* do
 > baseline_v2 sobe de 0,72 para 0,86 e o do fusion_v4 cai de 0,55 para 0,39.
+> O efeito aparece até no F1: na amostra de verificação descrita abaixo, com
+> Opus a 15 kbps, o F1 do baseline_v2 sobe de
+> 0,83 para 0,91, acima do exigido pelo RNF04, enquanto o seu EER piora. O F1
+> melhora porque o limiar passou a classificar mais áudios como *spoof*, não
+> porque o modelo discrimine melhor.
+>
+> Nenhum áudio autêntico recebeu probabilidade saturada em 1,0 em nenhuma das
+> condições da Tabela 8, e o EER calculado pela probabilidade coincide com o
+> calculado pelos *log-odds*. Uma reavaliação numa amostra estratificada de
+> 10.002 áudios reproduziu o eval completo em 21 das 22 medidas dentro do
+> intervalo de confiança de 95%, com o mesmo modelo vencedor nas onze
+> condições.
 >
 > **Canal real.** A simulação acima responde se o modelo resiste a cada
 > perturbação isolada. Para saber se ela prevê o comportamento em um canal
@@ -687,6 +716,24 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 > praticamente igual ao baseline_v2 sozinho, porque no canal real o fusion_v4
 > atribui probabilidade 1,0 a 97% dos áudios autênticos. Aproveitar a fusão em
 > tempo real exigiria calibrar cada modelo no canal de destino.
+>
+> A análise por ataque (Apêndice B) mostra por que a robustez simulada não se
+> transferiu. Na condição de referência, o perfil por ataque dos dois modelos
+> reproduz o de 2019 (correlação de postos de 0,99, com nenhum ataque diferindo
+> mais de 3,05 p.p.). No Opus real, o perfil do baseline_v2 se preserva
+> (correlação de 0,92 com a referência), com um custo distribuído entre os
+> ataques. O do fusion_v4 se desfaz (0,67): os quatro ataques que ele detectava
+> sem erro (A07, A08, A16 e A19, com 0,00% na referência) passam a 17% a 37%.
+> A vantagem do fusion_v4 consistia na detecção quase perfeita de alguns
+> ataques, e é essa precisão que o canal real destrói; na média por ataque, ele
+> passa de melhor (13,74% contra 16,19%) a pior (31,42% contra 26,75%). A
+> vantagem que sobrevive está em A13 e A18, dois dos ataques por filtragem de
+> forma de onda discutidos na seção 5.4. Os perfis dos dois modelos também se
+> aproximam (correlação de 0,34 em 2019 e de 0,48 no Opus real), o que é
+> coerente com o ganho menor da fusão de scores nessa condição (4,50 contra 5,86
+> p.p.). Com cerca de 690 áudios sintéticos por ataque, o intervalo de
+> confiança por ataque vai de ±1,5 p.p. a ±3,4 p.p., e as comparações acima
+> envolvem diferenças bem maiores que isso.
 >
 > O limiar calibrado também colapsa no canal real: os dois modelos classificam
 > todos os áudios como *spoof* (*recall* de 1,0000 e *precision* de 0,8998, a
@@ -799,9 +846,12 @@ Fonte: Autoria própria.
 > referência B02, com a mesma representação de 20 filtros e outro
 > classificador, falha nos mesmos ataques.
 >
-> Segundo, a fusão de scores de modelos diferentes reduziu o EER para 13,13%. O
+> Segundo, a fusão de scores de modelos diferentes reduziu o EER para 13,13% e
+> o min t-DCF para 0,3129, o melhor resultado do trabalho nas duas métricas. O
 > grupo de controle mostra que o ganho vem da diversidade entre os modelos, que
-> erram em ataques diferentes.
+> erram em ataques diferentes. A comparação entre os modelos isolados, por
+> outro lado, depende da métrica: o baseline_v2 é o melhor pelo EER, e o
+> fusion_v4, pelo t-DCF.
 >
 > Terceiro, o EER agregado esconde os ataques mais fortes. Nos ataques com
 > geração autorregressiva A10 e A12, todos os sete modelos passam de 30% de EER,
@@ -815,8 +865,10 @@ Fonte: Autoria própria.
 > inversão não se repete, e o canal custa de 7 a 11 vezes o que a simulação do
 > mesmo codec indicava. Escolher um modelo pela robustez simulada seria tão
 > arriscado quanto escolhê-lo pelo áudio limpo; a avaliação precisa ser feita
-> no canal de destino. O ganho da fusão de scores, por outro lado, se manteve
-> no canal real.
+> no canal de destino. A análise por ataque indica o motivo: a vantagem do
+> modelo com fusão estava na detecção quase perfeita de alguns ataques, e é
+> essa precisão que o canal real apaga. O ganho da fusão de scores, por outro
+> lado, se manteve no canal real.
 >
 > As metas de F1 superior a 0,90 e EER inferior a 8% não foram atingidas. A
 > segunda se baseava em sistemas que usam o silêncio como atalho. Sob o mesmo
@@ -828,7 +880,7 @@ Fonte: Autoria própria.
 > sementes; estender a avaliação às demais condições da ASVspoof 2021 LA, ao
 > processamento de clientes de conferência e a vozes externas à base; calibrar
 > os modelos no canal de destino, o que permitiria aproveitar a fusão de scores
-> em tempo real; calcular o t-DCF; investigar mecanismos de atenção mais
+> em tempo real; investigar mecanismos de atenção mais
 > expressivos; e usar encoders pré-treinados em fala, direção apontada pela
 > literatura para os ataques autorregressivos. Fica também como hipótese a
 > testar a associação entre o ramo de espectrograma e os ataques por filtragem
@@ -868,6 +920,31 @@ Fonte: Autoria própria; B01 e B02: Wang et al. (2020, Tabela 8).
 
 ---
 
+## APÊNDICE B – EER (%) por ataque na ASVspoof 2021 LA
+
+| ataque | baseline_v2 2019 | baseline_v2 referência 2021 | baseline_v2 Opus real | fusion_v4 2019 | fusion_v4 referência 2021 | fusion_v4 Opus real |
+|---|---|---|---|---|---|---|
+| A07 | 22,43 | 21,73 | 41,22 | 0,02 | 0,00 | 37,13 |
+| A08 | 3,88 | 3,39 | 9,27 | 0,03 | 0,00 | 21,45 |
+| A09 | 2,32 | 1,31 | **5,34** | 0,12 | 0,17 | 17,88 |
+| A10 | 30,63 | 31,07 | 43,61 | 45,54 | 43,53 | 49,50 |
+| A11 | 3,85 | 3,77 | **19,86** | 33,74 | 30,86 | 48,74 |
+| A12 | 36,18 | 33,13 | 40,55 | 47,99 | 46,20 | 41,80 |
+| A13 | 36,50 | 34,23 | 46,79 | 6,54 | 6,15 | **22,37** |
+| A14 | 12,01 | 10,94 | **21,27** | 17,74 | 16,61 | 41,86 |
+| A15 | 15,02 | 15,35 | **16,93** | 29,37 | 29,00 | 42,68 |
+| A16 | 22,75 | 22,99 | 43,48 | 0,03 | 0,00 | **34,92** |
+| A17 | 11,27 | 9,98 | 15,19 | 0,41 | 1,06 | 14,78 |
+| A18 | 15,01 | 15,79 | 27,86 | 4,63 | 5,07 | **18,13** |
+| A19 | 6,98 | 6,83 | 16,44 | 0,00 | 0,00 | 17,26 |
+| **global** | 18,99 | 18,15 | **29,43** | 20,18 | 19,51 | 32,62 |
+| média por ataque | 16,83 | 16,19 | **26,75** | 14,32 | 13,74 | 31,42 |
+
+Fonte: Autoria própria. Amostra estratificada de 10.000 áudios por condição
+(cerca de 690 áudios sintéticos por ataque); a coluna 2019 é o eval completo.
+
+---
+
 ## 9. REFERÊNCIAS — correções e acréscimos
 
 Há **erros nas referências atuais** do PDF. Conferir cada uma na fonte antes da
@@ -899,7 +976,7 @@ KINNUNEN, Tomi et al. t-DCF: a detection cost function for the tandem
 assessment of spoofing countermeasures and automatic speaker verification. In:
 THE SPEAKER AND LANGUAGE RECOGNITION WORKSHOP (ODYSSEY), 2018, Les Sables
 d'Olonne. *Proceedings* [...]. 2018. p. 312-319.
-*(Só se o t-DCF entrar.)*
+*(Citada na 4.11: o t-DCF foi calculado.)*
 
 LAVRENTYEVA, Galina et al. STC antispoofing systems for the ASVspoof2019
 challenge. In: INTERSPEECH, 2019, Graz. *Proceedings* [...]. 2019.
