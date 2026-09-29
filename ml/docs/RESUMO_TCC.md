@@ -138,13 +138,20 @@ scores. Num fluxo ao vivo existe uma janela por vez, então ela não existe. Os
 
 `scripts/robustness_eval.py`, eval completo, 71.237 áudios por condição.
 
-> **Conferência pendente (saturação, ver 5.3).** Estas tabelas foram calculadas
-> pela probabilidade, e o `robustness_eval.py` não salva scores para checar
-> depois. A versão atual imprime, por condição, o EER pelos log-odds, o EER pela
-> probabilidade e quantos bonafide saturaram em 1,0. Se os dois EERs batem, o
-> número desta seção vale. Conferência barata, numa amostra estratificada:
-> `python scripts/robustness_eval.py --config configs/fusion_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000`
-> (e o mesmo para o `baseline_v2`).
+> **Conferido — a saturação não afeta esta seção.** Estas tabelas foram
+> calculadas pela probabilidade, antes da correção da 5.3. A reavaliação numa
+> amostra estratificada de 10.002 áudios (`robustness_eval.py --amostra 10000`,
+> que mostra o EER pelos dois caminhos) deu **nenhum bonafide saturado em
+> nenhuma das 11 condições, nos dois modelos**, e o EER pela probabilidade
+> **idêntico** ao EER pelos log-odds em todas as 22 linhas. A amostra também
+> reproduz o eval completo dentro do IC de ±1,28 pp:
+>
+> | condição | v2 completo | v2 amostra | v4 completo | v4 amostra |
+> |---|---|---|---|---|
+> | limpo | 18,99% | 19,02% | 20,18% | 20,25% |
+> | opus 25 kbps | 20,04% | 20,32% | 22,08% | 22,40% |
+> | banda estreita | 35,95% | 36,22% | 25,53% | 25,67% |
+> | ruído 5 dB | 42,41% | 41,51% | 27,42% | 27,89% |
 
 | condição | baseline_v2 | fusion_v4 | vence |
 |---|---|---|---|
