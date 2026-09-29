@@ -8,11 +8,12 @@ Convenções:
 
 - `[PENDENTE: ...]` marca um valor que ainda não existe ou que não está
   versionado. **Não entregar o texto com essas marcas.**
-- As tabelas estão numeradas na ordem em que aparecem (Tabelas 1 a 8). As duas
-  tabelas do cronograma (hoje Tabela 1 e Tabela 2) passam a ser a **Tabela 9 e a
-  Tabela 10**.
+- As tabelas estão numeradas na ordem em que aparecem (Tabelas 1 a 9). As duas
+  tabelas do cronograma (hoje Tabela 1 e Tabela 2) passam a ser a **Tabela 10 e
+  a Tabela 11**.
 - Números de 25/09/2026: `scripts/make_report.py` (comparativo, por ataque,
-  robustez) e `outputs/*_history.json` (EER de validação).
+  robustez) e `outputs/*_history.json` (EER de validação). Canal real
+  (ASVspoof 2021 LA): RESUMO_TCC §5.3, de 28/09/2026.
 - Citações no formato autor-data da ABNT (NBR 10520). As referências novas e as
   correções estão no fim do arquivo.
 - Termos estrangeiros (*deepfake*, *spoof*, *bonafide*, *pooling*) em itálico no
@@ -46,14 +47,18 @@ apenas 0,30 p.p. Isso indica que o ganho vem da diversidade entre os modelos. A
 análise por ataque mostrou que modelos com EER global parecido erram em ataques
 diferentes, e que os ataques com geração autorregressiva (A10, A12 e A15)
 concentram a dificuldade. Sob degradação simulada de canal, o ranking dos
-modelos se inverte: o melhor modelo no áudio limpo piorou até 23,42 p.p., contra
-7,24 p.p. do modelo com fusão. Sob o mesmo protocolo sem silêncio, os resultados
+modelos se inverteu: o melhor modelo no áudio limpo piorou até 23,42 p.p.,
+contra 7,24 p.p. do modelo com fusão. Em transmissão real por Opus (ASVspoof
+2021 LA), porém, a inversão não se repetiu, e o custo do canal foi de 7 a 11
+vezes o da simulação. A degradação simulada não previu qual modelo resiste ao
+canal real, enquanto o ganho da fusão de scores se manteve (24,94% contra
+29,43%). Sob o mesmo protocolo sem silêncio, os resultados
 ficam abaixo dos modelos com CQT reportados na literatura (26% a 27%). Nenhum
 modelo atingiu as metas de F1 ≥ 0,85 e EER < 8% fixadas no planejamento, e as
 causas dessa diferença são discutidas.
 
 **Palavras-chave:** Deepfake. Áudio. Fusão de características. LFCC. ASVspoof.
-Robustez.
+Robustez de canal.
 
 ## ABSTRACT
 
@@ -72,15 +77,19 @@ pair of similar models gained only 0.30 p.p., indicating that the gain comes
 from model diversity. Per-attack analysis showed that models with similar pooled
 EER fail on different attacks, and that autoregressive waveform generation (A10,
 A12, A15) concentrates the difficulty. Under simulated channel degradation the
-model ranking inverts: the best clean-condition model degraded by up to 23.42
-p.p., against 7.24 p.p. for the fused model. Under the same silence-removed
+model ranking inverted: the best clean-condition model degraded by up to 23.42
+p.p., against 7.24 p.p. for the fused model. Under real Opus transmission
+(ASVspoof 2021 LA), however, the inversion did not recur, and the channel cost
+7 to 11 times more than in simulation. Simulated degradation did not predict
+which model withstands the real channel, whereas the score-fusion gain held
+(24.94% against 29.43%). Under the same silence-removed
 protocol, results are below those reported for CQT-based models (26% to 27%).
 No model reached the planned targets of F1 ≥ 0.85 and EER < 8%, and the reasons
 for this gap are discussed.
 
-**Keywords:** Deepfake. Audio. Feature fusion. LFCC. ASVspoof. Robustness.
+**Keywords:** Deepfake. Audio. Feature fusion. LFCC. ASVspoof. Channel robustness.
 
-> Contagem: o Resumo tem cerca de 230 palavras, dentro da faixa de 150 a 500
+> Contagem: o Resumo tem cerca de 330 palavras, dentro da faixa de 150 a 500
 > que a NBR 6028 dá para trabalhos acadêmicos.
 
 ---
@@ -171,6 +180,9 @@ Fonte: Autoria própria.
 
 > • SoundFile (libsndfile): leitura de áudio e codificação/decodificação Opus,
 > usada para simular o canal de voz sobre IP nos testes de robustez.
+>
+> • FFmpeg: conversão única dos arquivos FLAC da ASVspoof 2021 para WAV, porque
+> parte deles não decodifica no libsndfile.
 
 [PENDENTE: acrescentar FastAPI e React quando o código do Pedro for integrado.]
 
@@ -203,6 +215,18 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 
 > O conjunto de avaliação tem 7.355 áudios *bonafide* e 63.882 *spoof*, sendo
 > 4.914 áudios por ataque, o que corresponde a 89,7% de *spoof*.
+>
+> Para medir a robustez a um canal de transmissão real, os modelos treinados
+> na ASVspoof 2019 foram avaliados, sem retreino, na trilha LA da ASVspoof 2021.
+> Ela contém os mesmos ataques A07 a A19, agora transmitidos por sistemas reais
+> de telefonia e voz sobre IP, e, por regra do desafio, não tem partição de
+> treino: os sistemas são treinados na base de 2019. Foram usadas duas
+> condições da fase de avaliação oficial (14.816 *bonafide* e 133.360 *spoof*):
+> a de referência, sem codec nem transmissão, e a de Opus transmitido por redes
+> reais. De cada condição foi sorteada uma amostra estratificada de 10.000
+> áudios, com a mesma semente, de modo que os modelos veem exatamente os mesmos
+> áudios. Nesse tamanho de amostra, o intervalo de confiança de 95% do EER é de
+> cerca de ±1,28 p.p.
 
 ## 4.10 Divisão dos Dados — substituir por inteiro
 
@@ -224,7 +248,12 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > Nas métricas dependentes de limiar (*accuracy*, *precision*, *recall* e F1), a
 > classe positiva é a *spoof*. O limiar de decisão é o ponto de EER calibrado no
 > conjunto de validação e aplicado sem ajuste ao conjunto de avaliação. O EER não
-> depende de limiar.
+> depende de limiar e é calculado sobre os *log-odds* da rede (diferença entre
+> as duas saídas), e não sobre a probabilidade. Em precisão de 32 bits, a
+> probabilidade satura em exatamente 1,0 quando essa diferença passa de cerca
+> de 17; se áudios autênticos e sintéticos empatam nesse valor, o EER passa a
+> medir o arredondamento, e não o modelo. Os *log-odds* preservam a mesma
+> ordenação sem saturar.
 >
 > • *tandem Detection Cost Function* (t-DCF): métrica oficial do desafio
 > ASVspoof. Ela avalia a contramedida em conjunto com um sistema de verificação
@@ -289,10 +318,11 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 
 ## 5. EXPERIMENTOS E RESULTADOS — introdução, substituir
 
-> Esta seção apresenta os resultados dos experimentos. Todos os valores foram
-> medidos no conjunto de avaliação completo da ASVspoof 2019 LA (71.237 áudios),
-> composto de ataques ausentes do treinamento, com uma execução por modelo
-> (semente 42). As limitações decorrentes desse desenho são discutidas na seção
+> Esta seção apresenta os resultados dos experimentos. Salvo indicação em
+> contrário, os valores foram medidos no conjunto de avaliação completo da
+> ASVspoof 2019 LA (71.237 áudios), composto de ataques ausentes do
+> treinamento, com uma execução por modelo (semente 42). A seção 5.5 acrescenta
+> a avaliação em canal real na ASVspoof 2021 LA. As limitações decorrentes desse desenho são discutidas na seção
 > 5.7.
 
 ## 5.1 Configuração Experimental — substituir por inteiro
@@ -591,7 +621,7 @@ Fonte: Autoria própria.
 
 <!-- outputs/report/robustez_eval.md (25/09/2026) -->
 
-> Sob degradação, o ranking dos modelos se inverte. O baseline_v2 é o melhor no
+> Sob degradação simulada, o ranking dos modelos se inverte. O baseline_v2 é o melhor no
 > áudio limpo e piora até 23,42 p.p. O fusion_v4 piora no máximo 7,24 p.p. e
 > vence em todas as condições de ruído e de banda estreita, com vantagem de
 > 6,5 p.p. a 20 dB, 10,4 p.p. em banda estreita e 15,0 p.p. a 5 dB. O
@@ -599,9 +629,7 @@ Fonte: Autoria própria.
 > menos de 3 p.p. O ganho de ±6 dB praticamente não altera o EER, porque a
 > normalização por pico o desfaz. A codificação Opus custa pouco até 15 kbps:
 > de 0,8 a 1,1 p.p. no baseline_v2 e de 1,2 a 2,8 p.p. no fusion_v4. Já a perda
-> da banda alta e o ruído aditivo custam muito ao baseline_v2. Na prática, escolher o modelo
-> pelo EER no áudio limpo, como a literatura costuma reportar, levaria à escolha
-> errada em uma aplicação com canal degradado.
+> da banda alta e o ruído aditivo custam muito ao baseline_v2.
 >
 > Duas ressalvas delimitam esse resultado. Primeiro, o treinamento usa ruído
 > branco entre 10 e 30 dB e ganho de ±6 dB, gerados pela mesma função dos testes.
@@ -615,8 +643,59 @@ Fonte: Autoria própria.
 > transfere para o áudio degradado. Sob Opus a 15 kbps, o *recall* do
 > baseline_v2 sobe de 0,72 para 0,86 e o do fusion_v4 cai de 0,55 para 0,39.
 >
-> As degradações foram simuladas em *software*. Nenhuma avaliação foi feita em
-> canal real nem com arquivos MP3, e a avaliação em vozes externas à base, com
+> **Canal real.** A simulação acima responde se o modelo resiste a cada
+> perturbação isolada. Para saber se ela prevê o comportamento em um canal
+> real, os dois modelos foram avaliados na ASVspoof 2021 LA (seção 4.9), na
+> condição de referência e na condição de Opus transmitido por redes reais
+> (Tabela 9).
+
+**Tabela 9 – EER (%) na ASVspoof 2021 LA (amostra de 10.000 áudios por condição)**
+
+| modelo | referência (sem codec) | Opus real | variação | Opus simulado, 25 kbps (Tabela 8) |
+|---|---|---|---|---|
+| baseline_v2 | 18,15 | **29,43** | +11,28 p.p. | +1,05 p.p. |
+| fusion_v4 | 19,51 | 32,62 | +13,11 p.p. | +1,90 p.p. |
+| fusão de scores (postos) | — | **24,94** | — | — |
+
+Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
+
+<!-- RESUMO_TCC §5.3 (28/09/2026) -->
+
+> A condição de referência reproduz a avaliação de 2019 nos dois modelos (18,15%
+> contra 18,99%; 19,51% contra 20,18%), dentro do intervalo de confiança da
+> amostra. A mudança na condição Opus vem, portanto, do canal, e não de
+> diferença entre as bases.
+>
+> Três resultados se destacam. Primeiro, a simulação subestima o canal real em
+> uma ordem de grandeza: o Opus real custa de 7 a 11 vezes o Opus simulado. A
+> condição real inclui, além do codec, a transmissão por três redes com taxa e
+> perdas desconhecidas, que é justamente o que a simulação não reproduz.
+> Segundo, a inversão de ranking observada na simulação não se repete. O
+> fusion_v4, que vencia por 6,5 a 15,0 p.p. sob ruído e banda estreita
+> simulados, fica 3,19 p.p. atrás do baseline_v2 no canal real. A diferença de
+> 3,19 p.p. está acima do intervalo de confiança da amostra, mas dentro da
+> variação entre execuções reportada na literatura; o resultado que se sustenta
+> não é que o baseline_v2 seja mais robusto, e sim que **a robustez medida na
+> degradação simulada não previu qual modelo resiste ao canal real**. Terceiro,
+> o ganho da fusão de scores se mantém: a combinação por postos dos dois
+> modelos atinge 24,94%, 4,50 p.p. abaixo do melhor modelo isolado, o mesmo
+> fenômeno observado na ASVspoof 2019. Os ataques A10 e A12 continuam os mais
+> difíceis também no canal real (42,98% e 37,53% após a fusão).
+>
+> A regra de postos exige o conjunto completo de scores e não se aplica a um
+> fluxo contínuo de áudio. A média das probabilidades, que se aplica, dá 29,41%,
+> praticamente igual ao baseline_v2 sozinho, porque no canal real o fusion_v4
+> atribui probabilidade 1,0 a 97% dos áudios autênticos. Aproveitar a fusão em
+> tempo real exigiria calibrar cada modelo no canal de destino.
+>
+> O limiar calibrado também colapsa no canal real: os dois modelos classificam
+> todos os áudios como *spoof* (*recall* de 1,0000 e *precision* de 0,8998, a
+> proporção de *spoof* da amostra). É o classificador trivial da seção 4.6,
+> produzido por um canal real: o fusion_v4 obtém F1 de 0,9473 nessa condição,
+> acima do exigido pelo RNF04, sem distinguir nenhum áudio.
+>
+> Não foram avaliadas as demais condições da ASVspoof 2021 LA (outros codecs e
+> telefonia), nem arquivos MP3. A avaliação em vozes externas à base, com
 > gravações de colaboradores, prevista no planejamento, não foi realizada.
 
 ## 5.6 Resultados Esperados e Obtidos — substituir por inteiro
@@ -648,8 +727,10 @@ Fonte: Autoria própria.
 > são menores que a variação entre execuções observada na literatura (1,4 a 5,2
 > p.p.). Os efeitos grandes superam essa faixa: as trocas por ataque da fusão
 > de características (de −37,65 a +25,78 p.p.), a diferença entre validação e
-> avaliação, a inversão de ranking (6,5 a 15,0 p.p.) e o ganho de 5,86 p.p. da
-> fusão de scores.
+> avaliação, a inversão de ranking na simulação (6,5 a 15,0 p.p.), o custo do
+> canal real (+11 a +13 p.p.) e o ganho de 5,86 p.p. da fusão de scores. A
+> diferença entre os modelos no canal real (3,19 p.p.) e o ganho da fusão nele
+> (4,50 p.p.) ficam dentro dessa faixa.
 >
 > • **Atenção mínima.** O resultado negativo vale para a forma de atenção
 > avaliada.
@@ -660,11 +741,13 @@ Fonte: Autoria própria.
 > • **Robustez medida em dois modelos.** Os outros cinco não foram avaliados sob
 > degradação.
 >
-> • **Canal simulado.** Não houve avaliação em canal real (ASVspoof 2021 LA ou
-> chamada gravada).
+> • **Canal real em uma condição.** A ASVspoof 2021 LA foi avaliada só na
+> condição Opus, numa amostra de 10.000 áudios, e em dois modelos. O
+> processamento de um cliente de conferência (supressão de ruído, cancelamento
+> de eco) não foi medido.
 >
 > • **Sem vozes externas.** A coleta com colaboradores não foi realizada, e todos
-> os áudios *bonafide* vêm da ASVspoof 2019.
+> os áudios *bonafide* vêm da ASVspoof (2019 e 2021).
 >
 > • **Atalhos da base.** O modelo depende de duração e energia em 1% a 2% da
 > variância do score.
@@ -675,14 +758,15 @@ Fonte: Autoria própria.
 
 - **Marco 2:** retirar "amostras de colaboradores coletadas".
 - **Marco 6:** trocar "Testes de robustez realizados" por "Testes de robustez
-  realizados com degradação simulada de canal".
+  realizados com degradação simulada de canal e com transmissão real (ASVspoof
+  2021 LA, condição Opus)".
 - **Marcos 5 a 7 (API e front-end):** [PENDENTE: status do código do Pedro.]
 
 ## 7.1 Privacidade e Utilização dos Dados — substituir por inteiro
 
-> Os experimentos utilizam exclusivamente a base pública ASVspoof 2019, que
-> tem finalidade de pesquisa científica e é distribuída sob licença própria dos
-> organizadores. Nenhuma voz foi coletada de pessoas externas à base. A coleta
+> Os experimentos utilizam exclusivamente as bases públicas ASVspoof 2019 e
+> ASVspoof 2021, que têm finalidade de pesquisa científica e são distribuídas
+> sob licença própria dos organizadores. Nenhuma voz foi coletada de pessoas externas à base. A coleta
 > de amostras com colaboradores, prevista no planejamento, não foi realizada. Se
 > for retomada em trabalhos futuros, deverá observar a Lei Geral de Proteção de
 > Dados (Lei nº 13.709/2018 – LGPD). Características vocais podem ser
@@ -725,12 +809,14 @@ Fonte: Autoria própria.
 > são resolvidos quase perfeitamente. Nenhuma das variações testadas os
 > resolveu.
 >
-> Quarto, o ranking dos modelos se inverte sob degradação de canal. O melhor
-> modelo no áudio limpo piora até 23,42 p.p., e o modelo com fusão, 7,24 p.p.
-> A inversão aparece inclusive com o nível de ruído usado no aumento de dados
-> do treinamento.
-> Escolher o modelo pelo desempenho em áudio limpo leva, portanto, à escolha
-> errada em cenários reais.
+> Quarto, a degradação simulada não previu o canal real. Na simulação, o
+> ranking dos modelos se inverte: o melhor modelo no áudio limpo piora até
+> 23,42 p.p., e o modelo com fusão, 7,24 p.p. Em transmissão real por Opus, a
+> inversão não se repete, e o canal custa de 7 a 11 vezes o que a simulação do
+> mesmo codec indicava. Escolher um modelo pela robustez simulada seria tão
+> arriscado quanto escolhê-lo pelo áudio limpo; a avaliação precisa ser feita
+> no canal de destino. O ganho da fusão de scores, por outro lado, se manteve
+> no canal real.
 >
 > As metas de F1 superior a 0,90 e EER inferior a 8% não foram atingidas. A
 > segunda se baseava em sistemas que usam o silêncio como atalho. Sob o mesmo
@@ -739,8 +825,10 @@ Fonte: Autoria própria.
 > esta base.
 >
 > Como trabalhos futuros, destacam-se: repetir os treinamentos com várias
-> sementes; avaliar os modelos em canal real (ASVspoof 2021 LA) e em vozes
-> externas à base; calcular o t-DCF; investigar mecanismos de atenção mais
+> sementes; estender a avaliação às demais condições da ASVspoof 2021 LA, ao
+> processamento de clientes de conferência e a vozes externas à base; calibrar
+> os modelos no canal de destino, o que permitiria aproveitar a fusão de scores
+> em tempo real; calcular o t-DCF; investigar mecanismos de atenção mais
 > expressivos; e usar encoders pré-treinados em fala, direção apontada pela
 > literatura para os ataques autorregressivos. Fica também como hipótese a
 > testar a associação entre o ramo de espectrograma e os ataques por filtragem
