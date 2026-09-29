@@ -54,6 +54,65 @@ A integridade da base é verificada por `scripts/check_data.py --deep`, que
 decodifica os arquivos em vez de ler só o cabeçalho — um FLAC truncado reporta a
 duração original e passaria despercebido até derrubar o treino horas depois.
 
+### 2.1 Pré-processamento e features contra o baseline oficial LFCC-LCNN
+
+Conferido no código dos baselines, não em descrição de artigo:
+
+- **ASVspoof 2021 LA, baseline B03 (LFCC-LCNN):** repositório
+  `asvspoof-challenge/2021`, `LA/Baseline-LFCC-LCNN/project/baseline_LA/model.py`
+  e `sandbox/util_frontend.py` (classe `LFCC`).
+- **Variante treinada no 2019 LA:** Wang & Yamagishi (2021), repositório
+  `nii-yamagishilab/project-NN-Pytorch-scripts`,
+  `project/03-asvspoof-mega/lfcc-lcnn-lstmsum-p2s/01/model.py`.
+
+| | baseline 2021 LA | variante 2019 LA | este projeto (v2 / fusion_v4) |
+|---|---|---|---|
+| CMVN | **não** | **não** | **não** |
+| normalização das features | nenhuma — `BatchNorm2d(affine=False)` após cada MFM, dentro da rede | idem | média e desvio **por áudio**, um único valor para a matriz inteira |
+| amplitude | sem normalização | sem normalização | normalização por pico |
+| silêncio | mantido (o VAD está comentado no código) | mantido | **removido** (`top_db` 30) |
+| pré-ênfase | 0,97 | 0,97 | não |
+| coeficientes | 20 LFCC, c0 trocado pela log-energia, + Δ + ΔΔ = 60 | idem | 20 LFCC + Δ + ΔΔ = 60 |
+| filtros lineares | 20 | 20 | 20 (v2) / 70 (fusion_v4) |
+| janela / passo | 20 ms / 10 ms | 20 ms / 10 ms | 25 ms / 10 ms |
+| FFT | 1024 | 512 | 512 |
+| **faixa de frequência** | **0–4 kHz** (`lfcc_max_freq = 0.5`) | 0–8 kHz | 0–8 kHz |
+
+**CMVN não faz parte do baseline.** A classe do modelo tem um
+`normalize_input`, mas ele nunca é chamado — o comentário no código diz *"not
+relevant to this code"*. O CMVN vem da verificação de locutor, em que a
+coloração estacionária do espectro (microfone, canal) é incômodo a remover. Na
+detecção de spoofing, parte dessa coloração pode ser o próprio artefato do
+vocoder; o baseline deixa o LFCC cru e normaliza por lote dentro da rede, o que
+ajusta a escala sem apagar as diferenças de espectro entre áudios. (A
+justificativa é leitura deste projeto; o código não a explicita.)
+
+**A normalização por instância deste projeto não é CMVN.** CMVN normaliza cada
+coeficiente ao longo do tempo; aqui é uma média e um desvio para o espectrograma
+inteiro, o que tira nível e escala globais e não remove coloração de canal. O
+efeito é o esperado: ganho de ±6 dB custa no máximo 0,6 pp (Seção 5).
+
+**Onde o projeto diverge, e por quê:**
+
+- **Silêncio removido** — deliberado, pelo atalho documentado por Müller et al.
+  (2021); é o que torna comparável a régua de mesmo protocolo da 5.1.
+- **Normalização por pico e por instância** — o RMS sozinho separa as classes
+  com 32% de EER no eval (Seção 6); normalizar a amplitude impede o modelo de
+  aprender esse atalho.
+- **Pré-ênfase e c0 como log-energia** — não adotados; não foram testados
+  isoladamente, e o efeito deles neste pipeline não é conhecido.
+
+**A faixa de 0–4 kHz do baseline de 2021 é o dado mais relevante da tabela.**
+Os organizadores limitaram o LFCC à metade inferior do espectro no baseline do
+LA de 2021 — a edição que é, por construção, telefonia e VoIP. O comentário no
+código diz *"only uses [0, 0.5 * Nyquist_freq range for LFCC]"*. É coerente com
+o que este projeto mediu: banda estreita custa **+16,96 pp** ao v2 (Seção 5) e
+o canal real, +11,28 pp (5.3). Um modelo que decide com a faixa de 4–8 kHz
+perde essa informação no primeiro trecho de telefonia. **Se o objetivo for o
+canal real, a mudança que segue o raciocínio do ASVspoof não é CMVN — é
+limitar o LFCC a 0–4 kHz.** Exige retreino e está fora do escopo (12.3);
+registrada como trabalho futuro na Seção 11.
+
 ---
 
 ## 3. Resultados dos modelos isolados
@@ -1483,6 +1542,12 @@ Para os outros cinco modelos, basta acrescentar os `.npz` em `--scores`
 (opcional; os dois principais bastam para o texto).
 
 **MP3 não avaliado.** O teste de robustez usou Opus.
+
+**Front-end não testado contra o do baseline oficial.** O pipeline difere do
+LFCC-LCNN oficial em pré-ênfase, c0 como energia, janela e faixa de frequência
+(Seção 2.1). Nenhuma dessas diferenças foi isolada. A mais promissora para o
+canal real é limitar o LFCC a 0–4 kHz, como no baseline do 2021 LA —
+**trabalho futuro**, exige retreino.
 
 ---
 
