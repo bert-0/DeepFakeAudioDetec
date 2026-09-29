@@ -10,9 +10,10 @@ diferentes vencem em ataques diferentes (baixa resolução vai melhor no núcleo
 duro; alta resolução, nos ataques semelhantes ao treino).
 
 Regras de combinação implementadas:
-  - mean : média simples dos scores
+  - mean : média simples das probabilidades — a mesma conta do monitor ao vivo
   - rank : média dos *postos* (normalized rank) — imune a diferenças de
-           calibração entre modelos, que é a fraqueza da média simples
+           calibração entre modelos, que é a fraqueza da média simples.
+           Os postos saem dos log-odds, que não saturam como o softmax
   - max  : score máximo (o sistema mais "desconfiado" decide)
   - min  : score mínimo
 
@@ -40,7 +41,7 @@ from src.config import load_config, seed_worker, output_name, resolve_device, se
 from src.data import build_dataset  # noqa: E402
 from src.data.dataset import protocol_ids_and_systems  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_eer  # noqa: E402
+from src.metrics import compute_eer, probabilidade_e_logodds  # noqa: E402
 from src.models import build_model  # noqa: E402
 from src.scores import checkpoint_fingerprint, load_scores, scores_path  # noqa: E402
 
@@ -67,7 +68,7 @@ def parse_args() -> argparse.Namespace:
 @torch.no_grad()
 def scores_of_model(config_path: str, ckpt_path: str, partition: str,
                     smoke: bool, device_arg: str | None, recompute: bool = False):
-    """Scores de um modelo na partição: (labels, scores, system_ids, ids).
+    """Scores de um modelo: (labels, probabilidades, log-odds, system_ids, ids).
 
     Reaproveita o `.npz` deixado por `evaluate.py` quando ele descreve este mesmo
     checkpoint e protocolo — a fusão combina N modelos, e sem isso seriam N
@@ -91,9 +92,9 @@ def scores_of_model(config_path: str, ckpt_path: str, partition: str,
         reuso, motivo = load_scores(scores_path(OUTPUT_DIR, name, partition),
                                     ids=ids, fingerprint=impressao, partition=partition)
         if reuso is not None:
-            labels, scores, systems = reuso
+            labels, scores, systems, logodds = reuso
             print(f"  scores {motivo} (inferência não repetida)")
-            return labels, scores, systems, ids
+            return labels, scores, logodds, systems, ids
 
     device = resolve_device(device_arg or config["train"]["device"])
     if ds is None:
@@ -108,13 +109,16 @@ def scores_of_model(config_path: str, ckpt_path: str, partition: str,
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
-    labels, scores = [], []
+    labels, scores, logodds = [], [], []
     for features, y in loader:
         features = {k: v.to(device) for k, v in features.items()}
-        scores.append(torch.softmax(model(features), dim=1)[:, 1].cpu().numpy())
+        probs, lo = probabilidade_e_logodds(model(features))
+        scores.append(probs)
+        logodds.append(lo)
         labels.append(y.numpy())
     systems = np.array(getattr(ds, "system_ids", ["-"] * len(ds)))
-    return np.concatenate(labels), np.concatenate(scores), systems, list(ds.ids)
+    return (np.concatenate(labels), np.concatenate(scores), np.concatenate(logodds),
+            systems, list(ds.ids))
 
 
 def to_ranks(scores: np.ndarray) -> np.ndarray:
@@ -124,21 +128,25 @@ def to_ranks(scores: np.ndarray) -> np.ndarray:
     cada modelo importa, não a escala absoluta das suas probabilidades.
 
     Empates recebem o posto **médio**. Isso não é detalhe: o softmax satura em
-    exatamente 1.0 para muitas amostras (medido: ~60 mil das 71 mil do conjunto
-    de avaliação), e desempatar pela ordem do array inventaria uma ordenação que
-    o modelo não produziu — alterando o EER em vários pontos percentuais.
+    exatamente 1.0 (medido: até ~26 mil spoof do eval de 2019 num mesmo modelo),
+    e desempatar pela ordem do array inventaria uma ordenação que o modelo não
+    produziu. Os postos agora saem dos log-odds, que não empatam por
+    arredondamento; o posto médio continua valendo para arquivos antigos.
     """
     from scipy.stats import rankdata
 
     return (rankdata(scores, method="average") - 1) / max(len(scores) - 1, 1)
 
 
-def combine(all_scores: list[np.ndarray], rule: str) -> np.ndarray:
+def combine(all_scores: list[np.ndarray], rule: str,
+            all_logodds: list[np.ndarray] | None = None) -> np.ndarray:
+    """Combina os modelos. `rank` usa os log-odds quando informados."""
     stack = np.vstack(all_scores)
     if rule == "mean":
         return stack.mean(axis=0)
     if rule == "rank":
-        return np.vstack([to_ranks(s) for s in all_scores]).mean(axis=0)
+        base = all_scores if all_logodds is None else all_logodds
+        return np.vstack([to_ranks(s) for s in base]).mean(axis=0)
     if rule == "max":
         return stack.max(axis=0)
     if rule == "min":
@@ -165,11 +173,12 @@ def main() -> None:
     ids_ref = None
     systems = None
     per_model: dict[str, np.ndarray] = {}
+    per_model_lo: dict[str, np.ndarray] = {}
 
     for cfg_path, ckpt_path in specs:
         tag = Path(cfg_path).stem
         print(f"Rodando {tag} ...", flush=True)
-        labels, scores, sys_ids, ids = scores_of_model(
+        labels, scores, logodds, sys_ids, ids = scores_of_model(
             cfg_path, ckpt_path, args.partition, args.smoke, args.device,
             recompute=args.recompute)
         if labels_ref is None:
@@ -179,13 +188,14 @@ def main() -> None:
                 f"{tag} avaliou uma lista de áudios diferente — os modelos "
                 "precisam usar o mesmo protocolo e partição.")
         per_model[tag] = scores
-        print(f"  EER individual: {compute_eer(labels, scores) * 100:.2f}%")
+        per_model_lo[tag] = logodds
+        print(f"  EER individual: {compute_eer(labels, logodds) * 100:.2f}%")
 
     print("\n=== FUSÃO ===")
-    results = {"individual": {t: compute_eer(labels_ref, s) for t, s in per_model.items()}}
+    results = {"individual": {t: compute_eer(labels_ref, s) for t, s in per_model_lo.items()}}
     best_rule, best_eer = None, float("inf")
     for rule in RULES:
-        fused = combine(list(per_model.values()), rule)
+        fused = combine(list(per_model.values()), rule, list(per_model_lo.values()))
         eer = compute_eer(labels_ref, fused)
         results[rule] = {"eer": eer, "per_attack": eer_per_attack(labels_ref, fused, systems)}
         flag = ""

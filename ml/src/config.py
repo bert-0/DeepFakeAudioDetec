@@ -45,7 +45,7 @@ def output_name(config: dict, smoke: bool = False) -> str:
 
 
 def config_derivado(base: dict, sufixo: str, protocolo_eval: str | Path,
-                    audio_eval: str | Path) -> dict[str, Any]:
+                    audio_eval: str | Path, ext: str = ".flac") -> dict[str, Any]:
     """Config para avaliar um modelo já treinado num conjunto de áudio NOVO.
 
     Existe porque o caminho óbvio — copiar o config do modelo e trocar só os
@@ -67,6 +67,8 @@ def config_derivado(base: dict, sufixo: str, protocolo_eval: str | Path,
     cfg["experiment"]["name"] = f"{base['experiment']['name']}__{sufixo}"
     cfg.setdefault("data", {}).setdefault("protocols", {})["eval"] = str(protocolo_eval)
     cfg["data"].setdefault("audio_dir", {})["eval"] = str(audio_eval)
+    if ext != ".flac":
+        cfg["data"]["file_ext"] = ext
     cfg.setdefault("train", {})["cache_features"] = False
     return cfg
 

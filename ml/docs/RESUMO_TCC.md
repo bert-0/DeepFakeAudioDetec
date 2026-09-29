@@ -267,9 +267,24 @@ scores. Num fluxo ao vivo existe uma janela por vez, então ela não existe. Os
 
 ---
 
-## 5. Robustez ao canal — onde o ranking se inverte
+## 5. Robustez ao canal — simulado × real
 
 `scripts/robustness_eval.py`, eval completo, 71.237 áudios por condição.
+
+> **Conferido — a saturação não afeta esta seção.** Estas tabelas foram
+> calculadas pela probabilidade, antes da correção da 5.3. A reavaliação numa
+> amostra estratificada de 10.002 áudios (`robustness_eval.py --amostra 10000`,
+> que mostra o EER pelos dois caminhos) deu **nenhum bonafide saturado em
+> nenhuma das 11 condições, nos dois modelos**, e o EER pela probabilidade
+> **idêntico** ao EER pelos log-odds em todas as 22 linhas. A amostra também
+> reproduz o eval completo dentro do IC de ±1,28 pp:
+>
+> | condição | v2 completo | v2 amostra | v4 completo | v4 amostra |
+> |---|---|---|---|---|
+> | limpo | 18,99% | 19,02% | 20,18% | 20,25% |
+> | opus 25 kbps | 20,04% | 20,32% | 22,08% | 22,40% |
+> | banda estreita | 35,95% | 36,22% | 25,53% | 25,67% |
+> | ruído 5 dB | 42,41% | 41,51% | 27,42% | 27,89% |
 
 | condição | baseline_v2 | Δ | fusion_v4 | Δ | vence | no treino? |
 |---|---|---|---|---|---|---|
@@ -292,10 +307,8 @@ não têm avaliação de robustez.
 O fusion_v4 vence nas **cinco** condições de ruído e banda estreita; o v2 vence
 nas seis restantes (limpo, ganho e Opus), sempre por menos de 3 pp.
 
-**Este é o resultado mais forte do TC1.** O modelo que vence no benchmark limpo
-é o que desaba no canal degradado. A ordem se inverte. Escolher modelo pelo EER
-limpo — que é o que a literatura reporta — leva à escolha errada para qualquer
-aplicação real.
+**Sob degradação simulada, a ordem se inverte.** O modelo que vence no
+benchmark limpo é o que desaba com banda estreita e ruído.
 
 **Ressalva obrigatória: parte da robustez a ruído é "dentro da distribuição".**
 O treino usa ruído gaussiano branco a 10–30 dB e ganho de ±6 dB, com a **mesma
@@ -312,16 +325,24 @@ declarado no texto.
 > ruído não é questão de ter visto ou não a perturbação, porque os dois viram a
 > mesma. É da representação/arquitetura.
 
-O que custa o quê:
+> **Atenção — a Seção 5.3 muda a leitura desta tabela.** No canal de transmissão
+> **real** (ASVspoof 2021 LA, Opus sobre redes VoIP de verdade), a ordem volta a
+> ser a do áudio limpo: `baseline_v2` 29,43%, `fusion_v4` 32,62%. A robustez do
+> `fusion_v4` à banda estreita e ao ruído *simulados* não virou vantagem no
+> canal real. A conclusão que se sustenta: **a degradação simulada não prediz
+> qual modelo resiste ao canal real.**
+
+O que custa o quê, **na simulação**:
+
 
 **O codec testado é Opus, não MP3.** O `infer.py` aceita MP3, mas nenhuma
 avaliação foi feita com esse formato. O texto não deve afirmar robustez a MP3.
 
 - **Ganho de ±6 dB não custa nada** (≤ 0,6 pp) — esperado, a normalização por
   pico o desfaz.
-- **O codec Opus custa pouco**: +0,8 a +1,1 pp no v2 e +1,2 a +2,8 pp no
-  fusion_v4, até 15 kbps (abaixo do que o Teams usa na prática). É o único eixo
-  em que o fusion_v4 é o mais sensível dos dois.
+- **O codec Opus simulado custa pouco**: +0,8 a +1,1 pp no v2 e +1,2 a +2,8 pp
+  no fusion_v4, até 15 kbps. É o único eixo em que o fusion_v4 é o mais sensível
+  dos dois. A Seção 5.3 mostra que o Opus **real** custa de 7 a 11 vezes mais.
 - **Perder a banda alta custa muito**, e o ruído custa mais ainda — no v2. No
   fusion_v4 o pior caso inteiro (ruído a 5 dB) custa +7,24 pp.
 - Opus sobre banda estreita dá **menos** EER que banda estreita sozinha nos dois
@@ -402,7 +423,9 @@ saber a variância daqui sem retreinar, mas se ela for da mesma ordem:
 | diferença por ataque entre v2 e v4 (Seção 7) | até 30 pp | **sim** |
 | incremento da fusão, por ataque (7.0) | −37,65 a +25,78 pp | **sim** |
 | dev × eval (3.1) | dev 0,03–9,74%, eval 18,99–21,56% | **sim** |
-| inversão de ranking sob canal (Seção 5) | 10,4 e 15,0 pp | **sim** |
+| inversão de ranking sob canal **simulado** (Seção 5) | 6,5 a 15,0 pp | **sim** — mas não se repete no canal real (5.3) |
+| ordem no canal real, v2 × v4 (5.3) | 3,19 pp | **não** — acima só do IC de amostragem (±1,28 pp), não da variância entre execuções |
+| fusão de scores no canal real (5.3) | 4,50 pp | **não** — dentro da faixa, mas repete o sentido e a ordem de grandeza do 5,86 pp de 2019 |
 | ganho da fusão de scores (Seção 4) | 5,86 pp | **sim** |
 | incremento da fusão de características (Seção 3) | −1,38 pp | **não** |
 | incremento da atenção (Seção 3) | +0,95 pp | **não** |
@@ -413,6 +436,113 @@ não podem ser atribuídos ao método com uma execução só. Retreinar com mais
 sementes resolveria (≈3 h por treino, medido), mas o caminho barato é declarar
 a limitação no texto e apoiar a conclusão sobre a fusão na Seção 7, onde o
 efeito é por ataque e muito maior.
+
+### 5.3 Canal real: ASVspoof 2021 LA
+
+Os mesmos ataques A07–A19 do eval de 2019, agora **transmitidos por redes reais**.
+Fase `eval` (o conjunto oficial: 14.816 bonafide, 133.360 spoof), amostra
+estratificada de 10.000 por condição, mesma semente nas duas condições e nos dois
+modelos — os dois modelos veem exatamente os mesmos áudios.
+
+| | referência (sem codec) | **Opus real** | variação |
+|---|---|---|---|
+| baseline_v2 | 18,15% | **29,43%** | +11,28 pp |
+| fusion_v4 | 19,51% | **32,62%** | +13,11 pp |
+| fusão `rank` (v2 + v4) | — | **24,94%** | −4,50 pp sobre o v2 |
+
+**Controles que validam a medida:**
+
+- A condição de referência reproduz o eval de 2019 nos dois modelos (18,15%
+  contra 18,99%; 19,51% contra 20,18%), dentro do IC 95% de ±1,28 pp da amostra.
+  A mudança no Opus é do canal, não de diferença entre as bases.
+- Os `.flac` do 2021 não decodificam no libsndfile (38 de 50 testados, "unknown
+  error in flac decoder", versão 1.2.2) e foram convertidos para WAV uma vez
+  (`scripts/converter_para_wav.py`). A conversão é exata: o baseline_v2 na
+  referência deu **métricas idênticas** pelos dois caminhos — FFmpeg direto e
+  WAV convertido (EER 18,15%, acurácia 0,7485, precisão 0,9872, recall 0,7299).
+
+**Achado 1 — a simulação subestima o canal real em uma ordem de grandeza.**
+
+| | Opus simulado (25 kbps, Seção 5) | Opus real | razão |
+|---|---|---|---|
+| baseline_v2 | +1,05 pp | +11,28 pp | ~11x |
+| fusion_v4 | +1,90 pp | +13,11 pp | ~7x |
+
+A Seção 10.1 chamava a camada 1 de "limite inferior" sem número. Agora tem: o
+custo real é de 7 a 11 vezes o simulado. Ressalva: o "Opus real" é codec **e
+transmissão** (três redes: `ita_tx`, `loc_tx`, `sin_tx`, com taxa e perdas
+desconhecidas), enquanto a simulação é só o codec numa taxa fixa. A diferença
+inclui tudo o que a rede faz além do codec — que é justamente o que se queria
+medir.
+
+> **Correção de medida — a primeira execução deu 49,06% para o `fusion_v4`, e
+> era artefato.** O score salvo era o softmax em float32, que arredonda para
+> exatamente 1,0 quando a margem entre os logits passa de ~17 (medido). Se
+> bonafide e spoof empatam em 1,0, o EER mede o arredondamento, não o modelo — um
+> teste do projeto mostra classes perfeitamente separadas pelo logit dando EER ≥
+> 40% pelo softmax. `scripts/checar_saturacao.py` mediu:
+>
+> | arquivo de scores | bonafide em 1,0 | spoof em 1,0 | valores distintos |
+> |---|---|---|---|
+> | todos os de 2019 (eval completo) | **0** | até ~26 mil | — |
+> | 2021 referência (v2 e v4) | **0** | — | — |
+> | 2021 Opus, baseline_v2 | **0** | — | — |
+> | 2021 Opus, fusion_v4 | **975 de 1.002 (97%)** | 8.926 de 8.999 (99%) | 52 |
+>
+> Só o último estava contaminado. Spoof em 1,0 com bonafide abaixo é acerto e
+> não muda o EER, então **todos os EERs de 2019, as duas referências de 2021 e o
+> 29,43% do baseline_v2 no Opus valiam**. O EER passou a ser calculado sobre os
+> log-odds (logit[1] − logit[0]), que não saturam; o `fusion_v4` no Opus foi
+> reavaliado e deu **32,62%**. Vale registrar como aconteceu: o sintoma que
+> denunciou o erro foi a análise por ataque — quatro ataques com EER idêntico
+> (48,65%) e tamanhos de amostra diferentes, o que só ocorre com scores
+> empatados.
+
+**Achado 2 — a robustez simulada não virou vantagem no canal real.** Sob banda
+estreita e ruído simulados, o `fusion_v4` era o robusto (Seção 5). Sob
+transmissão real, o `baseline_v2` vence por **3,19 pp** (29,43% contra 32,62%),
+diferença maior que o IC 95% de ±1,28 pp de cada medida. A ordem no canal real é
+a do áudio limpo e do Opus simulado, não a da banda estreita e do ruído. A
+simulação não previu qual modelo resiste — isso não invalida a Seção 5, invalida
+a extrapolação dela.
+
+**Achado 2b — a diversidade entre modelos se confirma no canal real.** A fusão
+`rank` dos dois dá **24,94%**, −4,50 pp sobre o melhor isolado — o mesmo
+fenômeno da Seção 4 (−5,86 pp no eval de 2019), agora sob transmissão real. Por
+ataque, o `fusion_v4` é o melhor justamente onde a fusão mais ganha (A17 14,78%,
+A19 17,26%, A09 17,88%; fundidos, A09 cai para 6,74%), e os dois falham juntos
+em A10 e A12 (42,98% e 37,53% fundidos) — os mesmos dois que já resistiam aos
+dois modelos em 2019 (Seção 7.3).
+
+**Achado 2c — a regra streamável não captura esse ganho.** A regra `mean` (a do
+monitor) dá **29,41%**, igual ao `baseline_v2` sozinho (29,43%). O motivo é a
+calibração: 97% dos bonafide recebem probabilidade 1,0 do `fusion_v4` no Opus,
+então a média das probabilidades é, na prática, o v2 deslocado. A regra `max`
+repete o 49,06% pelo mesmo motivo — ela opera sobre probabilidades. O ganho da
+fusão existe na **ordenação** dos dois modelos, e a `rank` precisa do conjunto
+inteiro; uma fusão ao vivo que o aproveite exige calibrar cada modelo **no canal
+de destino**, o que fica como trabalho futuro.
+
+**Achado 3 — o limiar calibrado colapsa.** No Opus real, os dois modelos
+classificam **tudo** como spoof no limiar do checkpoint: recall 1,0000 e precisão
+0,8998, que é exatamente a proporção de spoof da amostra. É o classificador
+trivial da Seção 8.1, produzido por um canal real e não por construção.
+
+**Consequência para o monitor ao vivo.** A escolha do `fusion_v4` para chamadas
+se apoiava na robustez simulada, e o canal real a contradiz: o `baseline_v2` é
+melhor sozinho (29,43% contra 32,62%), e a fusão pela média — a única
+streamável — empata com ele (29,41%) custando o dobro de processamento. **O
+monitor passa a recomendar o `baseline_v2` sozinho.**
+
+Comandos desta seção:
+
+```bash
+python evaluate.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
+python scripts/per_attack_eval.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
+python scripts/score_fusion.py --name fusao_2021_opus \
+    --model outputs/asvspoof2021/opus_eval_n10000__baseline_lfcc_cnn_v2.yaml checkpoints/baseline_lfcc_cnn_v2.pt \
+    --model outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml checkpoints/fusion_lcnn_v4.pt
+```
 
 ---
 
@@ -826,6 +956,12 @@ que responde **"spoof" para tudo** obtém F1 = **0,9456** — acima do exigido,
 sem olhar para o áudio. Ou seja: o requisito é satisfeito pelo detector inútil
 e não é satisfeito pelos detectores reais.
 
+O canal real produziu esse caso sem que ninguém o construísse. No ASVspoof 2021
+LA com Opus (Seção 5.3), o `fusion_v4` classifica **todos** os áudios como spoof
+no limiar calibrado (recall 1,0000, precisão 0,8998 = a proporção de spoof da
+amostra) e obtém F1 = **0,9473**, acima do RNF02. Um ponto de operação que não
+distingue nada atende o requisito.
+
 Esse achado vale mais que o cumprimento do requisito. É um resultado de
 engenharia de requisitos: **F1 sobre classe majoritária não mede capacidade de
 detecção**. (Convenção a declarar no texto, TC1 §4.11: a classe positiva é o
@@ -1220,14 +1356,17 @@ foram vistos no treino; inéditos são 5 dB, Opus e banda estreita. Ver Seção 
 **Atenção mínima.** O resultado negativo vale para uma projeção linear de 258
 parâmetros, não para atenção em geral. Ver Seção 3.
 
-**Canal real não avaliado.** ASVspoof 2021 LA: só o importador. Camada 2: só a
-instrumentação.
+**Canal real: só uma condição, numa amostra.** ASVspoof 2021 LA avaliado na
+condição Opus contra a referência, 10.000 áudios por condição, dois modelos
+(Seção 5.3). As outras condições do 2021 (a-law, G.722, PSTN etc.) não foram
+rodadas. A camada 2 (cliente de conferência) continua só instrumentação.
 
 **t-DCF — script pronto, falta rodar.** `scripts/tdcf.py` lê os
 `outputs/*_eval_scores.npz` (sem refazer inferência) e o arquivo ASV que vem
 no LA.zip, e já faz as duas conversões que o script oficial exigiria à mão
-(sentido do score e colunas). Também trata empates: o softmax satura em 1,0 em
-dezenas de milhares de áudios, e a curva só é avaliada em limiares distintos.
+(sentido do score e colunas). Usa os `logodds` do `.npz` quando existem (Seção
+5.3), e aceita arquivo antigo só se nenhum bonafide saturou — que é o caso de
+todos os de 2019. A curva só é avaliada em limiares distintos.
 
 ```powershell
 python scripts/tdcf.py `
@@ -1253,15 +1392,15 @@ menor que o valor marginal de escrever as seções que já têm dado.**
 ### 12.1 O que já está medido e só precisa ser escrito
 
 Sete modelos comparados, fusão de scores com grupo de controle, robustez ao
-canal com inversão de ranking, verificação de atalhos em duas camadas, latência
+canal simulado (com inversão de ranking) e real (sem ela), verificação de atalhos em duas camadas, latência
 do RNF01, o achado do RNF02 trivial, custo de operação ao vivo, resolução
 temporal e ponderação das janelas. Nada disso precisa de execução nova.
 
 ### 12.2 Fazer (barato, alto valor)
 
 1. ~~Regenerar as tabelas por ataque~~ — **feito**, ver Seção 7.
-2. **ASVspoof 2021 LA, com subamostragem.** Uma comparação pareada: condição de
-   referência (sem codec) contra Opus real, nos dois modelos principais.
+2. ~~ASVspoof 2021 LA, com subamostragem~~ — **feito**, ver 5.3. Mudou a
+   leitura da Seção 5.
 
    **Régua para o 2021 LA**, de Müller et al. (2021), Tabela 4 e Tabela 1:
 
@@ -1324,12 +1463,16 @@ cruzada), CFAD, ADD, e qualquer retreino.
   37,65 pp por ataque; a atenção quase não muda nada (Seção 3 e 7.0).
 - A fusão de scores entre modelos **diversos** ajuda muito mais (−5,86 pp), e o
   grupo de controle mostra que o ganho vem da diversidade (Seção 4).
-- **O ranking dos modelos se inverte sob degradação de canal simulado**
-  (Seção 5) — o resultado central. **Ainda não há confirmação em canal real:**
-  o ASVspoof 2021 LA tem só o importador pronto, nenhuma avaliação rodada, e a
-  camada 2 não foi executada.
-- O EER agregado esconde os ataques mais fortes: A10 e A12 ficam entre 30% e
-  48% nos dois modelos (Seção 7.3).
+- **A degradação simulada não prediz o canal real** (Seções 5 e 5.3). Sob
+  banda estreita e ruído simulados o `fusion_v4` é o robusto; sob transmissão
+  real o `baseline_v2` vence por 3,19 pp (29,43% contra 32,62%). A simulação
+  subestima o custo real do Opus em 7 a 11 vezes.
+- A fusão de modelos diversos **se confirma no canal real** (−4,50 pp, 24,94%),
+  mas só pela regra `rank`, que não é streamável; a média das probabilidades
+  empata com o v2 sozinho (Seção 5.3).
+- O EER agregado esconde os ataques mais fortes: A10 e A12 passam de 30% nos
+  sete modelos (Seção 7.3) e, fundidos, continuam os piores no canal real
+  (42,98% e 37,53%, Seção 5.3).
 - O modelo aprende artefato, não atalho, com dependência residual de 1–2%
   (Seção 6).
 - Nenhum modelo atinge o RNF02 (F1 ≥ 0,85), que ainda assim é satisfeito por um
@@ -1357,8 +1500,9 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
 
 - **Resumo/Abstract:** reescrever com os resultados — fusão de características
   −1,38 pp; atenção não melhora; fusão de scores entre modelos diferentes
-  13,13%; ranking se inverte sob canal (+23,42 pp no v2 contra +7,24 pp no
-  fusion_v4).
+  13,13%; o ranking se inverte sob canal simulado (+23,42 pp no v2 contra
+  +7,24 pp no fusion_v4), mas não no canal real (ASVspoof 2021 LA: 29,43%
+  contra 32,62%).
 - **Rascunho redigido** destas mudanças, no estilo e na numeração do TC1:
   `ml/docs/TC1_REDACAO.md`.
 - **Arquitetura:** seção nova, a partir da Seção 3-0 deste resumo.
@@ -1370,7 +1514,8 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   e 7 deste resumo.
 - **Conclusão:** quatro achados — (1) o dev não prevê o eval; (2) a fusão de
   scores ganha pela diversidade entre os modelos; (3) o EER agregado esconde os
-  ataques mais fortes (A10/A12); (4) o ranking se inverte no canal degradado.
+  ataques mais fortes (A10/A12); (4) a degradação simulada não prediz o canal
+  real — o ranking se inverte na simulação e não se inverte no ASVspoof 2021 LA.
 - **Limitações:** tudo o que está na Seção 11.
 
 ### 13.3 Promessas do texto sem entrega no repositório

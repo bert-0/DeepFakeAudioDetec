@@ -25,6 +25,7 @@ from src.metrics import (
     compute_metrics,
     format_metrics,
     plot_confusion_matrix,
+    probabilidade_e_logodds,
     save_score_file,
 )
 from src.models import build_model
@@ -52,16 +53,19 @@ def parse_args() -> argparse.Namespace:
 
 @torch.no_grad()
 def run_inference(model, loader, device):
+    """Devolve (labels, preds, P(spoof), log-odds). O EER usa os log-odds."""
     model.eval()
-    labels, preds, scores = [], [], []
+    labels, preds, scores, logodds = [], [], [], []
     for features, y in loader:
         features = {k: v.to(device) for k, v in features.items()}
         logits = model(features)
-        probs = torch.softmax(logits, dim=1)[:, 1]
-        scores.append(probs.cpu().numpy())
+        probs, lo = probabilidade_e_logodds(logits)
+        scores.append(probs)
+        logodds.append(lo)
         preds.append(logits.argmax(dim=1).cpu().numpy())
         labels.append(y.numpy())
-    return (np.concatenate(labels), np.concatenate(preds), np.concatenate(scores))
+    return (np.concatenate(labels), np.concatenate(preds),
+            np.concatenate(scores), np.concatenate(logodds))
 
 
 def main() -> None:
@@ -96,7 +100,8 @@ def main() -> None:
         cal_loader = DataLoader(cal_ds, batch_size=batch_size, shuffle=False,
                                 num_workers=0 if args.smoke else config["train"]["num_workers"],
                                 worker_init_fn=seed_worker)
-        cal_labels, _, cal_scores = run_inference(model, cal_loader, device)
+        # O threshold fica em probabilidade: é a unidade do checkpoint e do monitor.
+        cal_labels, _, cal_scores, _ = run_inference(model, cal_loader, device)
         cal_eer, threshold = compute_eer_with_threshold(cal_labels, cal_scores)
         origem = f"calibrado agora em '{args.calibrate_on}' (EER={cal_eer * 100:.2f}%)"
 
@@ -105,8 +110,9 @@ def main() -> None:
     if threshold is not None:
         print(f"Threshold aplicado: {threshold:.4f} ({origem})")
 
-    labels, preds, scores = run_inference(model, loader, device)
-    metrics = compute_metrics(labels, preds, scores, threshold=threshold)
+    labels, preds, scores, logodds = run_inference(model, loader, device)
+    metrics = compute_metrics(labels, preds, scores, threshold=threshold,
+                              eer_scores=logodds)
     print(f"\nResultados ({args.partition}): {format_metrics(metrics)}")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -130,7 +136,7 @@ def main() -> None:
     # do LA são 71.237 áudios por passada.
     npz_path = scores_path(OUTPUT_DIR, name, args.partition)
     save_scores(npz_path,
-                ids=ds.ids, labels=labels, scores=scores,
+                ids=ds.ids, labels=labels, scores=scores, logodds=logodds,
                 systems=getattr(ds, "system_ids", ["-"] * len(ds.ids)),
                 fingerprint=checkpoint_fingerprint(ckpt["model_state"]),
                 partition=args.partition)

@@ -19,6 +19,14 @@ O arquivo `.txt` no estilo ASVspoof continua sendo gerado pelo `evaluate.py`:
 ele é o artefato legível/auditável (e a entrada do script oficial de t-DCF).
 Este `.npz` é o formato interno, em precisão total — o `.txt` arredonda para
 seis casas, o que criaria empates artificiais no cálculo do EER.
+
+**Log-odds.** A probabilidade em float32 satura em exatamente 1,0 quando a
+margem entre as saídas da rede passa de ~17; se bonafide e spoof empatam ali, o
+EER mede o arredondamento. Por isso o arquivo guarda também `logodds`
+(logit[1] - logit[0]), que não satura, e é sobre ele que o EER é calculado.
+Arquivos antigos, sem esse campo, continuam aceitos **só se nenhum bonafide
+saturou** — nesse caso a ordem que importa para o EER está intacta. Os
+demais são recusados e a inferência é refeita.
 """
 
 from __future__ import annotations
@@ -28,6 +36,8 @@ from pathlib import Path
 
 import numpy as np
 import torch
+
+from src.metrics import logodds_de_probabilidade
 
 VERSION = 1
 
@@ -53,11 +63,13 @@ def scores_path(output_dir: str | Path, name: str, partition: str) -> Path:
 
 
 def save_scores(path: str | Path, *, ids, labels, scores, systems,
-                fingerprint: str, partition: str) -> None:
+                fingerprint: str, partition: str, logodds=None) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    extras = {} if logodds is None else {"logodds": np.asarray(logodds, dtype=np.float64)}
     np.savez_compressed(
         path,
+        **extras,
         version=VERSION,
         ids=np.asarray([str(i) for i in ids]),
         labels=np.asarray(labels),
@@ -71,7 +83,9 @@ def save_scores(path: str | Path, *, ids, labels, scores, systems,
 def load_scores(path: str | Path, *, ids, fingerprint: str, partition: str):
     """Relê os scores se ainda descreverem este modelo nesta partição.
 
-    Devolve `(labels, scores, systems)` ou `None`, com o motivo da recusa. O
+    Devolve `(labels, scores, systems, logodds)` ou `None`, com o motivo da
+    recusa. `logodds` é o que deve entrar no EER: o salvo, ou — em arquivo
+    antigo sem saturação de bonafide — derivado das probabilidades. O
     motivo é devolvido em vez de impresso porque quem chama sabe se aquilo é uma
     informação útil ou ruído.
     """
@@ -94,4 +108,12 @@ def load_scores(path: str | Path, *, ids, fingerprint: str, partition: str):
     guardados = dados["ids"].tolist()
     if guardados != [str(i) for i in ids]:
         return None, "a lista de áudios do protocolo mudou"
-    return (dados["labels"], dados["scores"], dados["systems"]), "reaproveitados"
+    labels, scores = dados["labels"], dados["scores"]
+    if "logodds" in dados.files:
+        logodds = dados["logodds"]
+    elif (scores[labels == 0] >= 1.0).any():
+        return None, ("formato antigo com bonafide saturados em 1.0 — o EER "
+                      "precisa dos log-odds")
+    else:
+        logodds = logodds_de_probabilidade(scores)
+    return (labels, scores, dados["systems"], logodds), "reaproveitados"

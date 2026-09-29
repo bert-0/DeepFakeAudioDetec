@@ -4,14 +4,14 @@ Escuta a **saída de áudio do sistema** e classifica o que passa, janela a
 janela. Como pega o que sai da caixa de som, funciona com Microsoft Teams,
 Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
 
-    # ao vivo, com FUSÃO dos dois modelos (recomendado: 14,03% contra 20,18%)
+    # ao vivo (recomendado: o baseline_v2 sozinho — ver "Qual modelo usar")
+    python monitor.py --config configs/baseline_v2.yaml \\
+        --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
+
+    # ao vivo, com fusão pela média de dois modelos
     python monitor.py --config configs/fusion_v4.yaml \\
         --checkpoint checkpoints/fusion_lcnn_v4.pt \\
         --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
-
-    # ao vivo, um modelo só
-    python monitor.py --config configs/fusion_v4.yaml \\
-        --checkpoint checkpoints/fusion_lcnn_v4.pt
 
     # ao vivo, gravando o que ouviu (é assim que se mede o canal real)
     python monitor.py --config ... --checkpoint ... --gravar chamada.wav
@@ -22,9 +22,8 @@ Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
     # ver os dispositivos disponíveis
     python monitor.py --listar-dispositivos
 
-**Qual modelo usar.** O `fusion_lcnn_v4`, e não o melhor modelo do benchmark.
-Em áudio limpo o `baseline_lfcc_cnn_v2` ganha por 1,19 pp, mas sob as condições
-de uma chamada a ordem **se inverte** (medido com `robustness_eval.py` no eval
+**Qual modelo usar.** O `baseline_lfcc_cnn_v2`, sozinho. A degradação
+*simulada* apontava o `fusion_lcnn_v4` (medido com `robustness_eval.py` no eval
 completo, 71.237 áudios):
 
     condição              v2      fusion_v4
@@ -33,6 +32,17 @@ completo, 71.237 áudios):
     banda estreita     35,95%        25,53%   <- v4 ganha por 10,4 pp
     ruído 5 dB SNR     42,41%        27,42%   <- v4 ganha por 15,0 pp
     degradação máx.   +23,42 pp     +7,24 pp
+
+mas o canal **real** (ASVspoof 2021 LA, Opus sobre redes VoIP, 10 mil áudios)
+não confirmou:
+
+    Opus real          29,43%        32,62%   <- v2 ganha por 3,2 pp
+    fusão pela média        29,41%            <- empata com o v2 sozinho
+
+A média das probabilidades — a regra que este monitor usa com dois
+`--checkpoint` — não ganha nada no canal real: o `fusion_v4` dá 1,0 para 97%
+dos bonafide no Opus, e a média vira o v2 deslocado. A fusão por postos ganha
+4,5 pp, mas precisa do conjunto inteiro e não roda janela a janela.
 
 **O que degrada, e quanto.** O codec Opus custa pouco: +1,2 a +2,8 pp mesmo a
 15 kbps, abaixo do que o Teams usa. Quem derruba é perder a **banda alta**

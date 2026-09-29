@@ -10,6 +10,7 @@ todas as linhas em silêncio e devolve lista vazia. O teste
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -24,16 +25,21 @@ from src.data.asvspoof2021 import (  # noqa: E402
 )
 from src.data.dataset import parse_protocol_with_systems  # noqa: E402
 
-# Linhas no formato real do eval-package:
+# Linhas no formato do eval-package:
 #   locutor arquivo codec canal ataque chave trim fase
+#
+# No arquivo REAL, o bonafide traz `bonafide` também na coluna de ataque. A
+# primeira versão deste fixture usava `-` ali — o formato suposto — e por isso
+# os testes passavam enquanto o parser descartava todo bonafide do arquivo
+# verdadeiro. As duas formas ficam aqui de propósito.
 LINHAS = """\
 LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval
-LA_0009 LA_E_1000001 alaw ita_tx - bonafide notrim eval
+LA_0009 LA_E_1000001 alaw ita_tx bonafide bonafide notrim eval
 LA_0010 LA_E_1000002 opus ita_tx A10 spoof notrim eval
-LA_0010 LA_E_1000003 opus ita_tx - bonafide notrim eval
+LA_0010 LA_E_1000003 opus ita_tx bonafide bonafide notrim progress
 LA_0011 LA_E_1000004 nocodec nocodec A12 spoof notrim eval
 LA_0011 LA_E_1000005 nocodec nocodec - bonafide notrim eval
-LA_0012 LA_E_1000006 gsm pstn A19 spoof notrim eval
+LA_0012 LA_E_1000006 gsm pstn A19 spoof notrim progress
 """
 
 
@@ -47,10 +53,19 @@ def metadata(tmp_path):
 # --------------------------------------------------------------------------- #
 # A regressão que motiva o módulo
 # --------------------------------------------------------------------------- #
-def test_parser_de_2019_falharia_em_silencio(metadata):
-    """Sem conversão, o protocolo sai VAZIO — e nada avisa."""
-    assert parse_protocol_with_systems(metadata) == [], \
-        "se isto passar a devolver linhas, o parser de 2019 mudou"
+def test_parser_de_2019_leria_o_arquivo_de_2021_errado_e_em_silencio(metadata):
+    """Sem conversão, o parser de 2019 devolve lixo plausível, sem erro.
+
+    No formato real do 2021 o bonafide tem `bonafide` na 5ª coluna, que é onde o
+    parser de 2019 procura a chave. Então ele ACEITA as linhas bonafide — com o
+    canal (`ita_tx`) no lugar do ataque — e descarta todos os spoof. O resultado
+    é um protocolo de uma classe só, que parece válido.
+    """
+    lidos = parse_protocol_with_systems(metadata)
+    assert lidos, "se isto voltar a ser vazio, o formato do fixture mudou"
+    assert all(label == 0 for _, label, _ in lidos), "só bonafide sobrevive"
+    assert {sistema for _, _, sistema in lidos} <= {"ita_tx", "nocodec", "pstn", "-"}, \
+        "o 'ataque' lido é na verdade o canal"
 
 
 def test_parser_de_2021_le_todas_as_linhas(metadata):
@@ -315,10 +330,10 @@ def test_cli_gera_config_seguro_e_carregavel(metadata, tmp_path, capsys):
     codigo = main(["--metadata", str(metadata), "--codec", "opus",
                    "--saida", str(destino),
                    "--config-base", "configs/fusion_v4.yaml",
-                   "--audio-dir", "data/2021/flac"])
+                   "--audio-dir", str(_pasta_com_audios(tmp_path, metadata))])
     assert codigo == 0
 
-    cfg = load_config(destino.with_suffix(".yaml"))
+    cfg = load_config(destino.with_name("opus__fusion_lcnn_v4.yaml"))
     assert cfg["experiment"]["name"] == "fusion_lcnn_v4__2021_opus"
     assert cfg["data"]["protocols"]["eval"] == str(destino)
     assert cfg["train"]["cache_features"] is False
@@ -339,3 +354,238 @@ def test_cli_sem_config_base_avisa_para_nao_copiar_a_mao(metadata, tmp_path, cap
     main(["--metadata", str(metadata), "--codec", "opus",
           "--saida", str(tmp_path / "p.txt")])
     assert "sobrescreve os resultados" in capsys.readouterr().out
+
+
+
+# --------------------------------------------------------------------------- #
+# Regressão: o formato real do bonafide
+#
+# Rodado no arquivo verdadeiro, o `--listar` devolveu 163.114 trials e ZERO
+# bonafide. As linhas bonafide têm `bonafide` duas vezes (coluna de ataque e
+# coluna de chave), e o parser exigia uma ocorrência só.
+# --------------------------------------------------------------------------- #
+def test_bonafide_no_formato_real_e_lido(tmp_path):
+    p = tmp_path / "m.txt"
+    p.write_text("LA_0007 LA_E_5932896 alaw ita_tx bonafide bonafide notrim eval\n"
+                 "LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval\n",
+                 encoding="utf-8")
+    trials = ler_metadata(p)
+    assert [t.chave for t in trials] == ["bonafide", "spoof"]
+    assert trials[0].ataque == "-", "o bonafide não tem ataque"
+
+
+def test_fixture_tem_as_duas_classes_nas_condicoes_certas(metadata):
+    """O `--listar` real mostrou 0 bonafide em TODA condição; aqui não pode."""
+    achadas = {n: (b, s) for n, b, s in condicoes(ler_metadata(metadata))}
+    assert achadas["alaw/ita_tx"][0] == 1
+    assert achadas["opus/ita_tx"][0] == 1
+
+
+def test_descarte_de_linha_e_relatado(tmp_path):
+    from src.data.asvspoof2021 import ler_metadata as ler
+
+    p = tmp_path / "m.txt"
+    p.write_text("LA_0009 LA_E_1 alaw ita_tx A07 spoof notrim eval\n"
+                 "linha quebrada sem chave nenhuma aqui\n", encoding="utf-8")
+    relatorio: dict = {}
+    ler(p, relatorio)
+    assert relatorio["ignoradas"] == 1
+    assert "linha quebrada" in relatorio["exemplos"][0]
+
+
+def test_cli_para_quando_uma_classe_inteira_some(tmp_path, capsys):
+    """Era o sintoma do defeito: seguir adiante com zero bonafide."""
+    from scripts.importar_asvspoof2021 import main
+
+    p = tmp_path / "m.txt"
+    p.write_text("".join(f"LA_0009 LA_E_{i} alaw ita_tx A07 spoof notrim eval\n"
+                         for i in range(5)), encoding="utf-8")
+    assert main(["--metadata", str(p), "--listar"]) == 1
+    assert "uma classe só" in capsys.readouterr().out
+
+
+def test_listar_mostra_as_fases(metadata, capsys):
+    """O Müller reporta a fase de progresso; a divisão precisa estar visível."""
+    from scripts.importar_asvspoof2021 import main
+
+    assert main(["--metadata", str(metadata), "--listar"]) == 0
+    saida = capsys.readouterr().out
+    assert "progress" in saida and "eval" in saida
+
+
+def test_fases_conta_por_classe(metadata):
+    from src.data.asvspoof2021 import fases
+
+    contagem = fases(ler_metadata(metadata))
+    assert contagem["eval"] == (2, 3)
+    assert contagem["progress"] == (1, 1)
+
+
+# --------------------------------------------------------------------------- #
+# Filtro por fase — o metadado real mistura eval, progress e hidden
+# --------------------------------------------------------------------------- #
+def test_filtro_por_fase(metadata):
+    from src.data.asvspoof2021 import filtrar
+
+    so_eval = filtrar(ler_metadata(metadata), fase="eval")
+    assert so_eval and all(t.fase == "eval" for t in so_eval)
+    assert len(so_eval) == 5
+
+
+def test_fase_combina_com_codec(metadata):
+    from src.data.asvspoof2021 import filtrar
+
+    sel = filtrar(ler_metadata(metadata), codec="opus", fase="progress")
+    assert [t.arquivo for t in sel] == ["LA_E_1000003"]
+
+
+def test_cli_avisa_quando_a_fase_nao_e_escolhida(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "alaw",
+          "--saida", str(tmp_path / "p.txt")])
+    assert "--fase eval" in capsys.readouterr().out
+
+
+def test_rotulo_do_arquivo_inclui_a_fase(metadata, tmp_path):
+    """Referência sem codec vira `none_eval_n...`, sem hífen solto do canal `-`."""
+    import argparse
+
+    from scripts.importar_asvspoof2021 import rotulo
+
+    a = argparse.Namespace(condicao="none/-", codec=None, fase="eval", amostra=10000)
+    assert rotulo(a) == "none_eval_n10000"
+
+
+def test_dois_modelos_na_mesma_condicao_nao_sobrescrevem_o_config(metadata, tmp_path):
+    """O protocolo é compartilhado; o config tem que ser um por modelo."""
+    from scripts.importar_asvspoof2021 import main
+    from src.config import load_config
+
+    destino = tmp_path / "opus.txt"
+    audio = _pasta_com_audios(tmp_path, metadata)
+    for base in ("configs/fusion_v4.yaml", "configs/baseline_v2.yaml"):
+        assert main(["--metadata", str(metadata), "--codec", "opus",
+                     "--saida", str(destino), "--config-base", base,
+                     "--audio-dir", str(audio)]) == 0
+
+    nomes = sorted(p.name for p in tmp_path.glob("opus__*.yaml"))
+    assert nomes == ["opus__baseline_lfcc_cnn_v2.yaml", "opus__fusion_lcnn_v4.yaml"]
+    assert load_config(tmp_path / nomes[0])["model"]["name"] != \
+        load_config(tmp_path / nomes[1])["model"]["name"]
+
+
+
+# --------------------------------------------------------------------------- #
+# Áudio ausente — a falha precisa aparecer na importação, não no evaluate.py
+#
+# Com a pasta errada (ou a extração incompleta), o erro só surgia no
+# evaluate.py, como FileNotFoundError dentro de um worker do DataLoader.
+# --------------------------------------------------------------------------- #
+def _pasta_com_audios(tmp_path, metadata):
+    pasta = tmp_path / "flac"
+    pasta.mkdir(exist_ok=True)
+    for t in ler_metadata(metadata):
+        (pasta / f"{t.arquivo}.flac").write_bytes(b"x")
+    return pasta
+
+
+def test_importacao_recusa_amostra_com_audio_faltando(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    (pasta / "LA_E_1000002.flac").write_bytes(b"x")     # só 1 dos 2 do opus
+
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(tmp_path / "p.txt"),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", str(pasta)])
+    saida = capsys.readouterr().out
+
+    assert codigo == 1
+    assert "1 dos 2" in saida and "LA_E_1000003" in saida
+    assert "181.566" in saida, "precisa dizer quanto a pasta deveria ter"
+    assert not list(tmp_path.glob("*.yaml")), "nenhum config pode ser gerado"
+
+
+def test_importacao_explica_pasta_inexistente(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "opus",
+          "--saida", str(tmp_path / "p.txt"),
+          "--config-base", "configs/fusion_v4.yaml",
+          "--audio-dir", str(tmp_path / "nao_existe")])
+    assert "A pasta não existe" in capsys.readouterr().out
+
+
+
+# --------------------------------------------------------------------------- #
+# Leitura pelo libsndfile — quando falha, o fallback do librosa é lento demais
+#
+# No uso real, o libsndfile falhou em todos os .flac do 2021 e o librosa caiu
+# no audioread (um processo do FFmpeg por arquivo no Windows). A avaliação
+# travou de tão lenta, e o aviso do librosa não dizia o motivo.
+# --------------------------------------------------------------------------- #
+def test_falha_de_leitura_e_detectada_com_o_erro_real(tmp_path):
+    import soundfile as sf
+
+    from scripts.importar_asvspoof2021 import falhas_de_leitura
+    from src.data.asvspoof2021 import Trial
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    sf.write(pasta / "bom.flac", np.zeros(1600, dtype="float32"), 16000)
+    (pasta / "ruim.flac").write_bytes(b"isto nao e um flac")
+
+    trials = [Trial("S", "bom", "none", "-", "-", "bonafide"),
+              Trial("S", "ruim", "none", "-", "A07", "spoof")]
+    testados, falhas = falhas_de_leitura(trials, pasta)
+
+    assert testados == 2
+    assert [nome for nome, _ in falhas] == ["ruim"]
+    assert falhas[0][1], "a mensagem real do libsndfile não pode sumir"
+
+
+def test_importacao_avisa_quando_o_libsndfile_nao_le(metadata, tmp_path, capsys):
+    """Arquivos existem, mas não são legíveis: gera o config, avisando alto."""
+    from scripts.importar_asvspoof2021 import main
+
+    pasta = _pasta_com_audios(tmp_path, metadata)       # bytes que não são FLAC
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(tmp_path / "p.txt"),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", str(pasta)])
+    saida = capsys.readouterr().out
+
+    assert codigo == 0
+    assert "libsndfile não conseguiu decodificar" in saida
+    # O conselho antigo era atualizar o soundfile; no uso real ele já estava na
+    # versão mais nova (0.14.0, libsndfile 1.2.2) e o defeito persistia.
+    assert "pip install" not in saida
+    assert "converter_para_wav.py" in saida and "--audio-ext .wav" in saida
+
+
+
+def test_cabecalho_bom_com_decodificacao_quebrada_e_detectado(tmp_path):
+    """O caso que `sf.info` deixava passar.
+
+    No uso real o cabeçalho dos .flac do 2021 abriu sem erro. Um FLAC truncado
+    reproduz a situação: o cabeçalho sobrevive, a decodificação não.
+    """
+    import soundfile as sf
+
+    from scripts.importar_asvspoof2021 import falhas_de_leitura
+    from src.data.asvspoof2021 import Trial
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    t = np.arange(16000 * 2) / 16000
+    sf.write(pasta / "cortado.flac", (0.3 * np.sin(2 * np.pi * 200 * t)).astype("float32"), 16000)
+    dados = (pasta / "cortado.flac").read_bytes()
+    (pasta / "cortado.flac").write_bytes(dados[: len(dados) // 3])
+
+    sf.info(str(pasta / "cortado.flac"))            # o cabeçalho abre sem erro
+
+    _, falhas = falhas_de_leitura([Trial("S", "cortado", "none", "-", "-", "bonafide")], pasta)
+    assert [nome for nome, _ in falhas] == ["cortado"]

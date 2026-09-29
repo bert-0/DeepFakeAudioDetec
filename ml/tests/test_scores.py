@@ -28,7 +28,7 @@ def gravar(path, **override):
 
 def test_roundtrip_preserves_values(tmp_path):
     caminho = gravar(tmp_path / "s.npz")
-    (labels, scores, systems), motivo = load_scores(
+    (labels, scores, systems, _), motivo = load_scores(
         caminho, ids=IDS, fingerprint=FP, partition="eval")
     assert motivo == "reaproveitados"
     assert list(labels) == LABELS
@@ -44,7 +44,7 @@ def test_scores_keep_full_precision(tmp_path):
     """
     finos = [0.5, 0.5 + 1e-12, 1.0 - 1e-15]
     caminho = gravar(tmp_path / "s.npz", ids=IDS, labels=[0, 1, 1], scores=finos)
-    (_, scores, _), _ = load_scores(caminho, ids=IDS, fingerprint=FP, partition="eval")
+    (_, scores, _, _), _ = load_scores(caminho, ids=IDS, fingerprint=FP, partition="eval")
     assert len(set(scores.tolist())) == 3, "os scores foram arredondados"
 
 
@@ -98,6 +98,49 @@ def test_refuses_when_fields_are_missing(tmp_path):
     reuso, motivo = load_scores(caminho, ids=IDS, fingerprint=FP, partition="eval")
     assert reuso is None
     assert motivo == "formato antigo"
+
+
+# --------------------------------------------------------------------------- #
+# Log-odds: o EER não pode depender do arredondamento do softmax
+# --------------------------------------------------------------------------- #
+
+def test_logodds_are_saved_and_returned(tmp_path):
+    lo = [-3.0, 25.0, 40.0]
+    caminho = gravar(tmp_path / "s.npz", logodds=lo)
+    (_, _, _, logodds), motivo = load_scores(caminho, ids=IDS, fingerprint=FP,
+                                             partition="eval")
+    assert motivo == "reaproveitados"
+    np.testing.assert_array_equal(logodds, lo)
+
+
+def test_old_file_without_saturated_bonafide_is_still_reused(tmp_path):
+    """Os arquivos de 2019 não têm log-odds e não têm bonafide em 1,0: valem.
+
+    O log-odds derivado precisa ordenar os áudios igual à probabilidade — é o
+    que garante que o EER de um arquivo antigo não muda.
+    """
+    probs = [0.10, 1.0, 0.75]
+    caminho = gravar(tmp_path / "s.npz", scores=probs)
+    (_, _, _, logodds), motivo = load_scores(caminho, ids=IDS, fingerprint=FP,
+                                             partition="eval")
+    assert motivo == "reaproveitados"
+    assert np.isfinite(logodds).all()
+    assert list(np.argsort(logodds)) == list(np.argsort(probs))
+
+
+def test_old_file_with_saturated_bonafide_is_refused(tmp_path):
+    """Bonafide em 1,0 sem log-odds: o EER mediria o empate. Recalcula."""
+    caminho = gravar(tmp_path / "s.npz", scores=[1.0, 1.0, 0.75])
+    reuso, motivo = load_scores(caminho, ids=IDS, fingerprint=FP, partition="eval")
+    assert reuso is None
+    assert "log-odds" in motivo
+
+
+def test_saturated_file_with_logodds_is_accepted(tmp_path):
+    caminho = gravar(tmp_path / "s.npz", scores=[1.0, 1.0, 1.0],
+                     logodds=[20.0, 30.0, 31.0])
+    reuso, _ = load_scores(caminho, ids=IDS, fingerprint=FP, partition="eval")
+    assert reuso is not None
 
 
 # --------------------------------------------------------------------------- #

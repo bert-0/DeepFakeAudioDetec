@@ -54,17 +54,52 @@ def compute_eer_with_threshold(
     return eer, threshold
 
 
+def probabilidade_e_logodds(logits) -> tuple[np.ndarray, np.ndarray]:
+    """Das saídas da rede (N, 2): P(spoof) e o log-odds logit[1] - logit[0].
+
+    Com duas classes, P(spoof) = sigmoide(log-odds): os dois ordenam os áudios
+    igual — até o float32 arredondar. A partir de uma margem de ~17 o softmax
+    vira EXATAMENTE 1,0 e áudios diferentes empatam; o log-odds não satura.
+    Como o EER depende só da ordem, ele é calculado sobre o log-odds. A
+    probabilidade continua sendo o score exibido e a unidade do threshold.
+    """
+    import torch
+
+    logits = logits.detach().float()
+    probs = torch.softmax(logits, dim=1)[:, 1].cpu().numpy()
+    logodds = (logits[:, 1] - logits[:, 0]).cpu().numpy().astype(np.float64)
+    return probs, logodds
+
+
+def logodds_de_probabilidade(scores: np.ndarray) -> np.ndarray:
+    """Log-odds a partir de probabilidades já salvas (arquivos antigos).
+
+    Preserva a ordem das probabilidades — inclusive os empates em 1,0, que já
+    estão perdidos. Só serve para pôr arquivos antigos na mesma escala dos
+    novos; não recupera a informação que a saturação apagou.
+    """
+    p = np.asarray(scores, dtype=np.float64)
+    eps = float(np.finfo(np.float32).eps) / 2
+    p = np.clip(p, eps, 1.0 - eps)
+    return np.log(p) - np.log1p(-p)
+
+
 def compute_metrics(
     labels: np.ndarray,
     preds: np.ndarray,
     scores: np.ndarray,
     threshold: float | None = None,
+    eer_scores: np.ndarray | None = None,
 ) -> dict[str, float]:
     """Calcula todas as métricas a partir dos rótulos, predições e scores.
 
     Se `threshold` for informado, as predições são recalculadas como
     `scores >= threshold` (ignorando `preds`), permitindo reportar as métricas
     em um ponto de corte calibrado em vez do 0,5 implícito do argmax.
+
+    `eer_scores`, se informado, é usado só no EER — tipicamente os log-odds
+    (ver `probabilidade_e_logodds`). O threshold continua em probabilidade,
+    que é a unidade guardada no checkpoint e usada pelo monitor.
     """
     if threshold is not None:
         preds = (np.asarray(scores) >= threshold).astype(int)
@@ -73,7 +108,7 @@ def compute_metrics(
         "precision": float(precision_score(labels, preds, pos_label=1, zero_division=0)),
         "recall": float(recall_score(labels, preds, pos_label=1, zero_division=0)),
         "f1": float(f1_score(labels, preds, pos_label=1, zero_division=0)),
-        "eer": compute_eer(labels, scores),
+        "eer": compute_eer(labels, scores if eer_scores is None else eer_scores),
     }
     if threshold is not None:
         metrics["threshold"] = float(threshold)
