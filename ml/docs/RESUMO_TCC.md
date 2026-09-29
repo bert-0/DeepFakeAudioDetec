@@ -10,7 +10,7 @@ TC1 (artigo científico) quanto à APS (engenharia de software).
 > Versionado em `ml/docs/` de propósito: a versão anterior morava em
 > `ml/outputs/`, que é gitignored, e se perdeu quando o ambiente foi reciclado.
 
-Última atualização: 25/09/2026 · 455 testes automatizados passando.
+Última atualização: 29/09/2026 · 591 testes automatizados passando (8 avisos).
 
 ---
 
@@ -523,8 +523,9 @@ a extrapolação dela.
 **Achado 2b — a diversidade entre modelos se confirma no canal real.** A fusão
 `rank` dos dois dá **24,94%**, −4,50 pp sobre o melhor isolado — o mesmo
 fenômeno da Seção 4 (−5,86 pp no eval de 2019), agora sob transmissão real. Por
-ataque, o `fusion_v4` é o melhor justamente onde a fusão mais ganha (A17 14,78%,
-A19 17,26%, A09 17,88%; fundidos, A09 cai para 6,74%), e os dois falham juntos
+ataque, os menores EERs do `fusion_v4` (A17 14,78%, A19 17,26%, A09 17,88%)
+são onde a fusão mais ganha (fundidos, A09 cai para 6,74%) — mas note que ali o
+v2 isolado já é tão bom ou melhor (5,34% no A09; ver 5.3.1). Os dois falham juntos
 em A10 e A12 (42,98% e 37,53% fundidos) — os mesmos dois que já resistiam aos
 dois modelos em 2019 (Seção 7.3).
 
@@ -548,11 +549,71 @@ melhor sozinho (29,43% contra 32,62%), e a fusão pela média — a única
 streamável — empata com ele (29,41%) custando o dobro de processamento. **O
 monitor passa a recomendar o `baseline_v2` sozinho.**
 
+### 5.3.1 O canal real por ataque
+
+`per_attack_eval.py` nos quatro configs do 2021 (29/09/2026). Cada ataque tem
+~690 spoof na amostra, então o IC 95% por ataque é de ±1,5 pp (EER ≈ 5%) a
+±3,4 pp (EER ≈ 40%): **diferenças abaixo de ~5 pp por ataque não se leem.**
+EER (%):
+
+| ataque | v2 2019 | v2 ref. 2021 | v2 Opus real | v4 2019 | v4 ref. 2021 | v4 Opus real |
+|---|---|---|---|---|---|---|
+| A07 | 22,43 | 21,73 | 41,22 | 0,02 | 0,00 | 37,13 |
+| A08 | 3,88 | 3,39 | 9,27 | 0,03 | 0,00 | 21,45 |
+| A09 | 2,32 | 1,31 | **5,34** | 0,12 | 0,17 | 17,88 |
+| A10 | 30,63 | 31,07 | 43,61 | 45,54 | 43,53 | 49,50 |
+| A11 | 3,85 | 3,77 | **19,86** | 33,74 | 30,86 | 48,74 |
+| A12 | 36,18 | 33,13 | 40,55 | 47,99 | 46,20 | 41,80 |
+| A13 | 36,50 | 34,23 | 46,79 | 6,54 | 6,15 | **22,37** |
+| A14 | 12,01 | 10,94 | **21,27** | 17,74 | 16,61 | 41,86 |
+| A15 | 15,02 | 15,35 | **16,93** | 29,37 | 29,00 | 42,68 |
+| A16 | 22,75 | 22,99 | 43,48 | 0,03 | 0,00 | **34,92** |
+| A17 | 11,27 | 9,98 | 15,19 | 0,41 | 1,06 | 14,78 |
+| A18 | 15,01 | 15,79 | 27,86 | 4,63 | 5,07 | **18,13** |
+| A19 | 6,98 | 6,83 | 16,44 | 0,00 | 0,00 | 17,26 |
+| **global** | 18,99 | 18,15 | **29,43** | 20,18 | 19,51 | 32,62 |
+| média por ataque | 16,83 | 16,19 | **26,75** | 14,32 | 13,74 | 31,42 |
+
+**1. A referência de 2021 reproduz 2019 ataque por ataque.** Correlação de
+postos entre os perfis: ρ = 0,99 nos dois modelos; nenhum ataque difere mais
+de 3,05 pp, dentro do IC. Valida a importação do 2021 e a Seção 7 ao mesmo
+tempo: o perfil por ataque é propriedade do modelo, não ruído da amostra.
+
+**2. O Opus real apaga exatamente o que dava vantagem ao `fusion_v4`.** Os
+ataques que ele zerava — A07, A08, A16 e A19, 0,00% na referência — vão a
+17–37%. O perfil do v2 sobrevive ao canal (ρ referência × Opus = 0,92, custo
+espalhado de +2 a +20 pp); o do `fusion_v4` se desfaz (ρ = 0,67, custo de até
++37 pp). Na média por ataque o `fusion_v4` passa de **melhor** (13,74% contra
+16,19%) a **pior** (31,42% contra 26,75%). É o mecanismo da Seção 5.3: a
+vantagem do `fusion_v4` era detecção quase perfeita de alguns ataques, e é essa
+precisão que o canal real destrói. Hipótese compatível, não medida: os ataques
+que ele zerava dependem de detalhe espectral fino (A07/A16/A19 são justamente
+os que a resolução de 70 filtros resolve, Seção 7.5), e o Opus atenua a banda
+alta (−4,4 dB entre 6 e 8 kHz, medido no `channel.py`).
+
+**3. A vantagem nos ataques por filtragem sobrevive, em parte.** Onde o
+`fusion_v4` continua vencendo no Opus real estão A13 (22,37% contra 46,79%) e
+A18 (18,13% contra 27,86%) — dois dos três ataques por filtragem da hipótese da
+7.5; o terceiro, A17, empata dentro do IC (14,78% contra 15,19%). Também segue
+com ele o A16 (34,92% contra 43,48%), e o A07 por margem próxima do IC (4,1 pp). Reforça a hipótese da 7.5 sem
+prová-la (post hoc, poucos ataques).
+
+**4. A diversidade encolhe no canal real, e a fusão rende menos.** ρ entre os
+perfis de v2 e `fusion_v4`: 0,34 em 2019, 0,36 na referência, **0,48** no Opus
+real. A fusão rende −5,86 pp em 2019 e −4,50 pp no Opus. Mesmo sentido da
+relação da Seção 4 (perfis mais parecidos, ganho menor) — um quinto ponto,
+ainda ilustrativo. O oráculo (melhor dos dois por ataque) vai de 8,21% na
+referência a 23,12% no Opus.
+
+**5. A10 e A12 continuam os piores** para os dois modelos nas três condições.
+
 Comandos desta seção:
 
 ```bash
 python evaluate.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
 python scripts/per_attack_eval.py --config outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt
+# os quatro configs (none/opus × v2/v4), como na 5.3.1:
+# for cfg in outputs/asvspoof2021/*__*.yaml: per_attack_eval.py --config cfg --checkpoint <do modelo>
 python scripts/score_fusion.py --name fusao_2021_opus \
     --model outputs/asvspoof2021/opus_eval_n10000__baseline_lfcc_cnn_v2.yaml checkpoints/baseline_lfcc_cnn_v2.pt \
     --model outputs/asvspoof2021/opus_eval_n10000__fusion_lcnn_v4.yaml checkpoints/fusion_lcnn_v4.pt

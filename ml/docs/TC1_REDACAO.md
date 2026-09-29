@@ -715,6 +715,24 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 > atribui probabilidade 1,0 a 97% dos áudios autênticos. Aproveitar a fusão em
 > tempo real exigiria calibrar cada modelo no canal de destino.
 >
+> A análise por ataque (Apêndice B) mostra por que a robustez simulada não se
+> transferiu. Na condição de referência, o perfil por ataque dos dois modelos
+> reproduz o de 2019 (correlação de postos de 0,99, com nenhum ataque diferindo
+> mais de 3,05 p.p.). No Opus real, o perfil do baseline_v2 se preserva
+> (correlação de 0,92 com a referência), com um custo distribuído entre os
+> ataques. O do fusion_v4 se desfaz (0,67): os quatro ataques que ele detectava
+> sem erro (A07, A08, A16 e A19, com 0,00% na referência) passam a 17% a 37%.
+> A vantagem do fusion_v4 consistia na detecção quase perfeita de alguns
+> ataques, e é essa precisão que o canal real destrói; na média por ataque, ele
+> passa de melhor (13,74% contra 16,19%) a pior (31,42% contra 26,75%). A
+> vantagem que sobrevive está em A13 e A18, dois dos ataques por filtragem de
+> forma de onda discutidos na seção 5.4. Os perfis dos dois modelos também se
+> aproximam (correlação de 0,34 em 2019 e de 0,48 no Opus real), o que é
+> coerente com o ganho menor da fusão de scores nessa condição (4,50 contra 5,86
+> p.p.). Com cerca de 690 áudios sintéticos por ataque, o intervalo de
+> confiança por ataque vai de ±1,5 p.p. a ±3,4 p.p., e as comparações acima
+> envolvem diferenças bem maiores que isso.
+>
 > O limiar calibrado também colapsa no canal real: os dois modelos classificam
 > todos os áudios como *spoof* (*recall* de 1,0000 e *precision* de 0,8998, a
 > proporção de *spoof* da amostra). É o classificador trivial da seção 4.6,
@@ -845,8 +863,10 @@ Fonte: Autoria própria.
 > inversão não se repete, e o canal custa de 7 a 11 vezes o que a simulação do
 > mesmo codec indicava. Escolher um modelo pela robustez simulada seria tão
 > arriscado quanto escolhê-lo pelo áudio limpo; a avaliação precisa ser feita
-> no canal de destino. O ganho da fusão de scores, por outro lado, se manteve
-> no canal real.
+> no canal de destino. A análise por ataque indica o motivo: a vantagem do
+> modelo com fusão estava na detecção quase perfeita de alguns ataques, e é
+> essa precisão que o canal real apaga. O ganho da fusão de scores, por outro
+> lado, se manteve no canal real.
 >
 > As metas de F1 superior a 0,90 e EER inferior a 8% não foram atingidas. A
 > segunda se baseava em sistemas que usam o silêncio como atalho. Sob o mesmo
@@ -895,6 +915,31 @@ Fonte: Autoria própria; B01 e B02: Wang et al. (2020, Tabela 8).
 > título") e fonte abaixo. As curvas de validação ilustram bem a seção 5.2:
 > cinco modelos ficam colados em zero, e os dois melhores na avaliação são os
 > que ficam em torno de 10%.
+
+---
+
+## APÊNDICE B – EER (%) por ataque na ASVspoof 2021 LA
+
+| ataque | baseline_v2 2019 | baseline_v2 referência 2021 | baseline_v2 Opus real | fusion_v4 2019 | fusion_v4 referência 2021 | fusion_v4 Opus real |
+|---|---|---|---|---|---|---|
+| A07 | 22,43 | 21,73 | 41,22 | 0,02 | 0,00 | 37,13 |
+| A08 | 3,88 | 3,39 | 9,27 | 0,03 | 0,00 | 21,45 |
+| A09 | 2,32 | 1,31 | **5,34** | 0,12 | 0,17 | 17,88 |
+| A10 | 30,63 | 31,07 | 43,61 | 45,54 | 43,53 | 49,50 |
+| A11 | 3,85 | 3,77 | **19,86** | 33,74 | 30,86 | 48,74 |
+| A12 | 36,18 | 33,13 | 40,55 | 47,99 | 46,20 | 41,80 |
+| A13 | 36,50 | 34,23 | 46,79 | 6,54 | 6,15 | **22,37** |
+| A14 | 12,01 | 10,94 | **21,27** | 17,74 | 16,61 | 41,86 |
+| A15 | 15,02 | 15,35 | **16,93** | 29,37 | 29,00 | 42,68 |
+| A16 | 22,75 | 22,99 | 43,48 | 0,03 | 0,00 | **34,92** |
+| A17 | 11,27 | 9,98 | 15,19 | 0,41 | 1,06 | 14,78 |
+| A18 | 15,01 | 15,79 | 27,86 | 4,63 | 5,07 | **18,13** |
+| A19 | 6,98 | 6,83 | 16,44 | 0,00 | 0,00 | 17,26 |
+| **global** | 18,99 | 18,15 | **29,43** | 20,18 | 19,51 | 32,62 |
+| média por ataque | 16,83 | 16,19 | **26,75** | 14,32 | 13,74 | 31,42 |
+
+Fonte: Autoria própria. Amostra estratificada de 10.000 áudios por condição
+(cerca de 690 áudios sintéticos por ataque); a coluna 2019 é o eval completo.
 
 ---
 
