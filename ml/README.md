@@ -681,10 +681,15 @@ python scripts/canal_real.py preparar --config configs/baseline_v2.yaml \
     --n-por-classe 20 --saida outputs/canal_real
 #    -> imprime o roteiro da chamada (duas pontas, VB-Cable, controle)
 
-# 2. toque referencia.wav dentro da chamada; grave do outro lado
+# 2. grave do lado que recebe a chamada...
 python monitor.py --config configs/baseline_v2.yaml \
     --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
     --gravar outputs/canal_real/chamada.wav
+#    ...e abra a ponta que toca: um Chrome cujo MICROFONE é a playlist
+#    (modo de teste do WebRTC — sem VB-Cable, sem VLC)
+python scripts/canal_real.py chrome --pasta outputs/canal_real --url "<link>"
+#    sessão de controle, sem chamada: toca a playlist no alto-falante
+python scripts/canal_real.py tocar --pasta outputs/canal_real
 
 # 3. localiza cada áudio na gravação, recorta e emite o protocolo ASVspoof
 python scripts/canal_real.py alinhar --pasta outputs/canal_real \

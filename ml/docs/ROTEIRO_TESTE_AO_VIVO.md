@@ -34,24 +34,19 @@ um erro de volume pareceria efeito do canal.
 
 ## 1. Pré-requisitos (uma vez só)
 
-1. **Pacote de captura:**
+1. **Pacote de áudio** (o monitor já usa; o `tocar` também):
    ```powershell
    pip install soundcard
    ```
-2. **VB-Cable** (cabo de áudio virtual, gratuito): baixe em
-   `vb-audio.com/Cable`, instale como administrador e **reinicie o Windows**.
-   Ele cria dois dispositivos: `CABLE Input` (saída — onde se toca) e
-   `CABLE Output` (entrada — o que a chamada usa como microfone).
-3. **VLC** (ou outro player que deixe escolher o dispositivo de saída).
-4. **Conta no Meet ou no Teams.** Duas contas facilitam, mas não são
-   obrigatórias: a segunda ponta pode entrar como convidado.
-5. Confira que o dispositivo de saída padrão do Windows é o seu alto-falante ou
+2. **Google Chrome ou Microsoft Edge** instalado. Não precisa de VB-Cable nem
+   de VLC: o Chrome tem um modo de teste do WebRTC que usa um arquivo WAV como
+   microfone, e o próprio script toca a playlist no alto-falante.
+3. **Conta no Meet ou no Teams.** A segunda ponta pode entrar como convidado.
+4. Confira que o dispositivo de saída padrão do Windows é o seu alto-falante ou
    fone, e anote o nome exato:
    ```powershell
    python monitor.py --listar-dispositivos
    ```
-
----
 
 ## 2. Montar a playlist rotulada
 
@@ -88,9 +83,12 @@ Mesmo caminho de captura da chamada, só que sem o Meet/Teams no meio.
    ```powershell
    python monitor.py --config configs/baseline_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt --gravar outputs/canal_real/controle.wav --json outputs/canal_real/controle.json
    ```
-3. Toque `outputs/canal_real/referencia.wav` no VLC pelo **alto-falante
-   padrão**, com o volume do Windows num nível médio e fixo. Não mexa no volume
-   até o fim.
+3. No terminal 2, toque a playlist no **alto-falante padrão**, com o volume do
+   Windows num nível médio e fixo (não mexa até o fim):
+   ```powershell
+   python scripts/canal_real.py tocar --pasta outputs/canal_real
+   ```
+   Ele espera um Enter para começar — confira antes que o monitor está rodando.
 4. Quando a playlist acabar, espere ~5 s e pare o monitor com **Ctrl+C**.
 5. Alinhe e avalie:
    ```powershell
@@ -108,36 +106,61 @@ problema é do procedimento, e uma chamada por cima só vai somar ruído.
 A ponta **A** toca a playlist como se fosse o microfone; a ponta **B** recebe
 pela chamada e o monitor escuta o que sai no alto-falante de B.
 
-### Opção 1 — um computador só (mais simples)
+### Opção 1 — um computador só, sem instalar nada (recomendada)
 
-As duas pontas no mesmo PC, em navegadores diferentes. O áudio **passa pelos
-servidores** do Meet/Teams e pelo codec deles; o que muda em relação a dois PCs
-é só que a rede de ida e volta é a mesma.
+A ponta A é um Chrome **separado** cujo microfone é a playlist; a ponta B é o
+seu navegador de sempre. O áudio **passa pelos servidores** do Meet/Teams e
+pelo codec deles; o que muda em relação a dois PCs é só que a rede de ida e
+volta é a mesma.
 
-1. **Ponta A — Chrome:** crie a reunião. Em *Configurações → Áudio*:
-   microfone = `CABLE Output (VB-Audio Virtual Cable)`; alto-falante = qualquer
-   (A não vai ouvir nada, porque B fica mudo).
-2. **Ponta B — Edge** (ou janela anônima): entre na mesma reunião (como
-   convidado, se for preciso admitir pela ponta A). Em *Configurações → Áudio*:
-   **microfone desligado** (evita eco); alto-falante = o **padrão** do Windows,
-   o mesmo que aparece em `--listar-dispositivos`.
-3. **VLC:** *Áudio → Dispositivo de áudio →* `CABLE Input`. Assim a playlist
-   vai **só** para o microfone de A, e não para o seu alto-falante.
-4. **Não mexa** nas opções de supressão de ruído do Meet/Teams. O teste mede o
-   canal como ele vem de fábrica — só **anote** qual estava ligada.
-5. Terminal 1, **antes** de tocar:
+1. Terminal 1, **antes de tudo**, inicie a gravação da ponta B:
    ```powershell
    python monitor.py --config configs/baseline_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt --gravar outputs/canal_real/chamada.wav --json outputs/canal_real/chamada.json
    ```
-6. Dê play no VLC. Com o monitor rodando, **tire um print da tela do
-   terminal** com as barras do score — é a figura do teste funcional.
-7. Fim da playlist + ~5 s → **Ctrl+C**.
+2. **Ponta B — seu navegador normal:** crie a reunião no Meet (ou Teams).
+   **Microfone desligado** (evita eco); alto-falante = o **padrão** do
+   Windows, o mesmo que aparece em `--listar-dispositivos`. Copie o link.
+3. Terminal 2, abra a ponta A:
+   ```powershell
+   python scripts/canal_real.py chrome --pasta outputs/canal_real --url "<link da reunião>"
+   ```
+   Abre uma janela **nova** do Chrome (perfil próprio, dentro de
+   `outputs/canal_real/perfil_navegador`), com o microfone trocado pelo
+   arquivo. Se o Chrome não for achado, ele tenta o Edge; ou passe
+   `--navegador "C:\caminho\chrome.exe"`.
+4. **Nessa janela (ponta A):** permita o microfone, **desligue a câmera**
+   (ela vira uma imagem de teste), entre na reunião e, se for convidado, admita
+   pela ponta B. Não precisa escolher microfone.
+5. **A playlist começa sozinha** 60 s depois de o Meet abrir o microfone (na
+   tela de prévia) — é o tempo para entrar. Se precisar de mais, use
+   `--espera 120`. O alinhamento acha o atraso sozinho; a espera não atrapalha.
+6. Com a playlist tocando, **tire um print do terminal 1** com as barras do
+   score — é a figura do teste funcional.
+7. Quando a playlist acabar (~3–4 min depois da espera), espere ~5 s e pare o
+   monitor com **Ctrl+C**. Pode fechar a janela da ponta A.
+8. **Não mexa** nas opções de supressão de ruído do Meet/Teams. O teste mede o
+   canal como ele vem de fábrica — só **anote** qual estava ligada.
 
-### Opção 2 — dois computadores
+Como funciona: o Chrome é aberto com `--use-fake-device-for-media-stream` e
+`--use-file-for-fake-audio-capture=<arquivo>%noloop`, opções de teste do próprio
+WebRTC. Conferido no Chromium: o arquivo começa a tocar quando a página abre o
+microfone, toca uma vez só, e depois o microfone fica em silêncio. O perfil
+próprio é necessário: com o Chrome já aberto, sem ele, as opções seriam
+ignoradas sem aviso.
 
-Igual, mas a ponta A (Chrome + VB-Cable + VLC) fica num PC e a ponta B (Meet +
-monitor) no outro. Mede também a rede entre dois lugares. Se tiver como, é a
-versão mais realista; a opção 1 já é válida.
+### Opção 2 — com VB-Cable (se a opção 1 não funcionar)
+
+Instale o VB-Cable (`vb-audio.com/Cable`, reinicie o Windows), escolha
+`CABLE Output` como microfone da ponta A no Meet e toque a playlist nele:
+
+```powershell
+python scripts/canal_real.py tocar --pasta outputs/canal_real --dispositivo "CABLE Input"
+```
+
+### Opção 3 — dois computadores
+
+Qualquer uma das opções acima, com a ponta A num PC e a ponta B (Meet +
+monitor) no outro. Mede também a rede entre dois lugares.
 
 ### Alinhar e avaliar
 
@@ -201,8 +224,10 @@ O resultado é o do passo 6.
 | sintoma | causa provável | o que fazer |
 |---|---|---|
 | monitor só mostra `(silêncio)` | capturando o dispositivo errado | `--listar-dispositivos` e `--dispositivo-audio "<nome>"` |
-| a playlist toca no alto-falante na sessão chamada | VLC não está no `CABLE Input` | *Áudio → Dispositivo de áudio* no VLC |
-| B não ouve nada | microfone de A não é o `CABLE Output` | configurações de áudio da ponta A |
+| B não ouve nada (opção 1) | a janela da ponta A não é a aberta pelo `chrome`, ou o microfone foi negado | feche e reabra pelo comando; permita o microfone |
+| B não ouve nada (opção 1) e havia um Chrome aberto | as opções foram ignoradas | o comando já usa perfil próprio; confira se a janela nova apareceu separada |
+| a playlist acabou antes de entrar | espera curta demais | reabra com `--espera 120` e grave de novo |
+| B não ouve nada (opção 2) | microfone de A não é o `CABLE Output` | configurações de áudio da ponta A |
 | `Recuperados` abaixo de 32/40 | gravação começou depois do play, ou volume mudou | refaça a sessão, iniciando o monitor antes |
 | `só sobrou uma classe` | quase nada alinhou | idem; confira a correlação impressa |
 | eco ou microfonia | microfone de B ligado | desligue o microfone da ponta B |
