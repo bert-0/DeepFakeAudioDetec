@@ -162,3 +162,41 @@ def test_linha_de_comando_ponta_a_ponta(tmp_path, monkeypatch, capsys):
     saida = capsys.readouterr().out
     assert "m1 " in saida and "m2 " in saida and "(postos)" in saida
     assert (tmp_path / "of" / "m1_cm_scores_oficial.txt").exists()
+
+
+def _npz(caminho, labels, scores, logodds=None):
+    extras = {} if logodds is None else {"logodds": logodds}
+    np.savez_compressed(caminho, **extras, version=1,
+                        ids=np.array([f"u{i}" for i in range(len(labels))]),
+                        labels=np.asarray(labels), scores=np.asarray(scores),
+                        systems=np.array(["-"] * len(labels)),
+                        fingerprint="x", partition="eval")
+
+
+def test_prefere_logodds_quando_existe(tmp_path):
+    from scripts.tdcf import ler_npz
+
+    arq = tmp_path / "a.npz"
+    # Probabilidades saturadas (empate em 1,0); os log-odds preservam a ordem.
+    _npz(arq, [0, 1], [1.0, 1.0], logodds=[17.5, 30.0])
+    _, _, score, _ = ler_npz(arq)
+    assert score.tolist() == [17.5, 30.0]
+
+
+def test_recusa_arquivo_antigo_com_bonafide_saturado(tmp_path):
+    from scripts.tdcf import ler_npz
+
+    arq = tmp_path / "a.npz"
+    _npz(arq, [0, 1], [1.0, 1.0])
+    with pytest.raises(ValueError, match="saturado"):
+        ler_npz(arq)
+
+
+def test_aceita_arquivo_antigo_so_com_spoof_saturado(tmp_path):
+    """É o caso dos .npz de 2019: spoof em 1,0 é acerto e não muda a ordem."""
+    from scripts.tdcf import ler_npz
+
+    arq = tmp_path / "a.npz"
+    _npz(arq, [0, 1, 1], [0.3, 1.0, 1.0])
+    _, _, score, _ = ler_npz(arq)
+    assert score.tolist() == [0.3, 1.0, 1.0]

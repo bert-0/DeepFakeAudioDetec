@@ -24,8 +24,9 @@ Uso (de dentro de `ml/`):
 
 Duas conversões que o script faz e que o script oficial exigiria à mão:
 
-1. **Sentido do score.** O `.npz` guarda a probabilidade de *spoof*; o t-DCF
-   espera score **maior = bonafide**. Usa-se `−p`, que preserva a ordenação.
+1. **Sentido do score.** O `.npz` guarda scores de *spoof* (os log-odds, ou a
+   probabilidade em arquivos antigos); o t-DCF espera score **maior =
+   bonafide**. Usa-se o negativo, que preserva a ordenação.
 2. **Empates.** O softmax satura em exatamente 1,0 em dezenas de milhares de
    áudios. O script oficial percorre a curva DET amostra a amostra, e com
    empates isso cria pontos de operação que não existem (depende da ordem do
@@ -142,14 +143,30 @@ def postos_medios(x: np.ndarray) -> np.ndarray:
 
 
 def ler_npz(caminho: str | Path):
+    """(ids, labels, score de spoof, systems) de um `.npz` do `evaluate.py`.
+
+    O score é o `logodds` (logit[1] − logit[0]) quando o arquivo o tem: ele não
+    satura. Arquivo antigo, só com a probabilidade, é aceito apenas se nenhum
+    bonafide saturou em 1,0 — a mesma regra de `src/scores.py`. Com bonafide e
+    spoof empatados em 1,0, o t-DCF mediria o arredondamento do float32.
+    """
     dados = np.load(caminho, allow_pickle=False)
-    return (dados["ids"], np.asarray(dados["labels"]).astype(int),
-            np.asarray(dados["scores"], dtype=float), dados["systems"])
+    labels = np.asarray(dados["labels"]).astype(int)
+    if "logodds" in dados.files:
+        score = np.asarray(dados["logodds"], dtype=float)
+    else:
+        score = np.asarray(dados["scores"], dtype=float)
+        if (score[labels == 0] >= 1.0).any():
+            raise ValueError(
+                f"{caminho}: formato antigo com bonafide saturado em 1,0; "
+                "rode o evaluate.py de novo para gravar os log-odds")
+    return dados["ids"], labels, score, dados["systems"]
 
 
-def score_bonafide(p_spoof: np.ndarray) -> np.ndarray:
-    """Score com a convenção do t-DCF (maior = bonafide) a partir de p(spoof)."""
-    return -np.asarray(p_spoof, dtype=float)
+def score_bonafide(score_spoof: np.ndarray) -> np.ndarray:
+    """Score com a convenção do t-DCF (maior = bonafide) a partir de um score em
+    que maior = spoof (probabilidade ou log-odds; os dois ordenam igual)."""
+    return -np.asarray(score_spoof, dtype=float)
 
 
 def exportar_formato_oficial(caminho, ids, systems, labels, score_bona) -> None:
@@ -180,9 +197,9 @@ def main() -> None:
 
     modelos = []
     for caminho in args.scores:
-        ids, labels, p_spoof, systems = ler_npz(caminho)
+        ids, labels, s_spoof, systems = ler_npz(caminho)
         nome = Path(caminho).name.removesuffix("_eval_scores.npz").removesuffix(".npz")
-        modelos.append((nome, ids, labels, p_spoof, systems))
+        modelos.append((nome, ids, labels, s_spoof, systems))
 
     if args.fundir:
         if len(modelos) < 2:
@@ -196,8 +213,8 @@ def main() -> None:
         modelos.append((nome, ref, modelos[0][2], fundido, modelos[0][4]))
 
     print(f"\n{'modelo':52s} {'EER CM':>8s} {'min t-DCF':>10s}")
-    for nome, ids, labels, p_spoof, systems in modelos:
-        s = score_bonafide(p_spoof)
+    for nome, ids, labels, s_spoof, systems in modelos:
+        s = score_bonafide(s_spoof)
         r = min_tdcf(s[labels == 0], s[labels == 1], asv)
         print(f"{nome[:52]:52s} {100 * r['eer_cm']:7.2f}% {r['min_tdcf']:10.4f}")
         if args.exportar:
