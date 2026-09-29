@@ -1204,6 +1204,29 @@ regimes é o volume — o treino atravessa 25.380 amostras por época; o ao vivo
 
 ---
 
+### 9.5 Sensibilidade a deslocamentos de poucos milissegundos (medida)
+
+Achado lateral do teste ao vivo. Na sessão "limpo" (Seção 10.2) os 40 áudios da
+playlist são recortados da própria referência — o mesmo sinal, sem canal
+nenhum. Mesmo assim os scores diferiram dos do eval de 2019 para os mesmos
+arquivos: mediana ~0,01, **máximo 0,17** (0,501 → 0,669), dois dos 40 trocando
+de lado no limiar, e o EER da amostra indo de 22,50% para 27,50%.
+
+A causa era o recorte: o alinhamento por envelope tem resolução de 10 ms e
+deslocava cada áudio em **até 5 ms** (medido: 79 amostras com a gravação
+idêntica à referência). Cinco milissegundos são meio passo do STFT (hop de
+10 ms): todos os quadros das features mudam de fase, e o modelo responde. O
+alinhamento ganhou um ajuste fino pela forma de onda, com erro medido de zero
+amostras no caminho limpo, com atraso arbitrário e sob Opus + banda estreita.
+
+**O que isso diz do modelo, e por que importa ao vivo:** o score de um mesmo
+áudio depende de onde o enquadramento começa, em escala de milissegundos. No
+monitor as janelas caem em posições arbitrárias da fala, então esse jitter faz
+parte de toda leitura ao vivo — mais um motivo para agregar janelas (9.2, 9.3)
+em vez de decidir por uma só. Ressalva: 40 áudios, um modelo; é indício, não
+medida da sensibilidade. Medir direito seria avaliar o eval com deslocamentos
+de 0 a 10 ms e comparar os EERs.
+
 ## 10. Camada 2 — medir o canal real
 
 ### 10.1 A distinção entre as duas camadas

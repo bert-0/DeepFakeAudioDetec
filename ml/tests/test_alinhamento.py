@@ -364,3 +364,38 @@ def test_sessoes_da_mesma_playlist_nao_se_sobrescrevem(tmp_path, capsys):
         nomes.add(gerado["experiment"]["name"])
     assert len(nomes) == 2, "as duas sessões gravariam os mesmos outputs"
     assert CHECKPOINT_PADRAO in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- #
+# Precisão de amostra. O envelope tem resolução de 10 ms; o recorte herdava um
+# erro de até 5 ms, meio passo do STFT, e o modelo mudou o score em até 0,17
+# para o MESMO áudio (sessão "limpo" contra o eval de 2019).
+# --------------------------------------------------------------------------- #
+def _playlist_longa(n=12, seed=0):
+    rng = np.random.default_rng(seed)
+    audios = [(Trecho(f"t{i}", "bonafide", "-", 0, 0),
+               _fala(float(rng.uniform(2.0, 5.0)), f0=110 + 13 * i)) for i in range(n)]
+    return montar_referencia(audios, SR, 1.0)
+
+
+@pytest.mark.parametrize("atraso_s", [0.0, 1.2345])
+def test_recorte_exato_a_amostra(atraso_s):
+    ref, mapa = _playlist_longa()
+    atraso = int(round(atraso_s * SR))
+    encaixes = alinhar(mapa, ref, _atrasar(ref, atraso_s), SR)
+    assert all(e.refinado for e in encaixes)
+    assert [e.inicio_capturado - e.trecho.inicio for e in encaixes] == [atraso] * len(mapa)
+
+
+def test_sem_forma_de_onda_fica_a_posicao_do_envelope():
+    """Se o canal preserva o envelope mas destrói a forma de onda, o trecho não
+    é descartado: fica a posição do envelope, sem o ajuste fino."""
+    ref, mapa = _playlist_longa()
+    rng = np.random.default_rng(1)
+    env = np.repeat(envelope(ref, SR), SR // 100)
+    ruido_modulado = (rng.standard_normal(len(env)) * env).astype(np.float32)
+    encaixes = alinhar(mapa, ref, ruido_modulado, SR)
+    confiaveis = [e for e in encaixes if e.confiavel]
+    assert len(confiaveis) == len(mapa)
+    assert not any(e.refinado for e in confiaveis)
+    assert max(abs(e.inicio_capturado - e.trecho.inicio) for e in confiaveis) <= SR // 100

@@ -50,6 +50,19 @@ CORRELACAO_MINIMA = 0.5
 #: Quanto o ajuste por trecho pode andar em torno da posição prevista.
 BUSCA_LOCAL_S = 0.40
 
+#: Refinamento final pela FORMA DE ONDA, com precisão de uma amostra. O
+#: envelope tem resolução de 10 ms, e o recorte herdava um erro de até 5 ms
+#: (medido: 79 amostras com a gravação idêntica à referência). Parece pouco,
+#: mas é meio passo do STFT: todos os quadros das features mudam, e o modelo
+#: respondeu com scores até 0,17 diferentes para o mesmo áudio (sessão "limpo"
+#: contra o eval de 2019). A busca cobre o erro do envelope com folga.
+BUSCA_FINA_S = 0.02
+
+#: Correlação mínima da forma de onda para aceitar o refinamento. Abaixo disso
+#: (supressão de ruído agressiva, por exemplo) fica a posição do envelope, que
+#: continua válida: o refinamento só pode melhorar, nunca descartar um trecho.
+CORRELACAO_FINA_MINIMA = 0.5
+
 
 @dataclass
 class Trecho:
@@ -67,6 +80,7 @@ class Encaixe:
     trecho: Trecho
     inicio_capturado: int    # amostra inicial NA GRAVAÇÃO
     correlacao: float
+    refinado: bool = False   # posição ajustada pela forma de onda
 
     @property
     def confiavel(self) -> bool:
@@ -112,6 +126,27 @@ def correlacao_maxima(referencia: np.ndarray,
     return i, float(bruto[i])
 
 
+def refinar_amostra(segmento: np.ndarray, captura: np.ndarray, inicio: int,
+                    busca: int) -> tuple[int, float]:
+    """Ajusta `inicio` à amostra, correlacionando a forma de onda em ±`busca`.
+
+    Devolve (início refinado, correlação normalizada no ponto escolhido).
+    """
+    from scipy.signal import correlate
+
+    lo = max(0, inicio - busca)
+    hi = min(len(captura), inicio + len(segmento) + busca)
+    regiao = np.asarray(captura[lo:hi], dtype=np.float64)
+    seg = np.asarray(segmento, dtype=np.float64)
+    if len(regiao) < len(seg) or not np.any(seg):
+        return inicio, 0.0
+    bruto = correlate(regiao, seg, mode="valid", method="fft")
+    k = int(np.argmax(bruto))
+    janela = regiao[k:k + len(seg)]
+    denom = np.linalg.norm(seg) * np.linalg.norm(janela)
+    return lo + k, float(bruto[k] / denom) if denom > 0 else 0.0
+
+
 def alinhar(trechos: list[Trecho], referencia: np.ndarray, captura: np.ndarray,
             sample_rate: int, busca_s: float = BUSCA_LOCAL_S) -> list[Encaixe]:
     """Localiza cada trecho da playlist dentro da gravação.
@@ -139,9 +174,16 @@ def alinhar(trechos: list[Trecho], referencia: np.ndarray, captura: np.ndarray,
         alvo = env_ref[ini_ref:ini_ref + n_env]
         desloc, corr = correlacao_maxima(alvo, janela)
         inicio_env = lo + desloc
+        inicio = int(round(inicio_env * por_amostra))
+        refinado = False
         if corr >= CORRELACAO_MINIMA:
             deriva = inicio_env - (atraso_env + ini_ref)
-        encaixes.append(Encaixe(t, int(round(inicio_env * por_amostra)), corr))
+            fino, corr_fina = refinar_amostra(
+                referencia[t.inicio:t.inicio + t.n], captura, inicio,
+                int(round(BUSCA_FINA_S * sample_rate)))
+            if corr_fina >= CORRELACAO_FINA_MINIMA:
+                inicio, refinado = fino, True
+        encaixes.append(Encaixe(t, inicio, corr, refinado))
     return encaixes
 
 

@@ -369,6 +369,9 @@ def cmd_alinhar(args) -> int:
           f"pior {min(corrs):.3f} | limiar {0.5:.2f}")
     print(f"Recuperados: {len(pedacos)}/{len(mapa)} "
           f"({len(pedacos)-n_spoof} bonafide, {n_spoof} spoof)")
+    n_fino = sum(1 for e in encaixes if e.confiavel and e.refinado)
+    print(f"Ajuste fino à amostra: {n_fino}/{sum(1 for e in encaixes if e.confiavel)} "
+          "(os demais ficam na posição do envelope, com erro de até 5 ms)")
     if perdidos:
         print(f"Descartados por alinhamento fraco: {len(perdidos)} "
               f"({', '.join(e.trecho.id for e in perdidos[:5])}"

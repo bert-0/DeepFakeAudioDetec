@@ -70,7 +70,18 @@ python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao outpu
 python evaluate.py --config outputs/canal_real/limpo/config_canal_real.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt --partition eval
 ```
 
-O `alinhar` deve dizer `Recuperados: 40/40` com correlação perto de 1.
+O `alinhar` deve dizer `Recuperados: 40/40` e `Ajuste fino à amostra: 40/40`.
+
+**Conferência do procedimento:** os recortes da sessão "limpo" têm de dar
+exatamente os scores do eval de 2019 para os mesmos arquivos:
+
+```powershell
+python scripts/comparar_sessoes.py configs/baseline_v2.yaml outputs/canal_real/limpo/config_canal_real.yaml
+```
+
+As duas colunas devem sair iguais (a do eval completo aparece como `configs`).
+Se diferirem, o recorte está deslocado — foi assim que se achou o erro de até
+5 ms do alinhamento por envelope, hoje corrigido pelo ajuste fino.
 
 ---
 
