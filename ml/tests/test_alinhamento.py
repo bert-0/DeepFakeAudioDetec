@@ -326,3 +326,41 @@ def test_alinhar_gera_config_que_nao_sobrescreve_2019(tmp_path, capsys):
     assert gerado["train"]["cache_features"] is False
     texto = capsys.readouterr().out
     assert "rm -rf" not in texto and "cp configs" not in texto
+
+
+def test_sessoes_da_mesma_playlist_nao_se_sobrescrevem(tmp_path, capsys):
+    """Limpo, controle e chamada saem da mesma playlist. Com uma pasta só, a
+    segunda gravação apagava os recortes da primeira."""
+    import soundfile as sf
+    import yaml
+
+    from scripts.canal_real import CHECKPOINT_PADRAO, cmd_alinhar, cmd_preparar
+    from src.config import load_config
+
+    proto = _base_falsa(tmp_path / "base")
+    cfg = {
+        "audio": {"sample_rate": SR, "duration": 4.0, "trim_silence": False,
+                  "top_db": 30, "peak_normalize": False},
+        "data": {"protocols": {"eval": str(proto)},
+                 "audio_dir": {"eval": str(tmp_path / "base" / "flac")}},
+    }
+    caminho_cfg = tmp_path / "c.yaml"
+    caminho_cfg.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    saida = tmp_path / "canal"
+    cmd_preparar(argparse.Namespace(config=str(caminho_cfg), n_por_classe=4,
+                                    seed=1, saida=str(saida)))
+    ref, _ = sf.read(saida / "referencia.wav", dtype="float32")
+    sf.write(tmp_path / "g.wav", _atrasar(ref, 0.5), SR)
+
+    for sessao, gravacao in (("limpo", saida / "referencia.wav"),
+                             ("chamada", tmp_path / "g.wav")):
+        assert cmd_alinhar(argparse.Namespace(
+            pasta=str(saida), gravacao=str(gravacao), sessao=sessao)) == 0
+
+    nomes = set()
+    for sessao in ("limpo", "chamada"):
+        assert len(list((saida / sessao / "capturado").glob("*.flac"))) == 8
+        gerado = load_config(saida / sessao / "config_canal_real.yaml")
+        nomes.add(gerado["experiment"]["name"])
+    assert len(nomes) == 2, "as duas sessões gravariam os mesmos outputs"
+    assert CHECKPOINT_PADRAO in capsys.readouterr().out

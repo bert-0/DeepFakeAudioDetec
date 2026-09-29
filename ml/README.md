@@ -677,18 +677,26 @@ conferência. O `canal_real.py` fecha essa lacuna.
 
 ```bash
 # 1. monta uma playlist de áudios ROTULADOS, com silêncio entre eles
-python scripts/canal_real.py preparar --config configs/fusion_v4.yaml \
-    --n-por-classe 40 --saida outputs/canal_real
+python scripts/canal_real.py preparar --config configs/baseline_v2.yaml \
+    --n-por-classe 20 --saida outputs/canal_real
 #    -> imprime o roteiro da chamada (duas pontas, VB-Cable, controle)
 
 # 2. toque referencia.wav dentro da chamada; grave do outro lado
-python monitor.py --config ... --checkpoint ... --gravar chamada.wav
+python monitor.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
+    --gravar outputs/canal_real/chamada.wav
 
 # 3. localiza cada áudio na gravação, recorta e emite o protocolo ASVspoof
 python scripts/canal_real.py alinhar --pasta outputs/canal_real \
-    --gravacao chamada.wav
-#    -> imprime o comando do evaluate.py que dá o EER da camada 2
+    --gravacao outputs/canal_real/chamada.wav --sessao chamada
+#    -> imprime o comando do evaluate.py que dá o EER da sessão
+
+# 4. compara as sessões da mesma playlist (limpo, controle, chamada)
+python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
 ```
+
+O passo a passo completo, com o controle e o que anotar, está em
+[`docs/ROTEIRO_TESTE_AO_VIVO.md`](docs/ROTEIRO_TESTE_AO_VIVO.md).
 
 **Como o alinhamento funciona, e por que não é um bipe.** A ideia óbvia — um tom
 entre os áudios — falha exatamente no cenário que interessa: a supressão de

@@ -19,10 +19,14 @@ O que sai do passo 3 entra direto no `evaluate.py`. O EER resultante é o númer
 da camada 2: o desempenho no canal real, não no simulado.
 
 Uso:
-    python scripts/canal_real.py preparar --config configs/fusion_v4.yaml \\
-        --n-por-classe 40 --saida outputs/canal_real
+    python scripts/canal_real.py preparar --config configs/baseline_v2.yaml \\
+        --n-por-classe 20 --saida outputs/canal_real
     python scripts/canal_real.py alinhar --pasta outputs/canal_real \\
-        --gravacao chamada_teams.wav
+        --gravacao chamada.wav --sessao chamada
+
+`--sessao` separa as gravações da mesma playlist (limpo, controle, chamada):
+cada uma ganha a própria pasta e o próprio nome de experimento, e nenhuma
+sobrescreve a outra. `scripts/comparar_sessoes.py` põe as sessões lado a lado.
 """
 
 from __future__ import annotations
@@ -54,6 +58,12 @@ from src.preprocess import load_audio  # noqa: E402
 #: Silêncio entre os áudios. Um segundo dá folga ao recorte e evita que a
 #: supressão de ruído trate a emenda como um fluxo contínuo de fala.
 GAP_S = 1.0
+
+#: Modelo recomendado para chamada (canal real do ASVspoof 2021 LA, Seção 5.3
+#: do resumo). O config de avaliação é derivado dele, e o checkpoint precisa
+#: ser o do mesmo modelo — senão o evaluate falha ao carregar os pesos.
+CONFIG_PADRAO = "configs/baseline_v2.yaml"
+CHECKPOINT_PADRAO = "checkpoints/baseline_lfcc_cnn_v2.pt"
 
 #: Uma chamada longa demais acumula deriva e cansa quem está segurando o
 #: procedimento. 80 áudios de ~4 s dão ~7 min, que é operável de uma sentada.
@@ -144,15 +154,16 @@ PONTA A (quem toca)
 
 PONTA B (quem grava)
   4. ANTES de a ponta A começar, inicie a gravação:
-       python monitor.py --config configs/fusion_v4.yaml \\
-           --checkpoint checkpoints/fusion_lcnn_v4.pt \\
-           --gravar chamada.wav
-     Comece a gravar ANTES e pare DEPOIS — a folga é o que o alinhamento usa.
+       python monitor.py --config configs/baseline_v2.yaml \\
+           --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \\
+           --gravar {saida}/chamada.wav --json {saida}/chamada.json
+     Comece a gravar ANTES e pare DEPOIS (Ctrl+C) — a folga é o que o
+     alinhamento usa.
 
 DEPOIS
   5. python scripts/canal_real.py alinhar --pasta {saida} \\
-         --gravacao chamada.wav
-  6. O passo 5 imprime o comando do evaluate.py para obter o EER da camada 2.
+         --gravacao {saida}/chamada.wav --sessao chamada
+  6. O passo 5 imprime o comando do evaluate.py para obter o EER da sessão.
 
 CONTROLE (importante)
   Repita tudo com as duas pontas na MESMA máquina, sem chamada nenhuma
@@ -164,6 +175,10 @@ CONTROLE (importante)
 
 def cmd_alinhar(args) -> int:
     pasta = Path(args.pasta)
+    # Sem sessão, o layout antigo (tudo direto na pasta). Com sessão, cada
+    # gravação da mesma playlist vive em pasta/<sessao>/ e não apaga as outras.
+    sessao = getattr(args, "sessao", None)
+    destino_sessao = pasta / sessao if sessao else pasta
     mapa, sr = carregar_mapa(pasta / "mapa.json")
     referencia, _ = sf.read(pasta / "referencia.wav", dtype="float32")
     captura = load_audio(args.gravacao, sr)
@@ -178,12 +193,12 @@ def cmd_alinhar(args) -> int:
     encaixes = alinhar(mapa, referencia, captura, sr)
     pedacos = recortar(captura, encaixes)
 
-    saida = pasta / "capturado"; saida.mkdir(exist_ok=True)
+    saida = destino_sessao / "capturado"; saida.mkdir(parents=True, exist_ok=True)
     for arquivo in saida.glob("*.flac"):
         arquivo.unlink()
     for trecho, wav in pedacos:
         sf.write(saida / f"{trecho.id}.flac", wav, sr)
-    proto = pasta / "protocolo_canal_real.txt"
+    proto = destino_sessao / "protocolo_canal_real.txt"
     proto.write_text("\n".join(linha_de_protocolo(t) for t, _ in pedacos) + "\n",
                      encoding="utf-8")
 
@@ -210,20 +225,21 @@ def cmd_alinhar(args) -> int:
 
     # Config gerado, não copiado à mão: com o `experiment.name` original, a
     # avaliação gravaria por cima dos resultados do eval de 2019.
-    base_path = getattr(args, "config_base", None) or "configs/fusion_v4.yaml"
-    cfg = config_derivado(load_config(base_path), f"canal_real_{pasta.name}",
-                          proto, saida)
-    destino = salvar_config(cfg, pasta / "config_canal_real.yaml")
+    base_path = getattr(args, "config_base", None) or CONFIG_PADRAO
+    checkpoint = getattr(args, "checkpoint", None) or CHECKPOINT_PADRAO
+    sufixo = f"canal_real_{pasta.name}" + (f"_{sessao}" if sessao else "")
+    cfg = config_derivado(load_config(base_path), sufixo, proto, saida)
+    destino = salvar_config(cfg, destino_sessao / "config_canal_real.yaml")
     print(f"Config derivado: {destino}  (experimento {cfg['experiment']['name']})")
-    print(_como_avaliar(destino))
+    print(_como_avaliar(destino, checkpoint))
     return 0
 
 
-def _como_avaliar(config: Path) -> str:
+def _como_avaliar(config: Path, checkpoint: str) -> str:
     return f"""
 ─────────────────────────── COMO OBTER O EER ───────────────────────────
   python evaluate.py --config {config.as_posix()} \\
-      --checkpoint checkpoints/fusion_lcnn_v4.pt --partition eval
+      --checkpoint {checkpoint} --partition eval
 
 O config acima foi GERADO com outro nome de experimento e sem cache. Não copie
 o config do modelo trocando só os caminhos: os resultados sairiam com o mesmo
@@ -245,7 +261,7 @@ def main() -> int:
 
     a = sub.add_parser("preparar", help="monta a playlist rotulada")
     a.add_argument("--config", required=True)
-    a.add_argument("--n-por-classe", type=int, default=40)
+    a.add_argument("--n-por-classe", type=int, default=20)
     a.add_argument("--seed", type=int, default=42)
     a.add_argument("--saida", default="outputs/canal_real")
     a.set_defaults(func=cmd_preparar)
@@ -253,8 +269,13 @@ def main() -> int:
     b = sub.add_parser("alinhar", help="recorta a gravação e emite o protocolo")
     b.add_argument("--pasta", default="outputs/canal_real")
     b.add_argument("--gravacao", required=True)
-    b.add_argument("--config-base", default="configs/fusion_v4.yaml",
+    b.add_argument("--sessao", default=None,
+                   help="nome desta gravação (ex.: limpo, controle, chamada); "
+                        "cada sessão fica em <pasta>/<sessao>/")
+    b.add_argument("--config-base", default=CONFIG_PADRAO,
                    help="config do modelo; o de avaliação é derivado dele")
+    b.add_argument("--checkpoint", default=CHECKPOINT_PADRAO,
+                   help="checkpoint do MESMO modelo do --config-base")
     b.set_defaults(func=cmd_alinhar)
 
     args = p.parse_args()

@@ -1080,10 +1080,14 @@ mínimo que o canal custa, não o total.
 ### 10.2 Como a camada 2 é executada (`scripts/canal_real.py`)
 
 ```bash
-python scripts/canal_real.py preparar --config configs/fusion_v4.yaml --n-por-classe 40
-python monitor.py --config ... --checkpoint ... --gravar chamada.wav
-python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao chamada.wav
+python scripts/canal_real.py preparar --config configs/baseline_v2.yaml --n-por-classe 20
+python monitor.py --config ... --checkpoint ... --gravar outputs/canal_real/chamada.wav
+python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao outputs/canal_real/chamada.wav --sessao chamada
+python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
 ```
+
+Passo a passo completo, com as sessões limpo / controle / chamada e o que
+anotar: [`docs/ROTEIRO_TESTE_AO_VIVO.md`](ROTEIRO_TESTE_AO_VIVO.md).
 
 O problema técnico é o alinhamento: a gravação chega como um bloco de minutos e
 sem saber onde cada áudio começa não há rótulo, e sem rótulo não há EER.
@@ -1115,7 +1119,9 @@ um EER que *parece* resultado.
 O procedimento inclui um **controle**: repetir tudo sem chamada nenhuma. Se o
 controle já divergir do eval limpo, a diferença é do procedimento, não do Teams.
 
-**Não executada** — decisão registrada em 12.3: instrumentação validada, execução como trabalho futuro.
+**Execução completa não feita** — decisão registrada em 12.3. Uma **execução
+reduzida** (40 áudios, três sessões) está prevista como teste funcional do
+monitor ao vivo; o número que ela dá é indicativo, não uma medida de EER.
 
 ### 10.3 Bases públicas que já trazem canal
 
@@ -1571,6 +1577,7 @@ python scripts/per_attack_eval.py --config ... --checkpoint ...
 python scripts/bench_latencia.py --config ... --checkpoint ... --device cpu
 
 # Seção 10 — camada 2
-python scripts/canal_real.py preparar --config ... --n-por-classe 40
-python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao chamada.wav
+python scripts/canal_real.py preparar --config configs/baseline_v2.yaml --n-por-classe 20
+python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao ... --sessao <limpo|controle|chamada>
+python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
 ```
