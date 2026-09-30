@@ -72,6 +72,17 @@ class FileSource(AudioSource):
             yield self._wav[i:i + self._bloco]
 
 
+#: Buffer do WASAPI pedido ao `soundcard`. Sem isso ele usa UM período do
+#: dispositivo (~10 ms): se a thread de captura ficar parada mais que isso — e
+#: o GIL do Python a deixa parada enquanto a janela anterior vira features — o
+#: áudio que chega é descartado e marcado como descontinuidade. Medido no
+#: primeiro controle real: 58 perdas em 3 minutos, ~1 a cada 3 s, o bastante
+#: para quase todo áudio da playlist levar um clique. Um segundo de buffer
+#: tolera qualquer pausa realista, e não aumenta a latência de leitura: o
+#: `record()` devolve assim que os quadros pedidos chegam.
+BUFFER_CAPTURA_S = 1.0
+
+
 class WasapiLoopbackSource(AudioSource):
     """Captura a saída de áudio do sistema no Windows (loopback WASAPI).
 
@@ -151,7 +162,9 @@ class WasapiLoopbackSource(AudioSource):
         def gravar():
             _iniciar_com()
             try:
-                with self._mic.recorder(samplerate=self._taxa_dispositivo) as gravador:
+                buffer = int(self._taxa_dispositivo * BUFFER_CAPTURA_S)
+                with self._mic.recorder(samplerate=self._taxa_dispositivo,
+                                        blocksize=buffer) as gravador:
                     while not self._parar.is_set():
                         with warnings.catch_warnings(record=True) as avisos:
                             warnings.simplefilter("always")

@@ -43,7 +43,11 @@ class _GravadorFalso:
 
 
 def _soundcard_falso(monkeypatch, gravador):
-    mic = types.SimpleNamespace(recorder=lambda samplerate: gravador)
+    def recorder(samplerate, blocksize=None):
+        gravador.blocksize = blocksize
+        return gravador
+
+    mic = types.SimpleNamespace(recorder=recorder)
     falso = types.SimpleNamespace(
         default_speaker=lambda: types.SimpleNamespace(name="alto-falante"),
         get_microphone=lambda nome, include_loopback: mic)
@@ -111,3 +115,15 @@ def test_fechar_encerra_a_thread(monkeypatch):
     fonte._thread.join(timeout=2)
     assert not fonte._thread.is_alive()
     assert threading.active_count() >= 1
+
+
+def test_buffer_do_wasapi_e_pedido_grande(monkeypatch):
+    """O padrão do soundcard é um período (~10 ms): qualquer pausa da thread
+    perdia áudio. O pedido tem de cobrir pausas de centenas de ms."""
+    from src.capture.sources import BUFFER_CAPTURA_S
+
+    gravador = _GravadorFalso(np.zeros(48000), [])
+    _soundcard_falso(monkeypatch, gravador)
+    _coletar(WasapiLoopbackSource(16000, bloco_ms=100), 2)
+    assert gravador.blocksize == int(48000 * BUFFER_CAPTURA_S)
+    assert BUFFER_CAPTURA_S >= 0.5

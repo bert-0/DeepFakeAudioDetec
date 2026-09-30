@@ -213,7 +213,9 @@ def tocar_audio(wav: np.ndarray, sample_rate: int, dispositivo: str | None = Non
     # Windows a converter no meio, e uma conversão errada muda a duração e o
     # tom da gravação inteira (ver scripts/diagnosticar_captura.py).
     wav48 = soxr.resample(np.asarray(wav, dtype=np.float32), sample_rate, TAXA_CHROME)
-    alto_falante.play(wav48, samplerate=TAXA_CHROME)
+    # Buffer de 1 s também na reprodução, pelo mesmo motivo da captura: com o
+    # padrão de ~10 ms, qualquer pausa do processo vira engasgo no que sai.
+    alto_falante.play(wav48, samplerate=TAXA_CHROME, blocksize=TAXA_CHROME)
 
 
 def cmd_tocar(args) -> int:
