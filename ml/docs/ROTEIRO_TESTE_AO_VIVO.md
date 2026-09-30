@@ -47,7 +47,7 @@ um erro de volume pareceria efeito do canal.
    ```powershell
    python monitor.py --listar-dispositivos
    ```
-5. **Desligue os aprimoramentos de áudio** durante o teste: *Configurações →
+5. **Desligue os aprimoramentos de áudio** durante o teste — **obrigatório** (medido: com eles ligados, a Realtek comprimiu a dinâmica, o piso das pausas subiu 31,5 dB e todo áudio foi a score ~1,0): *Configurações →
    Sistema → Som → (alto-falante) → Aprimoramentos de áudio → Desativado*.
    Efeitos do driver (Realtek, por exemplo) mexem no áudio antes de ele sair,
    e o controle deixaria de ser neutro. Anote o formato do dispositivo (ex.:

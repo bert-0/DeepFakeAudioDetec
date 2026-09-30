@@ -30,3 +30,9 @@ def test_mesma_semente_mesma_amostra():
 
 def test_amostra_maior_que_o_conjunto_devolve_tudo():
     assert indices_estratificados(LABELS, SYSTEMS, 5000, seed=0) == list(range(len(LABELS)))
+
+
+def test_condicao_da_captura_existe():
+    from scripts.robustness_eval import CHANNEL_CONDITIONS
+
+    assert ("captura_48k", [("captura", 48000)]) in CHANNEL_CONDITIONS

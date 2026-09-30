@@ -87,6 +87,10 @@ CHANNEL_CONDITIONS = [
     ("opus_15kbps", [("opus", 0.96)]),        # rede apertada
     ("banda_estreita", [("band", 8000)]),     # telefonia: nada acima de 4 kHz
     ("banda_estreita_opus", [("band", 8000), ("opus", 0.92)]),  # o caso realista
+    # A captura ao vivo: 16 kHz -> 48 kHz do dispositivo -> 16 kHz. Apaga só
+    # 7,6-8 kHz. O teste ao vivo mostrou que isso sozinho infla todos os scores
+    # (Seção 10.2.1 do resumo); aqui se mede com amostra que dá IC.
+    ("captura_48k", [("captura", 48000)]),
 ]
 
 
@@ -107,6 +111,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sem-canal", action="store_true",
                    help="roda só as condições acústicas (ruído/ganho), pulando "
                         "as de canal (codec e banda estreita)")
+    p.add_argument("--so", nargs="+", default=None, metavar="CONDICAO",
+                   help="roda só estas condições (ex.: clean captura_48k)")
     p.add_argument("--amostra", type=int, default=None, metavar="N",
                    help="avalia só N áudios, estratificados por ataque (e bonafide), "
                         "com a semente do config — mesma amostra em toda condição")
@@ -230,7 +236,15 @@ def main() -> None:
     if not args.sem_canal:
         condicoes += [(label, construir_canal(etapas, sample_rate))
                       for label, etapas in CHANNEL_CONDITIONS]
-        relatar_taxas(sample_rate)
+        if not args.so or any(c.startswith("opus") or c.endswith("opus") for c in args.so):
+            relatar_taxas(sample_rate)
+    if args.so:
+        conhecidas = {label for label, _ in condicoes}
+        desconhecidas = set(args.so) - conhecidas
+        if desconhecidas:
+            raise SystemExit(f"condição desconhecida: {', '.join(sorted(desconhecidas))}. "
+                             f"Disponíveis: {', '.join(sorted(conhecidas))}")
+        condicoes = [(label, pert) for label, pert in condicoes if label in args.so]
 
     results: dict[str, dict] = {}
     indices = None
@@ -265,6 +279,8 @@ def main() -> None:
     name = output_name(config, args.smoke)
     if args.amostra:
         name = f"{name}_amostra{args.amostra}"
+    if args.so:
+        name = f"{name}_" + "_".join(args.so)
     # A partição entra no nome: sem ela, uma execução em dev sobrescreve a de eval.
     json_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.json"
     plot_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.png"

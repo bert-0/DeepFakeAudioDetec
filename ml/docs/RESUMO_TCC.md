@@ -1301,7 +1301,8 @@ Playlist de 40 áudios do eval de 2019 (20 bonafide, 20 spoof, os 13 ataques),
 | perdas simuladas (1 × 10 ms por áudio) | um clique | 17,50% | 29/40 |
 | reamostragem simulada (16 → 48 → 16 kHz) | some 7,6–8 kHz | 30,00% | 25/40 |
 | reamostragem + ruído branco a −31 dB do pico | topo some e piso sobe | 42,50% | 28/40 |
-| **controle** (alto-falante → loopback, sem chamada) | caminho real de saída | **48,53%** (37 áudios) | 16/37 |
+| controle com aprimoramentos do driver ligados | caminho real de saída + efeitos Realtek | 48,53% (37 áudios) | 16/37 |
+| **controle sem aprimoramentos** (alto-falante → loopback, sem chamada) | caminho real de saída | **35,00%** | 25/40 |
 
 **Validação do procedimento.** A sessão "limpo" reproduz o eval de 2019 amostra
 a amostra (depois do ajuste fino do alinhamento, Seção 9.5). Diferenças nas
@@ -1344,9 +1345,34 @@ perto do controle —, só que os scores **descem** (spoof 0,999 → 0,766;
   que amplificam o próprio conteúdo baixo — os "aprimoramentos de áudio" do
   driver continuam o suspeito principal.
 
-**Pendente:** repetir o controle com os aprimoramentos desativados e comparar
-o espectro de novo. Se o piso voltar a ~−62 dB, o segundo efeito é do driver;
-o primeiro (a faixa de 7,6–8 kHz) continua, porque é da conversão de taxa.
+**Controle sem os aprimoramentos: o caminho real ficou reproduzido em
+software.** Com os aprimoramentos de áudio desativados, o espectro do
+controle é igual ao do limpo até 7,5 kHz (+0,1 dB em todas as faixas), o piso
+das pausas volta ao original (−62,3 → −62,2 dB) e só a faixa do topo some
+(7,8–8 kHz: −51,6 dB). Os scores batem, áudio por áudio, com a simulação de
+reamostragem (diferenças de ~0,01); o alinhamento recuperou 40/40, todos
+ajustados à amostra. Duas conclusões:
+
+- **Os "aprimoramentos de áudio" do driver eram o segundo efeito** — a
+  compressão que subiu o piso em 31,5 dB e levou tudo a ~1,0. Desligá-los é
+  pré-requisito do monitor; vai para o texto e para o roteiro.
+- **O que sobra é estrutural: a conversão de taxa.** Toda captura ao vivo passa
+  por 48 kHz e volta a 16 kHz; a faixa de 7,6–8 kHz nunca chega ao modelo, e
+  o `baseline_v2` depende dela: todos os scores sobem (bonafide 0,066 → 0,369;
+  0,306 → 0,983), o limiar deixa de separar e o EER da amostra vai de 22,50% a
+  30–35%.
+
+**Próximo passo: medir com IC.** O efeito está provado em 40 áudios; o número
+para o texto vem do `robustness_eval.py`, que ganhou a condição
+`captura_48k` (a mesma ida e volta, com o mesmo `soxr`):
+
+```bash
+python scripts/robustness_eval.py --config configs/baseline_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt --amostra 10000 --so clean captura_48k
+python scripts/robustness_eval.py --config configs/fusion_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000 --so clean captura_48k
+```
+
+Depois disso, a sessão "chamada" (Meet/Teams) mede o que a chamada soma ao
+caminho de captura.
 
 ### 10.3 Bases públicas que já trazem canal
 
