@@ -78,6 +78,23 @@ def limitar_banda(wav: np.ndarray, sample_rate: int,
     return voltou.astype(np.float32)
 
 
+def ida_e_volta_captura(wav: np.ndarray, sample_rate: int,
+                        taxa_dispositivo: int = 48000) -> np.ndarray:
+    """O que a captura ao vivo faz com a taxa: sobe à taxa do dispositivo e volta.
+
+    Mesmo `soxr` do `monitor.py` (captura) e do `canal_real.py tocar`. O filtro
+    antialiasing de qualquer conversão para 16 kHz apaga a faixa de 7,6-8 kHz
+    (medido em ruído branco: -30 dB em 7,7-7,9 kHz, -103 dB acima de 7,9 kHz).
+    O teste ao vivo mostrou que o modelo depende dessa faixa: o controle sem
+    efeitos do driver bateu áudio a áudio com esta simulação (Seção 10.2.1).
+    """
+    import soxr
+
+    x = np.asarray(wav, dtype=np.float32)
+    return soxr.resample(soxr.resample(x, sample_rate, taxa_dispositivo),
+                         taxa_dispositivo, sample_rate).astype(np.float32)
+
+
 def _ajustar_comprimento(saida: np.ndarray, n: int) -> np.ndarray:
     """Garante o mesmo nº de amostras da entrada.
 
@@ -109,10 +126,12 @@ class ChannelDegradation:
     kind:
       - 'opus'  — level = `compression_level` em [0, 1]
       - 'band'  — level = taxa intermediária em Hz (8000 = banda estreita)
+      - 'captura' — level = taxa do dispositivo em Hz (48000): a ida e volta
+                    da captura ao vivo, que apaga 7,6-8 kHz
     """
 
     def __init__(self, kind: str, level: float, sample_rate: int):
-        if kind not in ("opus", "band"):
+        if kind not in ("opus", "band", "captura"):
             raise ValueError(f"degradação de canal desconhecida: {kind!r}")
         self.kind = kind
         self.level = level
@@ -123,6 +142,8 @@ class ChannelDegradation:
         n = wav.size
         if self.kind == "opus":
             saida = opus_roundtrip(wav, self.sample_rate, self.level)
+        elif self.kind == "captura":
+            saida = ida_e_volta_captura(wav, self.sample_rate, int(self.level))
         else:
             saida = limitar_banda(wav, self.sample_rate, int(self.level))
         return _ajustar_comprimento(saida, n)

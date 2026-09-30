@@ -56,6 +56,65 @@ A integridade da base é verificada por `scripts/check_data.py --deep`, que
 decodifica os arquivos em vez de ler só o cabeçalho — um FLAC truncado reporta a
 duração original e passaria despercebido até derrubar o treino horas depois.
 
+### 2.1 Pré-processamento e features contra o baseline oficial LFCC-LCNN
+
+Conferido no código dos baselines, não em descrição de artigo:
+
+- **ASVspoof 2021 LA, baseline B03 (LFCC-LCNN):** repositório
+  `asvspoof-challenge/2021`, `LA/Baseline-LFCC-LCNN/project/baseline_LA/model.py`
+  e `sandbox/util_frontend.py` (classe `LFCC`).
+- **Variante treinada no 2019 LA:** Wang & Yamagishi (2021), repositório
+  `nii-yamagishilab/project-NN-Pytorch-scripts`,
+  `project/03-asvspoof-mega/lfcc-lcnn-lstmsum-p2s/01/model.py`.
+
+| | baseline 2021 LA | variante 2019 LA | este projeto (v2 / fusion_v4) |
+|---|---|---|---|
+| CMVN | **não** | **não** | **não** |
+| normalização das features | nenhuma — `BatchNorm2d(affine=False)` após cada MFM, dentro da rede | idem | média e desvio **por áudio**, um único valor para a matriz inteira |
+| amplitude | sem normalização | sem normalização | normalização por pico |
+| silêncio | mantido (o VAD está comentado no código) | mantido | **removido** (`top_db` 30) |
+| pré-ênfase | 0,97 | 0,97 | não |
+| coeficientes | 20 LFCC, c0 trocado pela log-energia, + Δ + ΔΔ = 60 | idem | 20 LFCC + Δ + ΔΔ = 60 |
+| filtros lineares | 20 | 20 | 20 (v2) / 70 (fusion_v4) |
+| janela / passo | 20 ms / 10 ms | 20 ms / 10 ms | 25 ms / 10 ms |
+| FFT | 1024 | 512 | 512 |
+| **faixa de frequência** | **0–4 kHz** (`lfcc_max_freq = 0.5`) | 0–8 kHz | 0–8 kHz |
+
+**CMVN não faz parte do baseline.** A classe do modelo tem um
+`normalize_input`, mas ele nunca é chamado — o comentário no código diz *"not
+relevant to this code"*. O CMVN vem da verificação de locutor, em que a
+coloração estacionária do espectro (microfone, canal) é incômodo a remover. Na
+detecção de spoofing, parte dessa coloração pode ser o próprio artefato do
+vocoder; o baseline deixa o LFCC cru e normaliza por lote dentro da rede, o que
+ajusta a escala sem apagar as diferenças de espectro entre áudios. (A
+justificativa é leitura deste projeto; o código não a explicita.)
+
+**A normalização por instância deste projeto não é CMVN.** CMVN normaliza cada
+coeficiente ao longo do tempo; aqui é uma média e um desvio para o espectrograma
+inteiro, o que tira nível e escala globais e não remove coloração de canal. O
+efeito é o esperado: ganho de ±6 dB custa no máximo 0,6 pp (Seção 5).
+
+**Onde o projeto diverge, e por quê:**
+
+- **Silêncio removido** — deliberado, pelo atalho documentado por Müller et al.
+  (2021); é o que torna comparável a régua de mesmo protocolo da 5.1.
+- **Normalização por pico e por instância** — o RMS sozinho separa as classes
+  com 32% de EER no eval (Seção 6); normalizar a amplitude impede o modelo de
+  aprender esse atalho.
+- **Pré-ênfase e c0 como log-energia** — não adotados; não foram testados
+  isoladamente, e o efeito deles neste pipeline não é conhecido.
+
+**A faixa de 0–4 kHz do baseline de 2021 é o dado mais relevante da tabela.**
+Os organizadores limitaram o LFCC à metade inferior do espectro no baseline do
+LA de 2021 — a edição que é, por construção, telefonia e VoIP. O comentário no
+código diz *"only uses [0, 0.5 * Nyquist_freq range for LFCC]"*. É coerente com
+o que este projeto mediu: banda estreita custa **+16,96 pp** ao v2 (Seção 5) e
+o canal real, +11,28 pp (5.3). Um modelo que decide com a faixa de 4–8 kHz
+perde essa informação no primeiro trecho de telefonia. **Se o objetivo for o
+canal real, a mudança que segue o raciocínio do ASVspoof não é CMVN — é
+limitar o LFCC a 0–4 kHz.** Exige retreino e está fora do escopo (12.3);
+registrada como trabalho futuro na Seção 11.
+
 ---
 
 ## 3. Resultados dos modelos isolados
@@ -1147,6 +1206,29 @@ regimes é o volume — o treino atravessa 25.380 amostras por época; o ao vivo
 
 ---
 
+### 9.5 Sensibilidade a deslocamentos de poucos milissegundos (medida)
+
+Achado lateral do teste ao vivo. Na sessão "limpo" (Seção 10.2) os 40 áudios da
+playlist são recortados da própria referência — o mesmo sinal, sem canal
+nenhum. Mesmo assim os scores diferiram dos do eval de 2019 para os mesmos
+arquivos: mediana ~0,01, **máximo 0,17** (0,501 → 0,669), dois dos 40 trocando
+de lado no limiar, e o EER da amostra indo de 22,50% para 27,50%.
+
+A causa era o recorte: o alinhamento por envelope tem resolução de 10 ms e
+deslocava cada áudio em **até 5 ms** (medido: 79 amostras com a gravação
+idêntica à referência). Cinco milissegundos são meio passo do STFT (hop de
+10 ms): todos os quadros das features mudam de fase, e o modelo responde. O
+alinhamento ganhou um ajuste fino pela forma de onda, com erro medido de zero
+amostras no caminho limpo, com atraso arbitrário e sob Opus + banda estreita.
+
+**O que isso diz do modelo, e por que importa ao vivo:** o score de um mesmo
+áudio depende de onde o enquadramento começa, em escala de milissegundos. No
+monitor as janelas caem em posições arbitrárias da fala, então esse jitter faz
+parte de toda leitura ao vivo — mais um motivo para agregar janelas (9.2, 9.3)
+em vez de decidir por uma só. Ressalva: 40 áudios, um modelo; é indício, não
+medida da sensibilidade. Medir direito seria avaliar o eval com deslocamentos
+de 0 a 10 ms e comparar os EERs.
+
 ## 10. Camada 2 — medir o canal real
 
 ### 10.1 A distinção entre as duas camadas
@@ -1164,10 +1246,14 @@ mínimo que o canal custa, não o total.
 ### 10.2 Como a camada 2 é executada (`scripts/canal_real.py`)
 
 ```bash
-python scripts/canal_real.py preparar --config configs/fusion_v4.yaml --n-por-classe 40
-python monitor.py --config ... --checkpoint ... --gravar chamada.wav
-python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao chamada.wav
+python scripts/canal_real.py preparar --config configs/baseline_v2.yaml --n-por-classe 20
+python monitor.py --config ... --checkpoint ... --gravar outputs/canal_real/chamada.wav
+python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao outputs/canal_real/chamada.wav --sessao chamada
+python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
 ```
+
+Passo a passo completo, com as sessões limpo / controle / chamada e o que
+anotar: [`docs/ROTEIRO_TESTE_AO_VIVO.md`](ROTEIRO_TESTE_AO_VIVO.md).
 
 O problema técnico é o alinhamento: a gravação chega como um bloco de minutos e
 sem saber onde cada áudio começa não há rótulo, e sem rótulo não há EER.
@@ -1199,7 +1285,219 @@ um EER que *parece* resultado.
 O procedimento inclui um **controle**: repetir tudo sem chamada nenhuma. Se o
 controle já divergir do eval limpo, a diferença é do procedimento, não do Teams.
 
-**Não executada** — decisão registrada em 12.3: instrumentação validada, execução como trabalho futuro.
+**Execução completa não feita** — decisão registrada em 12.3. Uma **execução
+reduzida** (40 áudios, três sessões) está prevista como teste funcional do
+monitor ao vivo; o número que ela dá é indicativo, não uma medida de EER.
+
+### 10.2.1 Execução reduzida — resultados até aqui (parcial)
+
+Playlist de 40 áudios do eval de 2019 (20 bonafide, 20 spoof, os 13 ataques),
+`baseline_v2`. Com 20 bonafide, cada bonafide mal ordenado move o EER em
+~2,5 pp: os números são indicativos. O que importa é a **direção** dos scores,
+áudio por áudio (`comparar_sessoes.py`).
+
+| sessão | o que muda | EER (mesmos áudios) | acertos no limiar |
+|---|---|---|---|
+| eval de 2019 | — | 22,50% | 30/40 |
+| **limpo** (recortes da própria playlist) | nada | **22,50%** — scores idênticos | 30/40 |
+| perdas simuladas (1 × 10 ms por áudio) | um clique | 17,50% | 29/40 |
+| reamostragem simulada (16 → 48 → 16 kHz) | some 7,6–8 kHz | 30,00% | 25/40 |
+| reamostragem + ruído branco a −31 dB do pico | topo some e piso sobe | 42,50% | 28/40 |
+| controle com aprimoramentos do driver ligados | caminho real de saída + efeitos Realtek | 48,53% (37 áudios) | 16/37 |
+| **controle sem aprimoramentos** (alto-falante → loopback, sem chamada) | caminho real de saída | **35,00%** | 25/40 |
+
+**Validação do procedimento.** A sessão "limpo" reproduz o eval de 2019 amostra
+a amostra (depois do ajuste fino do alinhamento, Seção 9.5). Diferenças nas
+outras sessões são do caminho do som, não do recorte.
+
+**O controle leva todo áudio a ~1,0**, bonafide inclusive (0,006 → 0,999). Não é
+perda de amostra: o controle final teve zero descontinuidades (buffer do WASAPI
+de 1 s), e perdas simuladas quase não mexem no score. `comparar_espectro.py`
+mostra o que o caminho fez, nos mesmos áudios, após normalizar por pico:
+
+- **7,8–8 kHz: −47,8 dB.** É a ida e volta de taxa (16 kHz do arquivo, 48 kHz
+  do dispositivo, 16 kHz do modelo). O filtro antialiasing de qualquer
+  conversão para 16 kHz apaga essa faixa: medido em ruído branco, −30 dB em
+  7,7–7,9 kHz e −103 dB acima de 7,9 kHz, em qualquer qualidade do soxr.
+- **Piso das pausas: +31,5 dB** (−62,5 → −30,9 dB do pico), com o espectro
+  subindo mais onde a fala tem pouca energia (0–250 Hz e 4–7,5 kHz, +10 dB) e
+  menos onde ela é forte (250 Hz–2 kHz, +2 dB) — assinatura de compressão de
+  dinâmica que puxa as partes baixas para cima. Suspeito: os "aprimoramentos
+  de áudio" do driver (Realtek, "Efeitos Padrão do Dispositivo").
+
+**Só a faixa do topo já desloca todos os scores para cima** (bonafide 0,306 →
+0,984; 0,066 → 0,376), inutiliza o limiar e custa ~7,5 pp de EER. **O modelo
+usa a faixa de 7,6–8 kHz.** Isso tem uma consequência estrutural para o
+monitor: a captura do sistema é a 48 kHz e a conversão para 16 kHz apaga essa
+faixa **sempre**, em qualquer chamada. É o mesmo raciocínio que levou os
+organizadores do ASVspoof 2021 LA a limitar o LFCC do baseline a 0–4 kHz
+(Seção 2.1): um detector para canal real não pode depender do topo da banda.
+
+**O piso simulado destrói a ordenação, mas empurra os scores para o lado
+oposto.** Com ruído branco no nível medido, o EER vai a 42,50% — quase acaso,
+perto do controle —, só que os scores **descem** (spoof 0,999 → 0,766;
+0,972 → 0,183), enquanto no controle todos **subiram** a ~1,0. Ruído de fundo
+é o que uma gravação humana tem; somá-lo aproxima tudo de "bonafide". Conclusões:
+
+- **O modelo é muito sensível ao conteúdo das pausas.** Mexer só no piso leva
+  o EER perto do acaso — coerente com a dependência de silêncio documentada
+  por Müller et al. (2021) no ASVspoof 2019 LA.
+- **O piso do controle não é ruído somado.** O que o subiu preservou a "cor"
+  do áudio original: compatível com compressão de dinâmica ou equalização,
+  que amplificam o próprio conteúdo baixo — os "aprimoramentos de áudio" do
+  driver continuam o suspeito principal.
+
+**Controle sem os aprimoramentos: o caminho real ficou reproduzido em
+software.** Com os aprimoramentos de áudio desativados, o espectro do
+controle é igual ao do limpo até 7,5 kHz (+0,1 dB em todas as faixas), o piso
+das pausas volta ao original (−62,3 → −62,2 dB) e só a faixa do topo some
+(7,8–8 kHz: −51,6 dB). Os scores batem, áudio por áudio, com a simulação de
+reamostragem (diferenças de ~0,01); o alinhamento recuperou 40/40, todos
+ajustados à amostra. Duas conclusões:
+
+- **Os "aprimoramentos de áudio" do driver eram o segundo efeito** — a
+  compressão que subiu o piso em 31,5 dB e levou tudo a ~1,0. Desligá-los é
+  pré-requisito do monitor; vai para o texto e para o roteiro.
+- **O que sobra é estrutural: a conversão de taxa.** Toda captura ao vivo passa
+  por 48 kHz e volta a 16 kHz; a faixa de 7,6–8 kHz nunca chega ao modelo, e
+  o `baseline_v2` depende dela: todos os scores sobem (bonafide 0,066 → 0,369;
+  0,306 → 0,983), o limiar deixa de separar e o EER da amostra vai de 22,50% a
+  30–35%.
+
+**Medido com IC** (`robustness_eval.py --amostra 10000 --so clean captura_48k`,
+10.002 áudios estratificados, IC 95% ±1,28 pp; a condição `captura_48k` é a
+mesma ida e volta 16 → 48 → 16 kHz, com o mesmo `soxr` do monitor):
+
+| modelo | EER limpo | EER captura 48 kHz | custo | bonafide acima do limiar |
+|---|---|---|---|---|
+| baseline_v2 | 19,02% | **24,70%** | +5,68 pp | **10% → 71%** |
+| fusion_v4 | 20,25% | **24,98%** | +4,73 pp | **100%** — os 1.032 em probabilidade 1,0 |
+
+(Bonafide acima do limiar: derivado de precisão e recall no limiar do
+checkpoint. v2 limpo: precisão 0,9837, recall 0,7149; captura: 0,9209 e
+0,9523. fusion_v4 na captura: recall 1,0000, precisão 0,8968 = a proporção de
+spoof da amostra.)
+
+**A ordenação perde ~5 pp; o ponto de operação colapsa.** Os dois modelos
+empatam na captura (24,70% contra 24,98%, dentro do IC). O limiar, não: no v2,
+7 em cada 10 humanos passam a ser marcados como sintéticos; no fusion_v4
+**todo** bonafide satura em probabilidade 1,0 — o EER pela probabilidade dá
+50,00% e o modelo vira o classificador trivial "tudo é spoof", o mesmo
+comportamento do Opus real do 2021 LA (5.3). O EER de 24,98% só é visível
+porque é calculado pelos log-odds (correção da 5.3).
+
+**Consequências:**
+
+- **Para o monitor** (que mostra probabilidade): o fusion_v4 é inutilizável ao
+  vivo, e o v2 funciona com o limiar deslocado. A recomendação do v2 (5.3)
+  ganha uma segunda justificativa, independente do canal da chamada.
+- **A captura custa mais que o Opus simulado** (v2: +5,68 pp contra +1,30 pp
+  do Opus a 25 kbps na mesma amostra) — e está presente em toda chamada.
+- **Mitigação sem retreino — implementada** (`scripts/calibrar_captura.py`):
+  o limiar passa a ser o ponto de EER no `dev` (A01–A06) passado pela mesma
+  ida e volta, e vai para uma cópia do checkpoint com os mesmos pesos. O eval
+  não é tocado na calibração; o efeito se mede nele depois. Para o fusion_v4 o
+  script recusa: com todos os humanos em probabilidade 1,0, não existe limiar
+  em probabilidade.
+
+**Resultado da recalibração (baseline_v2).** No dev com captura (10.002 áudios,
+EER 15,90%), o limiar foi de 0,6539 para **0,9829**: os humanos acima dele
+caíram de 81,0% para 15,9%. No **eval** (A07–A19, não vistos na calibração),
+derivado de precisão e recall:
+
+| áudio | limiar | humanos marcados como sintéticos | sintéticos que passam |
+|---|---|---|---|
+| captura | original 0,6539 | 71% | 5% |
+| captura | **recalibrado 0,9829** | **17%** | **31%** |
+| limpo (16 kHz nativo) | original 0,6539 | 10% | 29% |
+| limpo (16 kHz nativo) | recalibrado 0,9829 | 0,1% | 69% |
+
+- **Na captura, o ponto de operação volta a ser usável**: de 7 em cada 10
+  humanos acusados para menos de 2 em 10. O EER não muda (24,70%): só o corte
+  se move, a ordenação é a mesma.
+- **O equilíbrio do dev não transfere inteiro para o eval** (17% contra 31%, e
+  não 16% contra 16%): os ataques do eval são inéditos e mais difíceis, e um
+  limiar calibrado nos ataques do treino deixa passar mais deles. É a mesma
+  limitação de qualquer calibração fora do domínio de teste — registrada, não
+  corrigida.
+- **Um limiar por caminho do áudio.** Em áudio nativo de 16 kHz com a banda
+  inteira, o limiar recalibrado deixa passar 69% dos sintéticos; lá vale o
+  original. O que decide é se o áudio passou por uma taxa acima de 16 kHz e
+  foi convertido — ver 10.2.2.
+
+### 10.2.2 Qual limiar vale para qual áudio
+
+A faixa de 7,6–8 kHz não some só na captura ao vivo. Some em **qualquer
+conversão para 16 kHz**: o `librosa.load(sr=16000)`, que o projeto usa para
+abrir arquivos, reamostra com o mesmo tipo de filtro (`soxr_hq`). Então:
+
+| origem do áudio | chega ao modelo com 7,6–8 kHz? | limiar |
+|---|---|---|
+| arquivo gravado a 16 kHz com a banda inteira (ex.: ASVspoof) | sim | original |
+| captura ao vivo (loopback a 48 kHz) | não | recalibrado |
+| arquivo gravado a 44,1/48 kHz: celular, microfone, WhatsApp, MP3, vídeo | não | recalibrado |
+| arquivo a 8 kHz (telefonia) | não — e nada acima de 4 kHz | nenhum dos dois foi medido |
+
+Ou seja: o limiar original só vale para o formato da base de treino. Quase todo
+áudio do mundo real nasce a 44,1 ou 48 kHz e cai no caso do recalibrado.
+
+**Escolha automática — implementada** (`src/limiares.py`). O `monitor.py` e o
+`infer.py` aplicam a tabela acima sozinhos: captura ao vivo, arquivo acima de
+16 kHz ou de taxa desconhecida → recalibrado; nativo de 16 kHz → original;
+abaixo de 16 kHz → original, com aviso de condição não medida. A cópia
+recalibrada é achada ao lado do checkpoint original e só é aceita com os mesmos
+pesos (impressão digital do `state_dict`); sem ela, o sistema avisa em vez de
+inventar um limiar. **Limite da regra:** ela lê a taxa do arquivo, não o
+conteúdo — um arquivo de 16 kHz que já foi convertido antes também perdeu o
+topo da banda e recebe o limiar original. Isso
+reforça a conclusão da 10.2.1: um detector para uso real não deveria depender
+do topo da banda (Seção 2.1).
+
+- **Com retreino:** aumentação com a ida e volta, ou LFCC limitado abaixo de
+  7,5 kHz — o raciocínio do baseline de 2021 (Seção 2.1). Trabalho futuro.
+
+Depois disso, a sessão "chamada" (Meet/Teams) mede o que a chamada soma ao
+caminho de captura.
+
+### 10.2.3 Teste funcional com áudio real (qualitativo)
+
+Monitor ao vivo, `baseline_v2`, limiar escolhido automaticamente (0,9829,
+captura), aprimoramentos de áudio desligados, 1 perda de amostra por sessão.
+Dois áudios tocados do navegador, sem rótulo por janela:
+
+| áudio | score médio | mediano | janelas acima do limiar | fração acima de 4 kHz (p90, por janela) |
+|---|---|---|---|---|
+| vídeo narrado por IA (YouTube) | 0,490 | 0,420 | 0 de 19 | 11–94% |
+| audiobook narrado por humano | **0,807** | **0,857** | **7 de 32** | **0–5% na maior parte** |
+| voz do Google Tradutor (TTS neural) | 0,469 | 0,371 | 0 de 45 | 1–83%, variando |
+
+**A ordem se inverteu:** a voz humana recebeu scores mais altos que a
+sintética, e só ela disparou o limiar. A última coluna explica: o audiobook
+chega praticamente sem nada acima de 4 kHz — banda estreita, provavelmente por
+compressão ou pela gravação — enquanto o vídeo de IA chega em banda larga. Sem
+a parte alta do espectro, os scores deste modelo sobem (medido: banda estreita
++16,96 pp, Seção 5; captura +5,68 pp e limiar colapsado, 10.2.1).
+
+**O score está respondendo à largura de banda do áudio, não à síntese.** Dois
+exemplos não são medida; o valor deste teste é mostrar, com áudio real, a
+dependência que o controle mediu com IC. Soma-se a isso o limite de
+generalização conhecido: o modelo viu os ataques de 2019 (A01–A06 no treino,
+A07–A19 no eval), e uma voz de IA comercial atual é de outra geração.
+
+**Não é defeito do programa — verificado em três elos.** (1) O caminho
+offline reproduz o eval de 2019 amostra a amostra (sessão "limpo", 10.2.1).
+(2) O monitor dá o mesmo score do caminho offline para o mesmo áudio
+(`tests/test_monitor_consistencia.py`, diferença < 1e-6). (3) O caminho de
+captura foi reproduzido em software, áudio a áudio (controle sem
+aprimoramentos, 10.2.1) — e nele os ataques de 2019 continuam indo a ~1,0
+(A09, A11, A08: 0,998–1,000). O que falha é o modelo diante de vozes que não
+são de 2019.
+
+**Conclusão para o texto:** o sistema funciona de ponta a ponta — captura,
+janelas, limiar por tipo de áudio, agregação —, mas este modelo não serve para
+uso real. Os dois caminhos de correção estão identificados: treino com banda
+limitada ou LFCC restrito abaixo de 7,5 kHz (o raciocínio do baseline de 2021,
+Seção 2.1) e dados de ataques atuais (ASVspoof 5, Seção 10.7).
 
 ### 10.3 Bases públicas que já trazem canal
 
@@ -1480,6 +1778,12 @@ Para os outros cinco modelos, basta acrescentar os `.npz` em `--scores`
 
 **MP3 não avaliado.** O teste de robustez usou Opus.
 
+**Front-end não testado contra o do baseline oficial.** O pipeline difere do
+LFCC-LCNN oficial em pré-ênfase, c0 como energia, janela e faixa de frequência
+(Seção 2.1). Nenhuma dessas diferenças foi isolada. A mais promissora para o
+canal real é limitar o LFCC a 0–4 kHz, como no baseline do 2021 LA —
+**trabalho futuro**, exige retreino.
+
 ---
 
 ## 12. Plano final do TC2 (escopo fechado)
@@ -1669,6 +1973,7 @@ python scripts/per_attack_eval.py --config ... --checkpoint ...
 python scripts/bench_latencia.py --config ... --checkpoint ... --device cpu
 
 # Seção 10 — camada 2
-python scripts/canal_real.py preparar --config ... --n-por-classe 40
-python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao chamada.wav
+python scripts/canal_real.py preparar --config configs/baseline_v2.yaml --n-por-classe 20
+python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao ... --sessao <limpo|controle|chamada>
+python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
 ```

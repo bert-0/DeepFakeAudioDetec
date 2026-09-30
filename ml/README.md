@@ -471,6 +471,33 @@ O ruff roda só com `E9,F` (erro de sintaxe, nome indefinido, comparação
 inválida, import morto). Regras de estilo ficam de fora de propósito: quebrar o
 CI por ponto e vírgula não ajuda ninguém a encontrar defeito.
 
+## Interface web (FastAPI + Jinja2)
+
+```bash
+pip install -r web/requirements.txt
+uvicorn web.app:app --reload          # de dentro de ml/; abre em http://127.0.0.1:8000
+```
+
+Abas: **Enviar arquivo** (arrastar ou selecionar), **Resultados** (histórico e,
+por análise: score médio, veredito pelo limiar, uma barra por janela de 4 s
+com a cor do lado do limiar, detalhes e relatório em JSON) e **Ao vivo**, que
+acompanha o `monitor.py` rodando no terminal: com `--json outputs/ao_vivo.json`
+ele grava o estado a cada janela, e a página lê esse arquivo a cada 2 s — o
+navegador não tem acesso ao áudio do sistema, a captura fica no monitor.
+`POST /api/analisar` devolve o resultado em JSON; `GET /api/ao-vivo`, a sessão.
+
+O visual segue o protótipo do docx "Outras partes da UI", sem os elementos de
+maquete: barras de onda decorativas viraram uma barra por janela real, o
+"nível de confiança em %" virou o score (0 = humano, 1 = sintético, que não é
+uma confiança), e barra de progresso inventada, seletor de estados e botões
+sem função saíram. O caminho de análise é o do monitor, que dá o mesmo score do
+`infer.py` (`tests/test_monitor_consistencia.py`), e o limiar é escolhido pelo
+tipo de áudio. O arquivo enviado é apagado ao fim da análise; o histórico
+(SQLite em `outputs/web/historico.db`) guarda só o resultado.
+
+Variáveis opcionais: `DETECTOR_CONFIG`, `DETECTOR_CHECKPOINT` (padrão:
+`baseline_v2`), `DETECTOR_DEVICE` (padrão `cpu`), `DETECTOR_BANCO`.
+
 ## Inferência em um único áudio (RF05/RF06/RF07)
 
 ```bash
@@ -493,7 +520,11 @@ pip install soundcard                    # só para o modo ao vivo
 
 python monitor.py --listar-dispositivos  # descobrir a saída a escutar
 
-# durante uma chamada, gravando o que ouviu
+# uma vez: limiar recalibrado para a captura ao vivo (grava uma cópia do checkpoint)
+python scripts/calibrar_captura.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
+
+# durante uma chamada, gravando o que ouviu (o limiar recalibrado é achado sozinho)
 python monitor.py --config configs/baseline_v2.yaml \
     --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
     --gravar outputs/chamada.wav --json outputs/chamada.json
@@ -501,6 +532,33 @@ python monitor.py --config configs/baseline_v2.yaml \
 # reprocessar a gravação (mesmos scores, bit a bit)
 python monitor.py --config ... --checkpoint ... --arquivo outputs/chamada.wav
 ```
+
+**Antes de usar ao vivo:** desligue os "aprimoramentos de áudio" do dispositivo
+de saída (Configurações → Som → alto-falante). Medido: com os efeitos da
+Realtek ligados, todo áudio foi a score ~1,0. E gere o limiar recalibrado uma
+vez (`scripts/calibrar_captura.py`): a captura passa por 48 kHz e volta a
+16 kHz, a faixa de 7,6-8 kHz some, e no limiar original 71% dos humanos passam
+por sintéticos (`docs/RESUMO_TCC.md`, 10.2.1).
+
+**Demonstração** (`scripts/montar_demo.py`): gera `outputs/demo/reais.wav`,
+`falsos.wav` e `misto.wav`, com 4 s de silêncio entre os áudios (a janela do
+monitor) e uma "cola" com o instante, o rótulo e o score esperado de cada um.
+Os áudios padrão foram escolhidos entre os que o modelo acerta, com score
+medido pela captura real — é ilustração; o EER é a medida.
+
+**Demonstração com a própria voz** (`scripts/gerar_sintetico.py`): você grava
+algumas frases e o script refaz cada uma com vocoders da época do ASVspoof
+2019 — Griffin-Lim (o do ataque A11) e WORLD (A02/A03/A05/A07; requer
+`pip install pyworld "setuptools<81"`). Sai uma playlist pareada
+(original → Griffin-Lim → WORLD) com cola. Original e falso têm o mesmo
+locutor, microfone e texto: se o monitor separa os dois, reage à síntese, não
+ao canal.
+
+**O limiar é escolhido pelo tipo de áudio** (`src/limiares.py`), no monitor e
+no `infer.py`: captura ao vivo e arquivos gravados acima de 16 kHz usam o
+recalibrado; arquivos nativos de 16 kHz, o original. Basta passar o checkpoint
+original: a cópia `_captura.pt` ao lado é achada sozinha, e só é aceita se os
+pesos forem os mesmos.
 
 O áudio é cortado em janelas do tamanho de `audio.duration` com metade de
 sobreposição, e cada janela passa pelo **mesmo** caminho do `infer.py`:
@@ -677,18 +735,31 @@ conferência. O `canal_real.py` fecha essa lacuna.
 
 ```bash
 # 1. monta uma playlist de áudios ROTULADOS, com silêncio entre eles
-python scripts/canal_real.py preparar --config configs/fusion_v4.yaml \
-    --n-por-classe 40 --saida outputs/canal_real
+python scripts/canal_real.py preparar --config configs/baseline_v2.yaml \
+    --n-por-classe 20 --saida outputs/canal_real
 #    -> imprime o roteiro da chamada (duas pontas, VB-Cable, controle)
 
-# 2. toque referencia.wav dentro da chamada; grave do outro lado
-python monitor.py --config ... --checkpoint ... --gravar chamada.wav
+# 2. grave do lado que recebe a chamada...
+python monitor.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
+    --gravar outputs/canal_real/chamada.wav
+#    ...e abra a ponta que toca: um Chrome cujo MICROFONE é a playlist
+#    (modo de teste do WebRTC — sem VB-Cable, sem VLC)
+python scripts/canal_real.py chrome --pasta outputs/canal_real --url "<link>"
+#    sessão de controle, sem chamada: toca a playlist no alto-falante
+python scripts/canal_real.py tocar --pasta outputs/canal_real
 
 # 3. localiza cada áudio na gravação, recorta e emite o protocolo ASVspoof
 python scripts/canal_real.py alinhar --pasta outputs/canal_real \
-    --gravacao chamada.wav
-#    -> imprime o comando do evaluate.py que dá o EER da camada 2
+    --gravacao outputs/canal_real/chamada.wav --sessao chamada
+#    -> imprime o comando do evaluate.py que dá o EER da sessão
+
+# 4. compara as sessões da mesma playlist (limpo, controle, chamada)
+python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
 ```
+
+O passo a passo completo, com o controle e o que anotar, está em
+[`docs/ROTEIRO_TESTE_AO_VIVO.md`](docs/ROTEIRO_TESTE_AO_VIVO.md).
 
 **Como o alinhamento funciona, e por que não é um bipe.** A ideia óbvia — um tom
 entre os áudios — falha exatamente no cenário que interessa: a supressão de

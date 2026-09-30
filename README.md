@@ -18,10 +18,12 @@ O projeto é um monorepo dividido em três áreas, alinhadas ao cronograma do TC
 | Pasta  | Fase            | Conteúdo                                                        |
 |--------|-----------------|----------------------------------------------------------------|
 | `ml/`  | TC1 + Férias    | Pipeline de IA: pré-processamento → extração → modelo → métricas |
-| `api/` | TC2 (Ago–Out)   | Back-end REST (FastAPI) que serve o modelo treinado            |
-| `web/` | TC2 (Ago–Out)   | Front-end web (React): login, dashboard, análise, histórico    |
+| `ml/web/` | TC2 (Ago–Out) | Interface web (FastAPI + Jinja2): análise, resultado, histórico |
 
-Atualmente apenas `ml/` está implementado. Veja [`ml/README.md`](ml/README.md)
+A interface web fica dentro de `ml/` porque usa o mesmo código de análise do
+monitor. Foi feita com FastAPI e páginas renderizadas no servidor (Jinja2), em
+vez de uma API separada mais um front-end React: uma aplicação só, na mesma
+linguagem do modelo, sem etapa de build. Veja [`ml/README.md`](ml/README.md)
 para instruções de uso.
 
 ## Incrementos do modelo (TC1 §4.7)

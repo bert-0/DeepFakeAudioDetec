@@ -185,3 +185,26 @@ def test_channel_nao_e_importado_pelo_caminho_de_treino():
             assert "channel" not in modulo, (
                 f"{arquivo} importa o módulo de canal — a fronteira que impede "
                 "a medição de robustez de afetar treino/avaliação foi rompida")
+
+
+def test_captura_apaga_so_o_topo_da_banda():
+    """A ida e volta 16 -> 48 -> 16 kHz da captura ao vivo: preserva até 7,3 kHz
+    e apaga 7,7-8 kHz, sem mudar o comprimento."""
+    import numpy as np
+    from scipy.signal import welch
+
+    from src.preprocess.channel import ChannelDegradation
+
+    sr = 16000
+    x = np.random.default_rng(0).standard_normal(sr * 4).astype(np.float32) * 0.1
+    y = ChannelDegradation("captura", 48000, sr)(x)
+    assert y.size == x.size
+    f, px = welch(x, sr, nperseg=1024)
+    _, py = welch(y, sr, nperseg=1024)
+
+    def db(lo, hi):
+        m = (f >= lo) & (f < hi)
+        return 10 * np.log10(py[m].mean() / px[m].mean())
+
+    assert abs(db(1000, 7300)) < 0.5
+    assert db(7700, 7900) < -20

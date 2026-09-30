@@ -326,3 +326,89 @@ def test_alinhar_gera_config_que_nao_sobrescreve_2019(tmp_path, capsys):
     assert gerado["train"]["cache_features"] is False
     texto = capsys.readouterr().out
     assert "rm -rf" not in texto and "cp configs" not in texto
+
+
+def test_sessoes_da_mesma_playlist_nao_se_sobrescrevem(tmp_path, capsys):
+    """Limpo, controle e chamada saem da mesma playlist. Com uma pasta só, a
+    segunda gravação apagava os recortes da primeira."""
+    import soundfile as sf
+    import yaml
+
+    from scripts.canal_real import CHECKPOINT_PADRAO, cmd_alinhar, cmd_preparar
+    from src.config import load_config
+
+    proto = _base_falsa(tmp_path / "base")
+    cfg = {
+        "audio": {"sample_rate": SR, "duration": 4.0, "trim_silence": False,
+                  "top_db": 30, "peak_normalize": False},
+        "data": {"protocols": {"eval": str(proto)},
+                 "audio_dir": {"eval": str(tmp_path / "base" / "flac")}},
+    }
+    caminho_cfg = tmp_path / "c.yaml"
+    caminho_cfg.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    saida = tmp_path / "canal"
+    cmd_preparar(argparse.Namespace(config=str(caminho_cfg), n_por_classe=4,
+                                    seed=1, saida=str(saida)))
+    ref, _ = sf.read(saida / "referencia.wav", dtype="float32")
+    sf.write(tmp_path / "g.wav", _atrasar(ref, 0.5), SR)
+
+    for sessao, gravacao in (("limpo", saida / "referencia.wav"),
+                             ("chamada", tmp_path / "g.wav")):
+        assert cmd_alinhar(argparse.Namespace(
+            pasta=str(saida), gravacao=str(gravacao), sessao=sessao)) == 0
+
+    nomes = set()
+    for sessao in ("limpo", "chamada"):
+        assert len(list((saida / sessao / "capturado").glob("*.flac"))) == 8
+        gerado = load_config(saida / sessao / "config_canal_real.yaml")
+        nomes.add(gerado["experiment"]["name"])
+    assert len(nomes) == 2, "as duas sessões gravariam os mesmos outputs"
+    assert CHECKPOINT_PADRAO in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- #
+# Precisão de amostra. O envelope tem resolução de 10 ms; o recorte herdava um
+# erro de até 5 ms, meio passo do STFT, e o modelo mudou o score em até 0,17
+# para o MESMO áudio (sessão "limpo" contra o eval de 2019).
+# --------------------------------------------------------------------------- #
+def _playlist_longa(n=12, seed=0):
+    rng = np.random.default_rng(seed)
+    audios = [(Trecho(f"t{i}", "bonafide", "-", 0, 0),
+               _fala(float(rng.uniform(2.0, 5.0)), f0=110 + 13 * i)) for i in range(n)]
+    return montar_referencia(audios, SR, 1.0)
+
+
+@pytest.mark.parametrize("atraso_s", [0.0, 1.2345])
+def test_recorte_exato_a_amostra(atraso_s):
+    ref, mapa = _playlist_longa()
+    atraso = int(round(atraso_s * SR))
+    encaixes = alinhar(mapa, ref, _atrasar(ref, atraso_s), SR)
+    assert all(e.refinado for e in encaixes)
+    assert [e.inicio_capturado - e.trecho.inicio for e in encaixes] == [atraso] * len(mapa)
+
+
+def test_sem_forma_de_onda_fica_a_posicao_do_envelope():
+    """Se o canal preserva o envelope mas destrói a forma de onda, o trecho não
+    é descartado: fica a posição do envelope, sem o ajuste fino."""
+    ref, mapa = _playlist_longa()
+    rng = np.random.default_rng(1)
+    env = np.repeat(envelope(ref, SR), SR // 100)
+    ruido_modulado = (rng.standard_normal(len(env)) * env).astype(np.float32)
+    encaixes = alinhar(mapa, ref, ruido_modulado, SR)
+    confiaveis = [e for e in encaixes if e.confiavel]
+    assert len(confiaveis) == len(mapa)
+    assert not any(e.refinado for e in confiaveis)
+    assert max(abs(e.inicio_capturado - e.trecho.inicio) for e in confiaveis) <= SR // 100
+
+
+def test_gravacao_que_comecou_depois_da_reproducao():
+    """Medido no primeiro controle real: a gravação começou 7 s depois. Os
+    trechos que tocaram antes se perdem; os demais têm de alinhar exatos."""
+    ref, mapa = _playlist_longa(n=15)
+    corte = int(7.0 * SR)
+    encaixes = alinhar(mapa, ref, ref[corte:], SR)
+    depois = [e for e in encaixes if e.trecho.inicio >= corte]
+    antes = [e for e in encaixes if e.trecho.inicio + e.trecho.n <= corte]
+    assert depois and all(e.confiavel and e.refinado for e in depois)
+    assert all(e.inicio_capturado == e.trecho.inicio - corte for e in depois)
+    assert not any(e.confiavel for e in antes)

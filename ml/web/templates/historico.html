@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Resultados — Análise de Autenticidade de Voz{% endblock %}
+{% block conteudo %}
+<div class="cartao">
+  {% if not analises %}
+    <div class="texto"><p>Nenhuma análise ainda. <a href="/">Enviar um arquivo</a>.</p></div>
+  {% else %}
+  <table>
+    <tr><th>Data</th><th>Arquivo</th><th>Duração</th><th>Score</th><th>Resultado</th></tr>
+    {% for a in analises %}
+    {% set acima = a.score_medio is not none and a.limiar is not none and a.score_medio >= a.limiar %}
+    <tr>
+      <td>{{ a.criado_em | data }}</td>
+      <td><a href="/analises/{{ a.id }}">{{ a.arquivo }}</a></td>
+      <td>{{ a.duracao_s | mmss }}</td>
+      <td class="{{ 'vermelho' if acima else 'verde' }}">{{ a.score_medio | br(2) }}</td>
+      <td>{% if a.score_medio is none %}sem fala{% elif acima %}indício de síntese{% else %}sem indício{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}
