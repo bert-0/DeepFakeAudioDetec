@@ -175,15 +175,10 @@ async def api_analisar(arquivo: UploadFile = File(...)):
                          "janelas": r.janelas})
 
 
-# --------------------------------------------------------------------------- #
-# Ao vivo: a página inicia e para o monitor.py
-#
-# A captura da saída de som fica no monitor (o navegador não tem acesso ao
-# áudio do sistema). O servidor abre o monitor como processo filho, ele grava o
-# estado num JSON a cada janela, e a página lê esse JSON a cada 2 s. Para parar,
-# o servidor cria um arquivo que o monitor vigia (`--parar-com`): no Windows não
-# dá para mandar Ctrl+C a outro processo, e matá-lo perderia a gravação.
-# --------------------------------------------------------------------------- #
+# --- Ao vivo -----------------------------------------------------------------
+# O navegador não acessa o áudio do sistema: o servidor roda o monitor.py como
+# processo filho e a página lê o JSON que ele grava. Para parar, cria o arquivo
+# de `--parar-com` (no Windows não há Ctrl+C entre processos; matar perde o WAV).
 RAIZ_ML = AQUI.parent
 
 

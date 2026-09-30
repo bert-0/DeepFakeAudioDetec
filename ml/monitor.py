@@ -1,10 +1,10 @@
 """Monitor de chamada ao vivo (RF04–RF07 da APS).
 
-Escuta a **saída de áudio do sistema** e classifica o que passa, janela a
-janela. Como pega o que sai da caixa de som, funciona com Microsoft Teams,
-Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
+Escuta a saída de áudio do sistema (loopback) e mostra um score por janela;
+funciona com Teams, Meet, Zoom ou qualquer outro. O limiar é escolhido pelo
+tipo de áudio (src/limiares.py); o score é indício, não veredito.
 
-    # ao vivo (recomendado: o baseline_v2 sozinho — ver "Qual modelo usar")
+    # ao vivo (recomendado: o baseline_v2 sozinho; a fusão não ganhou no canal real)
     python monitor.py --config configs/baseline_v2.yaml \\
         --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
 
@@ -21,42 +21,6 @@ Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
 
     # ver os dispositivos disponíveis
     python monitor.py --listar-dispositivos
-
-**Qual modelo usar.** O `baseline_lfcc_cnn_v2`, sozinho. A degradação
-*simulada* apontava o `fusion_lcnn_v4` (medido com `robustness_eval.py` no eval
-completo, 71.237 áudios):
-
-    condição              v2      fusion_v4
-    limpo              18,99%        20,18%
-    opus 25 kbps       20,04%        22,08%
-    banda estreita     35,95%        25,53%   <- v4 ganha por 10,4 pp
-    ruído 5 dB SNR     42,41%        27,42%   <- v4 ganha por 15,0 pp
-    degradação máx.   +23,42 pp     +7,24 pp
-
-mas o canal **real** (ASVspoof 2021 LA, Opus sobre redes VoIP, 10 mil áudios)
-não confirmou:
-
-    Opus real          29,43%        32,62%   <- v2 ganha por 3,2 pp
-    fusão pela média        29,41%            <- empata com o v2 sozinho
-
-A média das probabilidades — a regra que este monitor usa com dois
-`--checkpoint` — não ganha nada no canal real: o `fusion_v4` dá 1,0 para 97%
-dos bonafide no Opus, e a média vira o v2 deslocado. A fusão por postos ganha
-4,5 pp, mas precisa do conjunto inteiro e não roda janela a janela.
-
-**O que degrada, e quanto.** O codec Opus custa pouco: +1,2 a +2,8 pp mesmo a
-15 kbps, abaixo do que o Teams usa. Quem derruba é perder a **banda alta**
-(+5,4 pp) e o **ruído acústico** do interlocutor (+7,2 pp a 5 dB de SNR). Uma
-chamada em banda larga e ambiente silencioso é terreno viável; uma que caiu para
-banda estreita, não.
-
-**Sobre o número que ele mostra.** O limiar gravado no checkpoint foi calibrado
-em áudio limpo, e fora do domínio ele se comporta de forma imprevisível: sob o
-mesmo Opus a 15 kbps o recall do v2 sobe (0,72 -> 0,86) e o do v4 cai
-(0,55 -> 0,39). Por isso o monitor mostra **score**, não veredito. Para um ponto
-de operação confiável, recalibre no canal de destino — é para isso que serve o
-`--gravar`: toque áudios de rótulo conhecido numa chamada real, capture, e
-avalie o resultado.
 """
 
 from __future__ import annotations
@@ -114,12 +78,7 @@ def listar_dispositivos() -> int:
 
 
 def barra(score: float, limiar: float | None = None, largura: int = 28) -> str:
-    """Barra do score, com o limiar marcado por `|`.
-
-    Sem a marca, um score de 0,048 e um de 0,71 parecem só "duas barras" — e
-    nada na tela diz de que lado fica a decisão. A marca torna a comparação
-    visível sem transformar o score em veredito.
-    """
+    """Barra do score, com o limiar marcado por `|`."""
     cheio = min(largura, int(round(score * largura)))
     celulas = ["#"] * cheio + ["."] * (largura - cheio)
     if limiar is not None:
@@ -140,9 +99,8 @@ def main() -> int:
     config = load_config(args.config)
     device = resolve_device(args.device or config["train"]["device"])
     analisador = AnalisadorContinuo(config, args.checkpoint, device, hop_s=args.hop)
-    # O limiar segue o áudio: a captura ao vivo e os arquivos gravados acima de
-    # 16 kHz perdem 7,6-8 kHz na conversão e usam o recalibrado; arquivos
-    # nativos de 16 kHz usam o original (src/limiares.py).
+    # Ao vivo e arquivos acima de 16 kHz usam o limiar recalibrado para a
+    # conversão de taxa; nativos de 16 kHz, o original (src/limiares.py).
     import torch
 
     primeiro = args.checkpoint[0]
@@ -157,9 +115,7 @@ def main() -> int:
         janela_s=analisador.janela.tamanho / analisador.sample_rate,
         passo_s=analisador.janela.passo / analisador.sample_rate)
 
-    # Com um arquivo do dataset dá para mostrar o rótulo verdadeiro ao lado do
-    # score. É o que transforma a execução em verificação: sem rótulo, o score
-    # só mostra que o sistema opera.
+    # Arquivo do dataset: mostra o rótulo verdadeiro ao lado do score.
     verdade = None
     if args.arquivo:
         achado = buscar_rotulo(config, Path(str(args.arquivo).replace("\\", "/")).stem)
@@ -206,7 +162,7 @@ def main() -> int:
              if analisador.threshold is not None else ""))
     print("-" * 78)
     def _mostrar(leitura) -> None:
-        """Imprime uma leitura — usada tanto no fluxo quanto na janela final."""
+        """Imprime uma leitura (do fluxo ou da janela final)."""
         agregador.adicionar(leitura)
         if args.json:
             gravar_json(agregador, args.json, analisador.threshold, escolha.origem, ativo=True)
@@ -229,8 +185,7 @@ def main() -> int:
     try:
         with fonte:
             for bloco in fonte.blocos():
-                # Encerramento pedido pela interface web: o mesmo caminho do Ctrl+C,
-                # para a gravação e o JSON final (ativo=false) serem salvos.
+                # Parada pedida pela interface web; vai pelo Ctrl+C para salvar WAV e JSON.
                 if args.parar_com and Path(args.parar_com).exists():
                     raise KeyboardInterrupt
                 if args.gravar:
@@ -239,9 +194,8 @@ def main() -> int:
                     _mostrar(leitura)
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
-            # O fim da fonte pode deixar um trecho que não completou uma janela.
-            # Num arquivo do ASVspoof isso é a regra, não a exceção: a janela
-            # tem 4 s e o enunciado típico é mais curto.
+            # Trecho final que não completou uma janela (comum no ASVspoof: janela de
+            # 4 s, enunciados mais curtos).
             for leitura in analisador.finalizar():
                 _mostrar(leitura)
     except KeyboardInterrupt:
@@ -273,9 +227,8 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
 
 def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None = None,
                 origem_limiar: str = "", ativo: bool = False) -> Path:
-    """Grava o histórico de scores. Durante a captura é chamado a cada janela
-    (`ativo=True`), para a aba "Ao vivo" da interface web acompanhar; a escrita
-    é atômica para a página nunca ler um arquivo pela metade."""
+    """Grava o histórico de scores. Chamado a cada janela durante a captura
+    (`ativo=True`); escrita atômica para a aba Ao vivo não ler arquivo pela metade."""
     import time
 
     caminho = Path(destino)
@@ -307,23 +260,19 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
           f"({resumo['janelas_uteis']} úteis, "
           f"{resumo['janelas_silencio']} em silêncio, "
           f"{resumo['janelas_canal_ruim']} com canal ruim)")
-    # As janelas se sobrepõem, então a contagem infla a confiança: com passo de
-    # metade da janela, 5 janelas equivalem a 3 observações independentes.
+    # Com passo de meia janela, 5 janelas equivalem a 3 observações independentes.
     print(f"Janelas independentes (descontando a sobreposição): "
           f"{resumo['janelas_independentes']}")
     if canal is not None:
         print(f"Canal: {canal.descricao()}")
     if destino and resumo["score_medio"] is None:
-        # Também sem nenhuma janela: quem acompanha o JSON (a aba Ao vivo)
-        # precisa saber que a sessão terminou.
+        # Grava mesmo sem janelas, para a aba Ao vivo saber que a sessão acabou.
         gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
         if ao_vivo and resumo["janelas_silencio"] == resumo["janelas_total"]:
-            # No Windows o loopback devolve silêncio sem erro nenhum quando não
-            # há nada tocando ou quando o dispositivo aberto não é o que o
-            # sistema está usando. Sem esta dica o sintoma é indistinguível de
-            # uma falha do modelo.
+            # No Windows o loopback devolve silêncio sem erro se nada toca ou se o
+            # dispositivo aberto não é o que o sistema usa.
             print("\nTodas as janelas vieram em silêncio. As duas causas comuns:")
             print("  1. Não havia áudio tocando. O loopback captura a SAÍDA do")
             print("     sistema — se nada toca, não há o que capturar.")

@@ -1,15 +1,7 @@
-"""Fontes de áudio: de onde vêm as amostras a analisar.
+"""Fontes de áudio para o monitor ao vivo.
 
-Duas implementações com a mesma interface:
-
-- `WasapiLoopbackSource` — captura a saída do sistema no Windows. É a que serve
-  ao caso real (uma chamada em andamento) e a única que depende de biblioteca
-  externa e de sistema operacional.
-- `FileSource` — lê um `.wav`/`.flac` fingindo ser tempo real. Existe para que
-  todo o resto do caminho (janela, features, modelo, agregação) seja testável
-  em qualquer máquina, inclusive no Linux da integração contínua.
-
-A separação importa: sem ela, nada do monitor ao vivo teria teste automatizado.
+`WasapiLoopbackSource` captura a saída do sistema no Windows; `FileSource` lê um
+arquivo simulando tempo real, para testar o resto do caminho em qualquer máquina.
 """
 
 from __future__ import annotations
@@ -47,9 +39,7 @@ class AudioSource(ABC):
 class FileSource(AudioSource):
     """Lê um arquivo em blocos, como se estivesse chegando ao vivo.
 
-    Usada nos testes e no modo de repetição: permite reprocessar exatamente o
-    mesmo áudio que uma captura gravou, o que é o que torna um resultado ao vivo
-    reproduzível.
+    Usada nos testes e para reprocessar exatamente o áudio de uma captura.
     """
 
     def __init__(self, caminho: str | Path, sample_rate: int,
@@ -72,28 +62,16 @@ class FileSource(AudioSource):
             yield self._wav[i:i + self._bloco]
 
 
-#: Buffer do WASAPI pedido ao `soundcard`. Sem isso ele usa UM período do
-#: dispositivo (~10 ms): se a thread de captura ficar parada mais que isso — e
-#: o GIL do Python a deixa parada enquanto a janela anterior vira features — o
-#: áudio que chega é descartado e marcado como descontinuidade. Medido no
-#: primeiro controle real: 58 perdas em 3 minutos, ~1 a cada 3 s, o bastante
-#: para quase todo áudio da playlist levar um clique. Um segundo de buffer
-#: tolera qualquer pausa realista, e não aumenta a latência de leitura: o
-#: `record()` devolve assim que os quadros pedidos chegam.
+#: Buffer do WASAPI. O padrão (~10 ms) perdia amostras sempre que o GIL segurava
+#: a thread de captura; 1 s tolera as pausas sem aumentar a latência de leitura.
 BUFFER_CAPTURA_S = 1.0
 
 
 class WasapiLoopbackSource(AudioSource):
     """Captura a saída de áudio do sistema no Windows (loopback WASAPI).
 
-    Pega o *mix* final: a voz de todos os participantes da chamada mais qualquer
-    outro som que esteja tocando. Não há separação por participante — isso o
-    Teams só entregaria através do bot de mídia, que é exatamente o caminho que
-    este módulo evita. A consequência precisa aparecer na interface: o veredito é
-    sobre o trecho de áudio, não sobre uma pessoa.
-
-    O dispositivo entrega tipicamente 48 kHz estéreo; a conversão para mono e a
-    reamostragem para a taxa do modelo acontecem aqui.
+    Pega o mix final da chamada, sem separar participantes; converte para mono
+    e reamostra para a taxa do modelo.
     """
 
     def __init__(self, sample_rate: int, nome_dispositivo: str | None = None,
@@ -129,23 +107,14 @@ class WasapiLoopbackSource(AudioSource):
                 f"não foi possível abrir o loopback de '{self.nome_dispositivo or 'saída padrão'}': "
                 f"{erro}. Liste os dispositivos com `python monitor.py --listar-dispositivos`."
             ) from erro
-        # A placa costuma operar em 48 kHz; gravamos nela e reamostramos depois,
-        # porque pedir 16 kHz direto ao driver falha em muitos dispositivos.
+        # Pedir 16 kHz direto ao driver falha em muitos dispositivos.
         self._taxa_dispositivo = 48000
 
     def blocos(self):
         """Blocos já em mono e na taxa do modelo, na ordem em que foram gravados.
 
-        A gravação roda numa **thread própria** e entrega por uma fila. Antes ela
-        dividia o laço com o processamento: enquanto a janela passava pelo
-        modelo, ninguém lia o dispositivo, o buffer do WASAPI transbordava e
-        amostras se perdiam — o `soundcard` avisava com "data discontinuity in
-        recording", dezenas de vezes numa sessão de 3 minutos. Cada perda é um
-        salto na forma de onda, um clique de banda larga que o modelo não viu no
-        treino.
-
-        A reamostragem é **contínua** (`soxr.ResampleStream`): reamostrar cada
-        bloco de 100 ms isoladamente cria uma borda a cada bloco.
+        A gravação roda numa thread própria para o processamento não fazer o buffer
+        transbordar; a reamostragem é contínua para não criar bordas entre blocos.
         """
         import queue
         import threading
@@ -172,7 +141,7 @@ class WasapiLoopbackSource(AudioSource):
                         self.descontinuidades += sum(
                             1 for a in avisos if "discontinuity" in str(a.message))
                         fila.put(dados)
-            except Exception as erro:          # entregue ao consumidor, não engolido
+            except Exception as erro:          # repassado ao consumidor
                 fila.put(erro)
             finally:
                 fila.put(None)
@@ -183,7 +152,7 @@ class WasapiLoopbackSource(AudioSource):
         self._thread.start()
         while True:
             try:
-                # Com timeout: um get() sem prazo bloqueia o Ctrl+C no Windows.
+                # Sem timeout, o get() bloqueia o Ctrl+C no Windows.
                 dados = fila.get(timeout=0.5)
             except queue.Empty:
                 continue
@@ -202,12 +171,7 @@ class WasapiLoopbackSource(AudioSource):
 
 
 def _iniciar_com() -> None:
-    """Inicializa o COM na thread de captura (Windows).
-
-    O `soundcard` inicializa o COM na thread que o importa. Uma thread nova
-    costuma herdar o apartamento multithread implicitamente, mas isso não é
-    garantido; chamar de novo é inofensivo (devolve S_FALSE).
-    """
+    """Inicializa o COM na thread de captura (Windows); repetir é inofensivo."""
     import sys
 
     if sys.platform == "win32":
@@ -219,9 +183,7 @@ def _iniciar_com() -> None:
 def resample_mono(wav: np.ndarray, origem: int, destino: int) -> np.ndarray:
     """Reamostra um sinal mono. Sem efeito quando as taxas coincidem.
 
-    A reamostragem 48 kHz -> 16 kHz **faz parte do desvio de domínio**: o modelo
-    foi treinado em áudio que já nasceu a 16 kHz. Fica isolada aqui para poder
-    ser trocada e medida.
+    Isolada aqui porque a reamostragem 48 -> 16 kHz faz parte do desvio de domínio.
     """
     if origem == destino or wav.size == 0:
         return wav.astype(np.float32)

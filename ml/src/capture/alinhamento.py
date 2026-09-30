@@ -1,24 +1,7 @@
-"""Alinha uma gravação de chamada real de volta aos áudios que foram tocados.
+"""Alinha a gravação de uma chamada real aos áudios que foram tocados nela.
 
-**O problema.** A camada 2 consiste em tocar áudios de rótulo conhecido dentro
-de uma chamada real (Teams, Meet) e capturar o que sai do outro lado. Só que a
-gravação chega como um bloco único de vários minutos: sem saber onde cada áudio
-começa e termina, não há como atribuir rótulo nenhum e a medida não existe.
-
-**Por que não marcar com um bipe.** A ideia óbvia — um tom entre os áudios —
-falha justamente no cenário que interessa: a supressão de ruído do Teams é
-treinada para remover o que *não* é fala, e um seno puro é o exemplo canônico
-disso. O marcador some no caminho.
-
-**O que se usa aqui.** Correlação cruzada do *envelope de energia* contra a
-referência tocada. O envelope sobrevive ao codec, à supressão de ruído e ao
-ganho automático, porque nenhum deles reordena o áudio no tempo — eles mudam o
-espectro e a amplitude, não quando a fala acontece. A normalização antes da
-correlação tira o efeito do AGC.
-
-O alinhamento é feito em duas etapas: um deslocamento global (a latência da
-chamada, tipicamente centenas de ms) e depois um ajuste por trecho, que absorve
-a deriva de relógio entre as duas placas de som.
+Correlaciona o envelope de energia da gravação com o da referência: primeiro um
+atraso global, depois um ajuste por trecho para absorver a deriva de relógio.
 """
 
 from __future__ import annotations
@@ -29,44 +12,27 @@ from pathlib import Path
 
 import numpy as np
 
-#: Taxa do envelope. 100 Hz dá resolução de 10 ms — bem abaixo do erro que
-#: importa aqui (o recorte tem folga de `gap_s` de silêncio dos dois lados).
+#: Resolução de 10 ms, bem menor que a folga de silêncio do recorte.
 TAXA_ENVELOPE_HZ = 100
 
-#: Correlação normalizada abaixo disto significa que não se achou o trecho.
-#: Emitir um recorte assim mesmo produziria áudio com rótulo errado — e um EER
-#: que parece resultado mas não é. Prefere-se descartar e dizer quantos caíram.
-#:
-#: Medido em `tests/test_alinhamento.py`, pior caso de cada cenário:
-#:
-#:     canal limpo                       0,798
-#:     opus + banda estreita de 8 kHz    0,798   <- o canal que interessa
-#:     ruído puro (microfone errado)     0,118
-#:
-#: O corte fica entre os dois grupos com folga de 1,6x para baixo e 4,2x para
-#: cima. O codec praticamente não mexe no envelope, que é o ponto do método.
+#: Abaixo disto o trecho é descartado em vez de sair com rótulo errado.
+#: Medido: pior caso 0,798 com opus + 8 kHz, 0,118 com ruído puro.
 CORRELACAO_MINIMA = 0.5
 
 #: Quanto o ajuste por trecho pode andar em torno da posição prevista.
 BUSCA_LOCAL_S = 0.40
 
-#: Refinamento final pela FORMA DE ONDA, com precisão de uma amostra. O
-#: envelope tem resolução de 10 ms, e o recorte herdava um erro de até 5 ms
-#: (medido: 79 amostras com a gravação idêntica à referência). Parece pouco,
-#: mas é meio passo do STFT: todos os quadros das features mudam, e o modelo
-#: respondeu com scores até 0,17 diferentes para o mesmo áudio (sessão "limpo"
-#: contra o eval de 2019). A busca cobre o erro do envelope com folga.
+#: Refinamento pela forma de onda: o envelope erra até 5 ms, meio passo do STFT,
+#: o que já mudava scores em até 0,17 no mesmo áudio.
 BUSCA_FINA_S = 0.02
 
-#: Correlação mínima da forma de onda para aceitar o refinamento. Abaixo disso
-#: (supressão de ruído agressiva, por exemplo) fica a posição do envelope, que
-#: continua válida: o refinamento só pode melhorar, nunca descartar um trecho.
+#: Abaixo disto fica a posição do envelope; o refinamento nunca descarta trecho.
 CORRELACAO_FINA_MINIMA = 0.5
 
 
 @dataclass
 class Trecho:
-    """Um áudio dentro da playlist: onde ele está na referência e o rótulo."""
+    """Um áudio da playlist: posição na referência e rótulo."""
     id: str
     rotulo: str          # "bonafide" | "spoof"
     sistema: str         # A07…A19, ou "-"
@@ -89,11 +55,7 @@ class Encaixe:
 
 def envelope(wav: np.ndarray, sample_rate: int,
              taxa_hz: int = TAXA_ENVELOPE_HZ) -> np.ndarray:
-    """Energia RMS em janelas curtas, sem sobreposição.
-
-    É o que sobrevive ao canal: codec, supressão de ruído e AGC mexem no
-    espectro e na amplitude, não em *quando* a fala acontece.
-    """
+    """Energia RMS em janelas curtas, sem sobreposição."""
     passo = max(1, int(round(sample_rate / taxa_hz)))
     n = len(wav) // passo
     if n == 0:
@@ -103,7 +65,7 @@ def envelope(wav: np.ndarray, sample_rate: int,
 
 
 def _normalizar(x: np.ndarray) -> np.ndarray:
-    """Média zero e norma 1 — tira o ganho, que o AGC mexe o tempo todo."""
+    """Média zero e norma 1, para anular o efeito do AGC."""
     x = np.asarray(x, dtype=np.float64) - np.mean(x)
     norma = np.linalg.norm(x)
     return x / norma if norma > 0 else x
@@ -113,8 +75,7 @@ def correlacao_maxima(referencia: np.ndarray,
                       captura: np.ndarray) -> tuple[int, float]:
     """Desloca `referencia` sobre `captura` e devolve (atraso, correlação).
 
-    O atraso é em amostras do envelope e nunca é negativo: a gravação começa
-    antes da reprodução, por construção do procedimento.
+    O atraso é em amostras do envelope e nunca é negativo.
     """
     from scipy.signal import correlate
 
@@ -129,13 +90,7 @@ def correlacao_maxima(referencia: np.ndarray,
 def atraso_global(env_ref: np.ndarray, env_cap: np.ndarray) -> int:
     """Atraso da gravação em relação à referência, em amostras do envelope.
 
-    **Pode ser negativo.** O procedimento pede para gravar antes de tocar, mas
-    o monitor leva alguns segundos carregando o modelo antes de começar a
-    capturar; se a reprodução começa nesse intervalo, o início da playlist fica
-    de fora da gravação. Medido no primeiro controle real: −7,0 s. Com a busca
-    restrita a atrasos positivos, o alinhamento inteiro se perdia (3 de 40
-    trechos); com ela liberada, perdem-se só os trechos que tocaram antes da
-    gravação começar.
+    Pode ser negativo, se a reprodução começou antes da gravação.
     """
     from scipy.signal import correlate
 
@@ -170,10 +125,8 @@ def alinhar(trechos: list[Trecho], referencia: np.ndarray, captura: np.ndarray,
             sample_rate: int, busca_s: float = BUSCA_LOCAL_S) -> list[Encaixe]:
     """Localiza cada trecho da playlist dentro da gravação.
 
-    Duas etapas: o atraso global da chamada, e depois um ajuste por trecho que
-    absorve a deriva de relógio entre as duas placas de som. O ajuste é
-    *sequencial* — a correção de um trecho é o palpite inicial do seguinte —
-    porque a deriva é cumulativa, não aleatória.
+    O ajuste é sequencial (a correção de um trecho vira o palpite do seguinte)
+    porque a deriva de relógio é cumulativa.
     """
     env_ref = envelope(referencia, sample_rate)
     env_cap = envelope(captura, sample_rate)
@@ -223,8 +176,7 @@ def montar_referencia(audios: list[tuple[Trecho, np.ndarray]], sample_rate: int,
                       gap_s: float) -> tuple[np.ndarray, list[Trecho]]:
     """Concatena os áudios com silêncio entre eles e devolve o mapa de posições.
 
-    O silêncio existe para dar folga ao recorte e para que a supressão de ruído
-    não trate a emenda entre dois áudios como um único fluxo contínuo.
+    O silêncio dá folga ao recorte e separa os áudios para a supressão de ruído.
     """
     gap = np.zeros(int(round(gap_s * sample_rate)), dtype=np.float32)
     partes, mapa, cursor = [gap], [], len(gap)

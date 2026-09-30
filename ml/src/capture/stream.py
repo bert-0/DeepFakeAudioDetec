@@ -1,12 +1,7 @@
 """Janela deslizante: do fluxo contínuo para as janelas fixas do modelo.
 
-O modelo classifica trechos de `audio.duration` segundos (4 s nos configs). Uma
-chamada é um fluxo sem fim, e os blocos que chegam da placa de som não têm
-relação com esse tamanho — são ~100 ms cada.
-
-Esta classe acumula os blocos e emite janelas de tamanho fixo com sobreposição.
-O passo (`hop`) menor que a janela existe para que um trecho sintético curto não
-caia exatamente na fronteira entre duas janelas e seja diluído nas duas.
+Acumula os blocos da placa de som (~100 ms) e emite janelas de
+`audio.duration` segundos com sobreposição.
 """
 
 from __future__ import annotations
@@ -30,14 +25,11 @@ class JanelaDeslizante:
         self.tamanho = int(tamanho)
         self.passo = int(passo)
         self._buffer = np.zeros(0, dtype=np.float32)
-        #: nº de amostras já descartadas — dá a posição absoluta de cada janela
+        #: amostras já descartadas; dá a posição absoluta de cada janela
         self._consumidas = 0
-        #: amostra em que termina a última janela emitida. Serve para saber se
-        #: sobrou áudio que nenhuma janela chegou a cobrir.
+        #: amostra em que termina a última janela emitida
         self._cobertura = 0
-        #: amostra inicial da última janela emitida (por `alimentar` ou
-        #: `finalizar`). É o que dá o instante correto da janela final, que não
-        #: cai na grade regular do passo.
+        #: início da última janela emitida; a final não cai na grade do passo
         self.inicio_da_ultima = 0
 
     def alimentar(self, bloco: np.ndarray):
@@ -57,21 +49,9 @@ class JanelaDeslizante:
         return self._buffer.copy()
 
     def finalizar(self):
-        """Emite a janela final quando sobrou áudio que nenhuma janela cobriu.
+        """Emite o trecho final se sobrou áudio que nenhuma janela cobriu.
 
-        Sem isto, **um arquivo mais curto que a janela não produz leitura
-        nenhuma** — o `while` de `alimentar` nunca dispara e o resto é
-        descartado em silêncio. É o caso da maioria dos áudios do ASVspoof:
-        a janela tem 4 s e o enunciado típico é mais curto que isso.
-
-        Só emite se houver áudio além do que a última janela já cobriu. Com
-        passo igual a metade da janela, o fim de um arquivo longo normalmente
-        já está dentro da última janela emitida, e repetir aquele trecho
-        inflaria a contagem sem acrescentar informação.
-
-        O trecho sai **mais curto que a janela**; quem completa é o
-        `preprocess_waveform`, por repetição, exatamente como no treino. O peso
-        da leitura cai na proporção — ver `Leitura.peso`.
+        Sai mais curto que a janela; o `preprocess_waveform` completa por repetição.
         """
         total = self._consumidas + self._buffer.size
         if self._buffer.size == 0 or total <= self._cobertura:
