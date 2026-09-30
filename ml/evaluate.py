@@ -88,19 +88,17 @@ def main() -> None:
     print(f"Modelo: {config['model']['name']} | partição: {args.partition} | "
           f"dispositivo: {device}")
 
-    # Threshold calibrado no dev durante o treino. Aplicá-lo aqui evita reportar
-    # métricas no corte fixo de 0,5, que é enviesado pelo desbalanceamento.
+    # Threshold calibrado no dev; o 0,5 fixo é enviesado pelo desbalanceamento.
     threshold = ckpt.get("threshold") if config["train"].get("calibrate_threshold") else None
     origem = "calibrado no treino"
 
     if args.calibrate_on:
-        # Calibra agora, numa partição que NÃO é a de teste — assim é possível
-        # corrigir o ponto de operação de um modelo já treinado.
+        # Calibra numa partição que não é a de teste.
         cal_ds = build_dataset(config, args.calibrate_on, extractor, args.smoke)
         cal_loader = DataLoader(cal_ds, batch_size=batch_size, shuffle=False,
                                 num_workers=0 if args.smoke else config["train"]["num_workers"],
                                 worker_init_fn=seed_worker)
-        # O threshold fica em probabilidade: é a unidade do checkpoint e do monitor.
+        # Threshold em probabilidade, a unidade do checkpoint.
         cal_labels, _, cal_scores, _ = run_inference(model, cal_loader, device)
         cal_eer, threshold = compute_eer_with_threshold(cal_labels, cal_scores)
         origem = f"calibrado agora em '{args.calibrate_on}' (EER={cal_eer * 100:.2f}%)"
@@ -131,9 +129,8 @@ def main() -> None:
         save_score_file(ds.ids, labels, scores, args.score_file)
         print(f"Arquivo de scores:  {args.score_file}")
 
-    # Guarda os scores em precisão total para que `per_attack_eval.py` e
-    # `score_fusion.py` não repitam esta mesma passada de inferência — no `eval`
-    # do LA são 71.237 áudios por passada.
+    # Reaproveitados por per_attack_eval.py e score_fusion.py (71.237 áudios no
+    # eval do LA).
     npz_path = scores_path(OUTPUT_DIR, name, args.partition)
     save_scores(npz_path,
                 ids=ds.ids, labels=labels, scores=scores, logodds=logodds,

@@ -1,19 +1,7 @@
 """Conta quantos scores saturaram em exatamente 0 ou 1 nos arquivos de scores.
 
-O score salvo é o softmax em float32. Quando a diferença entre as duas saídas da
-rede passa de ~17, ele arredonda para EXATAMENTE 1.0 — e a ordem entre esses
-áudios se perde. No eval de 2019 chegam a ~26 mil spoof num mesmo modelo, mas
-nenhum bonafide.
-
-Isso importa para o EER, que depende só da ordem dos scores: se muitos bonafide
-e muitos spoof empatam em 1.0, o limiar não consegue separá-los, e o EER mede o
-arredondamento em vez do modelo. O sintoma foi visto no ASVspoof 2021 LA com
-Opus: quatro ataques com EER idêntico (48,65%), com números de amostras
-diferentes — o EER passou a depender só dos bonafide.
-
-Desde a correção, o `evaluate.py` salva também os log-odds e calcula o EER
-sobre eles; a coluna "log-odds" diz se o arquivo já é desse formato. Nesse caso
-a saturação da probabilidade não afeta mais o EER reportado.
+O softmax em float32 vira 1.0 quando os logits diferem mais de ~17, e empates
+em 1.0 entre classes distorcem o EER. Arquivos com log-odds não sofrem disso.
 
 Uso:
     python scripts/checar_saturacao.py                 # todos em outputs/
@@ -29,7 +17,7 @@ import numpy as np
 
 
 def contar(scores: np.ndarray, labels: np.ndarray) -> dict[str, tuple[int, int]]:
-    """Por classe: (quantos saturaram em 1.0, total). Também em 0.0."""
+    """Por classe: (quantos em 1.0, quantos em 0.0, total)."""
     saida = {}
     for classe, nome in ((0, "bonafide"), (1, "spoof")):
         s = scores[labels == classe]

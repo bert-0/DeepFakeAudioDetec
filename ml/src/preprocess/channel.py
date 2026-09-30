@@ -1,27 +1,7 @@
-"""Degradações de canal: o que uma chamada faz com o áudio.
+"""Degradações de canal de chamada (Opus, banda estreita, captura ao vivo).
 
-Módulo **separado** do `augment.py` de propósito. Aquele é importado pelo
-`train.py` (`Augmenter`); este só pelo `robustness_eval.py`. Manter a fronteira
-garante que medir robustez não possa alterar o caminho de treino, de avaliação
-ou de fusão — nem por acidente.
-
-O detector foi treinado no ASVspoof: áudio limpo, 16 kHz, sem compressão. Numa
-chamada de Teams/Meet/Zoom o sinal passa por codec Opus a dezenas de kbps e, em
-rede ruim, por banda estreita. Com `n_filter: 70` metade do banco de filtros do
-LFCC olha acima de 4 kHz — justamente a região que o canal degrada primeiro.
-
-Medido aqui, com ruído rosa (energia em todas as bandas), Opus a ~26 kbps:
-
-    0- 1000 Hz   -0,9 dB
- 1000- 2000 Hz   -1,8 dB
- 2000- 4000 Hz   -2,6 dB
- 4000- 6000 Hz   -3,7 dB
- 6000- 8000 Hz   -4,4 dB
-
-Ou seja: o codec não corta a alta frequência, atenua progressivamente. É bem
-mais suave que um passa-baixa, mas o LFCC é uma DCT dos *logs* das energias do
-banco, então alguns dB nas bandas altas deslocam os coeficientes de qualquer
-forma. O efeito no EER só se conhece medindo.
+Fica fora do `augment.py` de propósito: só o `robustness_eval.py` importa este
+módulo, então medir robustez não mexe no caminho de treino.
 """
 
 from __future__ import annotations
@@ -36,13 +16,10 @@ TAXAS_OPUS = (8000, 12000, 16000, 24000, 48000)
 
 def opus_roundtrip(wav: np.ndarray, sample_rate: int,
                    compression_level: float = 0.9) -> np.ndarray:
-    """Codifica em Opus e decodifica de volta, tudo em memória.
+    """Codifica em Opus e decodifica de volta, em memória (libsndfile do `soundfile`).
 
-    Usa o libsndfile que já vem com o `soundfile` — sem ffmpeg e sem dependência
-    nova. `compression_level` vai de 0 (maior qualidade) a 1 (menor); medido em
-    ruído branco de 4 s, isso varia de ~260 kbps a ~7 kbps. Como o Opus é VBR, a
-    taxa resultante depende do conteúdo, então o script de robustez **mede e
-    reporta** a taxa obtida em vez de fingir precisão que não existe.
+    `compression_level` vai de 0 (melhor) a 1 (pior): ~260 a ~7 kbps em ruído
+    branco.
     """
     import soundfile as sf
 
@@ -61,11 +38,9 @@ def opus_roundtrip(wav: np.ndarray, sample_rate: int,
 
 def limitar_banda(wav: np.ndarray, sample_rate: int,
                   taxa_intermediaria: int) -> np.ndarray:
-    """Reamostra para `taxa_intermediaria` e volta — perde tudo acima da nova Nyquist.
+    """Reamostra para `taxa_intermediaria` e volta, perdendo o que passa da Nyquist.
 
-    Com 8000 Hz simula a telefonia de banda estreita, para onde uma chamada cai
-    quando a rede aperta: nada acima de 4 kHz sobrevive, ou seja, metade do banco
-    de filtros passa a ver silêncio.
+    Com 8000 Hz simula telefonia de banda estreita.
     """
     import librosa
 
@@ -80,13 +55,10 @@ def limitar_banda(wav: np.ndarray, sample_rate: int,
 
 def ida_e_volta_captura(wav: np.ndarray, sample_rate: int,
                         taxa_dispositivo: int = 48000) -> np.ndarray:
-    """O que a captura ao vivo faz com a taxa: sobe à taxa do dispositivo e volta.
+    """Sobe à taxa do dispositivo e volta, como a captura ao vivo.
 
-    Mesmo `soxr` do `monitor.py` (captura) e do `canal_real.py tocar`. O filtro
-    antialiasing de qualquer conversão para 16 kHz apaga a faixa de 7,6-8 kHz
-    (medido em ruído branco: -30 dB em 7,7-7,9 kHz, -103 dB acima de 7,9 kHz).
-    O teste ao vivo mostrou que o modelo depende dessa faixa: o controle sem
-    efeitos do driver bateu áudio a áudio com esta simulação (Seção 10.2.1).
+    Mesmo `soxr` do `monitor.py`. O antialiasing apaga 7,6-8 kHz, faixa de que
+    o modelo depende (Seção 10.2.1).
     """
     import soxr
 
@@ -96,13 +68,9 @@ def ida_e_volta_captura(wav: np.ndarray, sample_rate: int,
 
 
 def _ajustar_comprimento(saida: np.ndarray, n: int) -> np.ndarray:
-    """Garante o mesmo nº de amostras da entrada.
+    """Corta ou completa com zeros até `n` amostras, sem mudar o shape das features.
 
-    A perturbação é aplicada **depois** do `preprocess_waveform`, quando o sinal
-    já tem o comprimento fixo que define o shape das features. Um codec que
-    devolvesse alguns quadros a mais ou a menos mudaria esse shape e derrubaria
-    a inferência no meio de uma avaliação de horas. Medido, o Opus preserva o
-    comprimento; esta função existe para o caso em que deixe de preservar.
+    Hoje o Opus preserva o comprimento; isto é só proteção.
     """
     if saida.size == n:
         return saida
@@ -112,22 +80,11 @@ def _ajustar_comprimento(saida: np.ndarray, n: int) -> np.ndarray:
 
 
 class ChannelDegradation:
-    """Degradação de canal com a mesma assinatura do `Perturbation`.
+    """Degradação de canal com a assinatura `(wav, rng=None) -> wav`.
 
-    `(wav, rng=None) -> wav`, para que o dataset use os dois de forma
-    intercambiável. **É uma classe e não uma closure** pelo mesmo motivo já
-    documentado no `augment.py`: o dataset inteiro é serializado para os workers
-    do DataLoader, e no Windows (`spawn`) isso acontece sempre. Uma `lambda`
-    prenderia a avaliação a `num_workers=0`.
-
-    Não usa `rng`: o canal é determinístico. O parâmetro existe só para casar
-    com a interface.
-
-    kind:
-      - 'opus'  — level = `compression_level` em [0, 1]
-      - 'band'  — level = taxa intermediária em Hz (8000 = banda estreita)
-      - 'captura' — level = taxa do dispositivo em Hz (48000): a ida e volta
-                    da captura ao vivo, que apaga 7,6-8 kHz
+    Classe, e não lambda, pelo mesmo motivo do `Perturbation`; `rng` é ignorado.
+    `kind`: 'opus' (level = compression_level em [0, 1]), 'band' (taxa
+    intermediária em Hz) ou 'captura' (taxa do dispositivo em Hz).
     """
 
     def __init__(self, kind: str, level: float, sample_rate: int):
@@ -150,12 +107,7 @@ class ChannelDegradation:
 
 
 class ChannelChain:
-    """Aplica degradações em sequência — uma chamada real empilha mais de uma.
-
-    O caso que importa é banda estreita **e** codec: quando a rede aperta, o
-    Teams cai para banda estreita e continua comprimindo. Aplicar só um dos dois
-    subestimaria a degradação.
-    """
+    """Aplica degradações em sequência (ex.: banda estreita e depois codec)."""
 
     def __init__(self, etapas: list[ChannelDegradation]):
         if not etapas:
@@ -171,11 +123,7 @@ class ChannelChain:
 
 def medir_taxa_kbps(wav: np.ndarray, sample_rate: int,
                     compression_level: float) -> float:
-    """Taxa de bits que o Opus produz neste sinal, em kbps.
-
-    O Opus é VBR: a taxa depende do conteúdo. Reportar a taxa medida no áudio
-    real é mais honesto do que anunciar um número nominal.
-    """
+    """Taxa de bits que o Opus produz neste sinal, em kbps (é VBR)."""
     import soundfile as sf
 
     buffer = io.BytesIO()

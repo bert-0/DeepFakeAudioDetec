@@ -1,8 +1,4 @@
-"""Avaliação de robustez (TC1 §5.5).
-
-Mede a degradação do modelo quando o áudio de avaliação é perturbado com ruído
-de fundo e variações de ganho — verificando se o sistema mantém desempenho em
-condições acústicas adversas (RNF de robustez).
+"""Avaliação de robustez (TC1 §5.5): EER sob ruído, ganho e degradações de canal.
 
 Uso:
     python scripts/robustness_eval.py --config configs/baseline.yaml \
@@ -13,10 +9,8 @@ Uso:
     python scripts/robustness_eval.py --config configs/fusion_v4.yaml \
         --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000
 
-O EER é calculado sobre os log-odds (logit[1] - logit[0]), que não saturam. A
-linha de cada condição mostra também o EER pela probabilidade e quantos
-bonafide saturaram em 1,0: se os dois EERs batem, o número antigo (calculado
-pela probabilidade) continua valendo.
+O EER sai dos log-odds (logit[1] - logit[0]), que não saturam. Cada linha mostra
+também o EER pela probabilidade e quantos bonafide saturaram em 1,0.
 """
 
 from __future__ import annotations
@@ -67,29 +61,17 @@ CONDITIONS = [
     ("gain_+6dB", "gain", 6),
 ]
 
-# Condições de CANAL: o que uma chamada de Teams/Meet/Zoom faz com o áudio.
-# Separadas das acústicas acima porque respondem a outra pergunta — não "o
-# modelo aguenta um ambiente ruidoso?", e sim "o modelo sobrevive ao meio de
-# transmissão?". É a pergunta que decide se o monitor ao vivo (monitor.py) tem
-# base para existir.
-#
-# `nivel` do opus é o compression_level em [0,1]; a taxa em kbps resultante
-# depende do conteúdo (o Opus é VBR) e é medida e reportada em tempo de
-# execução, em vez de anunciada.
-# Os níveis foram calibrados para cair na faixa que o Teams usa de fato
-# (16-32 kbps para voz), medida em ruído rosa de 4 s:
-#   0.90 -> 30 kbps    0.92 -> 25 kbps    0.94 -> 19 kbps
-#   0.96 -> 15 kbps    1.00 ->  6 kbps
-# Varrer de 130 a 6 kbps testaria sobretudo faixas que uma chamada nunca usa.
+# Condições de canal: o que uma chamada (Teams/Meet/Zoom) faz com o áudio.
+# O nível do opus é o compression_level em [0,1]; como o Opus é VBR, a taxa é
+# medida em execução. Níveis escolhidos para a faixa de voz do Teams (16-32 kbps).
 CHANNEL_CONDITIONS = [
     ("opus_30kbps", [("opus", 0.90)]),        # rede boa
     ("opus_25kbps", [("opus", 0.92)]),        # típico
     ("opus_15kbps", [("opus", 0.96)]),        # rede apertada
     ("banda_estreita", [("band", 8000)]),     # telefonia: nada acima de 4 kHz
     ("banda_estreita_opus", [("band", 8000), ("opus", 0.92)]),  # o caso realista
-    # A captura ao vivo: 16 kHz -> 48 kHz do dispositivo -> 16 kHz. Apaga só
-    # 7,6-8 kHz. O teste ao vivo mostrou que isso sozinho infla todos os scores
-    # (Seção 10.2.1 do resumo); aqui se mede com amostra que dá IC.
+    # Captura ao vivo (16 -> 48 -> 16 kHz): apaga só 7,6-8 kHz, e isso sozinho
+    # inflou todos os scores no teste ao vivo (Seção 10.2.1 do resumo).
     ("captura_48k", [("captura", 48000)]),
 ]
 
@@ -120,11 +102,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def indices_estratificados(labels, systems, n: int, seed: int) -> list[int]:
-    """N índices com a mesma proporção de cada (rótulo, ataque) do conjunto.
-
-    Sortear sem estratificar poderia deixar um ataque raro de fora, e o EER da
-    amostra deixaria de ser comparável ao do conjunto inteiro.
-    """
+    """N índices com a mesma proporção de cada (rótulo, ataque), sem perder ataque raro."""
     grupos: dict[tuple, list[int]] = {}
     for i, chave in enumerate(zip(labels, systems)):
         grupos.setdefault(chave, []).append(i)
@@ -180,16 +158,11 @@ def plot_robustness(results: dict, out_path: Path) -> None:
 
 
 def relatar_taxas(sample_rate: int) -> None:
-    """Mostra a taxa que cada nível de compressão produz, medida.
-
-    O Opus é VBR: o `compression_level` é um pedido, não uma garantia. Sem esta
-    medição, o relatório citaria taxas nominais que o arquivo nunca teve.
-    """
+    """Mede a taxa real de cada nível do Opus (é VBR: o nível não garante a taxa)."""
     import numpy as np_
 
     rng = np_.random.default_rng(0)
-    # Ruído rosa: energia em todas as bandas, decrescente como a da fala. Um tom
-    # puro comprimiria a quase nada e daria uma taxa irrealista.
+    # Ruído rosa, parecido com o espectro da fala; um tom puro comprimiria demais.
     branco = rng.standard_normal(sample_rate * 4)
     espectro = np_.fft.rfft(branco)
     freqs = np_.fft.rfftfreq(len(branco), 1 / sample_rate)
@@ -217,9 +190,8 @@ def main() -> None:
     model = build_model(config["model"]).to(device)
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
-    # Mesmo ponto de corte usado por evaluate.py/infer.py. Sem ele, accuracy e F1
-    # sairiam no corte fixo de 0,5 e sugeririam um colapso que não existe: sob
-    # ruído os scores descem em bloco sem perder a ordenação (o EER não muda).
+    # Mesmo limiar de evaluate.py/infer.py. Com 0,5 fixo, o ruído pareceria um
+    # colapso: os scores descem em bloco, mas a ordenação (e o EER) se mantém.
     threshold = ckpt.get("threshold") if config["train"].get("calibrate_threshold") else None
     if threshold is not None:
         print(f"Threshold aplicado: {threshold:.4f} (calibrado no treino)")
@@ -255,18 +227,15 @@ def main() -> None:
                 indices = indices_estratificados(ds.labels, ds.system_ids, args.amostra, seed)
                 print(f"Amostra estratificada: {len(indices)} de {len(ds)} áudios\n")
             ds = Subset(ds, indices)
-        # As perturbações mudam as features, então o cache fica desligado e cada
-        # condição recalcula tudo. Com `num_workers=0` isso era um único processo
-        # extraindo 71.237 áudios seis vezes; as perturbações agora são
-        # serializáveis, então os workers do config valem aqui também.
+        # Sem cache: a perturbação muda as features. Como as perturbações são
+        # serializáveis, os workers do config valem aqui também.
         loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
                             num_workers=0 if args.smoke else config["train"]["num_workers"],
                             worker_init_fn=seed_worker)
         labels, preds, scores, logodds = run_inference(model, loader, device)
         metrics = compute_metrics(labels, preds, scores, threshold=threshold,
                                   eer_scores=logodds)
-        # Conferência da saturação: o EER pela probabilidade é o que as versões
-        # anteriores reportavam. Se bate com o do log-odds, aquele número vale.
+        # EER pela probabilidade (o que versões antigas reportavam), para conferir.
         metrics["eer_probabilidade"] = compute_eer(labels, scores)
         metrics["bonafide_saturados"] = int((scores[labels == 0] >= 1.0).sum())
         metrics["n_bonafide"] = int((labels == 0).sum())
@@ -282,8 +251,7 @@ def main() -> None:
     if args.so:
         name = f"{name}_" + "_".join(args.so)
     if ckpt.get("calibracao"):
-        # Checkpoint recalibrado (calibrar_captura.py): mesmos pesos, outro
-        # limiar. Sem o sufixo, o resultado gravaria por cima do original.
+        # Checkpoint recalibrado (calibrar_captura.py): o sufixo evita sobrescrever o original.
         name = f"{name}_limiar_captura"
     # A partição entra no nome: sem ela, uma execução em dev sobrescreve a de eval.
     json_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.json"

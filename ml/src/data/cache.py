@@ -1,37 +1,9 @@
-"""Cache de features num único arquivo mapeado em memória (memory-map).
+"""Cache de features num único arquivo mapeado em memória (memmap).
 
-Antes, cada áudio virava um arquivo `.pt` próprio. No ASVspoof LA isso significa
-cerca de **96 mil arquivos pequenos** (24.844 no dev + 71.237 no eval), reabertos
-a cada época de treino e a cada avaliação.
-
-Medido neste projeto (Linux, cache de página quente, features do `baseline_v4`):
-
-| leitura de uma amostra do cache | ms   |
-|---------------------------------|------|
-| `torch.load` de um `.pt`        | 0,32 |
-| linha de um memmap              | 0,01 |
-
-São 30x. No Windows a diferença tende a ser maior, porque cada abertura passa
-pelo NTFS e pelo antivírus em tempo real — e 96 mil arquivos numa única pasta
-também penalizam backup, cópia e o próprio Explorer.
-
-Layout de `<cache>/<fingerprint>/<partição>/`:
-
-    meta.json    versão, shapes de cada feature, nº de amostras, hash dos ids
-    data.npy     matriz (n_amostras, floats_por_amostra) float32
-    filled.npy   vetor (n_amostras,) uint8 — 1 quando a linha já foi gravada
-
-As linhas são indexadas pela **posição da amostra no protocolo**, não pelo nome
-do arquivo. Por isso `meta.json` guarda o hash da lista de ids: se o protocolo
-mudar (outra partição, outra ordem, linhas a mais), o cache é reconstruído em
-vez de devolver as features do áudio errado.
-
-**Concorrência.** Os workers do DataLoader são processos separados e gravam ao
-mesmo tempo. Cada um escreve apenas a linha do índice que está processando, e
-`np.memmap` usa um mapeamento *compartilhado* do mesmo arquivo — dois processos
-que escrevem bytes diferentes da mesma página escrevem na mesma página física,
-sem o risco de sobrescrita que haveria com I/O em buffer. `filled` só é marcado
-depois que a linha inteira foi gravada.
+Em `<cache>/<fingerprint>/<partição>/`: `meta.json` (versão, shapes, hash dos
+ids), `data.npy` (uma linha float32 por amostra) e `filled.npy` (1 = gravada).
+Linhas indexadas pela posição no protocolo; ler uma leva ~0,01 ms
+(contra 0,32 ms com um `.pt` por áudio).
 """
 
 from __future__ import annotations
@@ -44,8 +16,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-# Muda quando o layout em disco muda de forma incompatível: o `meta.json` antigo
-# deixa de bater e o cache é reconstruído sozinho.
+# Incrementar quando o layout em disco mudar; força a reconstrução.
 VERSION = 1
 
 META = "meta.json"
@@ -65,9 +36,7 @@ def ids_fingerprint(ids) -> str:
 class FeatureCache:
     """Cache de dicionários de features com shape fixo, indexado por posição.
 
-    `shapes` mapeia o nome de cada feature ao seu shape (ex.: `{"lfcc": (1, 60,
-    401)}`). Os shapes são constantes porque `fix_length` padroniza a duração do
-    áudio antes da extração — é isso que permite guardar tudo numa matriz única.
+    `shapes` mapeia cada feature ao seu shape, ex.: `{"lfcc": (1, 60, 401)}`.
     """
 
     def __init__(self, directory: str | Path, ids, shapes: dict[str, tuple[int, ...]]):
@@ -92,9 +61,7 @@ class FeatureCache:
             "ids_fingerprint": ids_fingerprint(ids),
         }
 
-        # Os memmaps são abertos por processo (ver `_open`): um objeto memmap
-        # herdado por pickle para um worker apontaria para um mapeamento que não
-        # existe naquele processo.
+        # Memmaps abertos por processo: um herdado por pickle não vale no worker.
         self._pid: int | None = None
         self._data: np.ndarray | None = None
         self._filled: np.ndarray | None = None
@@ -122,9 +89,8 @@ class FeatureCache:
             self._create(meta_path)
 
     def _create(self, meta_path: Path) -> None:
-        # `meta.json` é escrito por ÚLTIMO: se a criação for interrompida no meio
-        # (falta de espaço, Ctrl+C), a próxima execução não encontra o meta e
-        # reconstrói, em vez de ler uma matriz pela metade como se estivesse boa.
+        # `meta.json` vai por último: se a criação for interrompida, o cache
+        # é reconstruído na próxima execução.
         meta_path.unlink(missing_ok=True)
         for nome in (DATA, FILLED):
             (self.dir / nome).unlink(missing_ok=True)
@@ -165,8 +131,7 @@ class FeatureCache:
         self._open()
         if not self._filled[idx]:
             return None
-        # Uma cópia da linha inteira (não do memmap): os tensores precisam de
-        # memória própria e gravável, e uma cópia só é mais barata que várias.
+        # Uma cópia só da linha: os tensores precisam de memória própria.
         row = np.array(self._data[idx], dtype=np.float32)
         return {key: torch.from_numpy(row[a:b].reshape(self.shapes[key]))
                 for key, (a, b) in self.slices.items()}
@@ -186,8 +151,7 @@ class FeatureCache:
                     "shape constante — verifique se `audio.duration` está fixo.")
             row[a:b] = tensor.detach().numpy().reshape(-1)
         self._data[idx] = row
-        # Só depois da linha inteira gravada: marcar antes deixaria uma janela em
-        # que um outro worker leria uma linha pela metade como se fosse válida.
+        # Marca só depois de gravar, para outro worker não ler linha pela metade.
         self._filled[idx] = 1
 
     # ------------------------------------------------------------------ #
@@ -207,16 +171,13 @@ class FeatureCache:
 
 
 def legacy_pt_files(directory: str | Path) -> tuple[int, int]:
-    """Conta os arquivos `.pt` do formato antigo e o total de bytes.
-
-    Usa `os.scandir` em vez de `Path.glob` + `stat()`: no Windows a enumeração do
-    diretório já traz o tamanho, e são dezenas de milhares de entradas.
-    """
+    """Conta os arquivos `.pt` do formato antigo e o total de bytes."""
     directory = Path(directory)
     if not directory.is_dir():
         return 0, 0
     quantos = tamanho = 0
     try:
+        # scandir: no Windows o tamanho já vem na listagem, sem stat().
         with os.scandir(directory) as entradas:
             for entrada in entradas:
                 if entrada.name.endswith(".pt") and entrada.is_file():

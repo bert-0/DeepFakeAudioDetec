@@ -1,14 +1,7 @@
 """Põe lado a lado as sessões de um teste ao vivo (limpo, controle, chamada).
 
-Cada sessão é uma gravação da mesma playlist rotulada, alinhada por
-`scripts/canal_real.py alinhar --sessao ...` e avaliada pelo `evaluate.py`. Este
-script lê os scores salvos por ele e mostra, por áudio, como o score se moveu
-de uma sessão para a outra.
-
-Com uma playlist pequena (40 áudios) o EER tem resolução grosseira — um
-bonafide a mais ou a menos mexe vários pontos. Por isso a tabela por arquivo é
-a saída principal: ela mostra *para onde* o canal empurrou cada score, o que o
-EER sozinho esconde.
+Lê os scores do `evaluate.py` de cada sessão e mostra o EER e, por áudio, como
+o score mudou. Com playlists pequenas o EER é grosseiro; a tabela é o principal.
 
 Uso:
     python scripts/comparar_sessoes.py \\
@@ -87,8 +80,7 @@ def main(argv=None) -> int:
         print(f"[ERRO] {erro}")
         return 1
 
-    # Só os áudios recuperados em TODAS as sessões: comparar conjuntos
-    # diferentes misturaria o efeito do canal com o de quais áudios sobraram.
+    # Só áudios presentes em todas as sessões, para isolar o efeito do canal.
     comuns = set(sessoes[0]["ids"])
     for s in sessoes[1:]:
         comuns &= set(s["ids"])

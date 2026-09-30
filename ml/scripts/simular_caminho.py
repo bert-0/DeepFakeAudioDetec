@@ -1,24 +1,9 @@
-"""Aplica aos recortes de uma sessão um efeito do caminho do som, isolado.
+"""Aplica aos recortes de uma sessão efeitos isolados do caminho do som.
 
-O controle do teste ao vivo (tocar -> alto-falante -> loopback -> gravar) levou
-todos os áudios a score ~1,0, bonafide inclusive, sem perdas de amostra. Este
-script reproduz cada etapa desse caminho **em software**, sobre os recortes da
-sessão "limpo", para achar qual delas basta:
-
-- `perdas`       — remove N trechos de X ms (descontinuidade do WASAPI);
-- `reamostragem` — ida e volta 16 -> 48 -> 16 kHz com o mesmo `soxr` do
-                   `tocar` e da captura. Medido em ruído branco: preserva até
-                   7,3 kHz e apaga 7,6-8 kHz (-30 dB em 7,7-7,9 kHz, -103 dB
-                   acima de 7,9 kHz). Nenhuma qualidade do soxr evita isso: é
-                   o filtro antialiasing de qualquer conversão para 16 kHz;
-- `passa_baixa`  — corta acima de `--hz`, para achar a partir de onde o
-                   modelo colapsa;
-- `piso`         — soma ruído branco a `--db` dB do pico. Medido no controle
-                   real (`comparar_espectro.py`): o piso das pausas subiu de
-                   -62,5 para -30,9 dB do pico.
-
-Os efeitos se encadeiam na ordem dada: `--efeito reamostragem piso` reproduz
-em software o que o controle mediu.
+Reproduz em software as etapas do teste ao vivo (tocar -> alto-falante ->
+loopback -> gravar), que levou todos os scores a ~1,0, para achar qual basta.
+Efeitos: perdas, reamostragem (16 -> 48 -> 16 kHz), passa_baixa e piso, na
+ordem dada; `--efeito reamostragem piso` reproduz o que o controle mediu.
 
 Uso:
     python scripts/simular_caminho.py --destino reamostragem --efeito reamostragem
@@ -44,10 +29,9 @@ EFEITOS = ("perdas", "reamostragem", "passa_baixa", "piso")
 
 def remover_trechos(wav: np.ndarray, sr: int, n: int, ms: float,
                     rng: np.random.Generator) -> np.ndarray:
-    """Remove `n` trechos de `ms` milissegundos em posições sorteadas.
+    """Remove `n` trechos de `ms` ms em posições sorteadas, sem sobreposição.
 
-    As posições evitam os 10% das pontas, onde o `trim` de silêncio apagaria o
-    efeito, e não se sobrepõem.
+    Evita os 10% das pontas, onde o `trim` de silêncio apagaria o efeito.
     """
     tam = int(round(ms * sr / 1000))
     if n <= 0 or tam <= 0 or len(wav) < 4 * n * tam:

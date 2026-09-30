@@ -1,10 +1,6 @@
-"""Incremento 3 — Fusão + mecanismo de atenção (TC1 §4.7, §3.4).
+"""Incremento 3: fusão com pooling por atenção em cada ramo (TC1 §4.7, §3.4).
 
-Estende o Incremento 2 substituindo o pooling por um pooling com atenção
-temporal em cada ramo, permitindo que o modelo priorize os frames mais
-relevantes do sinal antes da fusão (inspirado em Vaswani et al., 2017).
-
-Com `pooling` estatístico a atenção vira Attentive Statistics Pooling.
+Com `pooling` estatístico vira Attentive Statistics Pooling.
 """
 
 from __future__ import annotations

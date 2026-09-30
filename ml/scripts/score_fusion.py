@@ -1,21 +1,7 @@
-"""Fusão em nível de score entre modelos já treinados.
+"""Fusão em nível de score entre modelos já treinados (sem retreino).
 
-Diferente da *fusão de características* do Incremento 2 (que combina dois ramos
-dentro de um mesmo modelo), aqui combinamos as **saídas** de modelos treinados
-separadamente. É a prática padrão dos sistemas submetidos ao ASVspoof, e não
-exige retreinar nada — só rodar a inferência de cada modelo uma vez.
-
-A motivação é empírica: a análise por ataque mostrou que configurações
-diferentes vencem em ataques diferentes (baixa resolução vai melhor no núcleo
-duro; alta resolução, nos ataques semelhantes ao treino).
-
-Regras de combinação implementadas:
-  - mean : média simples das probabilidades — a mesma conta do monitor ao vivo
-  - rank : média dos *postos* (normalized rank) — imune a diferenças de
-           calibração entre modelos, que é a fraqueza da média simples.
-           Os postos saem dos log-odds, que não saturam como o softmax
-  - max  : score máximo (o sistema mais "desconfiado" decide)
-  - min  : score mínimo
+Regras: mean (média das probabilidades, como no monitor ao vivo), rank (média
+dos postos dos log-odds, imune a diferenças de calibração), max e min.
 
 Uso:
     python scripts/score_fusion.py \\
@@ -51,8 +37,7 @@ RULES = ("mean", "rank", "max", "min")
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Fusão de scores entre modelos treinados")
-    # Dois argumentos separados (em vez de "config:checkpoint") para não haver
-    # ambiguidade com a letra de drive dos caminhos do Windows (C:\...).
+    # Dois argumentos em vez de "config:checkpoint", por causa do "C:\" do Windows.
     p.add_argument("--model", action="append", required=True, nargs=2,
                    metavar=("CONFIG", "CHECKPOINT"),
                    help="config e checkpoint de um modelo; repita a opção por modelo")
@@ -70,9 +55,7 @@ def scores_of_model(config_path: str, ckpt_path: str, partition: str,
                     smoke: bool, device_arg: str | None, recompute: bool = False):
     """Scores de um modelo: (labels, probabilidades, log-odds, system_ids, ids).
 
-    Reaproveita o `.npz` deixado por `evaluate.py` quando ele descreve este mesmo
-    checkpoint e protocolo — a fusão combina N modelos, e sem isso seriam N
-    passadas completas de inferência só para reobter números já calculados.
+    Reaproveita o `.npz` do `evaluate.py` quando ele é deste checkpoint e protocolo.
     """
     config = load_config(config_path)
     set_seed(config["experiment"]["seed"])
@@ -122,16 +105,10 @@ def scores_of_model(config_path: str, ckpt_path: str, partition: str,
 
 
 def to_ranks(scores: np.ndarray) -> np.ndarray:
-    """Converte scores em postos normalizados em [0, 1].
+    """Postos normalizados em [0, 1], com empates no posto médio.
 
-    Torna a combinação imune a diferenças de calibração: só a *ordenação* de
-    cada modelo importa, não a escala absoluta das suas probabilidades.
-
-    Empates recebem o posto **médio**. Isso não é detalhe: o softmax satura em
-    exatamente 1.0 (medido: até ~26 mil spoof do eval de 2019 num mesmo modelo),
-    e desempatar pela ordem do array inventaria uma ordenação que o modelo não
-    produziu. Os postos agora saem dos log-odds, que não empatam por
-    arredondamento; o posto médio continua valendo para arquivos antigos.
+    O posto médio evita inventar ordem entre scores saturados em 1,0 (até ~26 mil
+    spoof do eval 2019 num mesmo modelo, em arquivos antigos sem log-odds).
     """
     from scipy.stats import rankdata
 

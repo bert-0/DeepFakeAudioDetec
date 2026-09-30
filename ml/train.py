@@ -1,8 +1,7 @@
-"""Treino de um incremento do detector de deepfakes.
+"""Treino do detector de deepfakes.
 
-Recursos: pesos de classe (desbalanceamento), scheduler de LR, early stopping,
-mixed precision (AMP) em GPU, aumentação opcional no treino, e registro do
-histórico (JSON) + curvas (PNG) para o relatório.
+Pesos de classe, scheduler de LR, early stopping, AMP em GPU e aumentação
+opcional; grava histórico (JSON) e curvas (PNG).
 
 Exemplos:
     python train.py --config configs/baseline.yaml --smoke
@@ -62,16 +61,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def class_weights_from(labels, n_classes: int, device, mode: str = "auto") -> torch.Tensor:
-    """Pesos de classe para compensar o desbalanceamento da base.
+    """Pesos de classe contra o desbalanceamento (~9 spoof por bonafide no LA).
 
-    O ASVspoof LA tem ~9 spoof para cada bonafide; sem ponderação o modelo tende
-    a prever sempre a classe majoritária.
-
-    - "auto": peso inversamente proporcional à frequência (compensação total).
-      No LA isso gera ~8,8x mais peso no bonafide, o que desloca fortemente o
-      ponto de decisão e aumenta os falsos positivos.
-    - "sqrt": raiz quadrada da razão (~3x no LA) — compensação mais suave, que
-      mantém o benefício sem desestabilizar tanto o threshold.
+    "auto" usa o inverso da frequência (~8,8x no bonafide); "sqrt" usa a raiz
+    (~3x), que desloca menos o threshold.
     """
     counts = Counter(int(label) for label in labels)
     total = len(labels)
@@ -82,12 +75,9 @@ def class_weights_from(labels, n_classes: int, device, mode: str = "auto") -> to
 
 
 def archive_previous_checkpoints(*paths: Path) -> None:
-    """Renomeia checkpoints de execuções anteriores em vez de sobrescrevê-los.
+    """Renomeia checkpoints anteriores para `<nome>_prev.pt`.
 
-    Na primeira época de um treino novo o melhor EER ainda é infinito, então
-    qualquer resultado é considerado "melhor" e o arquivo antigo seria perdido —
-    mesmo que a execução anterior tivesse chegado a um modelo muito superior.
-    Por isso o arquivo existente vira `<nome>_prev.pt` antes do treino começar.
+    Na 1ª época o melhor EER é infinito e o arquivo antigo seria sobrescrito.
     """
     for path in paths:
         if not path.exists():
@@ -99,16 +89,9 @@ def archive_previous_checkpoints(*paths: Path) -> None:
 
 
 class EpochTimer:
-    """Separa o tempo da época em *espera por dados* e *cálculo na GPU*.
+    """Separa o tempo da época em espera por dados e cálculo na GPU.
 
-    É a medida que decide qual otimização vale a pena: se a maior parte do tempo
-    é espera por dados, o gargalo é CPU/disco (mais `num_workers`, cache de
-    features); se é cálculo, o gargalo é a GPU e mexer no carregamento não muda
-    nada. Sem separar os dois, a intuição erra com frequência.
-
-    A cronometragem do cálculo é honesta porque `loss.item()` sincroniza com a
-    GPU a cada iteração — sem isso, as chamadas CUDA voltariam na hora e o tempo
-    apareceria todo do lado dos dados.
+    O tempo de cálculo só é confiável porque `loss.item()` sincroniza com a GPU.
     """
 
     def __init__(self):
@@ -151,11 +134,9 @@ def format_duration(segundos: float) -> str:
 
 
 def print_time_report(history: list[dict], num_workers: int) -> None:
-    """Diz onde o tempo do treino foi gasto e qual é o próximo passo útil.
+    """Mostra onde o tempo do treino foi gasto e o que otimizar.
 
-    A primeira época é deixada de fora da média: é ela que preenche o cache de
-    features e onde o cuDNN ainda está medindo algoritmos de convolução, então
-    ela é sistematicamente mais lenta e não representa o regime do treino.
+    A 1ª época fica fora da média (enche o cache e roda o benchmark do cuDNN).
     """
     total = sum(h.get("t_epoch", 0.0) for h in history)
     print(f"\nTempo de treino: {format_duration(total)} em {len(history)} época(s)")
@@ -191,21 +172,15 @@ def print_time_report(history: list[dict], num_workers: int) -> None:
               "menos épocas (train.early_stopping_patience já corta o excesso)")
 
 
-# Quando a saída não é um terminal (o caso do run_pipeline.py, que lê por um
-# pipe), cada refresh da barra vira uma LINHA no log — 794 por época, ~40 mil
-# num treino de 50. O log do experimento fica ilegível e com megabytes de barra.
-# Num terminal de verdade o `\r` sobrescreve no lugar e o comportamento é o de
-# sempre.
+# Fora de um terminal (ex.: run_pipeline.py lendo por pipe) cada refresh da
+# barra vira uma linha no log; por isso o intervalo longo.
 _INTERVALO_BARRA = 0.1 if sys.stderr.isatty() else 30.0
 
 
 def aviso_de_memoria(n_workers_treino: int, n_workers_dev: int) -> bool:
     """Estima a RAM do treino e avisa se não couber. Devolve True se avisou.
 
-    Existe porque o modo de falha no Windows é silencioso e brutal: não há
-    `MemoryError`: o sistema pagina, a interface congela e a única saída é
-    segurar o botão de energia — perdendo o treino inteiro, já que não há
-    retomada por checkpoint.
+    No Windows estourar a RAM não gera `MemoryError`: a máquina pagina e trava.
     """
     est = estimativa_ram_gb(n_workers_treino, n_workers_dev)
     total = memoria_total_gb()
@@ -215,7 +190,7 @@ def aviso_de_memoria(n_workers_treino: int, n_workers_dev: int) -> bool:
           f"{est['principal']:.1f} principal + {est['sistema']:.1f} sistema)")
     if total is None:
         return False
-    # A folga cobre o que o usuário tem aberto: navegador, editor, etc.
+    # 2 GB de folga para navegador, editor etc.
     if est["pico"] <= total - 2.0:
         return False
     print(f"[AVISO] a máquina tem {total:.1f} GB. Com ~{est['pico']:.1f} GB de "
@@ -228,12 +203,9 @@ def aviso_de_memoria(n_workers_treino: int, n_workers_dev: int) -> bool:
 
 
 def save_checkpoint(payload: dict, destino: Path) -> None:
-    """Grava um checkpoint de forma atômica (temporário + rename).
+    """Grava o checkpoint de forma atômica (temporário + rename).
 
-    Mesmo motivo do `save_history`: `torch.save` direto no destino deixa um
-    `.pt` truncado se a máquina cair no meio da escrita — e cair no meio é
-    exatamente o que acontece quando a RAM estoura e o usuário desliga no botão.
-    Perder o `best.pt` significa perder todo o treino.
+    Evita um `.pt` truncado se a máquina cair no meio da escrita.
     """
     destino.parent.mkdir(parents=True, exist_ok=True)
     temporario = destino.with_suffix(destino.suffix + ".tmp")
@@ -242,11 +214,7 @@ def save_checkpoint(payload: dict, destino: Path) -> None:
 
 
 def save_history(history: list[dict], name: str) -> None:
-    """Grava o histórico de forma atômica (escreve num temporário e renomeia).
-
-    Gravar direto no destino deixaria um JSON truncado se o processo morresse
-    no meio da escrita — e é justamente numa queda que o histórico importa.
-    """
+    """Grava o histórico de forma atômica (temporário + rename)."""
     OUTPUT_DIR.mkdir(exist_ok=True)
     destino = OUTPUT_DIR / f"{name}_history.json"
     temporario = destino.with_suffix(".json.tmp")
@@ -257,17 +225,16 @@ def save_history(history: list[dict], name: str) -> None:
 
 @torch.no_grad()
 def evaluate_loader(model, loader, device) -> tuple[dict[str, float], float]:
-    """Roda o modelo em um DataLoader.
+    """Roda o modelo no loader.
 
-    Devolve (métricas, threshold_do_EER). As métricas são calculadas no ponto de
-    corte calibrado quando `calibrate` está ativo — ver `main`.
+    Devolve ((labels, preds, P(spoof), log-odds), threshold do EER).
     """
     model.eval()
     all_labels, all_preds, all_scores, all_logodds = [], [], [], []
     for features, labels in loader:
         features = {k: v.to(device) for k, v in features.items()}
         logits = model(features)
-        probs, logodds = probabilidade_e_logodds(logits)  # P(spoof) e log-odds
+        probs, logodds = probabilidade_e_logodds(logits)
         all_scores.append(probs)
         all_logodds.append(logodds)
         all_preds.append(logits.argmax(dim=1).cpu().numpy())
@@ -275,8 +242,7 @@ def evaluate_loader(model, loader, device) -> tuple[dict[str, float], float]:
     labels_arr = np.concatenate(all_labels)
     preds_arr = np.concatenate(all_preds)
     scores_arr = np.concatenate(all_scores)
-    # O threshold fica em probabilidade (unidade do checkpoint e do monitor); o
-    # EER, que escolhe o melhor modelo, sai dos log-odds, que não saturam.
+    # Threshold em probabilidade (unidade do checkpoint); o EER sai dos log-odds.
     _, threshold = compute_eer_with_threshold(labels_arr, scores_arr)
     return (labels_arr, preds_arr, scores_arr, np.concatenate(all_logodds)), threshold
 
@@ -295,12 +261,8 @@ def main() -> None:
     use_amp = bool(train_cfg.get("amp", False)) and device.type == "cuda"
     print(f"Dispositivo: {device} | épocas: {epochs} | smoke: {args.smoke} | AMP: {use_amp}")
 
-    # `audio.duration` fixa o comprimento do sinal, então as features chegam
-    # sempre com o mesmo shape. Nessa condição o cuDNN mede os algoritmos de
-    # convolução disponíveis na primeira iteração e reusa a escolha no resto do
-    # treino — o custo é pago uma vez e as épocas seguintes ficam mais rápidas.
-    # Em troca, a escolha do algoritmo pode variar entre máquinas/execuções, o
-    # que muda os últimos dígitos do resultado; `cudnn_benchmark: false` desliga.
+    # Shape fixo (audio.duration), então o benchmark do cuDNN compensa. Pode
+    # mudar os últimos dígitos entre máquinas; `cudnn_benchmark: false` desliga.
     if device.type == "cuda":
         torch.backends.cudnn.benchmark = bool(train_cfg.get("cudnn_benchmark", True))
         if not torch.backends.cudnn.benchmark:
@@ -322,41 +284,23 @@ def main() -> None:
 
     num_workers = 0 if args.smoke else train_cfg["num_workers"]
     generator = make_generator(seed)
-    # persistent_workers evita recriar os processos a cada época. No Windows,
-    # que usa `spawn`, cada criação custa a reimportação de torch+librosa
-    # (~2,4 s medidos): com 4 workers e 50 épocas seriam ~8 minutos só de
-    # inicialização. Só é seguro porque `set_epoch` grava num tensor em memória
-    # compartilhada — com um int comum, os workers persistentes ficariam presos
-    # à época em que nasceram e repetiriam o mesmo recorte/aumentação sempre.
-    # Workers do dev, contados à parte. Antes o dev herdava `num_workers` e
-    # `persistent_workers` do treino, e os dois conjuntos ficavam vivos ao mesmo
-    # tempo: 8 processos de ~512 MB cada no Windows, 4 deles parados durante
-    # todo o treino, acordando só nos ~50 s da validação. Num notebook de 16 GB
-    # isso somava ~8,5 GB com o sistema e levava a máquina à paginação.
-    #
-    # O dev não precisa do mesmo paralelismo: ele é 100% cache (leitura de
-    # memmap, sem decode de FLAC nem extração), exceto na primeira época. Por
-    # isso o padrão é 2, e `dev_num_workers: 0` elimina os processos de uma vez.
+    # O dev lê só do cache (exceto na 1ª época), então basta menos workers;
+    # `dev_num_workers: 0` elimina os processos.
     dev_workers = int(train_cfg.get("dev_num_workers", min(2, num_workers)))
     dev_workers = 0 if args.smoke else max(0, min(dev_workers, num_workers))
 
-    # pin_memory usa memória não-paginável, de onde a cópia para a GPU é feita
-    # por DMA e pode sobrepor-se ao cálculo (com `non_blocking=True` no `.to`).
-    # Só faz sentido com CUDA; em CPU seria custo puro. É justamente a memória
-    # que o SO não consegue liberar sob pressão, então vira `pin_memory: false`
-    # quando a RAM é o gargalo.
+    # Memória fixada acelera a cópia para a GPU, mas o SO não a libera sob
+    # pressão; use `pin_memory: false` se faltar RAM.
     pin = bool(train_cfg.get("pin_memory", True)) and device.type == "cuda"
     aviso_de_memoria(num_workers, dev_workers)
 
+    # Persistentes para não recriar os processos a cada época (~2,4 s cada no
+    # Windows). Só funciona porque `set_epoch` usa memória compartilhada.
     extras = {"persistent_workers": True} if num_workers > 0 else {}
     train_loader = DataLoader(train_ds, batch_size=train_cfg["batch_size"], shuffle=True,
                               num_workers=num_workers, generator=generator,
                               worker_init_fn=seed_worker, pin_memory=pin, **extras)
-    # dev também recebe worker_init_fn: sem ele os workers da validação abrem
-    # uma thread BLAS por núcleo cada um e disputam CPU entre si.
-    # Sem `persistent_workers`: os processos do dev nascem e morrem a cada
-    # validação, então não ocupam RAM durante o treino. Custa ~2,4 s por época
-    # de recriação no Windows, contra 2 GB mantidos ociosos.
+    # Dev sem persistent_workers: não ocupa RAM durante o treino.
     dev_loader = DataLoader(dev_ds, batch_size=train_cfg["batch_size"], shuffle=False,
                             num_workers=dev_workers, worker_init_fn=seed_worker,
                             pin_memory=pin)
@@ -399,7 +343,7 @@ def main() -> None:
 
     best_threshold = 0.5
     for epoch in range(1, epochs + 1):
-        # Varia a semente do recorte aleatório a cada época (no-op sem random_crop).
+        # Novo recorte aleatório a cada época.
         if hasattr(train_ds, "set_epoch"):
             train_ds.set_epoch(epoch)
         model.train()
@@ -407,29 +351,25 @@ def main() -> None:
         seen = 0
         skipped = 0
         cronometro = EpochTimer()
-        # `pin` vem de cima (train.pin_memory): `non_blocking=True` só tem efeito
-        # se a origem estiver realmente em memória paginada-fixa. Redefini-lo
-        # aqui anularia `pin_memory: false`.
         barra = tqdm(train_loader, desc=f"Época {epoch}/{epochs}", leave=False,
                      mininterval=_INTERVALO_BARRA)
         for features, labels in cronometro.batches(barra):
             with cronometro.medindo("calculo"):
+                # `pin` vem do config: redefini-lo aqui anularia `pin_memory: false`.
                 features = {k: v.to(device, non_blocking=pin) for k, v in features.items()}
                 labels = labels.to(device, non_blocking=pin)
                 optimizer.zero_grad()
                 with torch.amp.autocast(device_type=device.type, enabled=use_amp):
                     loss = criterion(model(features), labels)
 
-                # Um batch com loss inf/NaN propagaria o estrago para os pesos e
-                # para as estatísticas do BatchNorm; descartar é mais seguro que
-                # treinar com ele. Se acontecer sempre, o aviso no fim denuncia.
+                # Loss inf/NaN estragaria pesos e BatchNorm; descarta o batch.
                 if not torch.isfinite(loss):
                     skipped += 1
                     continue
 
                 scaler.scale(loss).backward()
                 if grad_clip:
-                    scaler.unscale_(optimizer)  # desfaz a escala antes da norma
+                    scaler.unscale_(optimizer)  # a norma é medida sem a escala do AMP
                     nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
                 scaler.step(optimizer)
                 scaler.update()
@@ -439,9 +379,8 @@ def main() -> None:
         if skipped:
             print(f"  [aviso] {skipped} batch(es) descartados por loss inf/NaN nesta época.")
         if seen == 0:
-            # Nenhum batch sobreviveu: `running_loss / max(seen, 1)` reportaria
-            # 0.0000 — uma loss "perfeita" — e um checkpoint com pesos não
-            # treinados poderia ser salvo como o melhor.
+            # Sem nenhum batch válido a loss sairia 0 e pesos não treinados
+            # poderiam virar o melhor checkpoint.
             print(f"\n[ERRO] Época {epoch}: todos os {skipped} batches foram descartados "
                   "por loss inf/NaN. O treino não avançou.")
             print("       Sugestões: desligar AMP (train.amp: false), reduzir o "
@@ -452,9 +391,7 @@ def main() -> None:
             (dev_labels, dev_preds, dev_scores, dev_logodds), dev_threshold = evaluate_loader(
                 model, dev_loader, device)
 
-        # Se o modelo passou a emitir NaN, treinar mais não recupera (pesos e/ou
-        # estatísticas do BatchNorm já estão contaminados). Encerra de forma
-        # limpa preservando o melhor checkpoint, em vez de estourar exceção.
+        # Modelo divergiu: treinar mais não recupera, então encerra.
         if not np.isfinite(dev_scores).all():
             print(f"\n[ERRO] A época {epoch} produziu scores NaN/inf no dev — "
                   "o modelo divergiu numericamente.")
@@ -462,8 +399,7 @@ def main() -> None:
             print("       Sugestões: desligar AMP (train.amp: false), reduzir o "
                   "learning rate ou ativar train.grad_clip.")
             break
-        # Com calibração, as métricas usam o corte do EER (medido no dev) em vez
-        # do 0,5 implícito do argmax — que oscila muito com pesos de classe.
+        # Com calibração, usa o corte do EER no lugar do 0,5 do argmax.
         dev_metrics = compute_metrics(dev_labels, dev_preds, dev_scores,
                                       threshold=dev_threshold if calibrate else None,
                                       eer_scores=dev_logodds)
@@ -474,8 +410,7 @@ def main() -> None:
         history.append({"epoch": epoch, "lr": lr, "train_loss": train_loss,
                         **{f"dev_{k}": v for k, v in dev_metrics.items()},
                         **cronometro.as_dict()})
-        # Gravado a cada época: se o processo cair na época 34 de 50, as curvas
-        # do relatório sobrevivem. Não há retomada de treino no checkpoint.
+        # A cada época, para as curvas sobreviverem a uma queda.
         save_history(history, name)
 
         if scheduler is not None:
@@ -483,16 +418,14 @@ def main() -> None:
         save_checkpoint({"model_state": model.state_dict(), "config": config,
                          "threshold": dev_threshold}, last_ckpt)
 
-        # Melhor modelo pelo EER de validação (NaN é tratado como "pior").
-        # Comparação estrita: com `<=`, um platô perfeito zeraria o contador de
-        # paciência a cada época e o early stopping nunca dispararia.
+        # `<` estrito: com `<=` um platô zeraria a paciência e o early stopping
+        # nunca dispararia.
         current_eer = dev_metrics["eer"]
         if not np.isnan(current_eer) and current_eer < best_eer:
             best_eer = current_eer
             best_threshold = dev_threshold
             epochs_no_improve = 0
-            # O threshold calibrado viaja junto com os pesos: assim evaluate.py e
-            # infer.py usam o mesmo ponto de corte escolhido no dev.
+            # O threshold vai junto para evaluate.py e infer.py.
             save_checkpoint({"model_state": model.state_dict(), "config": config,
                              "threshold": dev_threshold}, best_ckpt)
         else:
@@ -501,7 +434,7 @@ def main() -> None:
                 print(f"Early stopping: sem melhora no EER por {early_patience} épocas.")
                 break
 
-    # ----- curvas (o histórico já foi gravado a cada época) -----
+    # ----- curvas -----
     curves_path = OUTPUT_DIR / f"{name}_curves.png"
     if history:
         plot_history(history, curves_path)

@@ -1,23 +1,8 @@
-"""Qual limiar vale para qual áudio.
+"""Escolha do limiar conforme a origem do áudio.
 
-A faixa de 7,6-8 kHz some em qualquer conversão para 16 kHz — na captura ao
-vivo (loopback a 48 kHz) e ao abrir um arquivo gravado a 44,1/48 kHz, porque o
-`librosa.load` reamostra com o mesmo tipo de filtro (medido: 7,8-8 kHz ~35 dB
-abaixo do resto). O `baseline_v2` depende dessa faixa, e sem ela todos os
-scores sobem. Por isso o projeto tem dois limiares para o mesmo modelo:
-
-- **original** — calibrado no dev em áudio nativo de 16 kHz, com a banda
-  inteira. Vale para o formato da base de treino;
-- **captura** — recalibrado no dev passado pela ida e volta 16 -> 48 -> 16 kHz
-  (`scripts/calibrar_captura.py`). Vale para quase todo áudio do mundo real.
-
-Medido no eval com captura (RESUMO 10.2.1): no limiar original, 71% dos humanos
-passam por sintéticos; no recalibrado, 17%. Em áudio nativo de 16 kHz, o
-recalibrado deixa passar 69% dos sintéticos. A escolha tem de seguir o áudio.
-
-**Limite da regra:** ela olha a taxa do arquivo, não o conteúdo. Um arquivo
-salvo a 16 kHz que já tinha sido convertido antes (de 48 kHz, por exemplo)
-também perdeu o topo da banda e receberia o limiar original.
+Converter para 16 kHz corta a faixa de 7,6-8 kHz, então cada modelo tem dois
+limiares: o original (áudio nativo de 16 kHz) e o de captura, recalibrado por
+`scripts/calibrar_captura.py`. A regra olha só a taxa do arquivo.
 """
 
 from __future__ import annotations
@@ -48,10 +33,7 @@ def caminho_captura(checkpoint: str | Path) -> Path:
 def limiares_do_checkpoint(caminho: str | Path, dados: dict) -> Limiares:
     """Os dois limiares disponíveis para este modelo.
 
-    Se `caminho` é a cópia recalibrada, o original está nos metadados dela. Se
-    é o checkpoint do treino, procura a cópia ao lado — e só a aceita se os
-    pesos forem os mesmos: um `_captura.pt` de um treino anterior teria o
-    limiar de outro modelo.
+    A cópia `_captura` ao lado só é aceita se tiver os mesmos pesos.
     """
     calib = dados.get("calibracao")
     if calib:
@@ -89,7 +71,7 @@ def taxa_nativa(caminho: str | Path) -> int | None:
 
 def escolher_limiar(lims: Limiares, taxa_modelo: int, taxa_arquivo: int | None = None,
                     ao_vivo: bool = False) -> Escolha:
-    """A regra: o áudio passou por uma taxa acima da do modelo? Então captura."""
+    """Usa o limiar de captura se o áudio veio de uma taxa acima da do modelo."""
     if ao_vivo:
         motivo = f"captura ao vivo a 48 kHz, convertida para {taxa_modelo // 1000} kHz"
     elif taxa_arquivo is None:
