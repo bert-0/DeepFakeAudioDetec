@@ -513,6 +513,12 @@ vez (`scripts/calibrar_captura.py`): a captura passa por 48 kHz e volta a
 16 kHz, a faixa de 7,6-8 kHz some, e no limiar original 71% dos humanos passam
 por sintéticos (`docs/RESUMO_TCC.md`, 10.2.1).
 
+**Demonstração** (`scripts/montar_demo.py`): gera `outputs/demo/reais.wav`,
+`falsos.wav` e `misto.wav`, com 4 s de silêncio entre os áudios (a janela do
+monitor) e uma "cola" com o instante, o rótulo e o score esperado de cada um.
+Os áudios padrão foram escolhidos entre os que o modelo acerta, com score
+medido pela captura real — é ilustração; o EER é a medida.
+
 **O limiar é escolhido pelo tipo de áudio** (`src/limiares.py`), no monitor e
 no `infer.py`: captura ao vivo e arquivos gravados acima de 16 kHz usam o
 recalibrado; arquivos nativos de 16 kHz, o original. Basta passar o checkpoint

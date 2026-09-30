@@ -219,8 +219,9 @@ def tocar_audio(wav: np.ndarray, sample_rate: int, dispositivo: str | None = Non
 
 
 def cmd_tocar(args) -> int:
-    pasta = Path(args.pasta)
-    referencia, sr = sf.read(pasta / "referencia.wav", dtype="float32")
+    arquivo = Path(args.arquivo) if getattr(args, "arquivo", None) else \
+        Path(args.pasta) / "referencia.wav"
+    referencia, sr = sf.read(arquivo, dtype="float32")
     print("Confira que o monitor JÁ está gravando no outro terminal: ele leva alguns")
     print("segundos carregando o modelo. Espere aparecer o cabeçalho da tabela")
     print("('t  score  média ...') antes de dar Enter.")
@@ -454,6 +455,9 @@ def main() -> int:
                    help="nome do dispositivo de saída (padrão: o do sistema)")
     t.add_argument("--sem-pausa", action="store_true",
                    help="começa a tocar sem esperar Enter")
+    t.add_argument("--arquivo", default=None,
+                   help="toca este .wav em vez de <pasta>/referencia.wav "
+                        "(ex.: as playlists de scripts/montar_demo.py)")
     t.set_defaults(func=cmd_tocar)
 
     c = sub.add_parser("chrome", help="abre um Chrome cujo microfone é a playlist "
