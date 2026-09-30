@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1>Analisar um áudio</h1>
+<p>Envie uma gravação de voz. O áudio é dividido em janelas de 4 segundos e cada
+janela recebe um score entre 0 (voz humana) e 1 (voz sintética).</p>
+
+<form action="/analisar" method="post" enctype="multipart/form-data" class="envio">
+  <label for="arquivo">Arquivo de áudio</label>
+  <input type="file" id="arquivo" name="arquivo" required
+         accept="{{ extensoes | join(',') }}">
+  <p class="nota">Formatos: {{ extensoes | join(', ') }}. Até 25 MB.
+  O arquivo é apagado depois da análise; só o resultado fica no histórico.</p>
+  <button type="submit">Analisar</button>
+</form>
+
+<p class="nota">O resultado é um indício, não uma prova. Veja em
+<a href="/sobre">Sobre</a> o que foi medido e onde o modelo falha.</p>
+{% endblock %}

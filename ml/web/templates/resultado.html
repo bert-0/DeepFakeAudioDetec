@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block titulo %}{{ a.arquivo }} — Detector de áudio sintético{% endblock %}
+{% block conteudo %}
+<h1>{{ a.arquivo }}</h1>
+<p class="nota">Analisado em {{ a.criado_em | data }} · {{ a.duracao_s | br(1) }} s
+{% if a.taxa_nativa %} · gravado a {{ '%g' % (a.taxa_nativa / 1000) }} kHz{% endif %}</p>
+
+{% if a.score_medio is none %}
+  <p class="resultado neutro">Não havia fala suficiente para analisar.</p>
+{% else %}
+  {% set acima = a.limiar is not none and a.score_medio >= a.limiar %}
+  <p class="resultado {{ 'alerta' if acima else 'ok' }}">
+    {% if acima %}Indício de voz sintética{% else %}Sem indício de voz sintética{% endif %}
+  </p>
+  <table class="numeros">
+    <tr><th>Score médio (ponderado pela fala)</th><td>{{ a.score_medio | br(3) }}</td></tr>
+    <tr><th>Score máximo numa janela</th><td>{{ a.score_maximo | br(3) }}</td></tr>
+    {% if a.limiar is not none %}
+    <tr><th>Limiar</th><td>{{ a.limiar | br(4) }}</td></tr>
+    {% endif %}
+    <tr><th>Janelas com fala</th><td>{{ a.janelas_uteis }} (≈ {{ a.janelas_independentes | br(1) }} independentes)</td></tr>
+  </table>
+  <p class="nota">Limiar: {{ a.origem_limiar }}.</p>
+  {% if a.aviso_limiar %}<p class="aviso">{{ a.aviso_limiar | frase }}</p>{% endif %}
+
+  {% if grafico %}
+  <h2>Score por janela</h2>
+  <figure>
+    {{ grafico | safe }}
+    <figcaption>Cada ponto é uma janela de 4 s (passo de 2 s). A linha tracejada é o limiar.</figcaption>
+  </figure>
+  {% endif %}
+
+  <details>
+    <summary>Valores por janela</summary>
+    <table>
+      <tr><th>Início (s)</th><th>Score</th><th></th></tr>
+      {% for j in a.janelas %}
+      <tr><td>{{ j.t | br(1) }}</td><td>{{ (j.score | br(3)) if j.util else '—' }}</td>
+          <td>{% if not j.util %}silêncio{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+  </details>
+{% endif %}
+
+<p><a href="/">Analisar outro áudio</a> · <a href="/historico">Histórico</a></p>
+{% endblock %}

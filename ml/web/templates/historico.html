@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Histórico — Detector de áudio sintético{% endblock %}
+{% block conteudo %}
+<h1>Histórico</h1>
+{% if not analises %}
+  <p>Nenhuma análise ainda. <a href="/">Analisar um áudio</a>.</p>
+{% else %}
+<table>
+  <tr><th>Data</th><th>Arquivo</th><th>Duração</th><th>Score médio</th><th>Resultado</th></tr>
+  {% for a in analises %}
+  <tr>
+    <td>{{ a.criado_em | data }}</td>
+    <td><a href="/analises/{{ a.id }}">{{ a.arquivo }}</a></td>
+    <td>{{ a.duracao_s | br(1) }} s</td>
+    <td>{{ a.score_medio | br(3) }}</td>
+    <td>{% if a.score_medio is none %}sem fala
+        {% elif a.limiar is not none and a.score_medio >= a.limiar %}indício de síntese
+        {% else %}sem indício{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

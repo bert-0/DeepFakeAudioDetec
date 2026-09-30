@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Detector de áudio sintético{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='estilo.css') }}">
+</head>
+<body>
+  <header>
+    <div class="conteudo">
+      <a href="/" class="marca">Detector de áudio sintético</a>
+      <nav>
+        <a href="/">Analisar</a>
+        <a href="/historico">Histórico</a>
+        <a href="/sobre">Sobre</a>
+      </nav>
+    </div>
+  </header>
+  <main class="conteudo">
+    {% block conteudo %}{% endblock %}
+  </main>
+  <footer class="conteudo">
+    TCC — Ciência da Computação, UNIP. Modelo treinado no ASVspoof 2019 LA.
+  </footer>
+</body>
+</html>

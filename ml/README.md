@@ -471,6 +471,24 @@ O ruff roda só com `E9,F` (erro de sintaxe, nome indefinido, comparação
 inválida, import morto). Regras de estilo ficam de fora de propósito: quebrar o
 CI por ponto e vírgula não ajuda ninguém a encontrar defeito.
 
+## Interface web (FastAPI + Jinja2)
+
+```bash
+pip install -r web/requirements.txt
+uvicorn web.app:app --reload          # de dentro de ml/; abre em http://127.0.0.1:8000
+```
+
+Páginas: **Analisar** (envio de arquivo), **resultado** (veredito, score médio,
+limiar com a origem, gráfico do score por janela), **Histórico** e **Sobre**
+(o que foi medido e as limitações). `POST /api/analisar` devolve o mesmo
+resultado em JSON. O caminho de análise é o do monitor, que dá o mesmo score do
+`infer.py` (`tests/test_monitor_consistencia.py`), e o limiar é escolhido pelo
+tipo de áudio. O arquivo enviado é apagado ao fim da análise; o histórico
+(SQLite em `outputs/web/historico.db`) guarda só o resultado.
+
+Variáveis opcionais: `DETECTOR_CONFIG`, `DETECTOR_CHECKPOINT` (padrão:
+`baseline_v2`), `DETECTOR_DEVICE` (padrão `cpu`), `DETECTOR_BANCO`.
+
 ## Inferência em um único áudio (RF05/RF06/RF07)
 
 ```bash

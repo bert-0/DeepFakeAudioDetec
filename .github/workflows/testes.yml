@@ -49,7 +49,7 @@ jobs:
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: Instala as dependências
-        run: pip install -r requirements.txt -r requirements-dev.txt ruff
+        run: pip install -r requirements.txt -r requirements-dev.txt -r web/requirements.txt ruff httpx
 
       - name: Erros de código (ruff)
         # Só o que é defeito de verdade: erro de sintaxe, nome indefinido,
