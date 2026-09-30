@@ -1457,6 +1457,36 @@ do topo da banda (Seção 2.1).
 Depois disso, a sessão "chamada" (Meet/Teams) mede o que a chamada soma ao
 caminho de captura.
 
+### 10.2.3 Teste funcional com áudio real (qualitativo)
+
+Monitor ao vivo, `baseline_v2`, limiar escolhido automaticamente (0,9829,
+captura), aprimoramentos de áudio desligados, 1 perda de amostra por sessão.
+Dois áudios tocados do navegador, sem rótulo por janela:
+
+| áudio | score médio | mediano | janelas acima do limiar | fração acima de 4 kHz (p90, por janela) |
+|---|---|---|---|---|
+| vídeo narrado por IA (YouTube) | 0,490 | 0,420 | 0 de 19 | 11–94% |
+| audiobook narrado por humano | **0,807** | **0,857** | **7 de 32** | **0–5% na maior parte** |
+
+**A ordem se inverteu:** a voz humana recebeu scores mais altos que a
+sintética, e só ela disparou o limiar. A última coluna explica: o audiobook
+chega praticamente sem nada acima de 4 kHz — banda estreita, provavelmente por
+compressão ou pela gravação — enquanto o vídeo de IA chega em banda larga. Sem
+a parte alta do espectro, os scores deste modelo sobem (medido: banda estreita
++16,96 pp, Seção 5; captura +5,68 pp e limiar colapsado, 10.2.1).
+
+**O score está respondendo à largura de banda do áudio, não à síntese.** Dois
+exemplos não são medida; o valor deste teste é mostrar, com áudio real, a
+dependência que o controle mediu com IC. Soma-se a isso o limite de
+generalização conhecido: o modelo viu os ataques de 2019 (A01–A06 no treino,
+A07–A19 no eval), e uma voz de IA comercial atual é de outra geração.
+
+**Conclusão para o texto:** o sistema funciona de ponta a ponta — captura,
+janelas, limiar por tipo de áudio, agregação —, mas este modelo não serve para
+uso real. Os dois caminhos de correção estão identificados: treino com banda
+limitada ou LFCC restrito abaixo de 7,5 kHz (o raciocínio do baseline de 2021,
+Seção 2.1) e dados de ataques atuais (ASVspoof 5, Seção 10.7).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
