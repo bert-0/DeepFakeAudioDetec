@@ -1,6 +1,7 @@
 """Interface web (web/app.py): envio, resultado, histórico e API."""
 
 import importlib
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -78,27 +79,89 @@ def test_analise_inexistente(cliente):
     assert cliente.get("/analises/999").status_code == 404
 
 
-def test_ao_vivo_sem_sessao(cliente, tmp_path, monkeypatch):
-    monkeypatch.setenv("DETECTOR_AO_VIVO", str(tmp_path / "nao_existe.json"))
-    assert cliente.get("/api/ao-vivo").json() == {"existe": False}
+def test_arquivo_curto_nao_e_inconclusivo(cliente, tmp_path):
+    """Os áudios do ASVspoof (2-3 s) cabem numa janela só — a unidade em que o
+    modelo foi medido. Inconclusivo é só quando não há fala nenhuma."""
+    with open(_wav(tmp_path, segundos=2.5), "rb") as fh:
+        r = cliente.post("/analisar", files={"arquivo": ("curto.wav", fh, "audio/wav")})
+    assert r.status_code == 200
+    assert "Inconclusivo" not in r.text
+    import re
+
+    assert re.search(r"(Nenhuma\s+ficou|1 de 1\s+ficou) acima do limiar", r.text)
 
 
-def test_ao_vivo_le_o_json_do_monitor(cliente, tmp_path, monkeypatch):
-    """O monitor grava a cada janela; a API devolve as últimas e diz se está ativa."""
+def test_ao_vivo_sem_sessao(cliente):
+    assert cliente.get("/api/ao-vivo").json() == {"existe": False, "rodando": False}
+
+
+class _ProcFalso:
+    """Faz o papel do monitor.py: roda até o arquivo de parada aparecer."""
+
+    def __init__(self, parar: Path):
+        self.parar = parar
+        self.returncode = None
+
+    def poll(self):
+        if self.parar.exists():
+            self.returncode = 0
+        return self.returncode
+
+    def wait(self, timeout=None):
+        return self.poll()
+
+    def terminate(self):
+        self.returncode = -1
+
+
+def test_sessao_ao_vivo_inicia_mostra_so_a_atual_e_vai_para_resultados(cliente, tmp_path,
+                                                                     monkeypatch):
+    import web.app as modulo
     from monitor import gravar_json
     from src.capture.analyzer import Agregador, Leitura
+
+    monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(tmp_path / "ao_vivo"))
+    monkeypatch.setattr(modulo, "_iniciar_monitor",
+                        lambda j, w, parar, log: _ProcFalso(parar))
+
+    assert cliente.post("/api/ao-vivo/iniciar").json() == {"ok": True}
+    assert cliente.post("/api/ao-vivo/iniciar").status_code == 409, "uma sessão por vez"
+    d = cliente.get("/api/ao-vivo").json()
+    assert d["rodando"] and not d["existe"], "ainda sem janela: nada de sessão antiga"
 
     ag = Agregador(janela_s=4.0, passo_s=2.0)
     for i in range(50):
         ag.adicionar(Leitura(indice=i, instante=2.0 * i, score=0.1 + 0.01 * i, rms=0.1))
-    destino = tmp_path / "ao_vivo.json"
-    gravar_json(ag, destino, limiar=0.98, origem_limiar="recalibrado", ativo=True)
-    monkeypatch.setenv("DETECTOR_AO_VIVO", str(destino))
-
+    gravar_json(ag, modulo._estado["sessao"]["json"], limiar=0.98,
+                origem_limiar="recalibrado", ativo=True)
     d = cliente.get("/api/ao-vivo").json()
-    assert d["existe"] and d["ativo"] and d["limiar"] == 0.98
-    assert len(d["leituras"]) == 40 and d["leituras"][-1]["indice"] == 49
-    assert d["leituras"][0]["util"] is True
+    assert d["existe"] and d["rodando"] and len(d["leituras"]) == 40
+    assert "peso" in d["leituras"][0]
 
-    gravar_json(ag, destino, limiar=0.98, ativo=False)
-    assert cliente.get("/api/ao-vivo").json()["ativo"] is False
+    parou = cliente.post("/api/ao-vivo/parar").json()
+    assert parou["ok"] and parou["analise_id"]
+    assert not cliente.get("/api/ao-vivo").json()["rodando"]
+    assert "Sessão ao vivo" in cliente.get("/historico").text
+    assert cliente.get(f"/analises/{parou['analise_id']}").status_code == 200
+
+
+def test_monitor_para_quando_o_arquivo_de_parada_aparece(tmp_path):
+    """O caminho real que a interface usa: o monitor vê o arquivo e encerra como
+    num Ctrl+C, gravando o JSON final com ativo=false."""
+    import json
+    import subprocess
+    import sys
+
+    config = load_config("configs/baseline.yaml")
+    ckpt = tmp_path / "m.pt"
+    torch.save({"model_state": build_model(config["model"]).state_dict(),
+                "config": config}, ckpt)
+    parar = tmp_path / "parar"
+    parar.touch()
+    saida = tmp_path / "s.json"
+    r = subprocess.run([sys.executable, "monitor.py", "--config", "configs/baseline.yaml",
+                        "--checkpoint", str(ckpt), "--arquivo", str(_wav(tmp_path, segundos=30)),
+                        "--json", str(saida), "--parar-com", str(parar), "--device", "cpu"],
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert json.loads(saida.read_text(encoding="utf-8"))["ativo"] is False

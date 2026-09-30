@@ -93,6 +93,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--listar-dispositivos", action="store_true",
                    help="mostra os dispositivos de saída e sai")
     p.add_argument("--json", help="grava o histórico de scores neste arquivo")
+    p.add_argument("--parar-com", default=None, metavar="ARQUIVO",
+                   help="encerra como um Ctrl+C quando este arquivo aparecer (usado "
+                        "pela interface web, que não consegue mandar Ctrl+C no Windows)")
     return p.parse_args()
 
 
@@ -226,6 +229,10 @@ def main() -> int:
     try:
         with fonte:
             for bloco in fonte.blocos():
+                # Encerramento pedido pela interface web: o mesmo caminho do Ctrl+C,
+                # para a gravação e o JSON final (ativo=false) serem salvos.
+                if args.parar_com and Path(args.parar_com).exists():
+                    raise KeyboardInterrupt
                 if args.gravar:
                     gravado.append(bloco)
                 for leitura in analisador.processar(bloco):
@@ -281,7 +288,8 @@ def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None 
         "origem_limiar": origem_limiar,
         "resumo": agregador.resumo(),
         "leituras": [{"indice": x.indice, "instante": x.instante, "score": x.score,
-                      "rms": x.rms, "silencio": x.silencio, "util": id(x) in uteis}
+                      "rms": x.rms, "silencio": x.silencio, "util": id(x) in uteis,
+                      "peso": round(x.peso, 3)}
                      for x in agregador.leituras],
     }
     tmp = caminho.with_suffix(caminho.suffix + ".tmp")
@@ -305,6 +313,10 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
           f"{resumo['janelas_independentes']}")
     if canal is not None:
         print(f"Canal: {canal.descricao()}")
+    if destino and resumo["score_medio"] is None:
+        # Também sem nenhuma janela: quem acompanha o JSON (a aba Ao vivo)
+        # precisa saber que a sessão terminou.
+        gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
         if ao_vivo and resumo["janelas_silencio"] == resumo["janelas_total"]:

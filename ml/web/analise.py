@@ -87,6 +87,6 @@ class Detector:
             janelas_uteis=resumo["janelas_uteis"],
             janelas_independentes=resumo["janelas_independentes"],
             janelas=[{"t": round(x.instante, 2), "score": round(x.score, 4),
-                      "util": id(x) in uteis}
+                      "util": id(x) in uteis, "peso": round(x.peso, 3)}
                      for x in agregador.leituras],
         )

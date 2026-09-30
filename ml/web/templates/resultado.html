@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block titulo %}{{ a.arquivo }} — Análise de Autenticidade de Voz{% endblock %}
 {% block conteudo %}
-{% set pouca_fala = a.score_medio is none or a.janelas_independentes < 2 %}
+{% set pouca_fala = a.score_medio is none %}
+{% set uteis = a.janelas | selectattr('util') | list %}
+{% set n_acima = (uteis | selectattr('score', 'ge', a.limiar) | list | length) if a.limiar is not none else 0 %}
 {% set acima = not pouca_fala and a.limiar is not none and a.score_medio >= a.limiar %}
 {% set cor = 'amarelo' if pouca_fala else ('vermelho' if acima else 'verde') %}
 <div class="cartao">
@@ -12,7 +14,7 @@
   <div class="centro">
     <div class="score {{ cor }}">{{ a.score_medio | br(2) }}</div>
     <div class="veredito">
-      {% if pouca_fala %}Inconclusivo — pouca fala para analisar
+      {% if pouca_fala %}Inconclusivo — não há fala para analisar
       {% elif acima %}Indício de voz sintética
       {% else %}Sem indício de voz sintética{% endif %}
     </div>
@@ -23,6 +25,12 @@
   {% set janelas = a.janelas %}{% set limiar = a.limiar %}
   {% include "_barras.html" %}
   <div class="eixo"><span>0:00</span><span>{{ a.duracao_s | mmss }}</span></div>
+  {% if uteis %}
+  <p class="legenda-barras">Cada barra é uma janela de 4 s.
+    {% if n_acima == 0 %}Nenhuma {{ 'ficou' }} acima do limiar.
+    {% else %}{{ n_acima }} de {{ uteis | length }} {{ 'ficou' if n_acima == 1 else 'ficaram' }} acima do limiar (vermelho).{% endif %}
+    Barras apagadas são janelas com pouca fala, que pesam menos na média.</p>
+  {% endif %}
 
   {% if acima %}
   <div class="faixa-aviso vermelho">Score acima do limiar — indício de síntese, não prova.</div>

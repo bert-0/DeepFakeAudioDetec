@@ -1,11 +1,13 @@
-{# Uma barra por janela de 4 s: altura = score, cor = lado do limiar. #}
+{# Uma barra por janela de 4 s: altura = score, cor = lado do limiar.
+   Janela parcial (pouca fala, completada por repetição) fica apagada: ela pesa
+   pouco na média, e na tela não pode parecer tão importante quanto as outras. #}
 <div class="barras" aria-label="Score por janela">
   {% if limiar is not none %}<div class="linha-limiar" style="bottom: {{ (limiar * 100) | round(1) }}%"></div>{% endif %}
   {% for j in janelas %}
     {% if j.util %}
-      <div class="barra {{ 'acima' if limiar is not none and j.score >= limiar else 'abaixo' }}"
+      <div class="barra {{ 'acima' if limiar is not none and j.score >= limiar else 'abaixo' }}{{ ' parcial' if (j.peso if j.peso is defined else 1) < 0.5 }}"
            style="height: {{ [j.score * 100, 3] | max | round(1) }}%"
-           title="{{ j.t | br(1) }} s — score {{ j.score | br(3) }}"></div>
+           title="{{ j.t | br(1) }} s — score {{ j.score | br(3) }}{{ ' (janela parcial)' if (j.peso if j.peso is defined else 1) < 0.5 }}"></div>
     {% else %}
       <div class="barra silencio" style="height: 3%" title="{{ j.t | br(1) }} s — silêncio"></div>
     {% endif %}

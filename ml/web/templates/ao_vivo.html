@@ -3,18 +3,14 @@
 {% block conteudo %}
 <div class="cartao">
   <div class="linha-arquivo">
-    <span class="ao-vivo-rotulo"><span class="ponto" id="ponto"></span><span id="estado">Ao vivo</span></span>
+    <span class="ao-vivo-rotulo"><span class="ponto" id="ponto"></span><span id="estado">Parado</span></span>
     <span class="duracao" id="tempo">00:00</span>
   </div>
 
-  <div id="sem-sessao" class="texto">
-    <h1>Nenhuma sessão ao vivo</h1>
-    <p>A captura da saída de som é feita pelo monitor, no terminal, porque o
-    navegador não tem acesso ao áudio do sistema. Com o monitor rodando, esta
-    página acompanha a análise janela a janela.</p>
-    <p>Dentro de <code>ml/</code>:</p>
-    <p><code>python monitor.py --config configs/baseline_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt --json {{ arquivo }}</code></p>
-    <p>Desligue os aprimoramentos de áudio do Windows antes de começar.</p>
+  <div class="centro" id="parado">
+    <div class="veredito">Analisar o som do computador</div>
+    <div class="legenda">Tudo o que tocar no alto-falante — uma chamada, um vídeo — é analisado
+      em janelas de 4 s. Desligue os aprimoramentos de áudio do Windows antes de começar.</div>
   </div>
 
   <div id="sessao" class="oculto">
@@ -24,56 +20,87 @@
       <div class="legenda" id="legenda"></div>
     </div>
     <div class="barras" id="barras"></div>
+    <p class="legenda-barras" id="legenda-barras"></p>
     <div class="faixa-aviso vermelho oculto" id="alerta">Média acima do limiar — indício de síntese, não prova.</div>
-    <div class="nota" id="origem"></div>
+  </div>
+
+  <div class="faixa-aviso amarelo oculto" id="erro"></div>
+  <div class="nota oculto" id="salvo"></div>
+
+  <div class="acoes">
+    <button type="button" class="verde" id="iniciar">Iniciar análise</button>
+    <button type="button" class="vermelho oculto" id="parar">Parar análise</button>
   </div>
 </div>
-<noscript><p class="rodape">Esta página precisa de JavaScript para acompanhar a sessão.</p></noscript>
+<noscript><p class="rodape">Esta página precisa de JavaScript.</p></noscript>
 {% endblock %}
 {% block scripts %}
 <script>
 (function () {
+  var $ = function (id) { return document.getElementById(id); };
   var fmt = function (v, c) { return v == null ? "—" : v.toLocaleString("pt-BR", {minimumFractionDigits: c, maximumFractionDigits: c}); };
   var mmss = function (s) { s = Math.round(s || 0); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
-  var $ = function (id) { return document.getElementById(id); };
+  var ocultar = function (id, sim) { $(id).classList.toggle("oculto", sim); };
 
-  function desenhar(d) {
-    if (!d.existe) { $("sem-sessao").classList.remove("oculto"); $("sessao").classList.add("oculto"); return; }
-    $("sem-sessao").classList.add("oculto"); $("sessao").classList.remove("oculto");
-    $("ponto").className = "ponto" + (d.ativo ? " ativo" : "");
-    $("estado").textContent = d.ativo ? "Ao vivo" : "Sessão encerrada";
-    var uteis = d.leituras.filter(function (x) { return x.util; });
-    var ultima = d.leituras.length ? d.leituras[d.leituras.length - 1] : null;
-    $("tempo").textContent = mmss(ultima ? ultima.instante + 4 : 0);
-
+  function desenharSessao(d) {
     var media = d.resumo.score_medio, limiar = d.limiar;
+    var uteis = d.leituras.filter(function (x) { return x.util; });
     var acima = media != null && limiar != null && media >= limiar;
     $("score").textContent = fmt(media, 2);
     $("score").className = "score " + (media == null ? "amarelo" : (acima ? "vermelho" : "verde"));
     $("veredito").textContent = media == null ? "Aguardando fala…" : (acima ? "Indício de voz sintética" : "Sem indício de voz sintética");
-    $("legenda").textContent = "média ponderada · última janela " +
-      (uteis.length ? fmt(uteis[uteis.length - 1].score, 2) : "—") +
-      (limiar != null ? " · limiar " + fmt(limiar, 2) : "");
-    $("alerta").classList.toggle("oculto", !acima);
-    $("origem").textContent = d.origem_limiar ? "Limiar: " + d.origem_limiar : "";
+    $("legenda").textContent = "média ponderada pela fala" + (limiar != null ? " · limiar " + fmt(limiar, 2) : "");
+    ocultar("alerta", !acima);
 
     var barras = $("barras"); barras.innerHTML = "";
     if (limiar != null) {
       var linha = document.createElement("div"); linha.className = "linha-limiar";
       linha.style.bottom = (limiar * 100) + "%"; barras.appendChild(linha);
     }
+    var nAcima = 0;
     d.leituras.forEach(function (x) {
-      var b = document.createElement("div");
-      b.className = "barra " + (!x.util ? "silencio" : (limiar != null && x.score >= limiar ? "acima" : "abaixo"));
+      var b = document.createElement("div"), sobre = limiar != null && x.score >= limiar;
+      var parcial = x.util && (x.peso == null ? 1 : x.peso) < 0.5;
+      if (x.util && sobre) nAcima++;
+      b.className = "barra " + (!x.util ? "silencio" : (sobre ? "acima" : "abaixo")) + (parcial ? " parcial" : "");
       b.style.height = (x.util ? Math.max(x.score * 100, 3) : 3) + "%";
-      b.title = fmt(x.instante, 1) + " s — " + (x.util ? "score " + fmt(x.score, 3) : "silêncio");
+      b.title = fmt(x.instante, 1) + " s — " + (x.util ? "score " + fmt(x.score, 3) + (parcial ? " (janela parcial)" : "") : "silêncio");
       barras.appendChild(b);
     });
+    $("legenda-barras").textContent = uteis.length ?
+      "Cada barra é uma janela de 4 s. " + (nAcima === 0 ? "Nenhuma ficou acima do limiar. " :
+        nAcima + " de " + uteis.length + (nAcima === 1 ? " ficou" : " ficaram") + " acima do limiar (vermelho). ") +
+      "Barras apagadas são janelas com pouca fala, que pesam menos na média." : "";
+  }
+
+  function desenhar(d) {
+    var ativo = !!d.rodando;
+    $("ponto").className = "ponto" + (ativo ? " ativo" : "");
+    $("estado").textContent = ativo ? "Ao vivo" : (d.existe ? "Sessão encerrada" : "Parado");
+    $("tempo").textContent = mmss(d.decorrido_s);
+    ocultar("iniciar", ativo); ocultar("parar", !ativo);
+    ocultar("parado", !!d.existe || ativo);
+    ocultar("sessao", !d.existe && !ativo);
+    ocultar("erro", !d.erro);
+    if (d.erro) $("erro").textContent = "O monitor não iniciou. Últimas linhas do registro: " + d.erro;
+    if (d.existe) desenharSessao(d);
+    else if (ativo) { $("score").textContent = "—"; $("veredito").textContent = "Iniciando a captura…"; $("legenda").textContent = ""; $("barras").innerHTML = ""; }
+    ocultar("salvo", !d.analise_id);
+    if (d.analise_id) $("salvo").innerHTML = 'Sessão salva em Resultados — <a href="/analises/' + d.analise_id + '">ver resultado</a>.';
   }
 
   function atualizar() {
-    fetch("/api/ao-vivo").then(function (r) { return r.json(); }).then(desenhar).catch(function () {});
+    return fetch("/api/ao-vivo").then(function (r) { return r.json(); }).then(desenhar).catch(function () {});
   }
+  function acao(url, botao) {
+    botao.disabled = true;
+    return fetch(url, {method: "POST"}).then(function (r) {
+      if (!r.ok) return r.json().then(function (e) { alert(e.detail || "Falhou."); });
+    }).finally(function () { botao.disabled = false; atualizar(); });
+  }
+  $("iniciar").addEventListener("click", function () { acao("/api/ao-vivo/iniciar", this); });
+  $("parar").addEventListener("click", function () { this.textContent = "Parando…"; var b = this;
+    acao("/api/ao-vivo/parar", b).then(function () { b.textContent = "Parar análise"; }); });
   atualizar(); setInterval(atualizar, 2000);
 })();
 </script>

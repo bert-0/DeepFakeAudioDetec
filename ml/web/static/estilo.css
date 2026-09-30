@@ -73,6 +73,8 @@ a { color: var(--suave2); }
 .barra.abaixo { background: var(--verde); }
 .barra.acima { background: var(--vermelho); }
 .barra.silencio { background: var(--borda-forte); }
+.barra.parcial { opacity: 0.35; }
+.legenda-barras { margin: -8px 24px 18px; font-size: 12px; color: var(--suave); text-align: center; }
 .linha-limiar { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--suave); }
 .eixo { display: flex; justify-content: space-between; margin: -18px 24px 20px;
         font-size: 11px; color: var(--suave); }
@@ -88,6 +90,8 @@ a { color: var(--suave2); }
              text-decoration: none; cursor: pointer; }
 .acoes > * + * { border-left: 1px solid var(--borda); }
 .acoes .verde { color: var(--verde); font-weight: 700; }
+.acoes .vermelho { color: var(--vermelho); font-weight: 700; }
+.acoes > [disabled] { color: var(--suave); cursor: default; }
 
 .detalhes { padding: 0 24px 20px; font-size: 13px; color: var(--suave); }
 .detalhes summary { cursor: pointer; color: var(--suave2); }

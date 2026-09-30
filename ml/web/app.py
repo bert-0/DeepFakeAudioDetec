@@ -144,41 +144,6 @@ def sobre(request: Request):
     return templates.TemplateResponse(request, "sobre.html", {"modelo": detector().modelo})
 
 
-def arquivo_ao_vivo() -> Path:
-    return Path(os.environ.get("DETECTOR_AO_VIVO", "outputs/ao_vivo.json"))
-
-
-@app.get("/ao-vivo", response_class=HTMLResponse)
-def ao_vivo(request: Request):
-    return templates.TemplateResponse(request, "ao_vivo.html", {
-        "aba": "ao_vivo", "arquivo": arquivo_ao_vivo().as_posix()})
-
-
-#: Sem atualização por mais que isto, a sessão é dada como encerrada (o monitor
-#: grava a cada janela, ou seja, a cada 2 s; Ctrl+C grava com ativo=False).
-SESSAO_PARADA_S = 10.0
-
-
-@app.get("/api/ao-vivo")
-def api_ao_vivo(ultimas: int = 40):
-    """Estado da sessão do monitor, lido do JSON que ele grava a cada janela."""
-    caminho = arquivo_ao_vivo()
-    if not caminho.is_file():
-        return {"existe": False}
-    try:
-        dados = json.loads(caminho.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {"existe": False}
-    idade = time.time() - float(dados.get("atualizado_em") or 0)
-    return {"existe": True,
-            "ativo": bool(dados.get("ativo")) and idade < SESSAO_PARADA_S,
-            "idade_s": round(idade, 1),
-            "limiar": dados.get("limiar"),
-            "origem_limiar": dados.get("origem_limiar", ""),
-            "resumo": dados.get("resumo", {}),
-            "leituras": dados.get("leituras", [])[-ultimas:]}
-
-
 @app.post("/api/analisar")
 async def api_analisar(arquivo: UploadFile = File(...)):
     r, analise_id = await _analisar_upload(arquivo)
@@ -187,3 +152,132 @@ async def api_analisar(arquivo: UploadFile = File(...)):
                          "origem_limiar": r.origem_limiar,
                          "indicio_de_sintese": r.indicio_de_sintese,
                          "janelas": r.janelas})
+
+
+# --------------------------------------------------------------------------- #
+# Ao vivo: a página inicia e para o monitor.py
+#
+# A captura da saída de som fica no monitor (o navegador não tem acesso ao
+# áudio do sistema). O servidor abre o monitor como processo filho, ele grava o
+# estado num JSON a cada janela, e a página lê esse JSON a cada 2 s. Para parar,
+# o servidor cria um arquivo que o monitor vigia (`--parar-com`): no Windows não
+# dá para mandar Ctrl+C a outro processo, e matá-lo perderia a gravação.
+# --------------------------------------------------------------------------- #
+RAIZ_ML = AQUI.parent
+
+
+def pasta_ao_vivo() -> Path:
+    return Path(os.environ.get("DETECTOR_PASTA_AO_VIVO", "outputs/ao_vivo"))
+
+
+def _sessao() -> dict | None:
+    return _estado.get("sessao")
+
+
+def _rodando(sessao: dict | None) -> bool:
+    return bool(sessao) and sessao["proc"].poll() is None
+
+
+def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path: Path):
+    import subprocess
+    import sys
+
+    d = detector()
+    cmd = [sys.executable, str(RAIZ_ML / "monitor.py"), "--config", d.config_path,
+           "--checkpoint", d.checkpoint, "--json", str(json_path),
+           "--gravar", str(wav_path), "--parar-com", str(parar_path)]
+    log = open(log_path, "w", encoding="utf-8")
+    return subprocess.Popen(cmd, cwd=RAIZ_ML, stdout=log, stderr=subprocess.STDOUT)
+
+
+@app.get("/ao-vivo", response_class=HTMLResponse)
+def ao_vivo(request: Request):
+    return templates.TemplateResponse(request, "ao_vivo.html", {"aba": "ao_vivo"})
+
+
+@app.post("/api/ao-vivo/iniciar")
+def api_ao_vivo_iniciar():
+    if _rodando(_sessao()):
+        raise HTTPException(409, "Já há uma sessão ao vivo em andamento.")
+    pasta = pasta_ao_vivo()
+    pasta.mkdir(parents=True, exist_ok=True)
+    marca = time.strftime("%Y%m%d_%H%M%S")
+    caminhos = {k: pasta / f"sessao_{marca}{ext}" for k, ext in
+                (("json", ".json"), ("wav", ".wav"), ("parar", ".parar"), ("log", ".log"))}
+    proc = _iniciar_monitor(caminhos["json"], caminhos["wav"], caminhos["parar"], caminhos["log"])
+    _estado["sessao"] = {**caminhos, "proc": proc, "inicio": time.time(), "analise_id": None}
+    return {"ok": True}
+
+
+def _ler_json_sessao(sessao: dict) -> dict | None:
+    try:
+        return json.loads(Path(sessao["json"]).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _salvar_sessao_no_historico(sessao: dict) -> int | None:
+    """A sessão encerrada vai para Resultados, como uma análise."""
+    from web.analise import Resultado
+
+    dados = _ler_json_sessao(sessao)
+    if not dados or not dados.get("leituras"):
+        return None
+    leituras, resumo = dados["leituras"], dados.get("resumo", {})
+    r = Resultado(
+        arquivo="Sessão ao vivo " + time.strftime("%d/%m/%Y %H:%M",
+                                                  time.localtime(sessao["inicio"])),
+        duracao_s=leituras[-1]["instante"] + 4.0,
+        taxa_nativa=None,
+        score_medio=resumo.get("score_medio"),
+        score_maximo=resumo.get("score_maximo"),
+        limiar=dados.get("limiar"),
+        origem_limiar=dados.get("origem_limiar", ""),
+        aviso_limiar=None,
+        janelas_uteis=resumo.get("janelas_uteis", 0),
+        janelas_independentes=resumo.get("janelas_independentes", 0.0),
+        janelas=[{"t": round(x["instante"], 2), "score": round(x["score"], 4),
+                  "util": x.get("util", not x.get("silencio")), "peso": x.get("peso", 1.0)}
+                 for x in leituras])
+    return banco().salvar(r, detector().modelo)
+
+
+@app.post("/api/ao-vivo/parar")
+def api_ao_vivo_parar():
+    sessao = _sessao()
+    if not sessao:
+        raise HTTPException(409, "Nenhuma sessão ao vivo em andamento.")
+    if _rodando(sessao):
+        Path(sessao["parar"]).touch()
+        try:
+            sessao["proc"].wait(timeout=20)
+        except Exception:
+            sessao["proc"].terminate()
+    if sessao["analise_id"] is None:
+        sessao["analise_id"] = _salvar_sessao_no_historico(sessao)
+    return {"ok": True, "analise_id": sessao["analise_id"]}
+
+
+@app.get("/api/ao-vivo")
+def api_ao_vivo(ultimas: int = 40):
+    """Só a sessão iniciada por esta página — sessões antigas ficam em Resultados."""
+    sessao = _sessao()
+    if not sessao:
+        return {"existe": False, "rodando": False}
+    rodando = _rodando(sessao)
+    dados = _ler_json_sessao(sessao)
+    base = {"rodando": rodando, "analise_id": sessao["analise_id"],
+            "decorrido_s": round(time.time() - sessao["inicio"], 1)}
+    if dados is None:
+        erro = None
+        if not rodando:
+            try:
+                erro = Path(sessao["log"]).read_text(encoding="utf-8")[-600:]
+            except OSError:
+                erro = "o monitor encerrou sem registrar nada"
+        return {**base, "existe": False, "erro": erro}
+    return {**base, "existe": True,
+            "limiar": dados.get("limiar"),
+            "origem_limiar": dados.get("origem_limiar", ""),
+            "resumo": dados.get("resumo", {}),
+            "leituras": dados.get("leituras", [])[-ultimas:]}
