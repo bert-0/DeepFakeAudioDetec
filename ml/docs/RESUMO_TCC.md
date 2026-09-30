@@ -1362,14 +1362,39 @@ ajustados à amostra. Duas conclusões:
   0,306 → 0,983), o limiar deixa de separar e o EER da amostra vai de 22,50% a
   30–35%.
 
-**Próximo passo: medir com IC.** O efeito está provado em 40 áudios; o número
-para o texto vem do `robustness_eval.py`, que ganhou a condição
-`captura_48k` (a mesma ida e volta, com o mesmo `soxr`):
+**Medido com IC** (`robustness_eval.py --amostra 10000 --so clean captura_48k`,
+10.002 áudios estratificados, IC 95% ±1,28 pp; a condição `captura_48k` é a
+mesma ida e volta 16 → 48 → 16 kHz, com o mesmo `soxr` do monitor):
 
-```bash
-python scripts/robustness_eval.py --config configs/baseline_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt --amostra 10000 --so clean captura_48k
-python scripts/robustness_eval.py --config configs/fusion_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000 --so clean captura_48k
-```
+| modelo | EER limpo | EER captura 48 kHz | custo | bonafide acima do limiar |
+|---|---|---|---|---|
+| baseline_v2 | 19,02% | **24,70%** | +5,68 pp | **10% → 71%** |
+| fusion_v4 | 20,25% | **24,98%** | +4,73 pp | **100%** — os 1.032 em probabilidade 1,0 |
+
+(Bonafide acima do limiar: derivado de precisão e recall no limiar do
+checkpoint. v2 limpo: precisão 0,9837, recall 0,7149; captura: 0,9209 e
+0,9523. fusion_v4 na captura: recall 1,0000, precisão 0,8968 = a proporção de
+spoof da amostra.)
+
+**A ordenação perde ~5 pp; o ponto de operação colapsa.** Os dois modelos
+empatam na captura (24,70% contra 24,98%, dentro do IC). O limiar, não: no v2,
+7 em cada 10 humanos passam a ser marcados como sintéticos; no fusion_v4
+**todo** bonafide satura em probabilidade 1,0 — o EER pela probabilidade dá
+50,00% e o modelo vira o classificador trivial "tudo é spoof", o mesmo
+comportamento do Opus real do 2021 LA (5.3). O EER de 24,98% só é visível
+porque é calculado pelos log-odds (correção da 5.3).
+
+**Consequências:**
+
+- **Para o monitor** (que mostra probabilidade): o fusion_v4 é inutilizável ao
+  vivo, e o v2 funciona com o limiar deslocado. A recomendação do v2 (5.3)
+  ganha uma segunda justificativa, independente do canal da chamada.
+- **A captura custa mais que o Opus simulado** (v2: +5,68 pp contra +1,30 pp
+  do Opus a 25 kbps na mesma amostra) — e está presente em toda chamada.
+- **Mitigação sem retreino:** recalibrar o limiar em áudio do `dev` passado
+  pela mesma ida e volta, já que a ordenação sobrevive. **Com retreino:**
+  aumentação com a ida e volta, ou LFCC limitado abaixo de 7,5 kHz — o
+  raciocínio do baseline de 2021 (Seção 2.1). Ambos trabalho futuro.
 
 Depois disso, a sessão "chamada" (Meet/Teams) mede o que a chamada soma ao
 caminho de captura.
