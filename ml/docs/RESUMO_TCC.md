@@ -1300,6 +1300,7 @@ Playlist de 40 áudios do eval de 2019 (20 bonafide, 20 spoof, os 13 ataques),
 | **limpo** (recortes da própria playlist) | nada | **22,50%** — scores idênticos | 30/40 |
 | perdas simuladas (1 × 10 ms por áudio) | um clique | 17,50% | 29/40 |
 | reamostragem simulada (16 → 48 → 16 kHz) | some 7,6–8 kHz | 30,00% | 25/40 |
+| reamostragem + ruído branco a −31 dB do pico | topo some e piso sobe | 42,50% | 28/40 |
 | **controle** (alto-falante → loopback, sem chamada) | caminho real de saída | **48,53%** (37 áudios) | 16/37 |
 
 **Validação do procedimento.** A sessão "limpo" reproduz o eval de 2019 amostra
@@ -1329,9 +1330,23 @@ faixa **sempre**, em qualquer chamada. É o mesmo raciocínio que levou os
 organizadores do ASVspoof 2021 LA a limitar o LFCC do baseline a 0–4 kHz
 (Seção 2.1): um detector para canal real não pode depender do topo da banda.
 
-**Pendente:** simular o piso de ruído (`simular_caminho.py --efeito piso` e
-`--efeito reamostragem piso`) e repetir o controle com os aprimoramentos
-desativados, para separar o efeito do driver do efeito da taxa.
+**O piso simulado destrói a ordenação, mas empurra os scores para o lado
+oposto.** Com ruído branco no nível medido, o EER vai a 42,50% — quase acaso,
+perto do controle —, só que os scores **descem** (spoof 0,999 → 0,766;
+0,972 → 0,183), enquanto no controle todos **subiram** a ~1,0. Ruído de fundo
+é o que uma gravação humana tem; somá-lo aproxima tudo de "bonafide". Conclusões:
+
+- **O modelo é muito sensível ao conteúdo das pausas.** Mexer só no piso leva
+  o EER perto do acaso — coerente com a dependência de silêncio documentada
+  por Müller et al. (2021) no ASVspoof 2019 LA.
+- **O piso do controle não é ruído somado.** O que o subiu preservou a "cor"
+  do áudio original: compatível com compressão de dinâmica ou equalização,
+  que amplificam o próprio conteúdo baixo — os "aprimoramentos de áudio" do
+  driver continuam o suspeito principal.
+
+**Pendente:** repetir o controle com os aprimoramentos desativados e comparar
+o espectro de novo. Se o piso voltar a ~−62 dB, o segundo efeito é do driver;
+o primeiro (a faixa de 7,6–8 kHz) continua, porque é da conversão de taxa.
 
 ### 10.3 Bases públicas que já trazem canal
 
