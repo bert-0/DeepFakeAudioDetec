@@ -519,6 +519,14 @@ monitor) e uma "cola" com o instante, o rótulo e o score esperado de cada um.
 Os áudios padrão foram escolhidos entre os que o modelo acerta, com score
 medido pela captura real — é ilustração; o EER é a medida.
 
+**Demonstração com a própria voz** (`scripts/gerar_sintetico.py`): você grava
+algumas frases e o script refaz cada uma com vocoders da época do ASVspoof
+2019 — Griffin-Lim (o do ataque A11) e WORLD (A02/A03/A05/A07; requer
+`pip install pyworld "setuptools<81"`). Sai uma playlist pareada
+(original → Griffin-Lim → WORLD) com cola. Original e falso têm o mesmo
+locutor, microfone e texto: se o monitor separa os dois, reage à síntese, não
+ao canal.
+
 **O limiar é escolhido pelo tipo de áudio** (`src/limiares.py`), no monitor e
 no `infer.py`: captura ao vivo e arquivos gravados acima de 16 kHz usam o
 recalibrado; arquivos nativos de 16 kHz, o original. Basta passar o checkpoint
