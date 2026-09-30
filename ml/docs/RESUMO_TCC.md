@@ -1396,7 +1396,51 @@ porque é calculado pelos log-odds (correção da 5.3).
   ida e volta, e vai para uma cópia do checkpoint com os mesmos pesos. O eval
   não é tocado na calibração; o efeito se mede nele depois. Para o fusion_v4 o
   script recusa: com todos os humanos em probabilidade 1,0, não existe limiar
-  em probabilidade. **Resultado no eval: pendente.**
+  em probabilidade.
+
+**Resultado da recalibração (baseline_v2).** No dev com captura (10.002 áudios,
+EER 15,90%), o limiar foi de 0,6539 para **0,9829**: os humanos acima dele
+caíram de 81,0% para 15,9%. No **eval** (A07–A19, não vistos na calibração),
+derivado de precisão e recall:
+
+| áudio | limiar | humanos marcados como sintéticos | sintéticos que passam |
+|---|---|---|---|
+| captura | original 0,6539 | 71% | 5% |
+| captura | **recalibrado 0,9829** | **17%** | **31%** |
+| limpo (16 kHz nativo) | original 0,6539 | 10% | 29% |
+| limpo (16 kHz nativo) | recalibrado 0,9829 | 0,1% | 69% |
+
+- **Na captura, o ponto de operação volta a ser usável**: de 7 em cada 10
+  humanos acusados para menos de 2 em 10. O EER não muda (24,70%): só o corte
+  se move, a ordenação é a mesma.
+- **O equilíbrio do dev não transfere inteiro para o eval** (17% contra 31%, e
+  não 16% contra 16%): os ataques do eval são inéditos e mais difíceis, e um
+  limiar calibrado nos ataques do treino deixa passar mais deles. É a mesma
+  limitação de qualquer calibração fora do domínio de teste — registrada, não
+  corrigida.
+- **Um limiar por caminho do áudio.** Em áudio nativo de 16 kHz com a banda
+  inteira, o limiar recalibrado deixa passar 69% dos sintéticos; lá vale o
+  original. O que decide é se o áudio passou por uma taxa acima de 16 kHz e
+  foi convertido — ver 10.2.2.
+
+### 10.2.2 Qual limiar vale para qual áudio
+
+A faixa de 7,6–8 kHz não some só na captura ao vivo. Some em **qualquer
+conversão para 16 kHz**: o `librosa.load(sr=16000)`, que o projeto usa para
+abrir arquivos, reamostra com o mesmo tipo de filtro (`soxr_hq`). Então:
+
+| origem do áudio | chega ao modelo com 7,6–8 kHz? | limiar |
+|---|---|---|
+| arquivo gravado a 16 kHz com a banda inteira (ex.: ASVspoof) | sim | original |
+| captura ao vivo (loopback a 48 kHz) | não | recalibrado |
+| arquivo gravado a 44,1/48 kHz: celular, microfone, WhatsApp, MP3, vídeo | não | recalibrado |
+| arquivo a 8 kHz (telefonia) | não — e nada acima de 4 kHz | nenhum dos dois foi medido |
+
+Ou seja: o limiar original só vale para o formato da base de treino. Quase todo
+áudio do mundo real nasce a 44,1 ou 48 kHz e cai no caso do recalibrado. Isso
+reforça a conclusão da 10.2.1: um detector para uso real não deveria depender
+do topo da banda (Seção 2.1).
+
 - **Com retreino:** aumentação com a ida e volta, ou LFCC limitado abaixo de
   7,5 kHz — o raciocínio do baseline de 2021 (Seção 2.1). Trabalho futuro.
 
