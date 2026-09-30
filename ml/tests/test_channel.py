@@ -21,8 +21,8 @@ SR = 16000
 
 @pytest.fixture
 def wav():
-    """Ruído rosa: energia em todas as bandas, como a fala. Um tom puro
-    comprimiria a quase nada e não exercitaria o codec."""
+    """Ruído rosa, com energia em todas as bandas como a fala (um tom puro
+    mal exercitaria o codec)."""
     rng = np.random.default_rng(0)
     branco = rng.standard_normal(SR * 2)
     espectro = np.fft.rfft(branco)
@@ -33,9 +33,8 @@ def wav():
 
 
 # --------------------------------------------------------------------------- #
-# Comprimento — a perturbação roda DEPOIS do preprocess_waveform, quando o sinal
-# já tem o tamanho que define o shape das features. Mudá-lo derrubaria a
-# inferência no meio de uma avaliação de horas.
+# Comprimento — a degradação roda depois do preprocess_waveform; mudar o
+# tamanho quebraria o shape das features
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("kind,level", [("opus", 0.5), ("opus", 1.0), ("band", 8000)])
 def test_comprimento_preservado(wav, kind, level):
@@ -151,9 +150,7 @@ def test_ignora_o_rng(wav):
 
 
 # --------------------------------------------------------------------------- #
-# Picklable — no Windows o dataset inteiro é serializado para cada worker
-# (`spawn`). Uma closure prenderia a robustez a num_workers=0, que já foi um
-# problema real neste projeto.
+# Picklable — no Windows (`spawn`) o dataset é serializado para cada worker
 # --------------------------------------------------------------------------- #
 def test_degradacao_e_picklavel(wav):
     import pickle
@@ -188,8 +185,7 @@ def test_channel_nao_e_importado_pelo_caminho_de_treino():
 
 
 def test_captura_apaga_so_o_topo_da_banda():
-    """A ida e volta 16 -> 48 -> 16 kHz da captura ao vivo: preserva até 7,3 kHz
-    e apaga 7,7-8 kHz, sem mudar o comprimento."""
+    """Ida e volta 16 -> 48 -> 16 kHz: preserva até 7,3 kHz e apaga 7,7-8 kHz."""
     import numpy as np
     from scipy.signal import welch
 

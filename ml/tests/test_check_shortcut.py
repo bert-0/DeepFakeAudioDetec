@@ -30,8 +30,7 @@ def test_separacao_forte_e_detectada():
 
 
 def test_detecta_atalho_invertido():
-    """Um atalho pode correlacionar em qualquer sentido — spoof mais longo OU
-    mais curto. Testar só um sentido deixaria metade dos casos passar."""
+    """O atalho pode ir nos dois sentidos (spoof mais longo ou mais curto)."""
     rot, val = _rotulos_e_valores(sep=5.0)
     direto = eer_trivial(rot, val)
     invertido = eer_trivial(rot, -val)
@@ -47,12 +46,8 @@ def test_nunca_passa_de_50_por_cento():
 
 
 # --------------------------------------------------------------------------- #
-# Teste de permutação
-#
-# Regressão: a primeira versão comparava o EER trivial com um limiar fixo de
-# 40%, escolhido a olho. Com classes desbalanceadas (~9 spoof por bonafide no
-# LA) o acaso não produz 50%, e sim ~48,9% — então 43,8% passava como "OK"
-# sendo, na verdade, sinal estatisticamente real.
+# Teste de permutação — regressão: o limiar fixo de 40% ignorava que, com
+# ~9 spoof por bonafide, o acaso dá ~48,9% e não 50%
 # --------------------------------------------------------------------------- #
 def _desbalanceado(n_bona=298, n_spoof=2702, sep=0.0, seed=7):
     rot = np.array([0] * n_bona + [1] * n_spoof)

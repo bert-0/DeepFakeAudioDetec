@@ -310,3 +310,115 @@ dentro das funções.
 - Arquivo de scores ASV: variantes de 3 e 4 colunas (com ou sem id do locutor na frente).
 - Com bonafide e spoof empatados em 1,0 (npz antigo), o t-DCF mediria o arredondamento do float32.
 
+
+# Notas removidas dos comentários (lote 10: testes)
+
+## tests/conftest.py
+- Fixture `_roda_de_dentro_de_ml`: com o pytest chamado da raiz do repositório, 14 testes falhavam com `FileNotFoundError` (no Windows do usuário), enquanto o CI, que roda de dentro de `ml/`, passava. O `sys.path` já resolvia os imports; faltava o diretório atual. `monkeypatch.chdir` restaura o diretório ao fim de cada teste.
+
+## tests/test_alinhamento.py
+- Um alinhamento errado produz recortes com o rótulo do vizinho e um EER que parece resultado; por isso os testes cobrem o canal degradado.
+- Deriva de relógio: 0,1% em 12 s dá 12 ms; o ajuste é sequencial para o erro não acumular trecho a trecho.
+- O teste de fluxo completo (scripts/canal_real.py) é o ensaio da camada 2, para não testar o código pela primeira vez com uma chamada real aberta.
+- Sessões (limpo, controle, chamada) saem da mesma playlist; com uma pasta só, a segunda gravação apagava os recortes da primeira.
+- O texto antigo do canal_real mandava copiar o config e rodar `rm -rf` num cache.
+- Precisão de amostra: o envelope tem resolução de 10 ms; o recorte herdava erro de até 5 ms (meio passo do STFT) e o score do MESMO áudio mudava até 0,17 (sessão "limpo" contra o eval de 2019).
+- No primeiro controle real, a gravação começou 7 s depois da reprodução.
+
+## tests/test_asvspoof2021.py
+- No arquivo real do 2021, o bonafide traz `bonafide` também na coluna de ataque. A primeira versão do fixture usava `-` ali e os testes passavam enquanto o parser descartava todo bonafide do arquivo verdadeiro; por isso o fixture tem as duas formas.
+- Rodado no arquivo verdadeiro, o `--listar` devolveu 163.114 trials e ZERO bonafide (o parser exigia uma única ocorrência de `bonafide` por linha).
+- Parser de 2019 no metadado de 2021: `bonafide` fica na 5ª coluna, onde o parser de 2019 procura a chave; ele aceita os bonafide (com o canal `ita_tx` no lugar do ataque) e descarta os spoof, gerando um protocolo de uma classe só que parece válido.
+- Config derivado: os artefatos do evaluate.py levam `experiment.name` + partição. Copiar o config do modelo e trocar só os caminhos do eval faria o 2021 sobrescrever métricas/scores do eval de 2019 e recriar o cache do eval.
+- Subamostragem simples poderia deixar A10 ou A12 de fora, os ataques mais importantes.
+- Áudio ausente: com a pasta errada ou extração incompleta, o erro só aparecia no evaluate.py, como FileNotFoundError dentro de um worker do DataLoader.
+- libsndfile falhou em todos os .flac do 2021 no uso real; o librosa caiu no audioread (um processo do FFmpeg por arquivo no Windows) e a avaliação travou sem dizer o motivo. Atualizar o soundfile não resolvia: já estava em 0.14.0 (libsndfile 1.2.2). O cabeçalho dos .flac abria sem erro com `sf.info`, por isso o teste usa FLAC truncado.
+
+## tests/test_audio_load.py
+- Sem o tratamento, um .flac truncado entre os 121.461 da base derrubava um treino de horas com `NoBackendError` de mensagem vazia, sem dizer o arquivo e descartando o erro real do libsndfile.
+- Dois caminhos até `AudioLoadError`: decodificador levanta (libsndfile no Linux, exceção encadeada, ex.: `flac decoder lost sync`) ou devolve áudio parcial sem erro (audioread no Windows, barrado pela conferência de duração). O teste de encadeamento falhou no Windows antes de o decodificador ser simulado.
+- Sem o recuo para `type(erro).__name__`, a mensagem terminaria em "falha ao ler o áudio X: .".
+- `check_data.py --deep` usa `sf.read()` direto: protege a base antes do treino, mas não a leitura durante ele. Os testes simulam o decodificador permissivo para rodar no CI (Linux).
+
+## tests/test_augment.py
+- Enquanto as perturbações eram `lambda`, o pickle não as serializava e a avaliação de robustez ficava presa a num_workers=0 (um processo para 71.237 áudios por condição).
+- Com rng compartilhado, o ruído dependeria da ordem de processamento, que muda com o nº de workers, e a robustez variaria conforme a máquina.
+
+## tests/test_cache.py
+- Se `get` devolvesse vista do memmap, qualquer operação in-place gravaria no arquivo e corromperia o cache em silêncio nas épocas seguintes.
+
+## tests/test_capture.py
+
+- Silêncio fora da agregação: numa chamada real a maior parte do tempo ninguém fala; incluir silêncio tiraria o sentido da média do resumo.
+- Loopback mudo no Windows: sem a dica impressa, o sintoma é indistinguível de falha do modelo.
+- Janela final: o bug aparecia com `monitor.py --arquivo <áudio do ASVspoof>` — o enunciado típico é mais curto que 4 s, o `while` de `alimentar` nunca disparava e o resto era descartado sem erro nem aviso.
+- Direção do score: 0,048 = P(síntese) de 4,8%; a tabela mostrava número e barra sem indicar o lado do limiar.
+
+## tests/test_channel.py
+
+- Mudar o comprimento na degradação derrubaria a inferência no meio de uma avaliação de horas.
+- Picklable: uma closure prenderia a robustez a num_workers=0 no Windows, o que já foi problema real no projeto.
+- Ida e volta 16 -> 48 -> 16 kHz da captura ao vivo não muda o comprimento.
+
+## tests/test_check_data.py
+
+- FLAC truncado pela metade reporta a duração original no cabeçalho; o erro no treino não dizia qual arquivo.
+
+## tests/test_check_shortcut.py
+
+- O limiar fixo de 40% foi escolhido a olho; com o acaso em ~48,9%, um EER trivial de 43,8% passava como "OK" sendo sinal estatisticamente real.
+- Testar o atalho num só sentido deixaria metade dos casos passar.
+
+## tests/test_fusao_ao_vivo.py
+
+- A repetição de 0,48 s 8x (janela com 10% de fala) é entrada que não existe no treino.
+- Canal: a degradação medida em banda estreita (+5,35 pp) levou a excluir a janela, não a ponderá-la de forma contínua.
+
+## tests/test_memoria_treino.py
+
+- O travamento no notebook de 16 GB exigia desligar no botão; dos 8 workers, 4 (os de dev) ficavam ociosos o treino inteiro. A queda por falta de RAM é o cenário real que motivou o checkpoint atômico.
+
+## tests/test_captura_thread.py
+
+- O falso do soundcard também permite atrasar o consumidor à vontade, para testar ordem dos blocos, contagem de perdas e reamostragem sem bordas.
+- O buffer pedido ao WASAPI tem de cobrir pausas de centenas de ms da thread.
+
+## tests/test_converter_para_wav.py
+
+- Erro do libsndfile nos .flac do ASVspoof 2021: "unknown error in flac decoder"; o custo do FFmpeg por arquivo é no Windows.
+
+## tests/test_dataset.py
+
+- Dev/eval nunca recebem aumentação nem recorte aleatório.
+
+# Notas — lote 12 (testes)
+
+## tests/test_configs_completos.py
+- Motivo do teste: uma edição de config removeu `train.device` por acidente; os 278 testes unitários passaram e só o smoke pegou (`KeyError: 'device'` no train.py, linha 290 na época, depois de todo o carregamento de dados).
+
+## tests/test_eval_workers.py
+- O treino já usava `worker_init_fn=seed_worker`; os scripts de avaliação (que percorrem os 71.237 áudios do eval) não usavam. Sem ele os workers disputam CPU entre si (3,3x mais lento no estágio de dados).
+
+## tests/test_models.py
+- Regressão do pooling `freq_stats` na atenção: antes `stats` e `freq_stats` caíam no mesmo ramo, e o Incremento 3 descartava o eixo espectral que o Incremento 2 preservava.
+- fp16 estoura em ~65504; sob AMP, x~1e3 dava x^2~1e6 e o pooling divergia (por isso é calculado em float32).
+
+## tests/test_monitor_consistencia.py
+- O caminho offline foi validado contra o eval de 2019 amostra a amostra (sessão "limpo" do teste ao vivo, RESUMO 10.2.1).
+
+## tests/test_pipeline_subprocess.py
+- Sem PYTHONIOENCODING, o pai decodifica UTF-8 e o log grava U+FFFD no lugar do acento: perda irreversível.
+
+## tests/test_qualidade.py
+- Contexto medido (`robustness_eval.py`, eval completo): o codec Opus custa +1,90 pp de EER ao `fusion_v4`; perder a banda alta custa +5,35 pp.
+- Com a média da janela, vogal sustentada dava 0,00% (fala real 5,40%); o p90 pergunta "algum quadro teve alta frequência?".
+
+## tests/test_rotulo.py
+- O protocolo do eval tem 71.237 linhas (motivo da listagem de exemplos).
+
+## tests/test_score_fusion.py
+- O teste de fusão complementar reproduz a complementaridade medida entre as configurações reais.
+
+## tests/test_scores.py
+- Os empates por arredondamento (6 casas do .txt) foram o motivo de a fusão por posto precisar tratar empates.
+

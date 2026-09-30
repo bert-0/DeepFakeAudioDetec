@@ -1,9 +1,7 @@
 """Captura do loopback numa thread própria (src/capture/sources.py).
 
-O `soundcard` real só existe no Windows com placa de som; aqui ele é trocado por
-um falso que grava uma senoide contínua, avisa de descontinuidade quando
-mandado e demora quanto se quiser — o suficiente para testar a ordem dos
-blocos, a contagem de perdas e a reamostragem sem bordas.
+O `soundcard` real só existe no Windows; aqui um falso entrega o sinal dado e
+simula descontinuidades e falhas sob demanda.
 """
 
 import sys
@@ -66,8 +64,7 @@ def _coletar(fonte, n_blocos, atraso_s=0.0):
 
 
 def test_consumidor_lento_nao_perde_nem_reordena(monkeypatch):
-    """Com o "modelo" demorando entre blocos, o que sai tem de ser exatamente a
-    reamostragem do sinal inteiro, sem buraco e sem troca de ordem."""
+    """Com o consumidor lento, a saída é a reamostragem exata do sinal, sem buracos."""
     import soxr
 
     rng = np.random.default_rng(0)
@@ -118,8 +115,7 @@ def test_fechar_encerra_a_thread(monkeypatch):
 
 
 def test_buffer_do_wasapi_e_pedido_grande(monkeypatch):
-    """O padrão do soundcard é um período (~10 ms): qualquer pausa da thread
-    perdia áudio. O pedido tem de cobrir pausas de centenas de ms."""
+    """O padrão do soundcard (~10 ms) perdia áudio em qualquer pausa da thread."""
     from src.capture.sources import BUFFER_CAPTURA_S
 
     gravador = _GravadorFalso(np.zeros(48000), [])

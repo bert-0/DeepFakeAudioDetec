@@ -54,8 +54,7 @@ def test_lista_carrega_os_dois(dois_modelos):
 
 
 def test_o_score_fundido_e_a_media_dos_individuais(dois_modelos):
-    """A regra é `mean` e não `rank`: rank precisa do conjunto todo de scores,
-    que não existe num fluxo ao vivo."""
+    """Regra `mean`, não `rank`: rank exige todos os scores, que ao vivo não há."""
     caminhos, cfg = dois_modelos
     a = AnalisadorContinuo(cfg, caminhos, torch.device("cpu"))
     leituras = [x for x in a.processar(_ruido()) if not x.silencio]
@@ -66,8 +65,7 @@ def test_o_score_fundido_e_a_media_dos_individuais(dois_modelos):
 
 
 def test_modelos_com_features_diferentes_convivem(dois_modelos):
-    """O `fusion_v4` usa n_filter 70 + espectrograma; o v2, n_filter 20 e só
-    LFCC. Cada um tem o seu extractor sobre o mesmo waveform."""
+    """fusion_v4 (LFCC 70 + espectrograma) e v2 (LFCC 20) com extractores próprios."""
     caminhos, cfg = dois_modelos
     a = AnalisadorContinuo(cfg, caminhos, torch.device("cpu"))
     assert a.modelos[0].config["features"]["types"] != \
@@ -82,8 +80,7 @@ def test_lista_vazia_e_erro(dois_modelos):
 
 
 def test_janelas_incompativeis_sao_recusadas(tmp_path, dois_modelos):
-    """Fundir modelos treinados com janelas diferentes compararia trechos de
-    comprimentos distintos do mesmo áudio."""
+    """Janelas diferentes fariam a fusão comparar trechos de tamanhos distintos."""
     caminhos, cfg = dois_modelos
     outro = yaml.safe_load((RAIZ / "configs" / "baseline_v2.yaml").read_text(encoding="utf-8"))
     outro["audio"]["duration"] = 2.0
@@ -95,11 +92,8 @@ def test_janelas_incompativeis_sao_recusadas(tmp_path, dois_modelos):
 
 
 # --------------------------------------------------------------------------- #
-# Janelas independentes
-#
-# Regressão: o resumo contava janelas sobrepostas como se fossem observações
-# independentes. Com janela 4 s e passo 2 s, 5 janelas cobrem 12 s — o
-# equivalente a 3 janelas sem sobreposição.
+# Janelas independentes — regressão: sobrepostas contavam como independentes
+# (janela 4 s, passo 2 s: 5 janelas cobrem 12 s, ou seja, 3 independentes)
 # --------------------------------------------------------------------------- #
 def _leitura(i, score=0.5, canal=EstadoDoCanal.LARGA):
     return Leitura(indice=i, instante=2.0 * i, score=score, rms=0.1, canal=canal)
@@ -162,14 +156,9 @@ def test_silencio_e_canal_ruim_sao_contados_separados():
 
 
 # --------------------------------------------------------------------------- #
-# Ponderação
-#
-# O `preprocess_waveform` remove o silêncio e completa por REPETIÇÃO. Medido:
-# uma janela com 10% de fala vira um trecho de 0,48 s repetido 8 vezes — entrada
-# que não existe no treino. Quanto menos fala original, menos a janela pesa.
-#
-# O canal NÃO é ponderado de forma contínua: a degradação foi medida (+5,35 pp
-# em banda estreita) e a resposta medida é excluir, não atenuar.
+# Ponderação — o preprocess completa por repetição (10% de fala vira 0,48 s
+# repetido 8x), então pouca fala pesa pouco. Canal ruim (+5,35 pp em banda
+# estreita) é excluído, não atenuado.
 # --------------------------------------------------------------------------- #
 def _com_fala(i, score, fracao, canal=EstadoDoCanal.LARGA):
     return Leitura(indice=i, instante=2.0 * i, score=score, rms=0.1,
@@ -192,8 +181,7 @@ def test_peso_fica_entre_zero_e_um():
 
 
 def test_janela_esvaziada_quase_nao_influencia():
-    """Regressão: a média simples deixava uma janela de 10% de fala pesar
-    tanto quanto uma janela íntegra."""
+    """Regressão: na média simples, 10% de fala pesava como uma janela íntegra."""
     ag = Agregador()
     ag.adicionar(_com_fala(0, 0.9, 1.0))
     ag.adicionar(_com_fala(1, 0.1, 0.1))

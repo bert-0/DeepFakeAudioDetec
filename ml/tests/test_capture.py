@@ -1,8 +1,7 @@
 """Testes da captura ao vivo.
 
-A parte que fala com o WASAPI só roda no Windows, então tudo o mais — janela,
-agregação, análise — foi separado para ser testável em qualquer máquina. Se
-esses testes precisassem de placa de som, o monitor não teria teste nenhum.
+Só o WASAPI depende do Windows; janela, agregação e análise ficam separadas
+para rodar em qualquer máquina, sem placa de som.
 """
 
 import sys
@@ -129,11 +128,7 @@ def test_resample_de_vazio_nao_quebra():
 
 
 # --------------------------------------------------------------------------- #
-# Agregação
-#
-# O silêncio precisa ficar de fora: o modelo nunca viu silêncio rotulado, e
-# incluí-lo faria a média do resumo perder o sentido numa chamada real, onde a
-# maior parte do tempo ninguém está falando.
+# Agregação — o silêncio fica fora da média (o modelo nunca o viu rotulado)
 # --------------------------------------------------------------------------- #
 def _leitura(i, score, rms=0.1):
     return Leitura(indice=i, instante=float(i), score=score, rms=rms)
@@ -183,9 +178,8 @@ def test_resumo_sem_leituras_nao_quebra():
 
 
 # --------------------------------------------------------------------------- #
-# Diagnóstico de captura muda: no Windows o loopback devolve silêncio sem erro
-# quando nada está tocando, ou quando o dispositivo aberto não é o que o sistema
-# usa. Sem dica, o sintoma é indistinguível de falha do modelo.
+# Captura muda — o loopback devolve silêncio sem erro se nada toca ou se o
+# dispositivo aberto não é o do sistema
 # --------------------------------------------------------------------------- #
 def test_captura_toda_em_silencio_explica_as_causas(capsys):
     from monitor import relatar
@@ -219,12 +213,8 @@ def test_arquivo_silencioso_nao_recebe_dica_de_dispositivo(capsys):
 
 
 # --------------------------------------------------------------------------- #
-# Janela final
-#
-# Regressão real: `monitor.py --arquivo <audio do ASVspoof>` devolvia
-# "Janelas analisadas: 0". A janela tem 4 s e o enunciado tipico do ASVspoof e
-# mais curto, entao o `while` de `alimentar` nunca disparava e o resto era
-# descartado em silencio — sem erro, sem aviso, sem resultado.
+# Janela final — regressão: áudio mais curto que a janela de 4 s era descartado
+# e o monitor mostrava "Janelas analisadas: 0"
 # --------------------------------------------------------------------------- #
 def test_audio_mais_curto_que_a_janela_ainda_produz_janela():
     from src.capture.stream import JanelaDeslizante
@@ -309,11 +299,8 @@ def test_peso_da_janela_final_cai_com_a_duracao(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Direção do score na interface
-#
-# Regressão de usabilidade: um score de 0,048 (P(síntese) = 4,8%, ou seja voz
-# humana com folga) foi lido como "o programa disse que é sintético". A tabela
-# mostrava o número e uma barra, e nada dizia em que direção a decisão fica.
+# Direção do score — regressão: 0,048 (voz humana com folga) foi lido como
+# "é sintético", porque nada mostrava de que lado fica a decisão
 # --------------------------------------------------------------------------- #
 def test_barra_marca_a_posicao_do_limiar():
     from monitor import barra
@@ -378,10 +365,9 @@ def test_resumo_acusa_indicio_de_sintese_acima_do_limiar():
 
 
 def test_score_é_probabilidade_de_spoof_e_nao_de_bonafide(tmp_path):
-    """Trava a convenção: spoof=1 no LABEL_MAP, e o score é softmax[...][1].
+    """Trava a convenção spoof=1: o score é softmax[...][1].
 
-    Se alguém inverter isso, todo EER do projeto vira 1-EER e nenhum teste de
-    formatação perceberia.
+    Invertida, todo EER viraria 1-EER sem que os outros testes notassem.
     """
     from src.data.dataset import LABEL_MAP
 

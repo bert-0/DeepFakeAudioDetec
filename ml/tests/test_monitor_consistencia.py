@@ -1,10 +1,7 @@
 """O monitor dá o mesmo score que o caminho offline para o mesmo áudio.
 
-É a pergunta "o programa tem erro?" em forma de teste. O caminho offline
-(`infer.py`, `evaluate.py`) foi validado contra o eval de 2019 amostra a
-amostra (sessão "limpo" do teste ao vivo, RESUMO 10.2.1). Se o monitor chega
-ao mesmo número para o mesmo áudio, um resultado estranho ao vivo é do áudio
-ou do modelo, não do programa.
+O offline (`infer.py`, `evaluate.py`) já foi validado contra o eval; se os dois
+batem, um resultado estranho ao vivo vem do áudio ou do modelo, não do programa.
 """
 
 import numpy as np

@@ -1,8 +1,7 @@
-"""Testes da consulta de rótulo (scripts/rotulo.py).
+"""Consulta de rótulo (scripts/rotulo.py).
 
-Motivação: procurar o ID com `findstr` falha em silêncio — saída vazia é
-indistinguível de protocolo errado, pasta errada ou ID de outra base. Estes
-testes garantem que a falha seja explicada, não muda.
+Um `findstr` vazio não diz se o erro é de protocolo, pasta ou base; estes
+testes garantem que a falha venha explicada.
 """
 
 import sys
@@ -107,8 +106,7 @@ def test_caminho_windows_completo_funciona(projeto, capsys):
 
 
 # --------------------------------------------------------------------------- #
-# Listagem de exemplos — existe para montar as figuras sem caçar IDs no
-# protocolo de 71.237 linhas.
+# Listagem de exemplos (para as figuras, sem caçar IDs no protocolo)
 # --------------------------------------------------------------------------- #
 @pytest.fixture
 def base_grande(tmp_path):
@@ -161,11 +159,8 @@ def test_sem_alvo_e_sem_exemplos_explica_o_uso(base_grande):
 
 
 # --------------------------------------------------------------------------- #
-# Rótulo verdadeiro dentro do monitor
-#
-# Sem ele, rodar o monitor num arquivo mostra que o sistema opera e nada mais.
-# Com ele, a mesma execução vira verificação — e foi a falta disso que deixou
-# um score de 0,048 ser lido como "o programa disse que é sintético".
+# Rótulo verdadeiro dentro do monitor: a execução vira verificação
+# (sem ele, um score de 0,048 já foi lido como "o programa disse que é sintético")
 # --------------------------------------------------------------------------- #
 def test_busca_encontra_nas_tres_particoes(projeto):
     from src.config import load_config

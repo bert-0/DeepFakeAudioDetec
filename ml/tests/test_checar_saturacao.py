@@ -12,7 +12,7 @@ from scripts.checar_saturacao import contar, main  # noqa: E402
 
 
 def test_softmax_float32_satura_em_exatamente_1():
-    """O fato que motiva o script, medido: margem de logit 17 já dá 1.0 exato."""
+    """Em float32, margem de logit 17 já dá softmax 1.0 exato."""
     p16 = torch.softmax(torch.tensor([[0.0, 16.0]]), dim=1)[0, 1].item()
     p17 = torch.softmax(torch.tensor([[0.0, 17.0]]), dim=1)[0, 1].item()
     assert p16 < 1.0
@@ -20,12 +20,7 @@ def test_softmax_float32_satura_em_exatamente_1():
 
 
 def test_saturacao_destroi_a_ordem_e_o_eer():
-    """Dois conjuntos perfeitamente separados pelo logit viram EER ~50% no softmax.
-
-    Bonafide com margem 20 e spoof com margem 30: o modelo separa as classes
-    sem erro nenhum, mas em float32 todos viram 1.0 e o EER passa a medir o
-    arredondamento.
-    """
+    """Classes separadas pelo logit (margens 20 e 30) viram 1.0 no softmax e o EER vai a ~50%."""
     from src.metrics import compute_eer
 
     logits_b = torch.tensor([[0.0, 20.0]] * 50)

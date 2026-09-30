@@ -1,10 +1,7 @@
 """Testes da importação do ASVspoof 2021.
 
-O metadado de 2021 tem oito campos, contra cinco do protocolo de 2019, e em
-ordem diferente. Aplicar o parser de 2019 nele não levanta erro: ele descarta
-todas as linhas em silêncio e devolve lista vazia. O teste
-`test_parser_de_2019_falharia_em_silencio` registra exatamente esse cenário —
-é a razão de este módulo existir.
+O metadado de 2021 tem oito campos em outra ordem; o parser de 2019 o lê
+errado sem levantar erro.
 """
 
 import sys
@@ -25,13 +22,8 @@ from src.data.asvspoof2021 import (  # noqa: E402
 )
 from src.data.dataset import parse_protocol_with_systems  # noqa: E402
 
-# Linhas no formato do eval-package:
-#   locutor arquivo codec canal ataque chave trim fase
-#
-# No arquivo REAL, o bonafide traz `bonafide` também na coluna de ataque. A
-# primeira versão deste fixture usava `-` ali — o formato suposto — e por isso
-# os testes passavam enquanto o parser descartava todo bonafide do arquivo
-# verdadeiro. As duas formas ficam aqui de propósito.
+# Formato do eval-package: locutor arquivo codec canal ataque chave trim fase.
+# O bonafide aparece com `bonafide` (formato real) e com `-` na coluna de ataque.
 LINHAS = """\
 LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval
 LA_0009 LA_E_1000001 alaw ita_tx bonafide bonafide notrim eval
@@ -51,16 +43,11 @@ def metadata(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# A regressão que motiva o módulo
+# Parser de 2019 no arquivo de 2021
 # --------------------------------------------------------------------------- #
 def test_parser_de_2019_leria_o_arquivo_de_2021_errado_e_em_silencio(metadata):
-    """Sem conversão, o parser de 2019 devolve lixo plausível, sem erro.
-
-    No formato real do 2021 o bonafide tem `bonafide` na 5ª coluna, que é onde o
-    parser de 2019 procura a chave. Então ele ACEITA as linhas bonafide — com o
-    canal (`ita_tx`) no lugar do ataque — e descarta todos os spoof. O resultado
-    é um protocolo de uma classe só, que parece válido.
-    """
+    """O parser de 2019 aceita só o bonafide, com o canal no lugar do ataque,
+    e descarta os spoof sem erro."""
     lidos = parse_protocol_with_systems(metadata)
     assert lidos, "se isto voltar a ser vazio, o formato do fixture mudou"
     assert all(label == 0 for _, label, _ in lidos), "só bonafide sobrevive"
@@ -88,13 +75,13 @@ def test_bonafide_nao_ganha_ataque(metadata):
 
 
 def test_ataques_sao_os_mesmos_de_2019(metadata):
-    """O valor científico do 2021 LA depende disto: mesmos A07–A19."""
+    """Os ataques do 2021 LA são os mesmos A07–A19 de 2019."""
     ataques = {t.ataque for t in ler_metadata(metadata) if t.ataque != "-"}
     assert ataques <= {f"A{i:02d}" for i in range(7, 20)}
 
 
 def test_ordem_diferente_dos_campos_ainda_e_lida(tmp_path):
-    """A chave é o âncora, não o índice — outra trilha pode ter campos a mais."""
+    """A chave serve de âncora, então campos a mais não quebram a leitura."""
     p = tmp_path / "m.txt"
     p.write_text("LA_0009 LA_E_1 opus ita_tx extra A07 spoof notrim eval\n",
                  encoding="utf-8")
@@ -106,7 +93,7 @@ def test_ordem_diferente_dos_campos_ainda_e_lida(tmp_path):
 # Falha ruidosa
 # --------------------------------------------------------------------------- #
 def test_protocolo_de_2019_e_recusado(tmp_path):
-    """Apontar para o arquivo errado precisa doer na hora, não no EER."""
+    """Um protocolo de 2019 é recusado já na leitura."""
     p = tmp_path / "2019.txt"
     p.write_text("LA_0079 LA_E_1234567 - A07 spoof\n", encoding="utf-8")
     with pytest.raises(MetadadoInvalido, match="trial_metadata"):
@@ -121,7 +108,7 @@ def test_arquivo_sem_chave_reconhecida_levanta(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Condições — é o que permite a comparação pareada
+# Condições (codec/canal)
 # --------------------------------------------------------------------------- #
 def test_condicoes_sao_contadas_por_classe(metadata):
     achadas = dict((n, (b, s)) for n, b, s in condicoes(ler_metadata(metadata)))
@@ -145,7 +132,7 @@ def test_filtro_sem_criterio_devolve_tudo(metadata):
 
 
 # --------------------------------------------------------------------------- #
-# A saída precisa entrar no evaluate.py sem conversão manual
+# Protocolo convertido para o formato de 2019
 # --------------------------------------------------------------------------- #
 def test_protocolo_convertido_e_lido_pelo_parser_de_2019(metadata, tmp_path):
     trials = ler_metadata(metadata)
@@ -174,7 +161,7 @@ def test_escrever_cria_o_diretorio(metadata, tmp_path):
 # CLI
 # --------------------------------------------------------------------------- #
 def test_cli_recusa_selecao_de_uma_classe_so(metadata, tmp_path, capsys):
-    """gsm/pstn só tem spoof no exemplo: EER não existe com uma classe."""
+    """Recusa gsm/pstn, que só tem spoof: sem duas classes não há EER."""
     import argparse
 
     from scripts.importar_asvspoof2021 import main
@@ -207,12 +194,7 @@ def test_cli_gera_protocolo_utilizavel(metadata, tmp_path, capsys):
 
 
 # --------------------------------------------------------------------------- #
-# Config derivado — a regressão que motiva a função
-#
-# Os artefatos do evaluate.py levam o nome `experiment.name` + partição. O
-# procedimento anterior mandava copiar o config do modelo e trocar só os
-# caminhos do eval: a avaliação do 2021 gravaria POR CIMA dos resultados do
-# eval de 2019 (métricas, scores reaproveitados) e recriaria o cache do eval.
+# Config derivado: não pode sobrescrever os artefatos do eval de 2019
 # --------------------------------------------------------------------------- #
 def _base():
     import yaml
@@ -233,7 +215,7 @@ def test_config_derivado_nao_colide_com_os_artefatos_de_2019():
 
 
 def test_config_derivado_desliga_o_cache():
-    """O cache é indexado pela partição: ligado, apagaria o do eval de 2019."""
+    """Desliga o cache, que é indexado pela partição e colidiria com o de 2019."""
     from src.config import config_derivado
 
     assert config_derivado(_base(), "x", "p", "a")["train"]["cache_features"] is False
@@ -259,7 +241,7 @@ def test_config_derivado_nao_altera_o_original():
 
 
 def test_config_derivado_preserva_audio_features_e_modelo():
-    """Tem que extrair as MESMAS features com que o modelo foi treinado."""
+    """Mantém áudio, features e modelo iguais aos do treino."""
     from src.config import config_derivado
 
     base = _base()
@@ -296,7 +278,7 @@ def test_subamostra_preserva_a_proporcao_das_classes():
 
 
 def test_subamostra_nao_perde_nenhum_ataque():
-    """Amostra simples poderia deixar A10 ou A12 de fora — os que mais importam."""
+    """A amostra estratificada não deixa nenhum ataque de fora."""
     from src.data.asvspoof2021 import subamostrar
 
     ataques = {t.ataque for t in subamostrar(_muitos_trials(), 50, seed=3)}
@@ -358,11 +340,7 @@ def test_cli_sem_config_base_avisa_para_nao_copiar_a_mao(metadata, tmp_path, cap
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: o formato real do bonafide
-#
-# Rodado no arquivo verdadeiro, o `--listar` devolveu 163.114 trials e ZERO
-# bonafide. As linhas bonafide têm `bonafide` duas vezes (coluna de ataque e
-# coluna de chave), e o parser exigia uma ocorrência só.
+# Regressão: bonafide com `bonafide` nas colunas de ataque e de chave
 # --------------------------------------------------------------------------- #
 def test_bonafide_no_formato_real_e_lido(tmp_path):
     p = tmp_path / "m.txt"
@@ -375,7 +353,7 @@ def test_bonafide_no_formato_real_e_lido(tmp_path):
 
 
 def test_fixture_tem_as_duas_classes_nas_condicoes_certas(metadata):
-    """O `--listar` real mostrou 0 bonafide em TODA condição; aqui não pode."""
+    """O fixture tem bonafide nas condições com as duas classes."""
     achadas = {n: (b, s) for n, b, s in condicoes(ler_metadata(metadata))}
     assert achadas["alaw/ita_tx"][0] == 1
     assert achadas["opus/ita_tx"][0] == 1
@@ -394,7 +372,7 @@ def test_descarte_de_linha_e_relatado(tmp_path):
 
 
 def test_cli_para_quando_uma_classe_inteira_some(tmp_path, capsys):
-    """Era o sintoma do defeito: seguir adiante com zero bonafide."""
+    """A CLI para quando uma classe inteira some da leitura."""
     from scripts.importar_asvspoof2021 import main
 
     p = tmp_path / "m.txt"
@@ -405,7 +383,7 @@ def test_cli_para_quando_uma_classe_inteira_some(tmp_path, capsys):
 
 
 def test_listar_mostra_as_fases(metadata, capsys):
-    """O Müller reporta a fase de progresso; a divisão precisa estar visível."""
+    """O `--listar` mostra a divisão por fase (o Müller reporta a de progresso)."""
     from scripts.importar_asvspoof2021 import main
 
     assert main(["--metadata", str(metadata), "--listar"]) == 0
@@ -422,7 +400,7 @@ def test_fases_conta_por_classe(metadata):
 
 
 # --------------------------------------------------------------------------- #
-# Filtro por fase — o metadado real mistura eval, progress e hidden
+# Filtro por fase (eval, progress, hidden)
 # --------------------------------------------------------------------------- #
 def test_filtro_por_fase(metadata):
     from src.data.asvspoof2021 import filtrar
@@ -448,7 +426,7 @@ def test_cli_avisa_quando_a_fase_nao_e_escolhida(metadata, tmp_path, capsys):
 
 
 def test_rotulo_do_arquivo_inclui_a_fase(metadata, tmp_path):
-    """Referência sem codec vira `none_eval_n...`, sem hífen solto do canal `-`."""
+    """Sem codec o rótulo vira `none_eval_n...`, sem o hífen do canal `-`."""
     import argparse
 
     from scripts.importar_asvspoof2021 import rotulo
@@ -458,7 +436,7 @@ def test_rotulo_do_arquivo_inclui_a_fase(metadata, tmp_path):
 
 
 def test_dois_modelos_na_mesma_condicao_nao_sobrescrevem_o_config(metadata, tmp_path):
-    """O protocolo é compartilhado; o config tem que ser um por modelo."""
+    """Cada modelo ganha seu config; só o protocolo é compartilhado."""
     from scripts.importar_asvspoof2021 import main
     from src.config import load_config
 
@@ -477,10 +455,7 @@ def test_dois_modelos_na_mesma_condicao_nao_sobrescrevem_o_config(metadata, tmp_
 
 
 # --------------------------------------------------------------------------- #
-# Áudio ausente — a falha precisa aparecer na importação, não no evaluate.py
-#
-# Com a pasta errada (ou a extração incompleta), o erro só surgia no
-# evaluate.py, como FileNotFoundError dentro de um worker do DataLoader.
+# Áudio ausente: a falha aparece na importação, não no evaluate.py
 # --------------------------------------------------------------------------- #
 def _pasta_com_audios(tmp_path, metadata):
     pasta = tmp_path / "flac"
@@ -521,11 +496,7 @@ def test_importacao_explica_pasta_inexistente(metadata, tmp_path, capsys):
 
 
 # --------------------------------------------------------------------------- #
-# Leitura pelo libsndfile — quando falha, o fallback do librosa é lento demais
-#
-# No uso real, o libsndfile falhou em todos os .flac do 2021 e o librosa caiu
-# no audioread (um processo do FFmpeg por arquivo no Windows). A avaliação
-# travou de tão lenta, e o aviso do librosa não dizia o motivo.
+# Leitura pelo libsndfile (o fallback do librosa é lento demais)
 # --------------------------------------------------------------------------- #
 def test_falha_de_leitura_e_detectada_com_o_erro_real(tmp_path):
     import soundfile as sf
@@ -548,7 +519,7 @@ def test_falha_de_leitura_e_detectada_com_o_erro_real(tmp_path):
 
 
 def test_importacao_avisa_quando_o_libsndfile_nao_le(metadata, tmp_path, capsys):
-    """Arquivos existem, mas não são legíveis: gera o config, avisando alto."""
+    """Com arquivos ilegíveis, gera o config mas avisa e sugere converter para WAV."""
     from scripts.importar_asvspoof2021 import main
 
     pasta = _pasta_com_audios(tmp_path, metadata)       # bytes que não são FLAC
@@ -560,19 +531,14 @@ def test_importacao_avisa_quando_o_libsndfile_nao_le(metadata, tmp_path, capsys)
 
     assert codigo == 0
     assert "libsndfile não conseguiu decodificar" in saida
-    # O conselho antigo era atualizar o soundfile; no uso real ele já estava na
-    # versão mais nova (0.14.0, libsndfile 1.2.2) e o defeito persistia.
+    # Atualizar o soundfile não resolvia (já estava no 0.14.0).
     assert "pip install" not in saida
     assert "converter_para_wav.py" in saida and "--audio-ext .wav" in saida
 
 
 
 def test_cabecalho_bom_com_decodificacao_quebrada_e_detectado(tmp_path):
-    """O caso que `sf.info` deixava passar.
-
-    No uso real o cabeçalho dos .flac do 2021 abriu sem erro. Um FLAC truncado
-    reproduz a situação: o cabeçalho sobrevive, a decodificação não.
-    """
+    """Detecta FLAC truncado, cujo cabeçalho `sf.info` abre sem erro."""
     import soundfile as sf
 
     from scripts.importar_asvspoof2021 import falhas_de_leitura
