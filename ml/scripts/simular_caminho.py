@@ -12,7 +12,13 @@ sessão "limpo", para achar qual delas basta:
                    acima de 7,9 kHz). Nenhuma qualidade do soxr evita isso: é
                    o filtro antialiasing de qualquer conversão para 16 kHz;
 - `passa_baixa`  — corta acima de `--hz`, para achar a partir de onde o
-                   modelo colapsa.
+                   modelo colapsa;
+- `piso`         — soma ruído branco a `--db` dB do pico. Medido no controle
+                   real (`comparar_espectro.py`): o piso das pausas subiu de
+                   -62,5 para -30,9 dB do pico.
+
+Os efeitos se encadeiam na ordem dada: `--efeito reamostragem piso` reproduz
+em software o que o controle mediu.
 
 Uso:
     python scripts/simular_caminho.py --destino reamostragem --efeito reamostragem
@@ -33,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.canal_real import CHECKPOINT_PADRAO, CONFIG_PADRAO  # noqa: E402
 from src.config import config_derivado, load_config, salvar_config  # noqa: E402
 
-EFEITOS = ("perdas", "reamostragem", "passa_baixa")
+EFEITOS = ("perdas", "reamostragem", "passa_baixa", "piso")
 
 
 def remover_trechos(wav: np.ndarray, sr: int, n: int, ms: float,
@@ -74,6 +80,14 @@ def passa_baixa(wav: np.ndarray, sr: int, hz: float) -> np.ndarray:
     return sosfiltfilt(sos, np.asarray(wav, dtype=np.float64)).astype(np.float32)
 
 
+def somar_piso(wav: np.ndarray, db: float, rng: np.random.Generator) -> np.ndarray:
+    """Soma ruído branco com RMS `db` dB abaixo do pico do áudio."""
+    x = np.asarray(wav, dtype=np.float32)
+    pico = float(np.abs(x).max()) or 1.0
+    ruido = rng.standard_normal(len(x)).astype(np.float32) * pico * 10 ** (db / 20)
+    return x + ruido
+
+
 def gerar_sessao(pasta: Path, origem: str, destino: str, transformar,
                  config_base: str = CONFIG_PADRAO) -> tuple[int, Path]:
     """Copia os recortes de `origem` para `destino` aplicando `transformar`."""
@@ -103,20 +117,29 @@ def main(argv=None) -> int:
     p.add_argument("--pasta", default="outputs/canal_real")
     p.add_argument("--origem", default="limpo", help="sessão de onde vêm os recortes")
     p.add_argument("--destino", required=True, help="nome da sessão simulada")
-    p.add_argument("--efeito", choices=EFEITOS, default="perdas")
+    p.add_argument("--efeito", choices=EFEITOS, nargs="+", default=["perdas"],
+                   help="um ou mais, aplicados na ordem dada")
     p.add_argument("--ms", type=float, default=10.0, help="perdas: duração de cada uma")
     p.add_argument("--n", type=int, default=1, help="perdas: quantas por áudio")
     p.add_argument("--hz", type=float, default=7000.0, help="passa_baixa: frequência de corte")
+    p.add_argument("--db", type=float, default=-31.0,
+                   help="piso: nível do ruído somado, em dB do pico")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--config-base", default=CONFIG_PADRAO)
     args = p.parse_args(argv)
 
     rng = np.random.default_rng(args.seed)
-    transformar = {
+    etapas = {
         "perdas": lambda w, sr: remover_trechos(w, sr, args.n, args.ms, rng),
         "reamostragem": ida_e_volta,
         "passa_baixa": lambda w, sr: passa_baixa(w, sr, args.hz),
-    }[args.efeito]
+        "piso": lambda w, sr: somar_piso(w, args.db, rng),
+    }
+
+    def transformar(wav, sr):
+        for nome in args.efeito:
+            wav = etapas[nome](wav, sr)
+        return wav
     pasta = Path(args.pasta)
     try:
         n, config = gerar_sessao(pasta, args.origem, args.destino, transformar,
@@ -124,7 +147,7 @@ def main(argv=None) -> int:
     except FileNotFoundError as erro:
         print(f"[ERRO] {erro}")
         return 1
-    print(f"{n} áudios com o efeito '{args.efeito}' em {pasta / args.destino}")
+    print(f"{n} áudios com {' + '.join(args.efeito)} em {pasta / args.destino}")
     print(f"\n  python evaluate.py --config {config.as_posix()} "
           f"--checkpoint {CHECKPOINT_PADRAO} --partition eval")
     print(f"  python scripts/comparar_sessoes.py "

@@ -52,3 +52,21 @@ def test_cli_gera_sessao_com_o_efeito(tmp_path, capsys):
     y, _ = sf.read(tmp_path / "canal" / "pb" / "capturado" / "LA_E_0.flac", dtype="float32")
     assert _banda_db(x, y, 6000, 8000) < -30
     assert "evaluate.py" in capsys.readouterr().out
+
+
+def test_efeitos_encadeados_na_ordem(tmp_path):
+    """reamostragem + piso: o topo some E o piso sobe — o controle medido."""
+    from scripts.comparar_espectro import comparar
+
+    origem = tmp_path / "canal" / "limpo"
+    (origem / "capturado").mkdir(parents=True)
+    rng = np.random.default_rng(3)
+    fala = rng.standard_normal(SR).astype(np.float32) * 0.3
+    x = np.concatenate([fala, np.zeros(SR // 2, np.float32), fala])
+    sf.write(origem / "capturado" / "LA_E_0.flac", x, SR)
+    (origem / "protocolo_canal_real.txt").write_text("LA_0099 LA_E_0 - - bonafide\n",
+                                                     encoding="utf-8")
+    assert main(["--pasta", str(tmp_path / "canal"), "--destino", "ambos",
+                 "--efeito", "reamostragem", "piso", "--db", "-31"]) == 0
+    _, dif, pa, pb = comparar(tmp_path / "canal", "limpo", "ambos")
+    assert np.median(pb - pa) > 30

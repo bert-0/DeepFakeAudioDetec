@@ -1287,6 +1287,52 @@ controle já divergir do eval limpo, a diferença é do procedimento, não do Te
 reduzida** (40 áudios, três sessões) está prevista como teste funcional do
 monitor ao vivo; o número que ela dá é indicativo, não uma medida de EER.
 
+### 10.2.1 Execução reduzida — resultados até aqui (parcial)
+
+Playlist de 40 áudios do eval de 2019 (20 bonafide, 20 spoof, os 13 ataques),
+`baseline_v2`. Com 20 bonafide, cada bonafide mal ordenado move o EER em
+~2,5 pp: os números são indicativos. O que importa é a **direção** dos scores,
+áudio por áudio (`comparar_sessoes.py`).
+
+| sessão | o que muda | EER (mesmos áudios) | acertos no limiar |
+|---|---|---|---|
+| eval de 2019 | — | 22,50% | 30/40 |
+| **limpo** (recortes da própria playlist) | nada | **22,50%** — scores idênticos | 30/40 |
+| perdas simuladas (1 × 10 ms por áudio) | um clique | 17,50% | 29/40 |
+| reamostragem simulada (16 → 48 → 16 kHz) | some 7,6–8 kHz | 30,00% | 25/40 |
+| **controle** (alto-falante → loopback, sem chamada) | caminho real de saída | **48,53%** (37 áudios) | 16/37 |
+
+**Validação do procedimento.** A sessão "limpo" reproduz o eval de 2019 amostra
+a amostra (depois do ajuste fino do alinhamento, Seção 9.5). Diferenças nas
+outras sessões são do caminho do som, não do recorte.
+
+**O controle leva todo áudio a ~1,0**, bonafide inclusive (0,006 → 0,999). Não é
+perda de amostra: o controle final teve zero descontinuidades (buffer do WASAPI
+de 1 s), e perdas simuladas quase não mexem no score. `comparar_espectro.py`
+mostra o que o caminho fez, nos mesmos áudios, após normalizar por pico:
+
+- **7,8–8 kHz: −47,8 dB.** É a ida e volta de taxa (16 kHz do arquivo, 48 kHz
+  do dispositivo, 16 kHz do modelo). O filtro antialiasing de qualquer
+  conversão para 16 kHz apaga essa faixa: medido em ruído branco, −30 dB em
+  7,7–7,9 kHz e −103 dB acima de 7,9 kHz, em qualquer qualidade do soxr.
+- **Piso das pausas: +31,5 dB** (−62,5 → −30,9 dB do pico), com o espectro
+  subindo mais onde a fala tem pouca energia (0–250 Hz e 4–7,5 kHz, +10 dB) e
+  menos onde ela é forte (250 Hz–2 kHz, +2 dB) — assinatura de compressão de
+  dinâmica que puxa as partes baixas para cima. Suspeito: os "aprimoramentos
+  de áudio" do driver (Realtek, "Efeitos Padrão do Dispositivo").
+
+**Só a faixa do topo já desloca todos os scores para cima** (bonafide 0,306 →
+0,984; 0,066 → 0,376), inutiliza o limiar e custa ~7,5 pp de EER. **O modelo
+usa a faixa de 7,6–8 kHz.** Isso tem uma consequência estrutural para o
+monitor: a captura do sistema é a 48 kHz e a conversão para 16 kHz apaga essa
+faixa **sempre**, em qualquer chamada. É o mesmo raciocínio que levou os
+organizadores do ASVspoof 2021 LA a limitar o LFCC do baseline a 0–4 kHz
+(Seção 2.1): um detector para canal real não pode depender do topo da banda.
+
+**Pendente:** simular o piso de ruído (`simular_caminho.py --efeito piso` e
+`--efeito reamostragem piso`) e repetir o controle com os aprimoramentos
+desativados, para separar o efeito do driver do efeito da taxa.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
