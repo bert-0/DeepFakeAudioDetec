@@ -399,3 +399,16 @@ def test_sem_forma_de_onda_fica_a_posicao_do_envelope():
     assert len(confiaveis) == len(mapa)
     assert not any(e.refinado for e in confiaveis)
     assert max(abs(e.inicio_capturado - e.trecho.inicio) for e in confiaveis) <= SR // 100
+
+
+def test_gravacao_que_comecou_depois_da_reproducao():
+    """Medido no primeiro controle real: a gravação começou 7 s depois. Os
+    trechos que tocaram antes se perdem; os demais têm de alinhar exatos."""
+    ref, mapa = _playlist_longa(n=15)
+    corte = int(7.0 * SR)
+    encaixes = alinhar(mapa, ref, ref[corte:], SR)
+    depois = [e for e in encaixes if e.trecho.inicio >= corte]
+    antes = [e for e in encaixes if e.trecho.inicio + e.trecho.n <= corte]
+    assert depois and all(e.confiavel and e.refinado for e in depois)
+    assert all(e.inicio_capturado == e.trecho.inicio - corte for e in depois)
+    assert not any(e.confiavel for e in antes)

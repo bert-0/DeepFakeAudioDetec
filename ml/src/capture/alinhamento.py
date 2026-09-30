@@ -126,6 +126,25 @@ def correlacao_maxima(referencia: np.ndarray,
     return i, float(bruto[i])
 
 
+def atraso_global(env_ref: np.ndarray, env_cap: np.ndarray) -> int:
+    """Atraso da gravação em relação à referência, em amostras do envelope.
+
+    **Pode ser negativo.** O procedimento pede para gravar antes de tocar, mas
+    o monitor leva alguns segundos carregando o modelo antes de começar a
+    capturar; se a reprodução começa nesse intervalo, o início da playlist fica
+    de fora da gravação. Medido no primeiro controle real: −7,0 s. Com a busca
+    restrita a atrasos positivos, o alinhamento inteiro se perdia (3 de 40
+    trechos); com ela liberada, perdem-se só os trechos que tocaram antes da
+    gravação começar.
+    """
+    from scipy.signal import correlate
+
+    if env_ref.size == 0 or env_cap.size == 0:
+        return 0
+    bruto = correlate(_normalizar(env_cap), _normalizar(env_ref), mode="full", method="fft")
+    return int(np.argmax(bruto)) - (len(env_ref) - 1)
+
+
 def refinar_amostra(segmento: np.ndarray, captura: np.ndarray, inicio: int,
                     busca: int) -> tuple[int, float]:
     """Ajusta `inicio` à amostra, correlacionando a forma de onda em ±`busca`.
@@ -158,7 +177,7 @@ def alinhar(trechos: list[Trecho], referencia: np.ndarray, captura: np.ndarray,
     """
     env_ref = envelope(referencia, sample_rate)
     env_cap = envelope(captura, sample_rate)
-    atraso_env, _ = correlacao_maxima(env_ref, env_cap)
+    atraso_env = atraso_global(env_ref, env_cap)
     por_amostra = sample_rate / TAXA_ENVELOPE_HZ
 
     encaixes: list[Encaixe] = []

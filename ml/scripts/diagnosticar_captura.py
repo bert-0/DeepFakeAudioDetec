@@ -134,7 +134,11 @@ def diagnosticar(fator, corr_fator, corr_um, usar, pontos,
     linhas.append(f"Pedaços de {PEDACO_S:.0f} s bem localizados"
                   f"{' (após corrigir a escala)' if usar != 1.0 else ''}: "
                   f"{len(bons)}/{len(pontos)} (correlação ≥ 0,5)")
-    if max(corr_fator, corr_um) < 0.4 or len(bons) < 3:
+    # Decide pelos pedaços, não pela correlação global: se a gravação começou
+    # depois da reprodução, a referência inteira não cabe nela e a correlação
+    # global despenca — foi o que aconteceu no primeiro controle real (0,09),
+    # com 54 de 54 pedaços bem localizados.
+    if len(bons) < max(3, len(pontos) // 2):
         linhas.append("DIAGNÓSTICO: quase nada da referência aparece na gravação. O que foi "
                       "gravado não é a playlist (dispositivo errado, volume zero, outro som "
                       "por cima) — ou está deformado demais para qualquer alinhamento.")
@@ -151,9 +155,17 @@ def diagnosticar(fator, corr_fator, corr_um, usar, pontos,
             f"DIAGNÓSTICO: DEGRAUS. O deslocamento salta {n_saltos} vez(es) (maior salto "
             f"{maior:.2f} s): amostras perdidas ou inseridas no caminho — "
             "descontinuidades da captura ou engasgos da reprodução.")
-    if usar == 1.0 and not n_saltos:
-        linhas.append("DIAGNÓSTICO: deslocamento praticamente constante — só atraso. O "
-                      "alinhamento deveria funcionar; se não funcionou, o problema é outro.")
+    mediano = float(np.median([b[1] for b in bons]))
+    if mediano < -0.05:
+        linhas.append(
+            f"DIAGNÓSTICO: A GRAVAÇÃO COMEÇOU {-mediano:.1f} s DEPOIS da reprodução. O "
+            "início da playlist ficou de fora. O `alinhar` lida com isso (perde só os "
+            "trechos do começo); da próxima vez, dê Enter no `tocar` só quando o monitor "
+            "já mostrar a tabela.")
+    if usar == 1.0 and not n_saltos and mediano >= -0.05:
+        linhas.append(f"DIAGNÓSTICO: deslocamento praticamente constante ({mediano:+.2f} s) "
+                      "— só atraso. O alinhamento deveria funcionar; se não funcionou, o "
+                      "problema é outro.")
     return linhas
 
 

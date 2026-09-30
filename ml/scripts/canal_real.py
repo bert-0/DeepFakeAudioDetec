@@ -219,7 +219,9 @@ def tocar_audio(wav: np.ndarray, sample_rate: int, dispositivo: str | None = Non
 def cmd_tocar(args) -> int:
     pasta = Path(args.pasta)
     referencia, sr = sf.read(pasta / "referencia.wav", dtype="float32")
-    print("Confira que o monitor JÁ está gravando no outro terminal.")
+    print("Confira que o monitor JÁ está gravando no outro terminal: ele leva alguns")
+    print("segundos carregando o modelo. Espere aparecer o cabeçalho da tabela")
+    print("('t  score  média ...') antes de dar Enter.")
     if not args.sem_pausa:
         input("Enter para começar... ")
     try:
@@ -354,6 +356,16 @@ def cmd_alinhar(args) -> int:
         print(f"[AVISO] a gravação é mais curta que a playlist "
               f"({(len(referencia)-len(captura))/sr:.0f}s a menos). "
               f"Os trechos do fim vão faltar.")
+
+    from src.capture.alinhamento import TAXA_ENVELOPE_HZ, atraso_global, envelope
+
+    atraso_s = atraso_global(envelope(referencia, sr), envelope(captura, sr)) / TAXA_ENVELOPE_HZ
+    print(f"Atraso da gravação: {atraso_s:+.2f} s")
+    if atraso_s < 0:
+        perdidos_ini = sum(1 for t in mapa if t.inicio / sr < -atraso_s)
+        print(f"[AVISO] a gravação começou {-atraso_s:.1f} s DEPOIS da reprodução: "
+              f"~{perdidos_ini} trecho(s) do início ficaram de fora. Da próxima vez, "
+              "só dê Enter no `tocar` quando o monitor já mostrar a tabela de scores.")
 
     encaixes = alinhar(mapa, referencia, captura, sr)
     pedacos = recortar(captura, encaixes)

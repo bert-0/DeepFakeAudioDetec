@@ -71,3 +71,11 @@ def test_gravacao_sem_a_playlist():
     ref = _ref()
     ruido = np.random.default_rng(3).standard_normal(len(ref)).astype(np.float32) * 0.1
     assert "não é a playlist" in _laudo(ref, ruido)
+
+
+def test_gravacao_comecou_depois():
+    """O caso real do primeiro controle: 7 s do começo ficaram de fora."""
+    ref = _ref()
+    laudo = _laudo(ref, ref[7 * SR:])
+    assert "COMEÇOU 7.0 s DEPOIS" in laudo, laudo
+    assert "não é a playlist" not in laudo and "TAXA" not in laudo, laudo

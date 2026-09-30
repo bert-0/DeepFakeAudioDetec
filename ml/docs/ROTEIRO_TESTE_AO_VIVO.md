@@ -47,6 +47,11 @@ um erro de volume pareceria efeito do canal.
    ```powershell
    python monitor.py --listar-dispositivos
    ```
+5. **Desligue os aprimoramentos de áudio** durante o teste: *Configurações →
+   Sistema → Som → (alto-falante) → Aprimoramentos de áudio → Desativado*.
+   Efeitos do driver (Realtek, por exemplo) mexem no áudio antes de ele sair,
+   e o controle deixaria de ser neutro. Anote o formato do dispositivo (ex.:
+   24 bits, 48000 Hz) e volte o ajuste depois, se quiser.
 
 ## 2. Montar a playlist rotulada
 
@@ -99,7 +104,11 @@ Mesmo caminho de captura da chamada, só que sem o Meet/Teams no meio.
    ```powershell
    python scripts/canal_real.py tocar --pasta outputs/canal_real
    ```
-   Ele espera um Enter para começar — confira antes que o monitor está rodando.
+   Ele espera um Enter para começar. **Só dê Enter quando o terminal 1 já
+   mostrar o cabeçalho da tabela** (`t  score  média ...`): o monitor leva
+   alguns segundos carregando o modelo, e o que tocar antes disso não é
+   gravado. (No primeiro controle real a gravação começou 7 s atrasada; o
+   `alinhar` agora aguenta isso, mas os trechos do começo se perdem.)
 4. Quando a playlist acabar, espere ~5 s e pare o monitor com **Ctrl+C**.
 5. Alinhe e avalie:
    ```powershell
@@ -242,7 +251,8 @@ O resultado é o do passo 6.
 | `Recuperados` abaixo de 32/40 | gravação começou depois do play, ou volume mudou | refaça a sessão, iniciando o monitor antes |
 | `só sobrou uma classe` | quase nada alinhou | idem; confira a correlação impressa |
 | eco ou microfonia | microfone de B ligado | desligue o microfone da ponta B |
-| controle muito diferente do limpo | volume muito baixo ou saturando | volume do Windows em ~50% e repita o controle |
+| controle muito diferente do limpo | volume muito baixo ou saturando, ou aprimoramentos ligados | volume em ~50%, aprimoramentos desativados, repita o controle |
+| `alinhar` recupera poucos trechos | gravação começou tarde, taxa errada ou buracos | `python scripts/diagnosticar_captura.py --pasta outputs/canal_real --gravacao <arquivo>` diz qual |
 
 Depois de rodar, mande a saída do passo 6 e as anotações da Seção 7. A partir
 disso a Seção 10.2 do resumo passa de "não executada" para uma execução
