@@ -14,7 +14,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 import json
 import time
 
@@ -121,7 +121,16 @@ def ver_analise(request: Request, analise_id: int):
     a = banco().buscar(analise_id)
     if a is None:
         raise HTTPException(404, "Análise não encontrada.")
-    return templates.TemplateResponse(request, "resultado.html", {"a": a, "aba": "resultados"})
+    return templates.TemplateResponse(request, "resultado.html", {"a": a, "aba": "resultado"})
+
+
+@app.get("/resultado", response_class=HTMLResponse)
+def ultimo_resultado(request: Request):
+    """Aba Resultado: a análise mais recente."""
+    ultima = banco().ultima()
+    if ultima is None:
+        return templates.TemplateResponse(request, "resultado_vazio.html", {"aba": "resultado"})
+    return RedirectResponse(f"/analises/{ultima}", status_code=303)
 
 
 @app.get("/analises/{analise_id}/relatorio.json")
@@ -136,7 +145,19 @@ def relatorio(analise_id: int):
 @app.get("/historico", response_class=HTMLResponse)
 def historico(request: Request):
     return templates.TemplateResponse(request, "historico.html",
-                                      {"analises": banco().listar(), "aba": "resultados"})
+                                      {"analises": banco().listar(500), "aba": "historico"})
+
+
+@app.post("/historico/excluir")
+def historico_excluir(ids: list[int] = Form(default=[])):
+    banco().excluir(ids)
+    return RedirectResponse("/historico", status_code=303)
+
+
+@app.post("/historico/limpar")
+def historico_limpar():
+    banco().limpar()
+    return RedirectResponse("/historico", status_code=303)
 
 
 @app.get("/sobre", response_class=HTMLResponse)

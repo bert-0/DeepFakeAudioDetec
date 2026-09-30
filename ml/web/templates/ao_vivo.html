@@ -87,7 +87,7 @@
     if (d.existe) desenharSessao(d);
     else if (ativo) { $("score").textContent = "—"; $("veredito").textContent = "Iniciando a captura…"; $("legenda").textContent = ""; $("barras").innerHTML = ""; }
     ocultar("salvo", !d.analise_id);
-    if (d.analise_id) $("salvo").innerHTML = 'Sessão salva em Resultados — <a href="/analises/' + d.analise_id + '">ver resultado</a>.';
+    if (d.analise_id) $("salvo").innerHTML = 'Sessão salva no Histórico — <a href="/analises/' + d.analise_id + '">ver resultado</a>.';
   }
 
   function atualizar() {

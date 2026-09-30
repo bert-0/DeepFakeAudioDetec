@@ -40,7 +40,7 @@ def _wav(tmp_path, taxa=16000, segundos=5.0):
 
 
 def test_paginas_abrem(cliente):
-    for rota in ("/", "/historico", "/sobre", "/ao-vivo"):
+    for rota in ("/", "/historico", "/sobre", "/ao-vivo", "/resultado"):
         assert cliente.get(rota).status_code == 200
 
 
@@ -165,3 +165,34 @@ def test_monitor_para_quando_o_arquivo_de_parada_aparece(tmp_path):
                        capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
     assert json.loads(saida.read_text(encoding="utf-8"))["ativo"] is False
+
+
+def _enviar(cliente, tmp_path, nome):
+    with open(_wav(tmp_path), "rb") as fh:
+        r = cliente.post("/analisar", files={"arquivo": (nome, fh, "audio/wav")},
+                         follow_redirects=False)
+    return int(r.headers["location"].rsplit("/", 1)[1])
+
+
+def test_aba_resultado_leva_a_analise_mais_recente(cliente, tmp_path):
+    assert "Nenhuma análise ainda" in cliente.get("/resultado").text
+    _enviar(cliente, tmp_path, "a.wav")
+    ultima = _enviar(cliente, tmp_path, "b.wav")
+    r = cliente.get("/resultado", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/analises/{ultima}"
+
+
+def test_excluir_alguns_e_limpar_tudo(cliente, tmp_path):
+    ids = [_enviar(cliente, tmp_path, f"f{i}.wav") for i in range(3)]
+    r = cliente.post("/historico/excluir", data={"ids": [ids[0], ids[2]]})
+    assert r.status_code == 200
+    assert "f1.wav" in r.text and "f0.wav" not in r.text and "f2.wav" not in r.text
+    assert cliente.get(f"/analises/{ids[0]}").status_code == 404
+
+    r = cliente.post("/historico/limpar")
+    assert "O histórico está vazio" in r.text
+    assert "Nenhuma análise ainda" in cliente.get("/resultado").text
+
+
+def test_excluir_sem_selecao_nao_quebra(cliente):
+    assert cliente.post("/historico/excluir", data={}).status_code == 200

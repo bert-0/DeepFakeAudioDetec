@@ -65,6 +65,22 @@ class Banco:
         d["janelas"] = json.loads(d["janelas"] or "[]")
         return d
 
+    def ultima(self) -> int | None:
+        with self._conectar() as con:
+            linha = con.execute("SELECT MAX(id) FROM analises").fetchone()
+        return linha[0]
+
+    def excluir(self, ids: list[int]) -> int:
+        if not ids:
+            return 0
+        with self._conectar() as con:
+            marcas = ",".join("?" * len(ids))
+            return con.execute(f"DELETE FROM analises WHERE id IN ({marcas})", ids).rowcount
+
+    def limpar(self) -> int:
+        with self._conectar() as con:
+            return con.execute("DELETE FROM analises").rowcount
+
     def listar(self, limite: int = 100) -> list[dict]:
         with self._conectar() as con:
             linhas = con.execute("SELECT id, criado_em, arquivo, duracao_s, score_medio, "
