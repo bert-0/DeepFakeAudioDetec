@@ -52,3 +52,16 @@ def test_canal_captura_fir_na_simulacao():
     assert abs(_db(x, y, 7600, 7800)) < 0.5
     antigo = ChannelDegradation("captura", 48000, SR)(x)
     assert _db(x, antigo, 7800, 7950) < -20, "o soxr apaga essa faixa; o FIR não"
+
+
+def test_versao_rapida_igual_ao_resample_poly():
+    """A implementação por FFT em fases é só mais rápida: mesmos valores."""
+    from scipy.signal import resample_poly
+
+    from src.preprocess.reamostragem import filtro
+
+    h = filtro(48000)
+    for n in (64000, 64001, 64002):
+        x = np.random.default_rng(n).standard_normal(n)
+        np.testing.assert_allclose(subir(x, SR), resample_poly(x, 3, 1, window=h), atol=1e-5)
+        np.testing.assert_allclose(descer(x), resample_poly(x, 1, 3, window=h), atol=1e-5)

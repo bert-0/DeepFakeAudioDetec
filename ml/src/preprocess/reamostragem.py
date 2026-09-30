@@ -32,22 +32,52 @@ def _razao(de: int, para: int) -> tuple[int, int]:
     return int(para) // g, int(de) // g
 
 
-def subir(x: np.ndarray, de: int, para: int = TAXA_DISPOSITIVO) -> np.ndarray:
-    """Sobe a taxa (ex.: 16 -> 48 kHz) sem apagar o topo da banda original."""
+def _polifasica(x: np.ndarray, up: int, down: int, h: np.ndarray) -> np.ndarray:
+    """O mesmo que `resample_poly(x, up, down, window=h)`, por FFT e em fases.
+
+    Só razões 1:n ou n:1. Cada fase convolui com 1/n do filtro, na taxa baixa:
+    ~15x mais rápido que o resample_poly com 2047 coeficientes.
+    """
+    from scipy.signal import oaconvolve
+
+    x = np.asarray(x, np.float64)
+    atraso = (len(h) - 1) // 2
+    if down == 1:                       # subir: saída intercalada das fases
+        L = up
+        fases = [oaconvolve(x, h[r::L]) for r in range(L)]
+        cheio = np.zeros(max(len(f) for f in fases) * L)
+        for r, f in enumerate(fases):
+            cheio[r::L][: len(f)] = f
+        return (L * cheio)[atraso: atraso + L * len(x)]
+    M = down                            # descer: soma das fases
+    w = np.concatenate([np.zeros(M - 1), x])
+    total = None
+    for r in range(M):
+        wr = w[M - 1 - r::M]
+        c = oaconvolve(wr, h[r::M])
+        total = c if total is None else total[: len(c)] + c[: len(total)]
+    inicio = atraso // M
+    return total[inicio: inicio + -(-len(x) // M)]
+
+
+def _reamostrar(x: np.ndarray, de: int, para: int) -> np.ndarray:
+    up, down = _razao(de, para)
+    h = filtro(max(de, para))
+    if up == 1 or down == 1:
+        return _polifasica(x, up, down, h).astype(np.float32)
     from scipy.signal import resample_poly
 
-    up, down = _razao(de, para)
-    return resample_poly(np.asarray(x, np.float64), up, down,
-                         window=filtro(max(de, para))).astype(np.float32)
+    return resample_poly(np.asarray(x, np.float64), up, down, window=h).astype(np.float32)
+
+
+def subir(x: np.ndarray, de: int, para: int = TAXA_DISPOSITIVO) -> np.ndarray:
+    """Sobe a taxa (ex.: 16 -> 48 kHz) sem apagar o topo da banda original."""
+    return _reamostrar(x, de, para)
 
 
 def descer(x: np.ndarray, de: int = TAXA_DISPOSITIVO, para: int = 16000) -> np.ndarray:
     """Desce a taxa (ex.: 48 -> 16 kHz) de uma vez, para uso fora do tempo real."""
-    from scipy.signal import resample_poly
-
-    up, down = _razao(de, para)
-    return resample_poly(np.asarray(x, np.float64), up, down,
-                         window=filtro(max(de, para))).astype(np.float32)
+    return _reamostrar(x, de, para)
 
 
 def ida_e_volta(x: np.ndarray, sr: int, taxa: int = TAXA_DISPOSITIVO) -> np.ndarray:
