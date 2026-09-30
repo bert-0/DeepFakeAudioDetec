@@ -225,6 +225,12 @@ def main() -> int:
     finally:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
+        perdas = getattr(fonte, "descontinuidades", 0)
+        if perdas:
+            print(f"\n[AVISO] a captura perdeu amostras {perdas} vez(es) (o WASAPI "
+                  "avisou de descontinuidade). Cada perda é um salto na forma de "
+                  "onda; se forem muitas, feche outros programas de áudio e grave "
+                  "de novo.")
         relatar(agregador, args.json, analisador.canal,
                 ao_vivo=not args.arquivo, limiar=analisador.threshold,
                 verdade=verdade)

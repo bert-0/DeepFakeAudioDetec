@@ -92,6 +92,8 @@ class WasapiLoopbackSource(AudioSource):
         self._bloco_ms = int(bloco_ms)
         self._mic = None
         self._taxa_dispositivo = None
+        #: Quantas vezes o WASAPI avisou de amostras perdidas nesta captura.
+        self.descontinuidades = 0
         self._abrir()
 
     def _abrir(self) -> None:
@@ -121,16 +123,84 @@ class WasapiLoopbackSource(AudioSource):
         self._taxa_dispositivo = 48000
 
     def blocos(self):
+        """Blocos já em mono e na taxa do modelo, na ordem em que foram gravados.
+
+        A gravação roda numa **thread própria** e entrega por uma fila. Antes ela
+        dividia o laço com o processamento: enquanto a janela passava pelo
+        modelo, ninguém lia o dispositivo, o buffer do WASAPI transbordava e
+        amostras se perdiam — o `soundcard` avisava com "data discontinuity in
+        recording", dezenas de vezes numa sessão de 3 minutos. Cada perda é um
+        salto na forma de onda, um clique de banda larga que o modelo não viu no
+        treino.
+
+        A reamostragem é **contínua** (`soxr.ResampleStream`): reamostrar cada
+        bloco de 100 ms isoladamente cria uma borda a cada bloco.
+        """
+        import queue
+        import threading
+        import warnings
+
+        import soxr
+
+        fila: queue.Queue = queue.Queue()
+        self._parar = threading.Event()
         quadros = int(self._taxa_dispositivo * self._bloco_ms / 1000)
-        with self._mic.recorder(samplerate=self._taxa_dispositivo) as gravador:
-            while True:
-                dados = gravador.record(numframes=quadros)
-                mono = dados.mean(axis=1) if dados.ndim > 1 else dados
-                yield resample_mono(mono.astype(np.float32),
-                                    self._taxa_dispositivo, self.sample_rate)
+        conversor = soxr.ResampleStream(self._taxa_dispositivo, self.sample_rate,
+                                        1, dtype="float32")
+
+        def gravar():
+            _iniciar_com()
+            try:
+                with self._mic.recorder(samplerate=self._taxa_dispositivo) as gravador:
+                    while not self._parar.is_set():
+                        with warnings.catch_warnings(record=True) as avisos:
+                            warnings.simplefilter("always")
+                            dados = gravador.record(numframes=quadros)
+                        self.descontinuidades += sum(
+                            1 for a in avisos if "discontinuity" in str(a.message))
+                        fila.put(dados)
+            except Exception as erro:          # entregue ao consumidor, não engolido
+                fila.put(erro)
+            finally:
+                fila.put(None)
+
+        self.descontinuidades = 0
+        self._thread = threading.Thread(target=gravar, name="captura-loopback",
+                                        daemon=True)
+        self._thread.start()
+        while True:
+            try:
+                # Com timeout: um get() sem prazo bloqueia o Ctrl+C no Windows.
+                dados = fila.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            if dados is None:
+                return
+            if isinstance(dados, Exception):
+                raise CaptureError(f"a captura parou: {dados}") from dados
+            mono = dados.mean(axis=1) if dados.ndim > 1 else dados
+            yield conversor.resample_chunk(np.ascontiguousarray(mono, dtype=np.float32))
 
     def fechar(self) -> None:
+        parar = getattr(self, "_parar", None)
+        if parar is not None:
+            parar.set()
         self._mic = None
+
+
+def _iniciar_com() -> None:
+    """Inicializa o COM na thread de captura (Windows).
+
+    O `soundcard` inicializa o COM na thread que o importa. Uma thread nova
+    costuma herdar o apartamento multithread implicitamente, mas isso não é
+    garantido; chamar de novo é inofensivo (devolve S_FALSE).
+    """
+    import sys
+
+    if sys.platform == "win32":
+        import ctypes
+
+        ctypes.windll.ole32.CoInitializeEx(None, 0)   # COINIT_MULTITHREADED
 
 
 def resample_mono(wav: np.ndarray, origem: int, destino: int) -> np.ndarray:
