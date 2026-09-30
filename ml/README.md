@@ -490,8 +490,10 @@ Janelas parciais (pouca fala, completadas por repetição) aparecem apagadas: pe
 pouco na média e costumam ter score alto. `POST /api/analisar` devolve o
 resultado em JSON; `GET /api/ao-vivo`, a sessão.
 
-O visual segue o protótipo do docx "Outras partes da UI", sem os elementos de
-maquete: barras de onda decorativas viraram uma barra por janela real, o
+A estrutura (abas, envio, resultado, ao vivo) segue o protótipo do docx
+"Outras partes da UI"; o visual foi trocado por um de ferramenta técnica
+(fundo claro, cantos retos, números em fonte monoespaçada, sem ícones), e os
+elementos de maquete saíram: barras de onda decorativas viraram uma barra por janela real, o
 "nível de confiança em %" virou o score (0 = humano, 1 = sintético, que não é
 uma confiança), e barra de progresso inventada, seletor de estados e botões
 sem função saíram. O caminho de análise é o do monitor, que dá o mesmo score do
