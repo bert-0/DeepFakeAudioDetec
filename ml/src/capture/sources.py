@@ -114,19 +114,16 @@ class WasapiLoopbackSource(AudioSource):
         """Blocos já em mono e na taxa do modelo, na ordem em que foram gravados.
 
         A gravação roda numa thread própria para o processamento não fazer o buffer
-        transbordar; a reamostragem é contínua para não criar bordas entre blocos.
+        transbordar; a reamostragem é contínua (FIR longo, preserva até ~7,9 kHz).
         """
         import queue
         import threading
         import warnings
 
-        import soxr
-
         fila: queue.Queue = queue.Queue()
         self._parar = threading.Event()
         quadros = int(self._taxa_dispositivo * self._bloco_ms / 1000)
-        conversor = soxr.ResampleStream(self._taxa_dispositivo, self.sample_rate,
-                                        1, dtype="float32")
+        conversor = _conversor(self._taxa_dispositivo, self.sample_rate)
 
         def gravar():
             _iniciar_com()
@@ -161,7 +158,7 @@ class WasapiLoopbackSource(AudioSource):
             if isinstance(dados, Exception):
                 raise CaptureError(f"a captura parou: {dados}") from dados
             mono = dados.mean(axis=1) if dados.ndim > 1 else dados
-            yield conversor.resample_chunk(np.ascontiguousarray(mono, dtype=np.float32))
+            yield conversor(np.ascontiguousarray(mono, dtype=np.float32))
 
     def fechar(self) -> None:
         parar = getattr(self, "_parar", None)
@@ -178,6 +175,19 @@ def _iniciar_com() -> None:
         import ctypes
 
         ctypes.windll.ole32.CoInitializeEx(None, 0)   # COINIT_MULTITHREADED
+
+
+def _conversor(origem: int, destino: int):
+    """Conversor contínuo: FIR longo quando a razão é inteira (48 -> 16 kHz), soxr
+    nos outros casos. O soxr apaga 7,6-8 kHz; o FIR mantém até ~7,9 kHz."""
+    if origem % destino == 0:
+        from ..preprocess.reamostragem import DecimadorFIR
+
+        return DecimadorFIR(origem, destino)
+    import soxr
+
+    fluxo = soxr.ResampleStream(origem, destino, 1, dtype="float32")
+    return fluxo.resample_chunk
 
 
 def resample_mono(wav: np.ndarray, origem: int, destino: int) -> np.ndarray:

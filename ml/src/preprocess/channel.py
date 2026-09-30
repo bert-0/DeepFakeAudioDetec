@@ -88,7 +88,7 @@ class ChannelDegradation:
     """
 
     def __init__(self, kind: str, level: float, sample_rate: int):
-        if kind not in ("opus", "band", "captura"):
+        if kind not in ("opus", "band", "captura", "captura_fir"):
             raise ValueError(f"degradação de canal desconhecida: {kind!r}")
         self.kind = kind
         self.level = level
@@ -101,6 +101,10 @@ class ChannelDegradation:
             saida = opus_roundtrip(wav, self.sample_rate, self.level)
         elif self.kind == "captura":
             saida = ida_e_volta_captura(wav, self.sample_rate, int(self.level))
+        elif self.kind == "captura_fir":
+            from .reamostragem import ida_e_volta
+
+            saida = ida_e_volta(wav, self.sample_rate, int(self.level))
         else:
             saida = limitar_banda(wav, self.sample_rate, int(self.level))
         return _ajustar_comprimento(saida, n)

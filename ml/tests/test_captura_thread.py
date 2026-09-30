@@ -65,15 +65,15 @@ def _coletar(fonte, n_blocos, atraso_s=0.0):
 
 def test_consumidor_lento_nao_perde_nem_reordena(monkeypatch):
     """Com o consumidor lento, a saída é a reamostragem exata do sinal, sem buracos."""
-    import soxr
+    from src.preprocess.reamostragem import DecimadorFIR
 
     rng = np.random.default_rng(0)
     sinal = rng.standard_normal(48000 * 3) * 0.1
     _soundcard_falso(monkeypatch, _GravadorFalso(sinal, avisar_em=[]))
     fonte = WasapiLoopbackSource(16000, bloco_ms=100)
     capturado = _coletar(fonte, 20, atraso_s=0.02)
-    referencia = soxr.resample(sinal[: 20 * 4800].astype(np.float32), 48000, 16000)
-    n = len(capturado) - 200        # o fim do fluxo ainda não foi descarregado
+    referencia = DecimadorFIR()(sinal[: 20 * 4800])   # o sinal inteiro, de uma vez
+    n = len(capturado)
     assert fonte.descontinuidades == 0
     np.testing.assert_allclose(capturado[:n], referencia[:n], atol=1e-4)
 

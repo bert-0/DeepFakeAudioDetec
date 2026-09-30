@@ -70,6 +70,8 @@ def main(argv=None) -> int:
     p.add_argument("--amostra", type=int, default=10000, metavar="N",
                    help="áudios do dev, estratificados por ataque (0 = todos)")
     p.add_argument("--taxa", type=int, default=48000, help="taxa do dispositivo de captura")
+    p.add_argument("--caminho", choices=("fir", "soxr"), default="fir",
+                   help="conversão usada na captura: fir (a do monitor atual) ou soxr (a antiga)")
     p.add_argument("--saida", default=None, help="padrão: <checkpoint>_captura.pt")
     p.add_argument("--device", default=None)
     p.add_argument("--smoke", action="store_true")
@@ -87,7 +89,8 @@ def main(argv=None) -> int:
     sr = int(config["audio"]["sample_rate"])
     extractor = FeatureExtractor(config["audio"], config["features"])
     ds = build_dataset(config, "dev", extractor, args.smoke,
-                       augmenter=ChannelDegradation("captura", args.taxa, sr))
+                       augmenter=ChannelDegradation(
+                           "captura_fir" if args.caminho == "fir" else "captura", args.taxa, sr))
     if args.amostra and not args.smoke:
         ds = Subset(ds, indices_estratificados(ds.labels, ds.system_ids, args.amostra, seed))
     batch = config["smoke"]["batch_size"] if args.smoke else config["train"]["batch_size"]
@@ -121,7 +124,7 @@ def main(argv=None) -> int:
     payload = dict(ckpt)
     payload["threshold"] = r["limiar"]
     payload["calibracao"] = {
-        "condicao": "captura", "taxa": args.taxa, "particao": "dev",
+        "condicao": "captura", "caminho": args.caminho, "taxa": args.taxa, "particao": "dev",
         "n_audios": int(len(labels)), "threshold_original": limiar_original,
         "eer_dev_logodds": r["eer_logodds"],
     }

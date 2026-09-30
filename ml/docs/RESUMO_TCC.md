@@ -1497,6 +1497,32 @@ uso real. Os dois caminhos de correção estão identificados: treino com banda
 limitada ou LFCC restrito abaixo de 7,5 kHz (o raciocínio do baseline de 2021,
 Seção 2.1) e dados de ataques atuais (ASVspoof 5, Seção 10.7).
 
+### 10.2.4 Teste pela interface web e o efeito do player
+
+Playlists da demonstração (`scripts/montar_demo.py`: 3 bonafide e 3 spoof do
+eval de 2019, 4 s de silêncio entre eles), `baseline_v2`, aprimoramentos
+desligados, limiar escolhido automaticamente:
+
+| playlist | envio de arquivo | ao vivo, Reprodutor do Windows | ao vivo, VLC |
+|---|---|---|---|
+| reais (bonafide) | 0,03 — sem indício | **0,33 — sem indício** (0 janelas acima) | 0,98 — 7 de 9 janelas acima |
+| falsos (spoof) | 1,00 — indício | **1,00 — indício** (8 de 8) | 1,00 — indício |
+
+Pelo Reprodutor do Windows o sistema separa os dois grupos ao vivo. Pelo VLC,
+**o mesmo arquivo de vozes reais** vai de 0,33 a 0,98: o player altera o áudio
+(reamostragem ou filtros próprios) o bastante para o modelo. Mais um exemplo da
+dependência do caminho do som — e uma instrução prática: na demonstração, tocar
+pelo Reprodutor do Windows ou pelo `canal_real.py tocar`.
+
+**Mitigação da conversão de taxa, sem retreino — implementada, falta medir.** A
+captura e o `tocar` passaram a usar um FIR de 2047 coeficientes com corte em
+7,9 kHz (`src/preprocess/reamostragem.py`) no lugar do `soxr`. Em ruído branco,
+na ida e volta 16 → 48 → 16 kHz: 7,6–7,8 kHz passa de −8,0 dB para 0,0 dB, e
+7,8–7,95 kHz de −32,7 dB para −2,8 dB. Custo ao vivo: ~2 ms por bloco de 100 ms.
+Medida pendente: `robustness_eval.py --so clean captura_48k captura_48k_fir`
+(a condição antiga, `captura_48k`, é a do soxr) e nova calibração do limiar
+(`calibrar_captura.py`, que agora usa o FIR por padrão).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

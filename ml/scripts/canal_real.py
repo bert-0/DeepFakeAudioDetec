@@ -174,13 +174,14 @@ TAXA_CHROME = 48000
 def tocar_audio(wav: np.ndarray, sample_rate: int, dispositivo: str | None = None) -> None:
     """Toca um áudio no dispositivo de saída indicado (ou no padrão)."""
     import soundcard
-    import soxr
+
+    from src.preprocess.reamostragem import subir
 
     alto_falante = (soundcard.get_speaker(dispositivo) if dispositivo
                     else soundcard.default_speaker())
     print(f"Tocando em: {alto_falante.name}  ({len(wav) / sample_rate / 60:.1f} min)")
     # 48 kHz, a taxa da captura: evita a conversão do Windows no meio.
-    wav48 = soxr.resample(np.asarray(wav, dtype=np.float32), sample_rate, TAXA_CHROME)
+    wav48 = subir(wav, sample_rate, TAXA_CHROME)   # FIR: não apaga 7,6-8 kHz
     # Buffer de 1 s; com o padrão de ~10 ms qualquer pausa vira engasgo.
     alto_falante.play(wav48, samplerate=TAXA_CHROME, blocksize=TAXA_CHROME)
 
@@ -209,12 +210,9 @@ def arquivo_para_chrome(referencia: np.ndarray, sr: int, destino: Path,
 
     Acrescenta `espera_s` de silêncio no começo e `SILENCIO_FINAL_S` no fim.
     """
-    from scipy.signal import resample_poly
+    from src.preprocess.reamostragem import subir
 
-    from math import gcd
-
-    g = gcd(TAXA_CHROME, sr)
-    wav = resample_poly(np.asarray(referencia, dtype=np.float64), TAXA_CHROME // g, sr // g)
+    wav = subir(referencia, sr, TAXA_CHROME).astype(np.float64)
     silencio = np.zeros(int(round(espera_s * TAXA_CHROME)))
     final = np.zeros(int(round(SILENCIO_FINAL_S * TAXA_CHROME)))
     wav = np.clip(np.concatenate([silencio, wav, final]), -1.0, 1.0)

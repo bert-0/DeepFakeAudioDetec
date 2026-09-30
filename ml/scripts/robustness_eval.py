@@ -72,7 +72,8 @@ CHANNEL_CONDITIONS = [
     ("banda_estreita_opus", [("band", 8000), ("opus", 0.92)]),  # o caso realista
     # Captura ao vivo (16 -> 48 -> 16 kHz): apaga só 7,6-8 kHz, e isso sozinho
     # inflou todos os scores no teste ao vivo (Seção 10.2.1 do resumo).
-    ("captura_48k", [("captura", 48000)]),
+    ("captura_48k", [("captura", 48000)]),            # soxr (o de antes)
+    ("captura_48k_fir", [("captura_fir", 48000)]),    # FIR longo (o atual)
 ]
 
 
