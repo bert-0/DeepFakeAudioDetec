@@ -1056,7 +1056,7 @@ Fonte: Autoria própria.
 > processamento de clientes de conferência e a vozes externas à base; calibrar
 > os modelos no canal de destino, o que permitiria aproveitar a fusão de scores
 > em tempo real; investigar mecanismos de atenção mais
-> expressivos; e usar encoders pré-treinados em fala, direção apontada pela
+> expressivos; usar encoders pré-treinados em fala, direção apontada pela
 > literatura para os ataques autorregressivos; retreinar com o LFCC limitado a
 > 0 a 4 kHz, como no sistema de referência da ASVspoof 2021 LA, ou com a
 > conversão de taxa no aumento de dados; e avaliar com ataques atuais, como os
