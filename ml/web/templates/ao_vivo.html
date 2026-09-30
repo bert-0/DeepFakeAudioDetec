@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block titulo %}Ao vivo — Análise de Autenticidade de Voz{% endblock %}
+{% block conteudo %}
+<div class="cartao">
+  <div class="linha-arquivo">
+    <span class="ao-vivo-rotulo"><span class="ponto" id="ponto"></span><span id="estado">Ao vivo</span></span>
+    <span class="duracao" id="tempo">00:00</span>
+  </div>
+
+  <div id="sem-sessao" class="texto">
+    <h1>Nenhuma sessão ao vivo</h1>
+    <p>A captura da saída de som é feita pelo monitor, no terminal, porque o
+    navegador não tem acesso ao áudio do sistema. Com o monitor rodando, esta
+    página acompanha a análise janela a janela.</p>
+    <p>Dentro de <code>ml/</code>:</p>
+    <p><code>python monitor.py --config configs/baseline_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt --json {{ arquivo }}</code></p>
+    <p>Desligue os aprimoramentos de áudio do Windows antes de começar.</p>
+  </div>
+
+  <div id="sessao" class="oculto">
+    <div class="centro">
+      <div class="score" id="score">—</div>
+      <div class="veredito" id="veredito"></div>
+      <div class="legenda" id="legenda"></div>
+    </div>
+    <div class="barras" id="barras"></div>
+    <div class="faixa-aviso vermelho oculto" id="alerta">Média acima do limiar — indício de síntese, não prova.</div>
+    <div class="nota" id="origem"></div>
+  </div>
+</div>
+<noscript><p class="rodape">Esta página precisa de JavaScript para acompanhar a sessão.</p></noscript>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var fmt = function (v, c) { return v == null ? "—" : v.toLocaleString("pt-BR", {minimumFractionDigits: c, maximumFractionDigits: c}); };
+  var mmss = function (s) { s = Math.round(s || 0); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function desenhar(d) {
+    if (!d.existe) { $("sem-sessao").classList.remove("oculto"); $("sessao").classList.add("oculto"); return; }
+    $("sem-sessao").classList.add("oculto"); $("sessao").classList.remove("oculto");
+    $("ponto").className = "ponto" + (d.ativo ? " ativo" : "");
+    $("estado").textContent = d.ativo ? "Ao vivo" : "Sessão encerrada";
+    var uteis = d.leituras.filter(function (x) { return x.util; });
+    var ultima = d.leituras.length ? d.leituras[d.leituras.length - 1] : null;
+    $("tempo").textContent = mmss(ultima ? ultima.instante + 4 : 0);
+
+    var media = d.resumo.score_medio, limiar = d.limiar;
+    var acima = media != null && limiar != null && media >= limiar;
+    $("score").textContent = fmt(media, 2);
+    $("score").className = "score " + (media == null ? "amarelo" : (acima ? "vermelho" : "verde"));
+    $("veredito").textContent = media == null ? "Aguardando fala…" : (acima ? "Indício de voz sintética" : "Sem indício de voz sintética");
+    $("legenda").textContent = "média ponderada · última janela " +
+      (uteis.length ? fmt(uteis[uteis.length - 1].score, 2) : "—") +
+      (limiar != null ? " · limiar " + fmt(limiar, 2) : "");
+    $("alerta").classList.toggle("oculto", !acima);
+    $("origem").textContent = d.origem_limiar ? "Limiar: " + d.origem_limiar : "";
+
+    var barras = $("barras"); barras.innerHTML = "";
+    if (limiar != null) {
+      var linha = document.createElement("div"); linha.className = "linha-limiar";
+      linha.style.bottom = (limiar * 100) + "%"; barras.appendChild(linha);
+    }
+    d.leituras.forEach(function (x) {
+      var b = document.createElement("div");
+      b.className = "barra " + (!x.util ? "silencio" : (limiar != null && x.score >= limiar ? "acima" : "abaixo"));
+      b.style.height = (x.util ? Math.max(x.score * 100, 3) : 3) + "%";
+      b.title = fmt(x.instante, 1) + " s — " + (x.util ? "score " + fmt(x.score, 3) : "silêncio");
+      barras.appendChild(b);
+    });
+  }
+
+  function atualizar() {
+    fetch("/api/ao-vivo").then(function (r) { return r.json(); }).then(desenhar).catch(function () {});
+  }
+  atualizar(); setInterval(atualizar, 2000);
+})();
+</script>
+{% endblock %}

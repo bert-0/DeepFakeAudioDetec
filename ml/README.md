@@ -478,10 +478,19 @@ pip install -r web/requirements.txt
 uvicorn web.app:app --reload          # de dentro de ml/; abre em http://127.0.0.1:8000
 ```
 
-Páginas: **Analisar** (envio de arquivo), **resultado** (veredito, score médio,
-limiar com a origem, gráfico do score por janela), **Histórico** e **Sobre**
-(o que foi medido e as limitações). `POST /api/analisar` devolve o mesmo
-resultado em JSON. O caminho de análise é o do monitor, que dá o mesmo score do
+Abas: **Enviar arquivo** (arrastar ou selecionar), **Resultados** (histórico e,
+por análise: score médio, veredito pelo limiar, uma barra por janela de 4 s
+com a cor do lado do limiar, detalhes e relatório em JSON) e **Ao vivo**, que
+acompanha o `monitor.py` rodando no terminal: com `--json outputs/ao_vivo.json`
+ele grava o estado a cada janela, e a página lê esse arquivo a cada 2 s — o
+navegador não tem acesso ao áudio do sistema, a captura fica no monitor.
+`POST /api/analisar` devolve o resultado em JSON; `GET /api/ao-vivo`, a sessão.
+
+O visual segue o protótipo do docx "Outras partes da UI", sem os elementos de
+maquete: barras de onda decorativas viraram uma barra por janela real, o
+"nível de confiança em %" virou o score (0 = humano, 1 = sintético, que não é
+uma confiança), e barra de progresso inventada, seletor de estados e botões
+sem função saíram. O caminho de análise é o do monitor, que dá o mesmo score do
 `infer.py` (`tests/test_monitor_consistencia.py`), e o limiar é escolhido pelo
 tipo de áudio. O arquivo enviado é apagado ao fim da análise; o histórico
 (SQLite em `outputs/web/historico.db`) guarda só o resultado.

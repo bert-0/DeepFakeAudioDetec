@@ -205,6 +205,8 @@ def main() -> int:
     def _mostrar(leitura) -> None:
         """Imprime uma leitura — usada tanto no fluxo quanto na janela final."""
         agregador.adicionar(leitura)
+        if args.json:
+            gravar_json(agregador, args.json, analisador.threshold, escolha.origem, ativo=True)
         if leitura.silencio:
             print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
                   f"{'—':>6s}  {'—':>5s}  (silêncio)")
@@ -248,7 +250,7 @@ def main() -> int:
                   "de novo.")
         relatar(agregador, args.json, analisador.canal,
                 ao_vivo=not args.arquivo, limiar=analisador.threshold,
-                verdade=verdade)
+                verdade=verdade, origem_limiar=escolha.origem)
     return 0
 
 
@@ -262,9 +264,35 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
     print("  Reprocesse com --arquivo para obter exatamente o mesmo resultado.")
 
 
+def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None = None,
+                origem_limiar: str = "", ativo: bool = False) -> Path:
+    """Grava o histórico de scores. Durante a captura é chamado a cada janela
+    (`ativo=True`), para a aba "Ao vivo" da interface web acompanhar; a escrita
+    é atômica para a página nunca ler um arquivo pela metade."""
+    import time
+
+    caminho = Path(destino)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    uteis = {id(x) for x in agregador.uteis}
+    dados = {
+        "ativo": ativo,
+        "atualizado_em": time.time(),
+        "limiar": limiar,
+        "origem_limiar": origem_limiar,
+        "resumo": agregador.resumo(),
+        "leituras": [{"indice": x.indice, "instante": x.instante, "score": x.score,
+                      "rms": x.rms, "silencio": x.silencio, "util": id(x) in uteis}
+                     for x in agregador.leituras],
+    }
+    tmp = caminho.with_suffix(caminho.suffix + ".tmp")
+    tmp.write_text(json.dumps(dados, indent=2), encoding="utf-8")
+    tmp.replace(caminho)
+    return caminho
+
+
 def relatar(agregador: Agregador, destino: str | None, canal=None,
             ao_vivo: bool = False, limiar: float | None = None,
-            verdade: str | None = None) -> None:
+            verdade: str | None = None, origem_limiar: str = "") -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
@@ -312,13 +340,7 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
     print("Lembrete: score alto indica *indício* de síntese. A taxa de erro "
           "deste modelo\nem áudio de chamada ainda não foi medida.")
     if destino:
-        caminho = Path(destino)
-        caminho.parent.mkdir(parents=True, exist_ok=True)
-        historico = [{"indice": x.indice, "instante": x.instante,
-                      "score": x.score, "rms": x.rms, "silencio": x.silencio}
-                     for x in agregador.leituras]
-        caminho.write_text(json.dumps({"resumo": resumo, "leituras": historico},
-                                      indent=2), encoding="utf-8")
+        caminho = gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
         print(f"Histórico: {caminho}")
 
 

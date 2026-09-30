@@ -15,6 +15,9 @@ import tempfile
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+import json
+import time
+
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -53,7 +56,15 @@ def _data(iso: str | None) -> str:
     return f"{d}/{m}/{a} {hora[:5]}".strip()
 
 
+def _mmss(segundos) -> str:
+    if segundos is None:
+        return "--:--"
+    s = int(round(segundos))
+    return f"{s // 60:02d}:{s % 60:02d}"
+
+
 templates.env.filters["br"] = _br
+templates.env.filters["mmss"] = _mmss
 templates.env.filters["data"] = _data
 templates.env.filters["frase"] = _frase
 
@@ -72,40 +83,10 @@ def banco() -> Banco:
     return _estado["banco"]
 
 
-def grafico_svg(janelas: list[dict], limiar: float | None,
-                largura: int = 640, altura: int = 180) -> str:
-    """Score por janela ao longo do tempo, com a linha do limiar. SVG no servidor:
-    sem biblioteca de gráficos no navegador."""
-    uteis = [j for j in janelas if j.get("util")]
-    if not uteis:
-        return ""
-    margem = 30
-    tmax = max(j["t"] for j in uteis) or 1.0
-    x = lambda t: margem + (largura - 2 * margem) * t / tmax          # noqa: E731
-    y = lambda s: altura - margem - (altura - 2 * margem) * s          # noqa: E731
-    pontos = " ".join(f"{x(j['t']):.1f},{y(j['score']):.1f}" for j in uteis)
-    partes = [f'<svg viewBox="0 0 {largura} {altura}" class="grafico" role="img" '
-              f'aria-label="Score por janela ao longo do tempo">',
-              f'<line x1="{margem}" y1="{y(0)}" x2="{largura - margem}" y2="{y(0)}" class="eixo"/>',
-              f'<line x1="{margem}" y1="{y(1)}" x2="{margem}" y2="{y(0)}" class="eixo"/>',
-              f'<text x="4" y="{y(1) + 4}" class="rotulo">1</text>',
-              f'<text x="4" y="{y(0) + 4}" class="rotulo">0</text>',
-              f'<text x="{largura - margem}" y="{altura - 8}" class="rotulo" '
-              f'text-anchor="end">{tmax:.0f} s</text>',
-              f'<text x="{margem}" y="{altura - 8}" class="rotulo">0 s</text>']
-    if limiar is not None:
-        partes.append(f'<line x1="{margem}" y1="{y(limiar):.1f}" x2="{largura - margem}" '
-                      f'y2="{y(limiar):.1f}" class="limiar"/>')
-    partes.append(f'<polyline points="{pontos}" class="serie"/>')
-    partes += [f'<circle cx="{x(j["t"]):.1f}" cy="{y(j["score"]):.1f}" r="2.5" class="ponto"/>'
-               for j in uteis]
-    partes.append("</svg>")
-    return "".join(partes)
-
-
 @app.get("/", response_class=HTMLResponse)
 def inicio(request: Request):
-    return templates.TemplateResponse(request, "inicio.html", {"extensoes": sorted(EXTENSOES)})
+    return templates.TemplateResponse(request, "inicio.html",
+                                      {"extensoes": sorted(EXTENSOES), "aba": "enviar"})
 
 
 async def _analisar_upload(arquivo: UploadFile):
@@ -140,18 +121,62 @@ def ver_analise(request: Request, analise_id: int):
     a = banco().buscar(analise_id)
     if a is None:
         raise HTTPException(404, "Análise não encontrada.")
-    return templates.TemplateResponse(request, "resultado.html", {
-        "a": a, "grafico": grafico_svg(a["janelas"], a["limiar"])})
+    return templates.TemplateResponse(request, "resultado.html", {"a": a, "aba": "resultados"})
+
+
+@app.get("/analises/{analise_id}/relatorio.json")
+def relatorio(analise_id: int):
+    a = banco().buscar(analise_id)
+    if a is None:
+        raise HTTPException(404, "Análise não encontrada.")
+    nome = Path(a["arquivo"]).stem + "_relatorio.json"
+    return JSONResponse(a, headers={"Content-Disposition": f'attachment; filename="{nome}"'})
 
 
 @app.get("/historico", response_class=HTMLResponse)
 def historico(request: Request):
-    return templates.TemplateResponse(request, "historico.html", {"analises": banco().listar()})
+    return templates.TemplateResponse(request, "historico.html",
+                                      {"analises": banco().listar(), "aba": "resultados"})
 
 
 @app.get("/sobre", response_class=HTMLResponse)
 def sobre(request: Request):
     return templates.TemplateResponse(request, "sobre.html", {"modelo": detector().modelo})
+
+
+def arquivo_ao_vivo() -> Path:
+    return Path(os.environ.get("DETECTOR_AO_VIVO", "outputs/ao_vivo.json"))
+
+
+@app.get("/ao-vivo", response_class=HTMLResponse)
+def ao_vivo(request: Request):
+    return templates.TemplateResponse(request, "ao_vivo.html", {
+        "aba": "ao_vivo", "arquivo": arquivo_ao_vivo().as_posix()})
+
+
+#: Sem atualização por mais que isto, a sessão é dada como encerrada (o monitor
+#: grava a cada janela, ou seja, a cada 2 s; Ctrl+C grava com ativo=False).
+SESSAO_PARADA_S = 10.0
+
+
+@app.get("/api/ao-vivo")
+def api_ao_vivo(ultimas: int = 40):
+    """Estado da sessão do monitor, lido do JSON que ele grava a cada janela."""
+    caminho = arquivo_ao_vivo()
+    if not caminho.is_file():
+        return {"existe": False}
+    try:
+        dados = json.loads(caminho.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"existe": False}
+    idade = time.time() - float(dados.get("atualizado_em") or 0)
+    return {"existe": True,
+            "ativo": bool(dados.get("ativo")) and idade < SESSAO_PARADA_S,
+            "idade_s": round(idade, 1),
+            "limiar": dados.get("limiar"),
+            "origem_limiar": dados.get("origem_limiar", ""),
+            "resumo": dados.get("resumo", {}),
+            "leituras": dados.get("leituras", [])[-ultimas:]}
 
 
 @app.post("/api/analisar")
