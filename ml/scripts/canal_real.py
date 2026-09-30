@@ -204,11 +204,16 @@ def tocar_audio(wav: np.ndarray, sample_rate: int, dispositivo: str | None = Non
     reproduz, e deixa escolher o dispositivo pelo nome.
     """
     import soundcard
+    import soxr
 
     alto_falante = (soundcard.get_speaker(dispositivo) if dispositivo
                     else soundcard.default_speaker())
     print(f"Tocando em: {alto_falante.name}  ({len(wav) / sample_rate / 60:.1f} min)")
-    alto_falante.play(np.asarray(wav, dtype=np.float32), samplerate=sample_rate)
+    # Toca a 48 kHz, a mesma taxa em que a captura grava: 16 kHz obrigaria o
+    # Windows a converter no meio, e uma conversão errada muda a duração e o
+    # tom da gravação inteira (ver scripts/diagnosticar_captura.py).
+    wav48 = soxr.resample(np.asarray(wav, dtype=np.float32), sample_rate, TAXA_CHROME)
+    alto_falante.play(wav48, samplerate=TAXA_CHROME)
 
 
 def cmd_tocar(args) -> int:
