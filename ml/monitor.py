@@ -71,6 +71,7 @@ from src.capture import CaptureError, FileSource, WasapiLoopbackSource
 from src.capture.analyzer import AnalisadorContinuo, Agregador
 from src.config import load_config, resolve_device
 from src.data.dataset import buscar_rotulo
+from src.limiares import escolher_limiar, limiares_do_checkpoint, taxa_nativa
 
 OUTPUT_DIR = Path("outputs")
 
@@ -136,6 +137,19 @@ def main() -> int:
     config = load_config(args.config)
     device = resolve_device(args.device or config["train"]["device"])
     analisador = AnalisadorContinuo(config, args.checkpoint, device, hop_s=args.hop)
+    # O limiar segue o áudio: a captura ao vivo e os arquivos gravados acima de
+    # 16 kHz perdem 7,6-8 kHz na conversão e usam o recalibrado; arquivos
+    # nativos de 16 kHz usam o original (src/limiares.py).
+    import torch
+
+    primeiro = args.checkpoint[0]
+    lims = limiares_do_checkpoint(
+        primeiro, torch.load(primeiro, map_location="cpu", weights_only=False))
+    escolha = escolher_limiar(lims, analisador.sample_rate,
+                              taxa_nativa(args.arquivo) if args.arquivo else None,
+                              ao_vivo=not args.arquivo)
+    if analisador.threshold is not None:
+        analisador.threshold = escolha.limiar
     agregador = Agregador(
         janela_s=analisador.janela.tamanho / analisador.sample_rate,
         passo_s=analisador.janela.passo / analisador.sample_rate)
@@ -165,23 +179,13 @@ def main() -> int:
               "protocolo)")
     print(f"Janela: {analisador.janela.tamanho / analisador.sample_rate:.1f}s | "
           f"passo: {analisador.janela.passo / analisador.sample_rate:.1f}s")
-    calib = getattr(analisador, "calibracao", None)
-    if analisador.threshold is not None and calib:
-        print(f"Threshold do checkpoint: {analisador.threshold:.4f} (recalibrado no "
-              f"{calib.get('particao', 'dev')} passado pela captura "
-              f"{calib.get('taxa', 48000) // 1000} kHz; original "
-              f"{calib.get('threshold_original', float('nan')):.4f})")
-        print("\n[AVISO] o limiar acompanha o caminho da captura, não o da chamada: "
-              "codec, supressão\n        de ruído e AGC da plataforma ainda o deslocam. "
-              "Trate o número como indício.\n")
-    else:
-        if analisador.threshold is not None:
-            print(f"Threshold do checkpoint: {analisador.threshold:.4f} "
-                  "(calibrado no dev, em áudio LIMPO — ver aviso abaixo)")
-        print("\n[AVISO] o limiar acima foi calibrado em áudio LIMPO. A própria captura "
-              "ao vivo (48 -> 16 kHz)\n        apaga 7,6-8 kHz e desloca todos os scores "
-              "para cima: medido, 71% dos humanos\n        passam do limiar no baseline_v2. "
-              "Recalibre com scripts/calibrar_captura.py.\n")
+    if analisador.threshold is not None:
+        print(f"Limiar: {analisador.threshold:.4f} ({escolha.origem})")
+    if escolha.aviso:
+        print(f"[AVISO] {escolha.aviso}")
+    print("\n[AVISO] codec, supressão de ruído e AGC da plataforma de chamada ainda "
+          "deslocam o score;\n        desligue os aprimoramentos de áudio do "
+          "Windows. Trate o número como indício.\n")
 
     try:
         fonte = (FileSource(args.arquivo, analisador.sample_rate) if args.arquivo

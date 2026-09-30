@@ -497,9 +497,9 @@ python monitor.py --listar-dispositivos  # descobrir a saída a escutar
 python scripts/calibrar_captura.py --config configs/baseline_v2.yaml \
     --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
 
-# durante uma chamada, gravando o que ouviu
+# durante uma chamada, gravando o que ouviu (o limiar recalibrado é achado sozinho)
 python monitor.py --config configs/baseline_v2.yaml \
-    --checkpoint checkpoints/baseline_lfcc_cnn_v2_captura.pt \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
     --gravar outputs/chamada.wav --json outputs/chamada.json
 
 # reprocessar a gravação (mesmos scores, bit a bit)
@@ -508,10 +508,16 @@ python monitor.py --config ... --checkpoint ... --arquivo outputs/chamada.wav
 
 **Antes de usar ao vivo:** desligue os "aprimoramentos de áudio" do dispositivo
 de saída (Configurações → Som → alto-falante). Medido: com os efeitos da
-Realtek ligados, todo áudio foi a score ~1,0. E use o checkpoint recalibrado:
-a captura passa por 48 kHz e volta a 16 kHz, a faixa de 7,6-8 kHz some, e no
-limiar original 71% dos humanos passam por sintéticos
-(`docs/RESUMO_TCC.md`, 10.2.1).
+Realtek ligados, todo áudio foi a score ~1,0. E gere o limiar recalibrado uma
+vez (`scripts/calibrar_captura.py`): a captura passa por 48 kHz e volta a
+16 kHz, a faixa de 7,6-8 kHz some, e no limiar original 71% dos humanos passam
+por sintéticos (`docs/RESUMO_TCC.md`, 10.2.1).
+
+**O limiar é escolhido pelo tipo de áudio** (`src/limiares.py`), no monitor e
+no `infer.py`: captura ao vivo e arquivos gravados acima de 16 kHz usam o
+recalibrado; arquivos nativos de 16 kHz, o original. Basta passar o checkpoint
+original: a cópia `_captura.pt` ao lado é achada sozinha, e só é aceita se os
+pesos forem os mesmos.
 
 O áudio é cortado em janelas do tamanho de `audio.duration` com metade de
 sobreposição, e cada janela passa pelo **mesmo** caminho do `infer.py`:

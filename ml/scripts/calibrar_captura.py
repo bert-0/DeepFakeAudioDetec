@@ -51,8 +51,10 @@ def taxas_no_limiar(labels: np.ndarray, probs: np.ndarray, limiar: float) -> tup
 
 
 def caminho_saida(checkpoint: str | Path) -> Path:
-    c = Path(checkpoint)
-    return c.with_name(f"{c.stem}_captura{c.suffix}")
+    """O mesmo lugar onde o monitor e o infer procuram a cópia (src/limiares.py)."""
+    from src.limiares import caminho_captura
+
+    return caminho_captura(checkpoint)
 
 
 def calibrar(labels, probs, logodds, limiar_original: float | None) -> dict:
@@ -143,8 +145,8 @@ def main(argv=None) -> int:
     print("\nMeça o efeito no EVAL (ataques que a calibração não viu):")
     print(f"  python scripts/robustness_eval.py --config {args.config} --checkpoint "
           f"{saida.as_posix()} --amostra 10000 --so clean captura_48k")
-    print("E use no monitor:")
-    print(f"  python monitor.py --config {args.config} --checkpoint {saida.as_posix()}")
+    print("O monitor e o infer.py acham esta cópia sozinhos a partir do checkpoint "
+          "original e escolhem o limiar pelo tipo de áudio (src/limiares.py).")
     return 0
 
 

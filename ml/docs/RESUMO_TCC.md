@@ -1437,7 +1437,17 @@ abrir arquivos, reamostra com o mesmo tipo de filtro (`soxr_hq`). Então:
 | arquivo a 8 kHz (telefonia) | não — e nada acima de 4 kHz | nenhum dos dois foi medido |
 
 Ou seja: o limiar original só vale para o formato da base de treino. Quase todo
-áudio do mundo real nasce a 44,1 ou 48 kHz e cai no caso do recalibrado. Isso
+áudio do mundo real nasce a 44,1 ou 48 kHz e cai no caso do recalibrado.
+
+**Escolha automática — implementada** (`src/limiares.py`). O `monitor.py` e o
+`infer.py` aplicam a tabela acima sozinhos: captura ao vivo, arquivo acima de
+16 kHz ou de taxa desconhecida → recalibrado; nativo de 16 kHz → original;
+abaixo de 16 kHz → original, com aviso de condição não medida. A cópia
+recalibrada é achada ao lado do checkpoint original e só é aceita com os mesmos
+pesos (impressão digital do `state_dict`); sem ela, o sistema avisa em vez de
+inventar um limiar. **Limite da regra:** ela lê a taxa do arquivo, não o
+conteúdo — um arquivo de 16 kHz que já foi convertido antes também perdeu o
+topo da banda e recebe o limiar original. Isso
 reforça a conclusão da 10.2.1: um detector para uso real não deveria depender
 do topo da banda (Seção 2.1).
 
