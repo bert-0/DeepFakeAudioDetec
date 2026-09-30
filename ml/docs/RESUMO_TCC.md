@@ -1928,10 +1928,9 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   **falsa** e precisa sair. O papel que a coleta teria (bonafide fora da
   ASVspoof) fica como trabalho futuro. Redação de substituição em
   `ml/docs/TC2_REDACAO.md`.
-- **API (FastAPI) e front-end (React)**, Marcos 5 a 7: **estão com o Pedro**,
-  fora deste repositório, e ainda não foram recebidos. Até chegarem, o texto
-  não pode descrevê-los como prontos nem citar números deles; nada nesta
-  documentação os mede.
+- **API e front-end — resolvido (30/09/2026).** A interface foi feita com
+  FastAPI + Jinja2, numa aplicação só dentro de `ml/web/`, em vez de API
+  separada + React (README). Descrita no TC2 na 4.8, na nova 4.13 e na 6.4.
 - **MP3.** Declarar que o teste de robustez usou Opus. O RF01/RNF05 (aceitar
   MP3) é atendido na entrada do `infer.py`, mas não há avaliação de desempenho
   em MP3.
