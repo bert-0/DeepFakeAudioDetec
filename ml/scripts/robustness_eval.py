@@ -281,6 +281,10 @@ def main() -> None:
         name = f"{name}_amostra{args.amostra}"
     if args.so:
         name = f"{name}_" + "_".join(args.so)
+    if ckpt.get("calibracao"):
+        # Checkpoint recalibrado (calibrar_captura.py): mesmos pesos, outro
+        # limiar. Sem o sufixo, o resultado gravaria por cima do original.
+        name = f"{name}_limiar_captura"
     # A partição entra no nome: sem ela, uma execução em dev sobrescreve a de eval.
     json_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.json"
     plot_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.png"

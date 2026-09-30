@@ -181,6 +181,9 @@ class _Modelo:
         # extraídas aqui sejam as mesmas com que o modelo foi treinado.
         self.config = dados.get("config", config)
         self.threshold = dados.get("threshold")
+        # Presente quando o limiar foi recalibrado para a captura ao vivo
+        # (scripts/calibrar_captura.py); ausente no checkpoint do treino.
+        self.calibracao = dados.get("calibracao")
         self.device = device
         self.extractor = FeatureExtractor(self.config["audio"], self.config["features"])
         self.rede = build_model(self.config["model"]).to(device)
@@ -222,6 +225,7 @@ class AnalisadorContinuo:
                         "A fusão exige a mesma janela nos dois modelos.")
 
         self.threshold = self.modelos[0].threshold
+        self.calibracao = self.modelos[0].calibracao
         self.device = device
         self.sample_rate = int(audio_cfg["sample_rate"])
         tamanho = int(self.sample_rate * float(audio_cfg["duration"]))

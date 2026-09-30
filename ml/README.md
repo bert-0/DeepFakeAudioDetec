@@ -493,14 +493,25 @@ pip install soundcard                    # só para o modo ao vivo
 
 python monitor.py --listar-dispositivos  # descobrir a saída a escutar
 
+# uma vez: limiar recalibrado para a captura ao vivo (grava uma cópia do checkpoint)
+python scripts/calibrar_captura.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
+
 # durante uma chamada, gravando o que ouviu
 python monitor.py --config configs/baseline_v2.yaml \
-    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2_captura.pt \
     --gravar outputs/chamada.wav --json outputs/chamada.json
 
 # reprocessar a gravação (mesmos scores, bit a bit)
 python monitor.py --config ... --checkpoint ... --arquivo outputs/chamada.wav
 ```
+
+**Antes de usar ao vivo:** desligue os "aprimoramentos de áudio" do dispositivo
+de saída (Configurações → Som → alto-falante). Medido: com os efeitos da
+Realtek ligados, todo áudio foi a score ~1,0. E use o checkpoint recalibrado:
+a captura passa por 48 kHz e volta a 16 kHz, a faixa de 7,6-8 kHz some, e no
+limiar original 71% dos humanos passam por sintéticos
+(`docs/RESUMO_TCC.md`, 10.2.1).
 
 O áudio é cortado em janelas do tamanho de `audio.duration` com metade de
 sobreposição, e cada janela passa pelo **mesmo** caminho do `infer.py`:

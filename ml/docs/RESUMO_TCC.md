@@ -1391,10 +1391,14 @@ porque é calculado pelos log-odds (correção da 5.3).
   ganha uma segunda justificativa, independente do canal da chamada.
 - **A captura custa mais que o Opus simulado** (v2: +5,68 pp contra +1,30 pp
   do Opus a 25 kbps na mesma amostra) — e está presente em toda chamada.
-- **Mitigação sem retreino:** recalibrar o limiar em áudio do `dev` passado
-  pela mesma ida e volta, já que a ordenação sobrevive. **Com retreino:**
-  aumentação com a ida e volta, ou LFCC limitado abaixo de 7,5 kHz — o
-  raciocínio do baseline de 2021 (Seção 2.1). Ambos trabalho futuro.
+- **Mitigação sem retreino — implementada** (`scripts/calibrar_captura.py`):
+  o limiar passa a ser o ponto de EER no `dev` (A01–A06) passado pela mesma
+  ida e volta, e vai para uma cópia do checkpoint com os mesmos pesos. O eval
+  não é tocado na calibração; o efeito se mede nele depois. Para o fusion_v4 o
+  script recusa: com todos os humanos em probabilidade 1,0, não existe limiar
+  em probabilidade. **Resultado no eval: pendente.**
+- **Com retreino:** aumentação com a ida e volta, ou LFCC limitado abaixo de
+  7,5 kHz — o raciocínio do baseline de 2021 (Seção 2.1). Trabalho futuro.
 
 Depois disso, a sessão "chamada" (Meet/Teams) mede o que a chamada soma ao
 caminho de captura.

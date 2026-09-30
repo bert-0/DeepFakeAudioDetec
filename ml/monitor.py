@@ -165,12 +165,23 @@ def main() -> int:
               "protocolo)")
     print(f"Janela: {analisador.janela.tamanho / analisador.sample_rate:.1f}s | "
           f"passo: {analisador.janela.passo / analisador.sample_rate:.1f}s")
-    if analisador.threshold is not None:
-        print(f"Threshold do checkpoint: {analisador.threshold:.4f} "
-              "(calibrado no dev, em áudio LIMPO — ver aviso abaixo)")
-    print("\n[AVISO] o limiar acima foi calibrado em áudio LIMPO. Medido no "
-          "eval completo, o canal\n        de uma chamada custa +1 a +3 pp de "
-          "EER pelo codec, +5 pp por banda\n        estreita e +7 pp por ruído — e o recall no limiar herdado varia de\n        forma imprevisível. Trate o número como indício, não como veredito.\n")
+    calib = getattr(analisador, "calibracao", None)
+    if analisador.threshold is not None and calib:
+        print(f"Threshold do checkpoint: {analisador.threshold:.4f} (recalibrado no "
+              f"{calib.get('particao', 'dev')} passado pela captura "
+              f"{calib.get('taxa', 48000) // 1000} kHz; original "
+              f"{calib.get('threshold_original', float('nan')):.4f})")
+        print("\n[AVISO] o limiar acompanha o caminho da captura, não o da chamada: "
+              "codec, supressão\n        de ruído e AGC da plataforma ainda o deslocam. "
+              "Trate o número como indício.\n")
+    else:
+        if analisador.threshold is not None:
+            print(f"Threshold do checkpoint: {analisador.threshold:.4f} "
+                  "(calibrado no dev, em áudio LIMPO — ver aviso abaixo)")
+        print("\n[AVISO] o limiar acima foi calibrado em áudio LIMPO. A própria captura "
+              "ao vivo (48 -> 16 kHz)\n        apaga 7,6-8 kHz e desloca todos os scores "
+              "para cima: medido, 71% dos humanos\n        passam do limiar no baseline_v2. "
+              "Recalibre com scripts/calibrar_captura.py.\n")
 
     try:
         fonte = (FileSource(args.arquivo, analisador.sample_rate) if args.arquivo
