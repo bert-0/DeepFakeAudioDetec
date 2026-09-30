@@ -15,7 +15,9 @@
   <div class="app">
     <div class="cabecalho">
       <a href="/" class="titulo">Análise de Autenticidade de Voz</a>
-      <button type="button" class="tema" id="tema">Modo claro</button>
+      <button type="button" class="interruptor" id="tema" role="switch" aria-label="Modo escuro">
+        <span class="estrela e1"></span><span class="estrela e2"></span><span class="bolinha"></span>
+      </button>
       <a href="/sobre" class="sobre">Sobre</a>
     </div>
     <nav class="abas">
@@ -30,7 +32,11 @@
   <script>
     (function () {
       var raiz = document.documentElement, botao = document.getElementById("tema");
-      function rotular() { botao.textContent = raiz.dataset.tema === "escuro" ? "Modo claro" : "Modo escuro"; }
+      function rotular() {
+        var escuro = raiz.dataset.tema === "escuro";
+        botao.setAttribute("aria-checked", escuro ? "true" : "false");
+        botao.title = escuro ? "Mudar para o modo claro" : "Mudar para o modo escuro";
+      }
       botao.addEventListener("click", function () {
         raiz.dataset.tema = raiz.dataset.tema === "escuro" ? "claro" : "escuro";
         try { localStorage.setItem("tema", raiz.dataset.tema); } catch (e) {}
