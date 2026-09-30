@@ -1467,6 +1467,7 @@ Dois áudios tocados do navegador, sem rótulo por janela:
 |---|---|---|---|---|
 | vídeo narrado por IA (YouTube) | 0,490 | 0,420 | 0 de 19 | 11–94% |
 | audiobook narrado por humano | **0,807** | **0,857** | **7 de 32** | **0–5% na maior parte** |
+| voz do Google Tradutor (TTS neural) | 0,469 | 0,371 | 0 de 45 | 1–83%, variando |
 
 **A ordem se inverteu:** a voz humana recebeu scores mais altos que a
 sintética, e só ela disparou o limiar. A última coluna explica: o audiobook
@@ -1480,6 +1481,15 @@ exemplos não são medida; o valor deste teste é mostrar, com áudio real, a
 dependência que o controle mediu com IC. Soma-se a isso o limite de
 generalização conhecido: o modelo viu os ataques de 2019 (A01–A06 no treino,
 A07–A19 no eval), e uma voz de IA comercial atual é de outra geração.
+
+**Não é defeito do programa — verificado em três elos.** (1) O caminho
+offline reproduz o eval de 2019 amostra a amostra (sessão "limpo", 10.2.1).
+(2) O monitor dá o mesmo score do caminho offline para o mesmo áudio
+(`tests/test_monitor_consistencia.py`, diferença < 1e-6). (3) O caminho de
+captura foi reproduzido em software, áudio a áudio (controle sem
+aprimoramentos, 10.2.1) — e nele os ataques de 2019 continuam indo a ~1,0
+(A09, A11, A08: 0,998–1,000). O que falha é o modelo diante de vozes que não
+são de 2019.
 
 **Conclusão para o texto:** o sistema funciona de ponta a ponta — captura,
 janelas, limiar por tipo de áudio, agregação —, mas este modelo não serve para
