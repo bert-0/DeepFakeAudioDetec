@@ -773,8 +773,8 @@ Fonte: `outputs/report/por_ataque_eval.md` (25/09/2026). EER (%).
 | **média por ataque** | 17,98 | 16,83 | 15,73 | 15,49 | 16,19 | **14,32** | 15,18 | |
 
 **Três famílias de perfil.** Correlação de Spearman entre os perfis por ataque:
-v1 × v2 = 0,97; v3 × v3a = 0,97; fusion_v4 × attention_v4 = 0,97; entre
-famílias, 0,34 a 0,91. As famílias são:
+v1 × v2 = 0,97; v3 × v3a = 0,97; v3a × lcnn_v4 = 0,91; v3 × lcnn_v4 = 0,90;
+fusion_v4 × attention_v4 = 0,97; entre famílias, 0,34 a 0,85. As famílias são:
 
 1. **LFCC com 20 filtros** (v1, v2): falham nos ataques parecidos com o treino
    (A07, A16, A19 — A16 e A19 usam os algoritmos de A04 e A06) e acertam A11.
@@ -795,7 +795,7 @@ famílias, 0,34 a 0,91. As famílias são:
 | A15 | **+19,83** | +2,96 |
 | A10 | +8,04 | −0,93 |
 | A14 | +5,60 | **+10,75** |
-| demais (6) | −0,72 a −0,17 | −0,04 a +0,06 |
+| demais (5) | −0,72 a −0,17 | −0,04 a +0,06 |
 | **global** | **−1,38** | **+0,95** |
 
 - **A fusão de características não é um efeito de 1,38 pp.** É uma troca de

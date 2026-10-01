@@ -194,6 +194,16 @@ Na frase "Entre os trabalhos de maior relevância...":
 > Okabe, Koshinaka e Shinoda (2018), sobre o *pooling* com atenção; e Müller et
 > al. (2021), sobre o efeito do silêncio na base ASVspoof.
 
+No último parágrafo da 4.2, citar as obras que estão nas Referências e não
+eram citadas no texto:
+
+> [...] incluindo os modelos Tacotron (WANG et al., 2017), WaveNet (OORD et
+> al., 2016) e sistemas de conversão de voz [...] que o sistema de detecção
+> proposto precisa ser capaz de identificar. Entre os sistemas de detecção,
+> foram consultados o RawNet2 (TAK et al., 2021), o AASIST (JUNG et al., 2022)
+> e o sistema de Chen et al. (2021), voltado à robustez de canal na ASVspoof
+> 2021, além do desafio ADD 2022 (YI et al., 2022).
+
 ## 4.6 Requisitos Não Funcionais — parágrafo a acrescentar ao fim
 
 > A avaliação dos requisitos não funcionais, feita na seção 5.6, mostrou que o
@@ -572,7 +582,7 @@ Fonte: Autoria própria.
 > de avaliação (TODISCO et al., 2019). Esses sistemas, porém, processam o áudio
 > **com** o silêncio. Müller et al. (2021) mostram que, na ASVspoof 2019, a
 > duração do silêncio inicial sozinha separa as classes com 15,12% de EER, e que
-> a remoção do silêncio piora o RawNet2 de 3,61% para 15,50%. Como este trabalho
+> a remoção do silêncio piora o RawNet2 (TAK et al., 2021) de 3,61% para 15,50%. Como este trabalho
 > remove o silêncio, a comparação equivalente é com os modelos que Müller et al.
 > (2021) treinaram e avaliaram sob o mesmo protocolo (Tabela 4).
 >
@@ -649,12 +659,12 @@ Fonte: Autoria própria; geradores segundo Wang et al. (2020, Tabela 1).
 > fusion_v4 (6,54%). Com o A11 acontece o inverso: 3,85% no baseline_v2 e 33,74%
 > no fusion_v4.
 >
-> Os sete modelos se agrupam em três famílias de perfil por ataque, com
-> correlação de postos de 0,97 dentro de cada família: LFCC com 20 filtros
+> Os sete modelos se agrupam em três famílias de perfil por ataque, com correlação de postos de 0,90 a 0,97 dentro de cada família e de 0,34 a 0,85
+> entre famílias: LFCC com 20 filtros
 > (v1 e v2); LFCC com 70 filtros em um ramo (v3a, v3 e baseline_lcnn_v4); e
-> LFCC com espectrograma (fusion_v4 e attention_v4). A primeira família falha
-> nos ataques que reutilizam algoritmos do treinamento (A07, A16 e A19) e acerta
-> o A11. A segunda resolve esses ataques e falha em A12, A13 e A18. A terceira
+> LFCC com espectrograma (fusion_v4 e attention_v4). A primeira família falha em A07, A16 e A19, próximos do treinamento (A16 e A19
+> reutilizam os algoritmos de A04 e A06, e o A07 usa o vocoder WORLD, também
+> presente no treino), e acerta o A11. A segunda resolve esses ataques e falha em A12, A13 e A18. A terceira
 > resolve também A13, A17 e A18, mas falha em A10, A11, A14 e A15.
 >
 > A falha da primeira família não depende do classificador. O sistema de
@@ -856,8 +866,7 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 > degradação simulada não previu qual modelo resiste ao canal real**. Terceiro,
 > o ganho da fusão de scores se mantém: a combinação por postos dos dois
 > modelos atinge 24,94%, 4,50 p.p. abaixo do melhor modelo isolado, o mesmo
-> fenômeno observado na ASVspoof 2019. Os ataques A10 e A12 continuam os mais
-> difíceis também no canal real (42,98% e 37,53% após a fusão).
+> fenômeno observado na ASVspoof 2019. Os ataques A10 e A12 continuam resistindo aos dois modelos também no canal real (42,98% e 37,53% após a fusão).
 >
 > A regra de postos exige o conjunto completo de scores e não se aplica a um
 > fluxo contínuo de áudio. A média das probabilidades, que se aplica, dá 29,41%,
@@ -875,8 +884,8 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 > A vantagem do fusion_v4 consistia na detecção quase perfeita de alguns
 > ataques, e é essa precisão que o canal real destrói; na média por ataque, ele
 > passa de melhor (13,74% contra 16,19%) a pior (31,42% contra 26,75%). A
-> vantagem que sobrevive está em A13 e A18, dois dos ataques por filtragem de
-> forma de onda discutidos na seção 5.4. Os perfis dos dois modelos também se
+> vantagem que sobrevive está em A13 e A18, dois dos três ataques em que o ramo
+> de espectrograma mais ganhou (seção 5.4). Os perfis dos dois modelos também se
 > aproximam (correlação de 0,34 em 2019 e de 0,48 no Opus real), o que é
 > coerente com o ganho menor da fusão de scores nessa condição (4,50 contra 5,86
 > p.p.). Com cerca de 690 áudios sintéticos por ataque, o intervalo de
@@ -982,8 +991,8 @@ Fonte: Autoria própria.
 
 <!-- RESUMO_TCC §10.2.6 (01/10/2026), rodada sem aprimoramentos do microfone -->
 
-> O resultado é negativo. Três dos cinco originais ficaram acima do limiar, e
-> em 8 das 10 frases a versão sintética recebeu score menor que o original.
+> O resultado é negativo. Três dos cinco originais ficaram acima do limiar, e 8 das 10 versões sintéticas receberam score menor que o original da mesma
+> frase.
 > Numa primeira rodada, gravada com os aprimoramentos do microfone ligados,
 > os cinco originais ficaram acima do limiar (média de 0,95, contra 0,71 sem os
 > aprimoramentos) e as dez versões sintéticas ficaram abaixo do original; nas
@@ -1206,8 +1215,8 @@ Fonte: Autoria própria.
 > que permitiria aproveitar a fusão de scores em tempo real; investigar
 > mecanismos de atenção mais expressivos; e usar encoders pré-treinados em
 > fala, direção apontada pela literatura para os ataques autorregressivos. Fica também como hipótese a
-> testar a associação entre o ramo de espectrograma e os ataques por filtragem
-> de forma de onda (A13, A17 e A18).
+> testar a associação entre o ramo de espectrograma e os ataques A13, A17 e A18, que geram
+> a forma de onda filtrando ou modificando uma fala existente.
 
 ---
 
@@ -1349,5 +1358,27 @@ adversarial attacks at scale. In: THE AUTOMATIC SPEAKER VERIFICATION SPOOFING
 COUNTERMEASURES WORKSHOP (ASVSPOOF 2024), 2024, Kos. *Proceedings* [...]. 2024.
 p. 1-8. DOI: 10.21437/ASVspoof.2024-1.
 
-> Ainda não conferidas: as referências que já estavam no TC1 e não foram
-> alteradas (Goodfellow, Jurafsky, Oord, Tak, Vaswani, Wang Yuxuan, Yi, LGPD).
+Referências do TC1 completadas (conferidas em 01/10/2026):
+
+OORD, Aaron van den et al. WaveNet: a generative model for raw audio. arXiv
+preprint arXiv:1609.03499, 2016. Disponível em: https://arxiv.org/abs/1609.03499.
+
+TAK, Hemlata et al. End-to-end anti-spoofing with RawNet2. In: IEEE
+INTERNATIONAL CONFERENCE ON ACOUSTICS, SPEECH AND SIGNAL PROCESSING (ICASSP),
+2021. *Proceedings* [...]. 2021. p. 6369-6373. DOI:
+10.1109/ICASSP39728.2021.9414234.
+
+VASWANI, Ashish et al. Attention is all you need. In: ADVANCES IN NEURAL
+INFORMATION PROCESSING SYSTEMS, 30., 2017, Long Beach. *Proceedings* [...].
+2017. p. 5998-6008.
+
+WANG, Yuxuan et al. Tacotron: towards end-to-end speech synthesis. In:
+INTERSPEECH, 2017, Estocolmo. *Proceedings* [...]. 2017. p. 4006-4010. DOI:
+10.21437/Interspeech.2017-1452.
+
+YI, Jiangyan et al. ADD 2022: the first audio deep synthesis detection
+challenge. In: IEEE INTERNATIONAL CONFERENCE ON ACOUSTICS, SPEECH AND SIGNAL
+PROCESSING (ICASSP), 2022, Singapura. *Proceedings* [...]. 2022. p. 9216-9220.
+DOI: 10.1109/ICASSP43922.2022.9746939.
+
+> Ainda não conferidas: Goodfellow, Jurafsky e LGPD (livro, livro on-line e lei).
