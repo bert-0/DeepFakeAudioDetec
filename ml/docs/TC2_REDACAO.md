@@ -872,8 +872,19 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p.
 > programa cortou antes da captura: o mesmo arquivo de vozes humanas recebeu
 > score médio de 0,03 enviado como arquivo, 0,33 tocado pelo Reprodutor do
 > Windows e 0,98 tocado pelo VLC, que altera o áudio. Os áudios sintéticos
-> receberam 1,00 nas três formas.
->
+> receberam 1,00 nas três formas. Tocados por um alto-falante de celular e
+> captados pelo microfone, os mesmos áudios sintéticos caíram para 0,15 a 0,35,
+> abaixo do limiar, e a ordem entre os dois grupos dependeu da equalização do
+> celular: com ela, os sintéticos ficaram acima dos humanos (0,30 a 0,35
+> contra 0,07 a 0,08); sem ela, abaixo (0,15 contra 0,19). A reprodução pelo
+> ar corresponde ao cenário *Physical Access* da ASVspoof, fora do treino do
+> modelo, e enche as pausas de ruído e reverberação da sala. Numa simulação
+> com ruído somado às pausas, os scores dos áudios sintéticos também caíram
+> (de 0,999 para 0,766 e de 0,972 para 0,183, em dois exemplos), o que indica
+> que o modelo associa pausas ruidosas a voz humana.
+
+<!-- RESUMO_TCC §10.2.4 e §10.2.7 (30/09/2026) -->
+
 > **Vozes externas à base.** Em lugar da coleta com colaboradores, o autor
 > gravou cinco frases (48 kHz, microfone comum, duas em inglês e três em
 > português) e cada uma foi refeita por *copy-synthesis* com dois vocoders
@@ -971,7 +982,9 @@ Fonte: Autoria própria.
 > • **Dependência do caminho do som.** O resultado ao vivo depende de
 > configurações fora do sistema: os aprimoramentos de áudio do driver e o
 > programa que reproduz o áudio alteram o score. A captura foi medida num
-> único computador, com driver Realtek e Windows.
+> único computador, com driver Realtek e Windows. A reprodução pelo ar
+> (alto-falante e microfone) foi observada em três pares de sessões, sem
+> amostra rotulada, e nela o modelo não separou os grupos de forma estável.
 >
 > • **Limiar escolhido pela taxa do arquivo.** O sistema escolhe o limiar pela
 > taxa de amostragem da entrada, não pelo conteúdo: um arquivo de 16 kHz que já
