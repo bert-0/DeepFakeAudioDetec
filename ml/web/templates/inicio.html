@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block conteudo %}
 <form action="/analisar" method="post" enctype="multipart/form-data" class="cartao" id="form">
+  {% if erro %}<div class="faixa-aviso vermelho erro-envio">{{ erro }}</div>{% endif %}
   <div class="linha-arquivo oculto" id="linha">
     <span class="nome" id="nome"></span><span class="duracao" id="duracao"></span>
   </div>

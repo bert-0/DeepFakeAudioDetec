@@ -11,8 +11,11 @@ DETECTOR_DEVICE (padrão cpu), DETECTOR_BANCO (padrão outputs/web/historico.db)
 from __future__ import annotations
 
 import os
+import re
 import tempfile
+import unicodedata
 from pathlib import Path
+from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 import json
@@ -21,7 +24,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -64,6 +67,17 @@ def _mmss(segundos) -> str:
         return "--:--"
     s = int(round(segundos))
     return f"{s // 60:02d}:{s % 60:02d}"
+
+
+@app.middleware("http")
+async def mesma_origem(request: Request, call_next):
+    """Recusa POST vindo de outro site aberto no mesmo navegador: sem isso, uma
+    página qualquer poderia limpar o histórico ou ligar a captura."""
+    if request.method == "POST":
+        origem = request.headers.get("origin")
+        if origem is not None and urlsplit(origem).netloc != request.headers.get("host"):
+            return PlainTextResponse("Pedido de outro site recusado.", status_code=403)
+    return await call_next(request)
 
 
 templates.env.filters["br"] = _br
@@ -109,13 +123,28 @@ async def _analisar_upload(arquivo: UploadFile):
         try:
             resultado = detector().analisar(caminho, nome_original=nome)
         except (CaptureError, RuntimeError) as erro:
-            raise HTTPException(422, f"Não foi possível ler o áudio: {erro}") from erro
+            print(f"[envio] {nome}: {erro!r}")   # o detalhe fica no terminal, não na tela
+            raise HTTPException(422, _mensagem_de_leitura(ext)) from erro
     return resultado, banco().salvar(resultado, detector().modelo)
 
 
+def _mensagem_de_leitura(ext: str) -> str:
+    msg = "Não foi possível ler o áudio: o arquivo pode estar corrompido ou incompleto."
+    if ext in (".m4a", ".aac"):
+        msg += (" Arquivos M4A e AAC precisam do FFmpeg instalado no computador;"
+                " sem ele, converta para WAV ou MP3.")
+    return msg
+
+
 @app.post("/analisar")
-async def analisar(arquivo: UploadFile = File(...)):
-    _, analise_id = await _analisar_upload(arquivo)
+async def analisar(request: Request, arquivo: UploadFile = File(...)):
+    try:
+        _, analise_id = await _analisar_upload(arquivo)
+    except HTTPException as erro:
+        return templates.TemplateResponse(
+            request, "inicio.html",
+            {"extensoes": sorted(EXTENSOES), "aba": "enviar", "erro": erro.detail},
+            status_code=erro.status_code)
     return RedirectResponse(f"/analises/{analise_id}", status_code=303)
 
 
@@ -141,8 +170,17 @@ def relatorio(analise_id: int):
     a = banco().buscar(analise_id)
     if a is None:
         raise HTTPException(404, "Análise não encontrada.")
-    nome = Path(a["arquivo"]).stem + "_relatorio.json"
-    return JSONResponse(a, headers={"Content-Disposition": f'attachment; filename="{nome}"'})
+    return JSONResponse(a, headers={"Content-Disposition": _anexo(a["arquivo"], "_relatorio.json")})
+
+
+def _anexo(arquivo: str, sufixo: str) -> str:
+    """Content-Disposition que aceita qualquer nome: `filename*` em UTF-8 para os
+    navegadores e `filename` em ASCII de reserva. A "/" das datas vira "-"."""
+    base = Path(re.sub(r'[\\/:*?"<>|]', "-", arquivo)).stem or "analise"
+    nome = base + sufixo
+    ascii_ = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode()
+    ascii_ = re.sub(r"[^A-Za-z0-9._() -]", "_", ascii_)
+    return f"attachment; filename=\"{ascii_}\"; filename*=UTF-8''{quote(nome)}"
 
 
 @app.get("/historico", response_class=HTMLResponse)

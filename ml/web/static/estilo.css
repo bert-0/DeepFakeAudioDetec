@@ -101,9 +101,12 @@ input[type=checkbox] { accent-color: var(--azul); }
 .score.amarelo + .veredito { border-color: var(--amarelo); }
 
 .barras { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 80px;
-          margin: 10px 14px 4px; padding: 0 2px; border-left: 1px solid var(--borda);
-          border-bottom: 1px solid var(--borda); }
-.barra { flex: 0 0 8px; min-height: 2px; }
+          margin: 10px 14px 4px; padding: 0 2px; overflow: hidden;
+          border-left: 1px solid var(--borda); border-bottom: 1px solid var(--borda); }
+/* As barras se espalham do início ao fim do eixo; em áudio longo, estreitam. */
+.barras { justify-content: space-between; }
+.barra { flex: 1 1 0; min-width: 0; max-width: 24px; min-height: 2px; }
+.barras.densas { gap: 0; }
 .barra.abaixo { background: var(--verde); }
 .barra.acima { background: var(--vermelho); }
 .barra.silencio { background: var(--borda-clara); }
@@ -118,6 +121,7 @@ input[type=checkbox] { accent-color: var(--azul); }
 .amostra.acima { background: var(--vermelho); }
 .amostra.parcial { opacity: 0.3; }
 
+.erro-envio { margin-top: 12px; }
 .faixa-aviso { margin: 0 14px 12px; padding: 6px 10px; font-size: 13px; border: 1px solid; }
 .faixa-aviso.vermelho { background: var(--vermelho-claro); border-color: #d9a6a7; color: var(--texto); }
 .faixa-aviso.amarelo { background: var(--amarelo-claro); border-color: #d8c48c; color: var(--texto); }

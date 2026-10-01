@@ -26,7 +26,7 @@
   {% include "_barras.html" %}
   <div class="eixo"><span>0:00</span><span>{{ a.duracao_s | mmss }}</span></div>
   {% if uteis %}
-  <p class="legenda-barras">{{ n_acima }} de {{ uteis | length }} janelas acima do limiar
+  <p class="legenda-barras">{{ n_acima }} de {{ uteis | length }} {{ 'janela' if uteis | length == 1 else 'janelas' }} acima do limiar
     <span class="chave"><i class="amostra abaixo"></i>abaixo<i class="amostra acima"></i>acima<i class="amostra abaixo parcial"></i>pouca fala</span></p>
   {% endif %}
 

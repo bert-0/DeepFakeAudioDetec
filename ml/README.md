@@ -478,6 +478,10 @@ pip install -r web/requirements.txt
 uvicorn web.app:app --reload          # de dentro de ml/; abre em http://127.0.0.1:8000
 ```
 
+WAV, MP3, FLAC, OGG e Opus abrem direto. **M4A e AAC precisam do FFmpeg** no
+computador (no Windows: `winget install Gyan.FFmpeg`, depois reabrir o terminal);
+sem ele, a página avisa e pede outro formato. Na demonstração, prefira WAV.
+
 Abas: **Enviar arquivo** (arrastar ou selecionar), **Resultados** (histórico e,
 por análise: score médio, veredito pelo limiar, uma barra por janela de 4 s
 com a cor do lado do limiar, detalhes e relatório em JSON) e **Ao vivo**: o

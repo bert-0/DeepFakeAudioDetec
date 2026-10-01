@@ -89,7 +89,7 @@ def test_arquivo_curto_nao_e_inconclusivo(cliente, tmp_path):
     assert "Inconclusivo" not in r.text
     import re
 
-    assert re.search(r"[01] de 1 janelas acima do limiar", r.text)
+    assert re.search(r"[01] de 1 janela acima do limiar", r.text)
 
 
 def test_ao_vivo_sem_sessao(cliente):
@@ -304,3 +304,57 @@ def test_lista_de_dispositivos_nao_quebra_sem_placa_de_som(cliente):
     d = cliente.get("/api/ao-vivo/dispositivos").json()
     assert set(d) >= {"sistema", "microfone", "padrao"}
     assert "Microfone" in cliente.get("/ao-vivo").text
+
+
+def test_arquivo_ilegivel_volta_para_o_envio_com_frase_legivel(cliente):
+    r = cliente.post("/analisar", files={"arquivo": ("gravacao.m4a", b"isto nao e audio", "audio/mp4")})
+    assert r.status_code == 422 and "text/html" in r.headers["content-type"]
+    assert "Não foi possível ler o áudio" in r.text and "FFmpeg" in r.text
+    assert "Temp" not in r.text and "envio.m4a" not in r.text and '{"detail"' not in r.text
+    assert 'action="/analisar"' in r.text, "a página de envio volta, pronta para outra tentativa"
+
+    r = cliente.post("/analisar", files={"arquivo": ("voz.txt", b"x", "text/plain")})
+    assert r.status_code == 400 and "Formato não aceito" in r.text
+
+
+def test_relatorio_baixa_com_qualquer_nome(cliente, tmp_path):
+    from urllib.parse import unquote
+
+    for nome in ("fala – teste 🎤.wav", "ação.wav"):
+        analise_id = _enviar(cliente, tmp_path, nome)
+        r = cliente.get(f"/analises/{analise_id}/relatorio.json")
+        assert r.status_code == 200
+        cab = r.headers["content-disposition"]
+        assert unquote(cab.split("filename*=UTF-8''")[1]) == nome.rsplit(".", 1)[0] + "_relatorio.json"
+        cab.encode("latin-1")   # cabeçalho HTTP válido
+
+
+def test_relatorio_de_sessao_ao_vivo_nao_vira_pasta(cliente, tmp_path, monkeypatch):
+    import web.app as modulo
+
+    monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(tmp_path / "ao_vivo"))
+    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log, **kw: _ProcFalso(parar))
+    analise_id = _sessao_encerrada(cliente, modulo)
+    cab = cliente.get(f"/analises/{analise_id}/relatorio.json").headers["content-disposition"]
+    assert 'filename="Sessao ao vivo (som do computador) ' in cab and "/" not in cab.split(";")[1]
+
+
+def test_audio_longo_marca_barras_densas(cliente):
+    import web.app as modulo
+
+    r = SimpleNamespace(arquivo="longo.wav", duracao_s=540.0, taxa_nativa=16000, score_medio=0.2,
+                        score_maximo=0.5, limiar=0.65, origem_limiar="original",
+                        aviso_limiar=None, janelas_uteis=269, janelas_independentes=135.0,
+                        janelas=[{"t": 2.0 * i, "score": 0.2, "util": True, "peso": 1.0}
+                                 for i in range(269)])
+    analise_id = modulo.banco().salvar(r, "m")
+    pagina = cliente.get(f"/analises/{analise_id}").text
+    assert 'class="barras densas"' in pagina and pagina.count('class="barra abaixo') == 269
+
+
+def test_post_de_outro_site_e_recusado(cliente):
+    outro = {"origin": "https://site-qualquer.example"}
+    assert cliente.post("/historico/limpar", headers=outro).status_code == 403
+    assert cliente.post("/api/ao-vivo/iniciar", headers=outro).status_code == 403
+    mesma = {"origin": "http://testserver"}
+    assert cliente.post("/historico/excluir", data={}, headers=mesma).status_code == 200

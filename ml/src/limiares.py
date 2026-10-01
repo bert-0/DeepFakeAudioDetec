@@ -31,14 +31,22 @@ def caminho_captura(checkpoint: str | Path) -> Path:
     return c.with_name(f"{c.stem}_captura{c.suffix}")
 
 
+def _calibrado_no_fir(calib: dict) -> bool:
+    """O limiar de captura só vale se foi calibrado com o conversor em uso (FIR).
+    Uma cópia antiga, do soxr (0,983 no baseline_v2), marcaria quase tudo como humano."""
+    return calib.get("caminho") == "fir"
+
+
 def limiares_do_checkpoint(caminho: str | Path, dados: dict) -> Limiares:
     """Os dois limiares disponíveis para este modelo.
 
-    A cópia `_captura` ao lado só é aceita se tiver os mesmos pesos.
+    A cópia `_captura` ao lado só é aceita se tiver os mesmos pesos e tiver sido
+    calibrada com o FIR.
     """
     calib = dados.get("calibracao")
     if calib:
-        return Limiares(calib.get("threshold_original"), dados.get("threshold"))
+        captura = dados.get("threshold") if _calibrado_no_fir(calib) else None
+        return Limiares(calib.get("threshold_original"), captura)
     original = dados.get("threshold")
     irmao = caminho_captura(caminho)
     if irmao.is_file():
@@ -47,7 +55,7 @@ def limiares_do_checkpoint(caminho: str | Path, dados: dict) -> Limiares:
         from src.scores import checkpoint_fingerprint
 
         outro = torch.load(irmao, map_location="cpu", weights_only=False)
-        if (outro.get("calibracao") and
+        if (outro.get("calibracao") and _calibrado_no_fir(outro["calibracao"]) and
                 checkpoint_fingerprint(outro["model_state"]) ==
                 checkpoint_fingerprint(dados["model_state"])):
             return Limiares(original, outro.get("threshold"))
@@ -93,6 +101,5 @@ def escolher_limiar(lims: Limiares, taxa_modelo: int, taxa_arquivo: int | None =
     if lims.captura is not None:
         return Escolha(lims.captura, f"recalibrado para conversão de taxa — {motivo}")
     return Escolha(lims.original, f"original — {motivo}",
-                   "não há limiar recalibrado para este modelo. Neste tipo de áudio, "
-                   "medido no baseline_v2, 71% dos humanos passam do limiar original. "
-                   "Rode scripts/calibrar_captura.py.")
+                   "não há limiar recalibrado com o conversor atual (FIR) para este "
+                   "modelo; usando o original. Rode scripts/calibrar_captura.py.")

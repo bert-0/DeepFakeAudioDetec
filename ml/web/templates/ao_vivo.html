@@ -111,7 +111,7 @@
       b.title = fmt(x.instante, 1) + " s — " + (x.util ? "score " + fmt(x.score, 3) + (parcial ? " (janela parcial)" : "") : "silêncio");
       barras.appendChild(b);
     });
-    $("contagem").textContent = nAcima + " de " + uteis.length + " janelas acima do limiar";
+    $("contagem").textContent = nAcima + " de " + uteis.length + (uteis.length === 1 ? " janela" : " janelas") + " acima do limiar";
     ocultar("legenda-barras", !uteis.length);
   }
 

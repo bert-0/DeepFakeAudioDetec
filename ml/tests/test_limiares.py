@@ -44,7 +44,7 @@ def test_sem_recalibrado_avisa_em_vez_de_inventar():
 
 
 def test_limiares_da_copia_recalibrada():
-    dados = {"threshold": 0.98, "calibracao": {"threshold_original": 0.65}}
+    dados = {"threshold": 0.98, "calibracao": {"threshold_original": 0.65, "caminho": "fir"}}
     assert limiares_do_checkpoint("x_captura.pt", dados) == L
 
 
@@ -61,12 +61,14 @@ def test_acha_a_copia_ao_lado_so_com_os_mesmos_pesos(tmp_path):
     assert limiares_do_checkpoint(original, dados).captura is None
 
     torch.save({"model_state": estado, "threshold": 0.98,
-                "calibracao": {"threshold_original": 0.65}}, caminho_captura(original))
+                "calibracao": {"threshold_original": 0.65, "caminho": "fir"}},
+               caminho_captura(original))
     assert limiares_do_checkpoint(original, dados) == L
 
     # Cópia de outro treino: pesos diferentes, limiar de outro modelo — recusada.
     torch.save({"model_state": _estado(1), "threshold": 0.98,
-                "calibracao": {"threshold_original": 0.6}}, caminho_captura(original))
+                "calibracao": {"threshold_original": 0.6, "caminho": "fir"}},
+               caminho_captura(original))
     assert limiares_do_checkpoint(original, dados).captura is None
 
 
@@ -75,3 +77,16 @@ def test_taxa_nativa_le_o_cabecalho(tmp_path):
     sf.write(arq, np.zeros(4410, np.float32), 44100)
     assert taxa_nativa(arq) == 44100
     assert taxa_nativa(tmp_path / "nao_existe.wav") is None
+
+
+def test_copia_calibrada_com_o_soxr_e_recusada(tmp_path):
+    """O conversor em uso é o FIR; o limiar do soxr (0,983) marcaria quase tudo como humano."""
+    original = tmp_path / "m.pt"
+    estado = _estado(0)
+    dados = {"model_state": estado, "threshold": 0.65}
+    for calib in ({"threshold_original": 0.65, "caminho": "soxr"},
+                  {"threshold_original": 0.65}):          # antiga, antes de registrar o caminho
+        torch.save({"model_state": estado, "threshold": 0.98, "calibracao": calib},
+                   caminho_captura(original))
+        assert limiares_do_checkpoint(original, dados) == Limiares(0.65, None)
+        assert limiares_do_checkpoint("x_captura.pt", {"threshold": 0.98, "calibracao": calib}).captura is None
