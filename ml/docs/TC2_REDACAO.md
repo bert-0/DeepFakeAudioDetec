@@ -1003,8 +1003,8 @@ Fonte: Autoria própria.
 > enviado pela interface é apagado logo após a análise, e o histórico guarda
 > apenas o nome do arquivo e os scores, com registros que o usuário pode
 > excluir. A captura ao vivo grava a sessão em disco, no próprio computador,
-> para conferência posterior; essa gravação não é apagada junto com o registro
-> do histórico e precisa ser removida da pasta de saída. Como a captura alcança
+> para conferência posterior; ao excluir o registro no histórico, a gravação é
+> apagada junto. Como a captura alcança
 > tudo o que o computador reproduz, inclusive a voz de terceiros numa chamada,
 > o seu uso exige o consentimento dos participantes.
 >

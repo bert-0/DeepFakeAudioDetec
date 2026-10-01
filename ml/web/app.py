@@ -150,13 +150,20 @@ def historico(request: Request):
 
 @app.post("/historico/excluir")
 def historico_excluir(ids: list[int] = Form(default=[])):
+    gravacoes = banco().gravacoes(ids)
     banco().excluir(ids)
+    for wav in gravacoes:
+        _apagar_sessao(Path(wav))
     return RedirectResponse("/historico", status_code=303)
 
 
 @app.post("/historico/limpar")
 def historico_limpar():
     banco().limpar()
+    # Varre a pasta inteira: pega também sessões salvas antes de o caminho da
+    # gravação ir para o banco.
+    for wav in pasta_ao_vivo().glob("sessao_*.wav"):
+        _apagar_sessao(wav)
     return RedirectResponse("/historico", status_code=303)
 
 
@@ -188,6 +195,21 @@ def pasta_ao_vivo() -> Path:
 
 def _sessao() -> dict | None:
     return _estado.get("sessao")
+
+
+def _apagar_sessao(wav: Path) -> None:
+    """Apaga a gravação e os arquivos da sessão (JSON, log). Só dentro da pasta
+    ao vivo, e nunca a sessão que ainda está gravando."""
+    wav = wav.resolve()
+    if wav.parent != pasta_ao_vivo().resolve():
+        return
+    atual = _sessao()
+    if atual and Path(atual["wav"]).resolve() == wav:
+        if _rodando(atual):
+            return
+        _estado.pop("sessao", None)
+    for ext in (".wav", ".json", ".log", ".parar"):
+        wav.with_suffix(ext).unlink(missing_ok=True)
 
 
 def _rodando(sessao: dict | None) -> bool:
@@ -255,7 +277,7 @@ def _salvar_sessao_no_historico(sessao: dict) -> int | None:
         janelas=[{"t": round(x["instante"], 2), "score": round(x["score"], 4),
                   "util": x.get("util", not x.get("silencio")), "peso": x.get("peso", 1.0)}
                  for x in leituras])
-    return banco().salvar(r, detector().modelo)
+    return banco().salvar(r, detector().modelo, gravacao=str(Path(sessao["wav"]).resolve()))
 
 
 @app.post("/api/ao-vivo/parar")

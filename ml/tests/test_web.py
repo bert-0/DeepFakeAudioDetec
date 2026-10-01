@@ -2,6 +2,7 @@
 
 import importlib
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -204,3 +205,57 @@ def test_trocar_arquivo_e_botao_e_o_campo_fica_fora_da_area_escondida(cliente):
     zona = html[html.index('id="zona"'):html.index("</label>", html.index('id="zona"'))]
     assert 'type="file"' not in zona
     assert '<button type="button" id="trocar"' in html
+
+
+def _sessao_encerrada(cliente, modulo):
+    from monitor import gravar_json
+    from src.capture.analyzer import Agregador, Leitura
+
+    cliente.post("/api/ao-vivo/iniciar")
+    sessao = modulo._estado["sessao"]
+    Path(sessao["wav"]).write_bytes(b"RIFF")
+    Path(sessao["log"]).write_text("ok", encoding="utf-8")
+    ag = Agregador(janela_s=4.0, passo_s=2.0)
+    for i in range(5):
+        ag.adicionar(Leitura(indice=i, instante=2.0 * i, score=0.3, rms=0.1))
+    gravar_json(ag, sessao["json"], limiar=0.7, origem_limiar="recalibrado", ativo=False)
+    return cliente.post("/api/ao-vivo/parar").json()["analise_id"]
+
+
+def test_excluir_registro_apaga_a_gravacao_ao_vivo(cliente, tmp_path, monkeypatch):
+    import web.app as modulo
+
+    pasta = tmp_path / "ao_vivo"
+    monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(pasta))
+    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log: _ProcFalso(parar))
+
+    analise_id = _sessao_encerrada(cliente, modulo)
+    outro = _enviar(cliente, tmp_path, "fica.wav")
+    assert list(pasta.glob("sessao_*.wav"))
+
+    cliente.post("/historico/excluir", data={"ids": [analise_id]})
+    assert not list(pasta.iterdir()), "gravação, JSON, log e marca de parada apagados"
+    assert cliente.get(f"/analises/{outro}").status_code == 200
+    assert cliente.get("/api/ao-vivo").json() == {"existe": False, "rodando": False}
+
+
+def test_limpar_apaga_todas_as_gravacoes_e_nada_fora_da_pasta(cliente, tmp_path, monkeypatch):
+    import web.app as modulo
+
+    pasta = tmp_path / "ao_vivo"
+    monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(pasta))
+    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log: _ProcFalso(parar))
+
+    _sessao_encerrada(cliente, modulo)
+    antiga = pasta / "sessao_20260101_000000.wav"   # salva antes do caminho ir ao banco
+    antiga.write_bytes(b"RIFF")
+    fora = tmp_path / "fora.wav"
+    fora.write_bytes(b"RIFF")
+    r = SimpleNamespace(arquivo="x", duracao_s=1.0, taxa_nativa=None, score_medio=0.1,
+                        score_maximo=0.1, limiar=0.5, origem_limiar="", aviso_limiar=None,
+                        janelas_uteis=1, janelas_independentes=1.0, janelas=[])
+    modulo.banco().salvar(r, "m", gravacao=str(fora))
+
+    cliente.post("/historico/limpar")
+    assert not list(pasta.iterdir())
+    assert fora.exists(), "caminho fora da pasta ao vivo nunca é apagado"
