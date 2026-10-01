@@ -1542,6 +1542,41 @@ captura — o player (VLC, 10.2.4), o codec da chamada (Opus em banda larga cort
 perto de 8 kHz) ou um arquivo convertido antes. Para esses casos, a correção
 continua sendo treinar sem depender do topo da banda (Seção 2.1).
 
+### 10.2.6 Demonstração com a própria voz: controle pareado (resultado negativo)
+
+5 frases gravadas pelo autor (Audacity, WASAPI, mono, 48 kHz, português) e
+refeitas por *copy-synthesis* com Griffin-Lim (o vocoder do ataque A11) e WORLD
+(A02/A03/A05/A07) — `gerar_sintetico.py`. Original e falso têm o mesmo locutor,
+microfone, sala e texto; só o vocoder muda. Scores (`avaliar_arquivos.py`,
+`baseline_v2`, limiar 0,686):
+
+| frase | original (humano) | Griffin-Lim | WORLD |
+|---|---|---|---|
+| 1 | **0,984** | 0,564 | 0,866 |
+| 2 | **0,980** | 0,648 | 0,962 |
+| 3 | **0,989** | 0,850 | 0,936 |
+| 4 | **0,992** | 0,848 | 0,976 |
+| 5 | **0,811** | 0,448 | 0,585 |
+
+**Versões sintéticas acima do original da mesma frase: 0 de 10.** O modelo
+marcou a voz humana como sintética em todas as frases, e as versões refeitas
+pelo vocoder ficaram *abaixo* dela. Com o canal controlado, a conclusão fica
+isolada: a decisão responde às condições de gravação (microfone, sala, língua,
+processamento do driver), não aos artefatos do vocoder — e o vocoder, ao
+reconstruir a voz, suaviza justamente o que levava o score para cima. Mesmo
+padrão do audiobook (10.2.3).
+
+**Conferência pendente:** o padrão "tudo perto de 1,0" é o mesmo que os
+aprimoramentos de áudio da *saída* produziram (10.2.1). Se o microfone também
+tinha aprimoramentos ligados (supressão de ruído, AGC), a regravação sem eles
+separa o efeito do driver do efeito do microfone, da sala e da língua; frases
+em inglês separam a língua.
+
+**Consequência:** para a demonstração, as playlists do ASVspoof (10.2.4)
+funcionam ao vivo; a voz própria entra como evidência da limitação de
+generalização, com controle pareado. A correção é de dados: treino com
+gravações em condições variadas (microfones comuns, salas, outras línguas).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
