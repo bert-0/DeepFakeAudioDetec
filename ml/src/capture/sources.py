@@ -50,7 +50,10 @@ class FileSource(AudioSource):
         self.caminho = Path(caminho)
         self._bloco = int(bloco)
         try:
-            self._wav, _ = librosa.load(str(caminho), sr=sample_rate, mono=True)
+            from ..preprocess.reamostragem import para_taxa
+
+            wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
+            self._wav = para_taxa(wav, taxa, sample_rate)
         except FileNotFoundError:
             raise
         except Exception as erro:

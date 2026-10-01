@@ -65,3 +65,40 @@ def test_versao_rapida_igual_ao_resample_poly():
         x = np.random.default_rng(n).standard_normal(n)
         np.testing.assert_allclose(subir(x, SR), resample_poly(x, 3, 1, window=h), atol=1e-5)
         np.testing.assert_allclose(descer(x), resample_poly(x, 1, 3, window=h), atol=1e-5)
+
+
+def test_arquivo_de_qualquer_taxa_chega_com_a_banda_inteira(tmp_path):
+    """Gravação de 48/44,1 kHz aberta pelo load_audio: o topo da banda de 16 kHz
+    sobrevive (o soxr do librosa o apagava)."""
+    import soundfile as sf
+
+    from src.preprocess import load_audio
+
+    for taxa in (48000, 44100):
+        x = np.random.default_rng(taxa).standard_normal(taxa * 4).astype(np.float32) * 0.1
+        arq = tmp_path / f"a{taxa}.wav"
+        sf.write(arq, x, taxa)
+        y = load_audio(arq, SR)
+        assert len(y) == SR * 4
+        f, p = welch(y, SR, nperseg=4096)
+        topo = p[(f > 7600) & (f < 7800)].mean() / p[(f > 2000) & (f < 3500)].mean()
+        assert 10 * np.log10(topo) > -1.0, taxa
+
+
+def test_arquivo_de_16k_nao_e_mexido(tmp_path):
+    import soundfile as sf
+
+    from src.preprocess import load_audio
+
+    x = np.random.default_rng(3).uniform(-0.5, 0.5, SR).astype(np.float32)
+    sf.write(tmp_path / "a.wav", x, SR, subtype="FLOAT")
+    np.testing.assert_array_equal(load_audio(tmp_path / "a.wav", SR), x)
+
+
+def test_razao_nao_inteira_exige_para_taxa():
+    import pytest
+
+    from src.preprocess.reamostragem import _reamostrar
+
+    with pytest.raises(ValueError):
+        _reamostrar(np.zeros(100), 44100, 16000)

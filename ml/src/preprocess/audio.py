@@ -11,6 +11,8 @@ from pathlib import Path
 import librosa
 import numpy as np
 
+from .reamostragem import para_taxa
+
 
 class AudioLoadError(RuntimeError):
     """Falha ao ler um arquivo de áudio, com o caminho embutido na mensagem."""
@@ -43,7 +45,9 @@ def load_audio(path: str | Path, sample_rate: int) -> np.ndarray:
     `audioread` devolve áudio parcial de um arquivo truncado sem reclamar.
     """
     try:
-        wav, _ = librosa.load(str(path), sr=sample_rate, mono=True)
+        # Taxa original + FIR próprio: o soxr do librosa apagaria 7,6-8 kHz.
+        wav, taxa = librosa.load(str(path), sr=None, mono=True)
+        wav = para_taxa(wav, taxa, sample_rate)
     except FileNotFoundError:
         raise  # já traz o caminho
     except Exception as erro:

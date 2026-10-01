@@ -1514,14 +1514,33 @@ Pelo Reprodutor do Windows o sistema separa os dois grupos ao vivo. Pelo VLC,
 dependência do caminho do som — e uma instrução prática: na demonstração, tocar
 pelo Reprodutor do Windows ou pelo `canal_real.py tocar`.
 
-**Mitigação da conversão de taxa, sem retreino — implementada, falta medir.** A
-captura e o `tocar` passaram a usar um FIR de 2047 coeficientes com corte em
-7,9 kHz (`src/preprocess/reamostragem.py`) no lugar do `soxr`. Em ruído branco,
-na ida e volta 16 → 48 → 16 kHz: 7,6–7,8 kHz passa de −8,0 dB para 0,0 dB, e
-7,8–7,95 kHz de −32,7 dB para −2,8 dB. Custo ao vivo: ~2 ms por bloco de 100 ms.
-Medida pendente: `robustness_eval.py --so clean captura_48k captura_48k_fir`
-(a condição antiga, `captura_48k`, é a do soxr) e nova calibração do limiar
-(`calibrar_captura.py`, que agora usa o FIR por padrão).
+### 10.2.5 A perda na captura era do conversor de taxa — corrigida sem retreino
+
+A captura, o `tocar` e a leitura de arquivos acima de 16 kHz passaram a usar um
+FIR de 2047 coeficientes com corte em 7,9 kHz (`src/preprocess/reamostragem.py`)
+no lugar do `soxr`. Em ruído branco, na ida e volta 16 → 48 → 16 kHz,
+7,6–7,8 kHz vai de −8,0 dB para 0,0 dB e 7,8–7,95 kHz de −32,7 dB para −2,8 dB.
+Custo ao vivo: ~2 ms por bloco de 100 ms.
+
+Medido no eval (`robustness_eval.py --amostra 10000`, mesmos 10.002 áudios,
+IC ±1,28 pp), `baseline_v2`:
+
+| condição | EER | precisão | recall | humanos acima do limiar original |
+|---|---|---|---|---|
+| limpo | 19,02% | 0,9837 | 0,7149 | 10% |
+| captura com soxr | 24,70% | 0,9209 | 0,9523 | 71% |
+| **captura com FIR** | **19,41%** | 0,9810 | 0,7271 | **12%** |
+
+**A captura deixou de custar**: +0,39 pp, dentro do IC, contra +5,68 pp antes.
+O ponto de operação volta junto: recalibrado no dev passado pelo FIR, o limiar
+fica em **0,686** (EER no dev 10,33%), contra 0,654 do original e 0,983 do
+caminho com soxr. Ou seja: a degradação que a Seção 10.2.1 atribuía "à captura"
+era quase toda do filtro do conversor, que apagava a faixa de 7,6–8 kHz.
+
+O que continua: o filtro não recupera o que outro programa já cortou antes da
+captura — o player (VLC, 10.2.4), o codec da chamada (Opus em banda larga corta
+perto de 8 kHz) ou um arquivo convertido antes. Para esses casos, a correção
+continua sendo treinar sem depender do topo da banda (Seção 2.1).
 
 ### 10.3 Bases públicas que já trazem canal
 

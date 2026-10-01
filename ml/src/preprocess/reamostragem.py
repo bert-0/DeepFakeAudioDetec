@@ -15,6 +15,8 @@ import numpy as np
 TAXA_DISPOSITIVO = 48000
 CORTE_HZ = 7900.0
 COEFICIENTES = 2047
+#: Corte como fração da taxa baixa (7900/16000), para servir a outras taxas.
+CORTE_RELATIVO = CORTE_HZ / 16000
 
 
 @lru_cache(maxsize=4)
@@ -62,12 +64,31 @@ def _polifasica(x: np.ndarray, up: int, down: int, h: np.ndarray) -> np.ndarray:
 
 def _reamostrar(x: np.ndarray, de: int, para: int) -> np.ndarray:
     up, down = _razao(de, para)
-    h = filtro(max(de, para))
-    if up == 1 or down == 1:
-        return _polifasica(x, up, down, h).astype(np.float32)
-    from scipy.signal import resample_poly
+    if up != 1 and down != 1:
+        raise ValueError(f"razão não inteira ({de} -> {para}): use para_taxa()")
+    h = filtro(max(de, para), CORTE_RELATIVO * min(de, para))
+    return _polifasica(x, up, down, h).astype(np.float32)
 
-    return resample_poly(np.asarray(x, np.float64), up, down, window=h).astype(np.float32)
+
+def para_taxa(x: np.ndarray, de: int, para: int) -> np.ndarray:
+    """Converte qualquer taxa para `para` sem apagar o topo da banda de `para`.
+
+    Razão inteira: FIR direto. Senão (ex.: 44,1 kHz), soxr até o múltiplo de
+    `para` logo acima (corta perto de 20 kHz, longe da banda de voz) e depois FIR.
+    Para subir de uma taxa menor (ex.: 8 kHz), o soxr basta: não há o que perder.
+    """
+    de, para = int(de), int(para)
+    x = np.asarray(x, np.float32)
+    if de == para:
+        return x
+    if de > para and de % para == 0 or de < para and para % de == 0:
+        return _reamostrar(x, de, para)
+    import soxr
+
+    if de < para:
+        return soxr.resample(x, de, para).astype(np.float32)
+    intermediaria = para * -(-de // para)
+    return _reamostrar(soxr.resample(x, de, intermediaria), intermediaria, para)
 
 
 def subir(x: np.ndarray, de: int, para: int = TAXA_DISPOSITIVO) -> np.ndarray:

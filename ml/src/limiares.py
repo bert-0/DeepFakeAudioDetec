@@ -1,8 +1,9 @@
 """Escolha do limiar conforme a origem do áudio.
 
-Converter para 16 kHz corta a faixa de 7,6-8 kHz, então cada modelo tem dois
-limiares: o original (áudio nativo de 16 kHz) e o de captura, recalibrado por
-`scripts/calibrar_captura.py`. A regra olha só a taxa do arquivo.
+Cada modelo tem dois limiares: o original (áudio nativo de 16 kHz) e o de
+captura, recalibrado por `scripts/calibrar_captura.py` no caminho 16 -> 48 -> 16
+kHz. Com o FIR (src/preprocess/reamostragem.py) os dois ficaram próximos
+(0,654 e 0,686 no baseline_v2). A regra olha só a taxa do arquivo.
 """
 
 from __future__ import annotations
