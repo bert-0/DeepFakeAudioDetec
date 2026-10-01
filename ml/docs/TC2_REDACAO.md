@@ -153,6 +153,15 @@ substitui por inteiro, trocar:
   cada modelo no conjunto de avaliação, para análise detalhada do comportamento
   do modelo na classificação" (`src/metrics.py`, `plot_confusion_matrix`).
 
+## 4.3 Levantamento de Requisitos — ajustes
+
+- "O sistema recebe como entrada um arquivo de áudio fornecido pelo usuário," →
+  "O sistema recebe como entrada um arquivo de áudio fornecido pelo usuário ou
+  o áudio captado em tempo real (seção 4.13),".
+- "podendo incluir uma probabilidade associada à classificação" → "acompanhada
+  do score do modelo, entre 0 (humano) e 1 (sintético)" (a seção 4.13 diz que o
+  valor exibido é o score, e não uma probabilidade calibrada).
+
 ## 3.4 Inteligência Artificial Aplicada — trecho a substituir
 
 Troca da frase que atribui a atenção a Vaswani et al.:
@@ -991,8 +1000,10 @@ Fonte: Autoria própria.
 
 ## 5.6 Resultados Esperados e Obtidos — substituir por inteiro
 
-> O planejamento do TC1 estabeleceu três projeções, e nenhuma se confirmou
-> integralmente (Quadro 2).
+> O Quadro 2 compara as projeções e os requisitos do planejamento do TC1 com o
+> que foi obtido. As três projeções de desempenho (F1, EER e ganho a cada
+> incremento) não se confirmaram integralmente; os requisitos do sistema foram
+> atendidos, com a ressalva de que o desempenho em MP3 não foi avaliado.
 
 **Quadro 2 – Resultados esperados e obtidos**
 
