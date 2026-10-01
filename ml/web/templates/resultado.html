@@ -26,10 +26,8 @@
   {% include "_barras.html" %}
   <div class="eixo"><span>0:00</span><span>{{ a.duracao_s | mmss }}</span></div>
   {% if uteis %}
-  <p class="legenda-barras">Cada barra é uma janela de 4 s.
-    {% if n_acima == 0 %}Nenhuma {{ 'ficou' }} acima do limiar.
-    {% else %}{{ n_acima }} de {{ uteis | length }} {{ 'ficou' if n_acima == 1 else 'ficaram' }} acima do limiar (vermelho).{% endif %}
-    Barras apagadas são janelas com pouca fala, que pesam menos na média.</p>
+  <p class="legenda-barras">{{ n_acima }} de {{ uteis | length }} janelas acima do limiar
+    <span class="chave"><i class="amostra abaixo"></i>abaixo<i class="amostra acima"></i>acima<i class="amostra abaixo parcial"></i>pouca fala</span></p>
   {% endif %}
 
   {% if acima %}

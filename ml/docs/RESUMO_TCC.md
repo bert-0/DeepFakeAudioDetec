@@ -1594,6 +1594,40 @@ funcionam ao vivo; a voz própria entra como evidência da limitação de
 generalização, com controle pareado. A correção é de dados: treino com
 gravações em condições variadas (microfones comuns, salas, outras línguas).
 
+### 10.2.7 Reprodução pelo ar: alto-falante do celular → microfone (qualitativo)
+
+As playlists da demonstração (10.2.4: 3 bonafide e 3 spoof, A09/A11/A19)
+tocadas pelo alto-falante de um celular e captadas pelo microfone do
+computador (aba Ao vivo, fonte "microfone", `baseline_v2`, limiar 0,69),
+30/09/2026:
+
+| rodada | reais (bonafide) | falsos (spoof) | janelas acima do limiar (falsos) |
+|---|---|---|---|
+| equalização do celular ligada, 1 | 0,08 | 0,35 | 4 de 18 |
+| equalização do celular ligada, 2 | 0,07 | 0,30 | 2 de 14 |
+| equalização desligada | **0,19** | **0,15** | 0 |
+
+Referência, mesmos arquivos pelo som do computador: reais 0,33, falsos 1,00.
+
+- **Pelo ar, nada passa do limiar:** os falsos caem de 1,00 para 0,15–0,35. É o
+  cenário *Physical Access* da ASVspoof (repetição por alto-falante), e o
+  modelo foi treinado só em *Logical Access*.
+- **A separação não se sustenta.** Com a equalização (reforço de graves) do
+  celular, os falsos ficaram acima dos reais nas duas rodadas; sem ela, a ordem
+  se inverteu (0,15 contra 0,19). Uma configuração do alto-falante basta para
+  mudar o resultado.
+- **Coerente com a sensibilidade às pausas (10.2.1):** ruído somado às pausas
+  derrubou os scores dos spoofs na simulação (0,999 → 0,766; 0,972 → 0,183). A
+  gravação pelo ar enche as pausas de ruído e reverberação da sala, o que o
+  modelo associa a voz humana; o alto-falante pequeno ainda altera graves e
+  agudos.
+- **Não calibrar um limiar com isso.** Três pares não sustentam um limiar;
+  calibrar para o ar exigiria tocar uma amostra rotulada pelo mesmo caminho e
+  medir o EER, como na 10.2.1.
+
+**Para a apresentação:** a demonstração principal vai pelo som do computador
+(10.2.4); o microfone serve para a voz ao vivo e para mostrar a limitação.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

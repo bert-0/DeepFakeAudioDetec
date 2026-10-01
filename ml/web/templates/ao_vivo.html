@@ -36,7 +36,8 @@
       <div class="legenda" id="legenda"></div>
     </div>
     <div class="barras" id="barras"></div>
-    <p class="legenda-barras" id="legenda-barras"></p>
+    <p class="legenda-barras oculto" id="legenda-barras"><span id="contagem"></span>
+      <span class="chave"><i class="amostra abaixo"></i>abaixo<i class="amostra acima"></i>acima<i class="amostra abaixo parcial"></i>pouca fala</span></p>
     <div class="faixa-aviso vermelho oculto" id="alerta">Média acima do limiar — indício de síntese, não prova.</div>
   </div>
 
@@ -110,10 +111,8 @@
       b.title = fmt(x.instante, 1) + " s — " + (x.util ? "score " + fmt(x.score, 3) + (parcial ? " (janela parcial)" : "") : "silêncio");
       barras.appendChild(b);
     });
-    $("legenda-barras").textContent = uteis.length ?
-      "Cada barra é uma janela de 4 s. " + (nAcima === 0 ? "Nenhuma ficou acima do limiar. " :
-        nAcima + " de " + uteis.length + (nAcima === 1 ? " ficou" : " ficaram") + " acima do limiar (vermelho). ") +
-      "Barras apagadas são janelas com pouca fala, que pesam menos na média." : "";
+    $("contagem").textContent = nAcima + " de " + uteis.length + " janelas acima do limiar";
+    ocultar("legenda-barras", !uteis.length);
   }
 
   function desenhar(d) {

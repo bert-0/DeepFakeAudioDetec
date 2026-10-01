@@ -6,7 +6,10 @@
   <p>Modelo em uso: <code>{{ modelo }}</code>, treinado na base ASVspoof 2019 LA
   (ataques A01–A06) e avaliado nos ataques A07–A19, que ele não viu no treino.
   O áudio é dividido em janelas de 4 segundos, com passo de 2, e cada janela
-  recebe um score entre 0 (voz humana) e 1 (voz sintética).</p>
+  recebe um score entre 0 (voz humana) e 1 (voz sintética). No gráfico, cada
+  barra é uma janela; as apagadas têm pouca fala e pesam menos na média.</p>
+  <p>O arquivo enviado é apagado logo depois da análise; o histórico guarda só o
+  resultado. Tudo roda neste computador.</p>
 
   <h2>O que foi medido</h2>
   <ul>
@@ -27,6 +30,8 @@
     <li>O limiar é escolhido pela taxa de amostragem do arquivo. Um arquivo que já
         foi convertido antes de chegar aqui pode receber o limiar errado.</li>
     <li>Um trecho sintético mais curto que 4 segundos nunca ocupa uma janela inteira.</li>
+    <li>Áudio tocado por um alto-falante e captado pelo microfone não é separado de
+        forma confiável: o modelo foi treinado só com áudio digital.</li>
   </ul>
   <p>O resultado deve ser lido como indício, nunca como prova.</p>
 </div>
