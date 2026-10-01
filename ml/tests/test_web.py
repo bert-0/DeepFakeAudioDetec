@@ -196,3 +196,11 @@ def test_excluir_alguns_e_limpar_tudo(cliente, tmp_path):
 
 def test_excluir_sem_selecao_nao_quebra(cliente):
     assert cliente.post("/historico/excluir", data={}).status_code == 200
+
+
+def test_trocar_arquivo_e_botao_e_o_campo_fica_fora_da_area_escondida(cliente):
+    """O navegador não abre o seletor de um campo dentro de um elemento escondido."""
+    html = cliente.get("/").text
+    zona = html[html.index('id="zona"'):html.index("</label>", html.index('id="zona"'))]
+    assert 'type="file"' not in zona
+    assert '<button type="button" id="trocar"' in html
