@@ -112,6 +112,11 @@ input[type=checkbox] { accent-color: var(--azul); }
 .eixo { display: flex; justify-content: space-between; margin: 0 14px 6px;
         font-family: var(--mono); font-size: 11px; color: var(--suave); }
 .legenda-barras { margin: 0 14px 12px; font-size: 12px; color: var(--suave); }
+.chave { margin-left: 6px; white-space: nowrap; }
+.amostra { display: inline-block; width: 8px; height: 8px; margin: 0 4px 0 12px; }
+.amostra.abaixo { background: var(--verde); }
+.amostra.acima { background: var(--vermelho); }
+.amostra.parcial { opacity: 0.3; }
 
 .faixa-aviso { margin: 0 14px 12px; padding: 6px 10px; font-size: 13px; border: 1px solid; }
 .faixa-aviso.vermelho { background: var(--vermelho-claro); border-color: #d9a6a7; color: var(--texto); }

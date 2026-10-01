@@ -89,7 +89,7 @@ def test_arquivo_curto_nao_e_inconclusivo(cliente, tmp_path):
     assert "Inconclusivo" not in r.text
     import re
 
-    assert re.search(r"(Nenhuma\s+ficou|1 de 1\s+ficou) acima do limiar", r.text)
+    assert re.search(r"[01] de 1 janelas acima do limiar", r.text)
 
 
 def test_ao_vivo_sem_sessao(cliente):

@@ -1,7 +1,7 @@
 {# Uma barra por janela de 4 s: altura = score, cor = lado do limiar.
    Janela parcial (pouca fala, completada por repetição) fica apagada: ela pesa
    pouco na média, e na tela não pode parecer tão importante quanto as outras. #}
-<div class="barras" aria-label="Score por janela">
+<div class="barras" aria-label="Score por janela" title="Uma barra por janela de 4 s; a altura é o score">
   {% if limiar is not none %}<div class="linha-limiar" style="bottom: {{ (limiar * 100) | round(1) }}%"></div>{% endif %}
   {% for j in janelas %}
     {% if j.util %}
