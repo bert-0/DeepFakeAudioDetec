@@ -134,8 +134,9 @@ def main(argv=None) -> int:
     tmp.replace(saida)
     print(f"\nGravado: {saida} (mesmos pesos, limiar novo). O original não foi tocado.")
     print("\nMeça o efeito no EVAL (ataques que a calibração não viu):")
+    condicao = "captura_48k_fir" if args.caminho == "fir" else "captura_48k"
     print(f"  python scripts/robustness_eval.py --config {args.config} --checkpoint "
-          f"{saida.as_posix()} --amostra 10000 --so clean captura_48k")
+          f"{saida.as_posix()} --amostra 10000 --so clean {condicao}")
     print("O monitor e o infer.py acham esta cópia sozinhos a partir do checkpoint "
           "original e escolhem o limiar pelo tipo de áudio (src/limiares.py).")
     return 0
