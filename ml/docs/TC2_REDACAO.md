@@ -1291,48 +1291,63 @@ entrega.
 
 **Acrescentar (NBR 6023):**
 
+*(Todas conferidas em 01/10/2026 nos anais da ISCA, IEEE, IEICE e arXiv:
+autores, título, páginas e DOI.)*
+
+CHEN, Xinhui et al. UR Channel-Robust Synthetic Speech Detection System for
+ASVspoof 2021. In: 2021 EDITION OF THE AUTOMATIC SPEAKER VERIFICATION AND
+SPOOFING COUNTERMEASURES CHALLENGE, 2021. *Proceedings* [...]. 2021. p. 75-82.
+DOI: 10.21437/ASVSPOOF.2021-12.
+
 GRIFFIN, Daniel W.; LIM, Jae S. Signal estimation from modified short-time
 Fourier transform. *IEEE Transactions on Acoustics, Speech, and Signal
-Processing*, v. 32, n. 2, p. 236-243, 1984.
+Processing*, v. 32, n. 2, p. 236-243, 1984. DOI: 10.1109/TASSP.1984.1164317.
+
+JUNG, Jee-weon et al. AASIST: Audio Anti-Spoofing using Integrated
+Spectro-Temporal Graph Attention Networks. In: IEEE INTERNATIONAL CONFERENCE ON
+ACOUSTICS, SPEECH AND SIGNAL PROCESSING (ICASSP), 2022, Singapura.
+*Proceedings* [...]. 2022. p. 6367-6371. DOI: 10.1109/ICASSP43922.2022.9747766.
 
 KINGMA, Diederik P.; BA, Jimmy. Adam: a method for stochastic optimization. In:
 INTERNATIONAL CONFERENCE ON LEARNING REPRESENTATIONS, 3., 2015, San Diego.
-*Proceedings* [...]. San Diego: ICLR, 2015.
+*Proceedings* [...]. San Diego: ICLR, 2015. Disponível em:
+https://arxiv.org/abs/1412.6980.
 
 KINNUNEN, Tomi et al. t-DCF: a detection cost function for the tandem
 assessment of spoofing countermeasures and automatic speaker verification. In:
 THE SPEAKER AND LANGUAGE RECOGNITION WORKSHOP (ODYSSEY), 2018, Les Sables
-d'Olonne. *Proceedings* [...]. 2018. p. 312-319.
-*(Citada na 4.11: o t-DCF foi calculado.)*
+d'Olonne. *Proceedings* [...]. 2018. p. 312-319. DOI: 10.21437/Odyssey.2018-44.
 
 LAVRENTYEVA, Galina et al. STC antispoofing systems for the ASVspoof2019
 challenge. In: INTERSPEECH, 2019, Graz. *Proceedings* [...]. 2019.
-p. 1033-1037.
+p. 1033-1037. DOI: 10.21437/Interspeech.2019-1768.
 
 MORISE, Masanori; YOKOMORI, Fumiya; OZAWA, Kenji. WORLD: a vocoder-based
 high-quality speech synthesis system for real-time applications. *IEICE
 Transactions on Information and Systems*, v. E99-D, n. 7, p. 1877-1884, 2016.
+DOI: 10.1587/transinf.2015EDP7457.
 
 MÜLLER, Nicolas M. et al. Speech is silver, silence is golden: what do
-ASVspoof-trained models really learn? In: ASVSPOOF 2021 WORKSHOP, 2021.
-*Proceedings* [...]. 2021. p. 55-60.
+ASVspoof-trained models really learn? In: 2021 EDITION OF THE AUTOMATIC SPEAKER
+VERIFICATION AND SPOOFING COUNTERMEASURES CHALLENGE, 2021. *Proceedings* [...].
+2021. p. 55-60. DOI: 10.21437/ASVSPOOF.2021-9.
 
 OKABE, Koji; KOSHINAKA, Takafumi; SHINODA, Koichi. Attentive statistics pooling
 for deep speaker embedding. In: INTERSPEECH, 2018, Hyderabad. *Proceedings*
-[...]. 2018. p. 2252-2256.
+[...]. 2018. p. 2252-2256. DOI: 10.21437/Interspeech.2018-993.
 
 TODISCO, Massimiliano et al. ASVspoof 2019: future horizons in spoofed and fake
 audio detection. In: INTERSPEECH, 2019, Graz. *Proceedings* [...]. 2019.
-p. 1008-1012.
+p. 1008-1012. DOI: 10.21437/Interspeech.2019-2249.
 
 WANG, Xin et al. ASVspoof 2019: a large-scale public database of synthesized,
 converted and replayed speech. *Computer Speech & Language*, v. 64, 101114,
 2020. DOI: 10.1016/j.csl.2020.101114.
-*(Conferido em 25/09/2026: volume, número do artigo e DOI.)*
 
 WANG, Xin et al. ASVspoof 5: crowdsourced speech data, deepfakes, and
 adversarial attacks at scale. In: THE AUTOMATIC SPEAKER VERIFICATION SPOOFING
-COUNTERMEASURES WORKSHOP (ASVSPOOF 2024), 2024. *Proceedings* [...]. 2024.
+COUNTERMEASURES WORKSHOP (ASVSPOOF 2024), 2024, Kos. *Proceedings* [...]. 2024.
+p. 1-8. DOI: 10.21437/ASVspoof.2024-1.
 
-> As páginas, cidades e números de artigo acima foram escritos de memória.
-> Conferir cada um na fonte (DOI ou anais) antes da entrega.
+> Ainda não conferidas: as referências que já estavam no TC1 e não foram
+> alteradas (Goodfellow, Jurafsky, Oord, Tak, Vaswani, Wang Yuxuan, Yi, LGPD).
