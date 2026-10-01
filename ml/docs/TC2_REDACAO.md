@@ -1163,7 +1163,10 @@ Fonte: Autoria própria.
 > sintéticas receberam scores menores que o original em 18 de 20 casos. O
 > modelo detecta os ataques da base, mas não o mesmo vocoder aplicado a uma voz
 > nova, e o score passa a responder ao microfone, à sala e ao processamento do
-> driver. O sistema funciona de ponta a ponta; o limite está no que o modelo
+> driver. O mesmo ocorreu na reprodução pelo ar, cenário de *Physical Access*
+> ausente do treino: tocados por um alto-falante de celular e captados pelo
+> microfone, os áudios sintéticos caíram para abaixo do limiar, e a ordem entre
+> humanos e sintéticos passou a depender da equalização do celular. O sistema funciona de ponta a ponta; o limite está no que o modelo
 > aprendeu.
 >
 > As metas de F1 (0,85 no RNF04 e 0,90 na projeção do planejamento) e de EER
@@ -1174,7 +1177,8 @@ Fonte: Autoria própria.
 >
 > Como trabalhos futuros, destacam-se: repetir os treinamentos com várias
 > sementes; estender a avaliação às demais condições da ASVspoof 2021 LA, ao
-> processamento de clientes de conferência e a vozes externas à base, com
+> processamento de clientes de conferência, à reprodução pelo ar e a vozes
+> externas à base, com
 > coleta consentida; treinar sem depender do topo da banda, com LFCC limitado
 > ou aumento de dados com conversão de taxa; incluir no treino gravações em
 > condições variadas (microfones comuns, salas, outras línguas) e ataques
