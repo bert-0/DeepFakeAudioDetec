@@ -1566,11 +1566,26 @@ processamento do driver), não aos artefatos do vocoder — e o vocoder, ao
 reconstruir a voz, suaviza justamente o que levava o score para cima. Mesmo
 padrão do audiobook (10.2.3).
 
-**Conferência pendente:** o padrão "tudo perto de 1,0" é o mesmo que os
-aprimoramentos de áudio da *saída* produziram (10.2.1). Se o microfone também
-tinha aprimoramentos ligados (supressão de ruído, AGC), a regravação sem eles
-separa o efeito do driver do efeito do microfone, da sala e da língua; frases
-em inglês separam a língua.
+**Regravação sem os aprimoramentos do microfone** (2 frases em inglês, 3 em
+português):
+
+| frase | original | Griffin-Lim | WORLD |
+|---|---|---|---|
+| 1 (inglês) | 0,901 | 0,446 | 0,443 |
+| 2 (inglês) | 0,472 | 0,264 | 0,413 |
+| 1 (português) | 0,898 | 0,720 | 0,718 |
+| 2 (português) | 0,593 | 0,315 | 0,453 |
+| 3 (português) | 0,688 | 0,707 | 0,898 |
+
+- **Os aprimoramentos do microfone empurravam a voz humana para cima:** média
+  dos originais de 0,95 (5 de 5 acima do limiar) para 0,71 (3 de 5). É o mesmo
+  efeito dos aprimoramentos da saída (10.2.1).
+- **Língua: sem efeito claro** (inglês 0,69, português 0,73; 2 e 3 frases).
+- **As versões do vocoder seguem abaixo do original: 18 de 20** nas duas
+  rodadas. Isso não é do driver. O modelo acerta o ataque A11 (Tacotron2 +
+  Griffin-Lim) no eval, mas não o Griffin-Lim aplicado a outra voz: o que ele
+  aprendeu do A11 não é o artefato genérico do vocoder, e sim marcas do sistema
+  e da base do ASVspoof (modelo acústico, locutores, condições de gravação).
 
 **Consequência:** para a demonstração, as playlists do ASVspoof (10.2.4)
 funcionam ao vivo; a voz própria entra como evidência da limitação de

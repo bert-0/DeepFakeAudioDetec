@@ -91,6 +91,14 @@ def main(argv=None) -> int:
 
     saida = Path(args.saida)
     saida.mkdir(parents=True, exist_ok=True)
+    # Só os arquivos que este script gera: sem isso, versões de gravações
+    # antigas ficam na pasta e se misturam com as novas na avaliação.
+    antigos = [f for f in saida.iterdir() if f.name in ("pareado.wav", "pareado_cola.txt")
+               or f.suffix == ".wav" and f.stem.endswith(("_original", "_griffinlim", "_world"))]
+    for f in antigos:
+        f.unlink()
+    if antigos:
+        print(f"{len(antigos)} arquivo(s) de uma geração anterior removido(s) de {saida}")
     geradores = {"griffinlim": griffin_lim, "world": lambda w, sr: world(w, sr, args.tom)}
     itens = []
     for arq in arquivos:
