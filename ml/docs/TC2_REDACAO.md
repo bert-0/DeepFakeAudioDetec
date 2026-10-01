@@ -115,7 +115,7 @@ samples fell below the threshold.
 **Keywords:** Deepfake. Audio. Feature fusion. LFCC. ASVspoof. Channel robustness.
 Real time.
 
-> Contagem: o Resumo tem cerca de 470 palavras, dentro da faixa de 150 a 500
+> Contagem: o Resumo tem cerca de 450 palavras, dentro da faixa de 150 a 500
 > que a NBR 6028 dá para trabalhos acadêmicos.
 
 ---
