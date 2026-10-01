@@ -129,6 +129,28 @@ Referências). No texto do TC1 ela aparece em quatro lugares:
   TODISCO et al., 2019)", porque ali se fala dos desafios ASVspoof.
 - **4.9** e **introdução do capítulo 5**: já substituídas nas redações abaixo.
 
+## Tempo verbal — trechos do TC1 a passar para o passado
+
+O TC1 descrevia o trabalho como plano. Nos parágrafos que este arquivo não
+substitui por inteiro, trocar:
+
+- **4.1**, segundo parágrafo: "o desempenho do sistema será avaliado" →
+  "o desempenho do sistema foi avaliado".
+- **4.2**, último parágrafo: "que o sistema de detecção proposto deverá ser
+  capaz de identificar" → "que o sistema de detecção proposto precisa ser capaz
+  de identificar".
+- **4.5**, introdução: "as funcionalidades que o sistema deverá executar" →
+  "as funcionalidades que o sistema executa".
+- **4.7**, primeiro parágrafo: "O desenvolvimento do projeto seguirá um modelo
+  incremental" → "O desenvolvimento do projeto seguiu um modelo incremental".
+- **4.11**, introdução: "O desempenho do sistema será avaliado" → "O
+  desempenho do sistema foi avaliado".
+- **4.11**, parágrafo da matriz de confusão: "também será utilizada a matriz de
+  confusão para análise detalhada do comportamento do modelo durante o processo
+  de classificação" → "também foi utilizada a matriz de confusão, gerada para
+  cada modelo no conjunto de avaliação, para análise detalhada do comportamento
+  do modelo na classificação" (`src/metrics.py`, `plot_confusion_matrix`).
+
 ## 3.4 Inteligência Artificial Aplicada — trecho a substituir
 
 Troca da frase que atribui a atenção a Vaswani et al.:
