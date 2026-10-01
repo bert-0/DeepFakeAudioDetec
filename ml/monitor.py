@@ -1,7 +1,7 @@
 """Monitor de chamada ao vivo (RF04–RF07 da APS).
 
-Escuta a saída de áudio do sistema (loopback) e mostra um score por janela;
-funciona com Teams, Meet, Zoom ou qualquer outro. O limiar é escolhido pelo
+Escuta a saída de áudio do sistema (loopback) ou um microfone e mostra um score
+por janela; funciona com Teams, Meet, Zoom ou qualquer outro. O limiar é escolhido pelo
 tipo de áudio (src/limiares.py); o score é indício, não veredito.
 
     # ao vivo (recomendado: o baseline_v2 sozinho; a fusão não ganhou no canal real)
@@ -19,6 +19,9 @@ tipo de áudio (src/limiares.py); o score é indício, não veredito.
     # reprocessar uma gravação, de forma reprodutível
     python monitor.py --config ... --checkpoint ... --arquivo chamada.wav
 
+    # pelo microfone (o padrão do Windows, ou --dispositivo-audio "<nome>")
+    python monitor.py --config ... --checkpoint ... --fonte microfone
+
     # ver os dispositivos disponíveis
     python monitor.py --listar-dispositivos
 """
@@ -31,7 +34,7 @@ from pathlib import Path
 
 import numpy as np
 
-from src.capture import CaptureError, FileSource, WasapiLoopbackSource
+from src.capture import CaptureError, FileSource, MicrofoneSource, WasapiLoopbackSource
 from src.capture.analyzer import AnalisadorContinuo, Agregador
 from src.config import load_config, resolve_device
 from src.data.dataset import buscar_rotulo
@@ -47,8 +50,11 @@ def parse_args() -> argparse.Namespace:
                    help="checkpoint treinado; repita a opção para fundir modelos")
     p.add_argument("--arquivo", help="analisa um .wav em vez do áudio ao vivo")
     p.add_argument("--gravar", help="salva o áudio capturado neste .wav")
+    p.add_argument("--fonte", choices=("sistema", "microfone"), default="sistema",
+                   help="sistema: o que o computador toca (loopback); microfone: a voz ao vivo")
     p.add_argument("--dispositivo-audio", default=None,
-                   help="nome do dispositivo de saída a escutar (padrão: o do sistema)")
+                   help="nome do dispositivo (saída ou microfone, conforme --fonte; "
+                        "padrão: o do sistema)")
     p.add_argument("--hop", type=float, default=None,
                    help="passo entre janelas em segundos (padrão: metade da janela)")
     p.add_argument("--device", default=None, help="cuda | cpu")
@@ -65,15 +71,19 @@ def parse_args() -> argparse.Namespace:
 
 def listar_dispositivos() -> int:
     try:
-        import soundcard
+        import soundcard  # noqa: F401
     except ImportError:
         print("[ERRO] instale o pacote de captura: pip install soundcard")
         return 1
-    print("Dispositivos de saída (use o nome com --dispositivo-audio):\n")
-    padrao = soundcard.default_speaker().name
-    for alto_falante in soundcard.all_speakers():
-        marca = " <- padrão" if alto_falante.name == padrao else ""
-        print(f"  {alto_falante.name}{marca}")
+    from src.capture import listar_dispositivos as listar
+
+    d = listar()
+    for fonte, titulo in (("sistema", "Saídas (--fonte sistema)"),
+                          ("microfone", "Microfones (--fonte microfone)")):
+        print(f"{titulo} — use o nome com --dispositivo-audio:")
+        for nome in d[fonte]:
+            print(f"  {nome}{' <- padrão' if nome == d['padrao'][fonte] else ''}")
+        print()
     return 0
 
 
@@ -123,7 +133,8 @@ def main() -> int:
             particao, label, sistema = achado
             verdade = "spoof" if label else "bonafide"
 
-    origem = "arquivo" if args.arquivo else "saída do sistema (loopback)"
+    origem = ("arquivo" if args.arquivo else
+              "microfone" if args.fonte == "microfone" else "saída do sistema (loopback)")
     if analisador.n_modelos > 1:
         print(f"Modelos: {analisador.n_modelos} em fusão (média) | dispositivo: {device}")
     else:
@@ -147,9 +158,11 @@ def main() -> int:
           "Windows. Trate o número como indício.\n")
 
     try:
-        fonte = (FileSource(args.arquivo, analisador.sample_rate) if args.arquivo
-                 else WasapiLoopbackSource(analisador.sample_rate,
-                                           nome_dispositivo=args.dispositivo_audio))
+        if args.arquivo:
+            fonte = FileSource(args.arquivo, analisador.sample_rate)
+        else:
+            classe = MicrofoneSource if args.fonte == "microfone" else WasapiLoopbackSource
+            fonte = classe(analisador.sample_rate, nome_dispositivo=args.dispositivo_audio)
     except CaptureError as erro:
         print(f"[ERRO] {erro}")
         return 1
@@ -211,7 +224,8 @@ def main() -> int:
                   "de novo.")
         relatar(agregador, args.json, analisador.canal,
                 ao_vivo=not args.arquivo, limiar=analisador.threshold,
-                verdade=verdade, origem_limiar=escolha.origem)
+                verdade=verdade, origem_limiar=escolha.origem,
+                microfone=not args.arquivo and args.fonte == "microfone")
     return 0
 
 
@@ -253,7 +267,8 @@ def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None 
 
 def relatar(agregador: Agregador, destino: str | None, canal=None,
             ao_vivo: bool = False, limiar: float | None = None,
-            verdade: str | None = None, origem_limiar: str = "") -> None:
+            verdade: str | None = None, origem_limiar: str = "",
+            microfone: bool = False) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
@@ -270,7 +285,11 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
         gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
-        if ao_vivo and resumo["janelas_silencio"] == resumo["janelas_total"]:
+        if microfone and resumo["janelas_silencio"] == resumo["janelas_total"]:
+            print("\nTodas as janelas vieram em silêncio. Confira se o microfone está")
+            print("mudo, se o Windows deu permissão de acesso ao microfone e se o")
+            print("dispositivo aberto é o certo (--listar-dispositivos).")
+        elif ao_vivo and resumo["janelas_silencio"] == resumo["janelas_total"]:
             # No Windows o loopback devolve silêncio sem erro se nada toca ou se o
             # dispositivo aberto não é o que o sistema usa.
             print("\nTodas as janelas vieram em silêncio. As duas causas comuns:")

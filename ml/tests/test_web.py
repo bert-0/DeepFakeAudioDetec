@@ -123,7 +123,7 @@ def test_sessao_ao_vivo_inicia_mostra_so_a_atual_e_vai_para_resultados(cliente, 
 
     monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(tmp_path / "ao_vivo"))
     monkeypatch.setattr(modulo, "_iniciar_monitor",
-                        lambda j, w, parar, log: _ProcFalso(parar))
+                        lambda j, w, parar, log, **kw: _ProcFalso(parar))
 
     assert cliente.post("/api/ao-vivo/iniciar").json() == {"ok": True}
     assert cliente.post("/api/ao-vivo/iniciar").status_code == 409, "uma sessão por vez"
@@ -227,7 +227,7 @@ def test_excluir_registro_apaga_a_gravacao_ao_vivo(cliente, tmp_path, monkeypatc
 
     pasta = tmp_path / "ao_vivo"
     monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(pasta))
-    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log: _ProcFalso(parar))
+    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log, **kw: _ProcFalso(parar))
 
     analise_id = _sessao_encerrada(cliente, modulo)
     outro = _enviar(cliente, tmp_path, "fica.wav")
@@ -244,7 +244,7 @@ def test_limpar_apaga_todas_as_gravacoes_e_nada_fora_da_pasta(cliente, tmp_path,
 
     pasta = tmp_path / "ao_vivo"
     monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(pasta))
-    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log: _ProcFalso(parar))
+    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log, **kw: _ProcFalso(parar))
 
     _sessao_encerrada(cliente, modulo)
     antiga = pasta / "sessao_20260101_000000.wav"   # salva antes do caminho ir ao banco
@@ -259,3 +259,48 @@ def test_limpar_apaga_todas_as_gravacoes_e_nada_fora_da_pasta(cliente, tmp_path,
     cliente.post("/historico/limpar")
     assert not list(pasta.iterdir())
     assert fora.exists(), "caminho fora da pasta ao vivo nunca é apagado"
+
+
+def test_ao_vivo_pelo_microfone_passa_a_fonte_ao_monitor(cliente, tmp_path, monkeypatch):
+    import web.app as modulo
+
+    pedidos = []
+
+    def falso(j, w, parar, log, **kw):
+        pedidos.append(kw)
+        return _ProcFalso(parar)
+
+    monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(tmp_path / "ao_vivo"))
+    monkeypatch.setattr(modulo, "_iniciar_monitor", falso)
+
+    r = cliente.post("/api/ao-vivo/iniciar", json={"fonte": "microfone", "dispositivo": "Headset"})
+    assert r.json() == {"ok": True}
+    assert pedidos[-1] == {"fonte": "microfone", "dispositivo": "Headset"}
+    assert cliente.get("/api/ao-vivo").json()["fonte"] == "microfone"
+    cliente.post("/api/ao-vivo/parar")
+
+    cliente.post("/api/ao-vivo/iniciar")
+    assert pedidos[-1] == {"fonte": "sistema", "dispositivo": None}, "sem corpo: som do computador"
+    cliente.post("/api/ao-vivo/parar")
+
+    assert cliente.post("/api/ao-vivo/iniciar", json={"fonte": "webcam"}).status_code == 422
+
+
+def test_comando_do_monitor_leva_fonte_e_dispositivo(cliente, tmp_path, monkeypatch):
+    import subprocess
+
+    import web.app as modulo
+
+    capturado = {}
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: capturado.setdefault("cmd", cmd))
+    modulo._iniciar_monitor(tmp_path / "s.json", tmp_path / "s.wav", tmp_path / "s.parar",
+                            tmp_path / "s.log", fonte="microfone", dispositivo="Headset")
+    cmd = capturado["cmd"]
+    assert cmd[cmd.index("--fonte") + 1] == "microfone"
+    assert cmd[cmd.index("--dispositivo-audio") + 1] == "Headset"
+
+
+def test_lista_de_dispositivos_nao_quebra_sem_placa_de_som(cliente):
+    d = cliente.get("/api/ao-vivo/dispositivos").json()
+    assert set(d) >= {"sistema", "microfone", "padrao"}
+    assert "Microfone" in cliente.get("/ao-vivo").text

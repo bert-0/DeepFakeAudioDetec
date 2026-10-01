@@ -206,7 +206,7 @@ Fonte: Autoria própria.
 > (16 kHz), seção 4.13.
 >
 > • soundcard: captura do áudio de saída do computador (*loopback* do WASAPI,
-> no Windows).
+> no Windows) e do microfone.
 >
 > • FastAPI, Jinja2 e SQLite: servidor, páginas da interface web e histórico de
 > análises.
@@ -343,16 +343,18 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 ## 4.13 Sistema de Análise — seção nova
 
 > O modelo é usado por um sistema com duas entradas: o envio de um arquivo e a
-> captura, em tempo real, do áudio que o computador reproduz, como o de uma
-> chamada ou de um vídeo. As duas passam pelo mesmo analisador, de modo que um
-> arquivo e a sua reprodução ao vivo recebem o mesmo tratamento.
+> captura em tempo real. A captura pode ler o áudio que o computador reproduz,
+> como o de uma chamada ou de um vídeo, ou o microfone, para analisar uma voz
+> ao vivo. Todas passam pelo mesmo analisador, de modo que um arquivo e a sua
+> reprodução ao vivo recebem o mesmo tratamento.
 >
-> **Captura.** O áudio de saída é lido por *loopback* do WASAPI, no Windows, à
-> taxa do dispositivo (em geral 48 kHz). A leitura roda numa *thread* própria,
-> com *buffer* de 1 s, para que o processamento não provoque perda de amostras.
-> Os "aprimoramentos de áudio" do driver precisam estar desligados: eles
-> comprimem a dinâmica do sinal e levam todos os scores para perto de 1,0
-> (seção 5.5).
+> **Captura.** O áudio de saída é lido por *loopback* do WASAPI, no Windows, e o
+> microfone pela mesma interface, os dois à taxa de 48 kHz. A leitura roda numa
+> *thread* própria, com *buffer* de 1 s, para que o processamento não provoque
+> perda de amostras. Os "aprimoramentos de áudio" do driver precisam estar
+> desligados, na saída e no microfone: na saída, eles comprimem a dinâmica do
+> sinal e levam todos os scores para perto de 1,0; no microfone, elevam o score
+> da voz humana (seção 5.5).
 >
 > **Conversão de taxa.** O áudio é convertido para os 16 kHz do modelo por um
 > filtro FIR de 2047 coeficientes (janela de Kaiser), com corte em 7,9 kHz,
@@ -382,8 +384,9 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > (WAV, FLAC, MP3, M4A, OGG, Opus ou AAC, até 25 MB). Em "Resultado", vê o score
 > médio, o limiar, a decisão (indício ou não de síntese) e um gráfico com o
 > score de cada janela ao longo do tempo, com as janelas parciais destacadas;
-> o relatório pode ser baixado em JSON. Em "Ao vivo", inicia e encerra a
-> captura e acompanha os scores enquanto ela ocorre. Em "Histórico", consulta e
+> o relatório pode ser baixado em JSON. Em "Ao vivo", escolhe a fonte (som do
+> computador ou microfone) e o dispositivo, inicia e encerra a captura e
+> acompanha os scores enquanto ela ocorre. Em "Histórico", consulta e
 > exclui análises anteriores, guardadas num banco SQLite. A interface
 > apresenta o resultado como indício, e não como prova, e a página "Sobre"
 > descreve as limitações medidas na seção 5.

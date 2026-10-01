@@ -170,6 +170,43 @@ class WasapiLoopbackSource(AudioSource):
         self._mic = None
 
 
+class MicrofoneSource(WasapiLoopbackSource):
+    """Captura um microfone (o padrão do sistema, se nenhum for dado).
+
+    Mesmo caminho do loopback: 48 kHz, thread própria e FIR para 16 kHz. Os
+    aprimoramentos do microfone no Windows também deslocam o score.
+    """
+
+    def _abrir(self) -> None:
+        try:
+            import soundcard
+        except ImportError as erro:
+            raise CaptureError("a captura do microfone precisa do pacote `soundcard`: "
+                               "pip install soundcard") from erro
+        try:
+            alvo = self.nome_dispositivo or soundcard.default_microphone().name
+            self._mic = soundcard.get_microphone(alvo, include_loopback=False)
+        except Exception as erro:
+            raise CaptureError(
+                f"não foi possível abrir o microfone '{self.nome_dispositivo or 'padrão'}': "
+                f"{erro}. Liste os dispositivos com `python monitor.py --listar-dispositivos`."
+            ) from erro
+        self._taxa_dispositivo = 48000
+
+
+def listar_dispositivos() -> dict:
+    """Nomes das saídas (para o loopback) e dos microfones, com os padrões."""
+    import soundcard
+
+    _iniciar_com()
+    return {
+        "sistema": [x.name for x in soundcard.all_speakers()],
+        "microfone": [x.name for x in soundcard.all_microphones()],
+        "padrao": {"sistema": soundcard.default_speaker().name,
+                   "microfone": soundcard.default_microphone().name},
+    }
+
+
 def _iniciar_com() -> None:
     """Inicializa o COM na thread de captura (Windows); repetir é inofensivo."""
     import sys

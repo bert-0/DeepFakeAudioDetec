@@ -1,5 +1,5 @@
-/* Ferramenta técnica: cantos retos, Tahoma, números em monoespaçada, cores
-   sóbrias. Dois temas (escuro é o padrão), trocados pelo botão do cabeçalho. */
+/* Ferramenta técnica: cantos retos, Tahoma, números em monoespaçada, verde como
+   destaque. Dois temas (escuro é o padrão), trocados pelo botão do cabeçalho. */
 :root {
   --fundo: #f2f2ef;
   --papel: #ffffff;
@@ -7,8 +7,8 @@
   --borda-clara: #dcdcd6;
   --texto: #1e1e1e;
   --suave: #5c5c58;
-  --azul: #0a6fb8;
-  --vermelho: #d81b60;
+  --azul: #0b7a46;
+  --vermelho: #c62f3b;
   --vermelho-claro: #f6e3e3;
   --verde: #0a8f5a;
   --amarelo: #7a5a00;
@@ -83,6 +83,13 @@ input[type=checkbox] { accent-color: var(--azul); }
 .nota { padding: 8px 14px; font-size: 12px; color: var(--suave); border-top: 1px solid var(--borda-clara); }
 
 .centro { padding: 16px 14px 8px; }
+.escolha-fonte { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+                 padding: 10px 14px; background: var(--faixa-clara);
+                 border-bottom: 1px solid var(--borda-clara); }
+.escolha-fonte label { cursor: pointer; }
+.escolha-fonte input { accent-color: var(--azul); }
+.escolha-fonte select { flex: 1 1 220px; max-width: 100%; padding: 3px 6px; font: inherit; font-size: 13px;
+                        color: var(--texto); background: var(--caixa); border: 1px solid var(--botao-borda); }
 .score { font-family: var(--mono); font-size: 30px; font-weight: bold; line-height: 1.1; }
 .veredito { font-size: 15px; font-weight: bold; margin: 4px 0 2px; padding-left: 8px;
             border-left: 4px solid currentColor; }
@@ -117,14 +124,14 @@ input[type=checkbox] { accent-color: var(--azul); }
                                  background: var(--botao); border: 1px solid var(--botao-borda);
                                  text-decoration: none; cursor: pointer; }
 .acoes a:hover, .acoes button:hover { filter: brightness(1.1); }
-.acoes .verde { color: #fff; background: #1f4e79; border-color: #163a5a; font-weight: bold; }
+.acoes .verde { color: #fff; background: #17663f; border-color: #0f4d2f; font-weight: bold; }
 .acoes .vermelho { color: #fff; background: #9b1c1f; border-color: #6f1416; font-weight: bold; }
 .acoes [disabled] { opacity: 0.5; cursor: default; filter: none; }
 /* Interruptor do tema: sol de dia, lua e estrelas à noite. Único elemento
    arredondado da página, de propósito. */
 .interruptor { position: relative; flex: 0 0 auto; align-self: center; width: 52px; height: 26px;
-               margin-left: auto; padding: 0; border: 1px solid #9cc7e8; border-radius: 13px;
-               background: #cfe8fb; cursor: pointer; transition: background 0.3s, border-color 0.3s; }
+               margin-left: auto; padding: 0; border: 1px solid #9fd3b5; border-radius: 13px;
+               background: #d6f0e0; cursor: pointer; transition: background 0.3s, border-color 0.3s; }
 .interruptor .bolinha { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
                         border-radius: 50%; background: #ffcf4d;
                         box-shadow: 0 0 0 3px rgba(255, 207, 77, 0.35);

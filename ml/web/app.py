@@ -17,6 +17,9 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 import json
 import time
+from typing import Literal
+
+from pydantic import BaseModel
 
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -216,14 +219,25 @@ def _rodando(sessao: dict | None) -> bool:
     return bool(sessao) and sessao["proc"].poll() is None
 
 
-def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path: Path):
+FONTES = {"sistema": "som do computador", "microfone": "microfone"}
+
+
+class PedidoAoVivo(BaseModel):
+    fonte: Literal["sistema", "microfone"] = "sistema"
+    dispositivo: str | None = None
+
+
+def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path: Path,
+                     fonte: str = "sistema", dispositivo: str | None = None):
     import subprocess
     import sys
 
     d = detector()
     cmd = [sys.executable, str(RAIZ_ML / "monitor.py"), "--config", d.config_path,
            "--checkpoint", d.checkpoint, "--json", str(json_path),
-           "--gravar", str(wav_path), "--parar-com", str(parar_path)]
+           "--gravar", str(wav_path), "--parar-com", str(parar_path), "--fonte", fonte]
+    if dispositivo:
+        cmd += ["--dispositivo-audio", dispositivo]
     log = open(log_path, "w", encoding="utf-8")
     return subprocess.Popen(cmd, cwd=RAIZ_ML, stdout=log, stderr=subprocess.STDOUT)
 
@@ -233,8 +247,21 @@ def ao_vivo(request: Request):
     return templates.TemplateResponse(request, "ao_vivo.html", {"aba": "ao_vivo"})
 
 
+@app.get("/api/ao-vivo/dispositivos")
+def api_ao_vivo_dispositivos():
+    """Saídas e microfones do computador; vazio onde não há captura (ex.: Linux sem
+    PulseAudio), e a página fica só com o dispositivo padrão."""
+    from src.capture import listar_dispositivos
+
+    try:
+        return listar_dispositivos()
+    except Exception as erro:
+        return {"sistema": [], "microfone": [], "padrao": {}, "erro": str(erro)}
+
+
 @app.post("/api/ao-vivo/iniciar")
-def api_ao_vivo_iniciar():
+def api_ao_vivo_iniciar(pedido: PedidoAoVivo | None = None):
+    pedido = pedido or PedidoAoVivo()
     if _rodando(_sessao()):
         raise HTTPException(409, "Já há uma sessão ao vivo em andamento.")
     pasta = pasta_ao_vivo()
@@ -242,8 +269,10 @@ def api_ao_vivo_iniciar():
     marca = time.strftime("%Y%m%d_%H%M%S")
     caminhos = {k: pasta / f"sessao_{marca}{ext}" for k, ext in
                 (("json", ".json"), ("wav", ".wav"), ("parar", ".parar"), ("log", ".log"))}
-    proc = _iniciar_monitor(caminhos["json"], caminhos["wav"], caminhos["parar"], caminhos["log"])
-    _estado["sessao"] = {**caminhos, "proc": proc, "inicio": time.time(), "analise_id": None}
+    proc = _iniciar_monitor(caminhos["json"], caminhos["wav"], caminhos["parar"], caminhos["log"],
+                            fonte=pedido.fonte, dispositivo=pedido.dispositivo or None)
+    _estado["sessao"] = {**caminhos, "proc": proc, "inicio": time.time(), "analise_id": None,
+                         "fonte": pedido.fonte}
     return {"ok": True}
 
 
@@ -263,8 +292,8 @@ def _salvar_sessao_no_historico(sessao: dict) -> int | None:
         return None
     leituras, resumo = dados["leituras"], dados.get("resumo", {})
     r = Resultado(
-        arquivo="Sessão ao vivo " + time.strftime("%d/%m/%Y %H:%M",
-                                                  time.localtime(sessao["inicio"])),
+        arquivo=f"Sessão ao vivo ({FONTES[sessao.get('fonte', 'sistema')]}) "
+                + time.strftime("%d/%m/%Y %H:%M", time.localtime(sessao["inicio"])),
         duracao_s=leituras[-1]["instante"] + 4.0,
         taxa_nativa=None,
         score_medio=resumo.get("score_medio"),
@@ -305,6 +334,7 @@ def api_ao_vivo(ultimas: int = 40):
     rodando = _rodando(sessao)
     dados = _ler_json_sessao(sessao)
     base = {"rodando": rodando, "analise_id": sessao["analise_id"],
+            "fonte": sessao.get("fonte", "sistema"),
             "decorrido_s": round(time.time() - sessao["inicio"], 1)}
     if dados is None:
         erro = None

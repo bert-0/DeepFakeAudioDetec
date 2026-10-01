@@ -123,3 +123,24 @@ def test_buffer_do_wasapi_e_pedido_grande(monkeypatch):
     _coletar(WasapiLoopbackSource(16000, bloco_ms=100), 2)
     assert gravador.blocksize == int(48000 * BUFFER_CAPTURA_S)
     assert BUFFER_CAPTURA_S >= 0.5
+
+
+def test_microfone_abre_o_padrao_sem_loopback_e_usa_o_mesmo_caminho(monkeypatch):
+    from src.capture.sources import MicrofoneSource
+
+    aberturas = []
+    sinal = np.sin(2 * np.pi * 440 * np.arange(48000) / 48000)
+    gravador = _GravadorFalso(sinal, avisar_em=[])
+    mic = types.SimpleNamespace(recorder=lambda samplerate, blocksize=None: gravador)
+    falso = types.SimpleNamespace(
+        default_microphone=lambda: types.SimpleNamespace(name="microfone interno"),
+        get_microphone=lambda nome, include_loopback: aberturas.append(
+            (nome, include_loopback)) or mic)
+    monkeypatch.setitem(sys.modules, "soundcard", falso)
+
+    fonte = MicrofoneSource(16000)
+    assert aberturas == [("microfone interno", False)]
+    assert len(_coletar(fonte, 5)) == 5 * 1600, "mesma conversão 48 -> 16 kHz do loopback"
+
+    MicrofoneSource(16000, nome_dispositivo="Headset")
+    assert aberturas[-1] == ("Headset", False)
