@@ -480,14 +480,20 @@ uvicorn web.app:app --reload          # de dentro de ml/; abre em http://127.0.0
 
 Abas: **Enviar arquivo** (arrastar ou selecionar), **Resultados** (histórico e,
 por análise: score médio, veredito pelo limiar, uma barra por janela de 4 s
-com a cor do lado do limiar, detalhes e relatório em JSON) e **Ao vivo**, que
-acompanha o `monitor.py` rodando no terminal: com `--json outputs/ao_vivo.json`
-ele grava o estado a cada janela, e a página lê esse arquivo a cada 2 s — o
-navegador não tem acesso ao áudio do sistema, a captura fica no monitor.
-`POST /api/analisar` devolve o resultado em JSON; `GET /api/ao-vivo`, a sessão.
+com a cor do lado do limiar, detalhes e relatório em JSON) e **Ao vivo**: o
+botão "Iniciar análise" abre o `monitor.py` como processo do servidor (o
+navegador não tem acesso ao áudio do sistema), o monitor grava o estado a cada
+janela e a página lê a cada 2 s. "Parar análise" cria o arquivo que o monitor
+vigia (`--parar-com`) — no Windows não dá para mandar Ctrl+C a outro processo —
+e a sessão encerrada vai para Resultados. A aba mostra só a sessão atual.
+Janelas parciais (pouca fala, completadas por repetição) aparecem apagadas: pesam
+pouco na média e costumam ter score alto. `POST /api/analisar` devolve o
+resultado em JSON; `GET /api/ao-vivo`, a sessão.
 
-O visual segue o protótipo do docx "Outras partes da UI", sem os elementos de
-maquete: barras de onda decorativas viraram uma barra por janela real, o
+A estrutura (abas, envio, resultado, ao vivo) segue o protótipo do docx
+"Outras partes da UI"; o visual foi trocado por um de ferramenta técnica
+(fundo claro, cantos retos, números em fonte monoespaçada, sem ícones), e os
+elementos de maquete saíram: barras de onda decorativas viraram uma barra por janela real, o
 "nível de confiança em %" virou o score (0 = humano, 1 = sintético, que não é
 uma confiança), e barra de progresso inventada, seletor de estados e botões
 sem função saíram. O caminho de análise é o do monitor, que dá o mesmo score do

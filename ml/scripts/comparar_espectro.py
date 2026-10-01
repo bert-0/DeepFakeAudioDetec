@@ -1,13 +1,8 @@
-"""O que o caminho do som fez com o espectro: sessão B contra sessão A.
+"""Compara o espectro de duas sessões de gravação nos mesmos áudios.
 
-Compara, nos mesmos áudios, a energia média por faixa de frequência (depois
-da normalização por pico, como o modelo vê) e o piso de ruído das pausas.
-Três assinaturas possíveis, cada uma com um culpado diferente:
-
-- **faixa do topo apagada** (7,5-8 kHz muito abaixo) — reamostragem;
-- **inclinação** (graves ou agudos reforçados de forma suave) — equalização,
-  "aprimoramentos de áudio" do driver;
-- **piso de ruído mais alto** nas pausas — ruído somado no caminho.
+Mostra a diferença de energia por faixa (após normalizar pelo pico) e o piso de
+ruído das pausas. Topo apagado sugere reamostragem; inclinação, equalização;
+piso mais alto, ruído somado no caminho.
 
 Uso:
     python scripts/comparar_espectro.py --pasta outputs/canal_real --a limpo --b controle
@@ -32,8 +27,7 @@ def _ids(sessao: Path) -> list[str]:
 
 
 def espectro_e_piso(wav: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray, float]:
-    """PSD média (Welch) e piso: energia dos 10% de quadros mais baixos,
-    em dB relativos ao pico — depois da normalização por pico."""
+    """PSD (Welch) e piso de ruído em dB do pico (10% de quadros mais baixos)."""
     from scipy.signal import welch
 
     x = np.asarray(wav, dtype=np.float64)

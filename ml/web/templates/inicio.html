@@ -6,13 +6,14 @@
   </div>
 
   <label class="envio" for="arquivo" id="zona">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    <span class="principal">Arraste um arquivo de áudio aqui</span>
-    <span class="secundario">ou selecione do seu computador</span>
+    <span class="principal">Arraste um arquivo de áudio para cá</span>
+    <span class="secundario">ou</span>
     <span class="botao-contorno">Selecionar arquivo</span>
-    <input type="file" id="arquivo" name="arquivo" required class="visualmente-oculto"
-           accept="{{ extensoes | join(',') }}">
   </label>
+  {# Fora da área de envio: ela é escondida depois da seleção, e o navegador não
+     abre o seletor de um campo dentro de um elemento escondido. #}
+  <input type="file" id="arquivo" name="arquivo" required class="visualmente-oculto"
+         accept="{{ extensoes | join(',') }}">
 
   <div class="centro oculto" id="analisando">
     <div class="veredito">Analisando voz…</div>
@@ -20,7 +21,7 @@
   </div>
 
   <div class="acoes" id="acoes">
-    <label for="arquivo" id="trocar" class="oculto">Trocar arquivo</label>
+    <button type="button" id="trocar" class="oculto">Trocar arquivo</button>
     <button type="submit" class="verde">Analisar</button>
   </div>
   <div class="nota">Formatos aceitos: WAV · MP3 · M4A · FLAC · OGG · até 25 MB.
@@ -52,6 +53,7 @@
   }
 
   input.addEventListener("change", function () { if (input.files.length) mostrar(input.files[0]); });
+  trocar.addEventListener("click", function () { input.click(); });
   ["dragenter", "dragover"].forEach(function (ev) {
     zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add("arrastando"); });
   });

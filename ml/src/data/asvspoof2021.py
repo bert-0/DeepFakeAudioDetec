@@ -1,30 +1,8 @@
-"""Leitura do metadado do ASVspoof 2021 e conversão para o formato do projeto.
+"""Lê o `trial_metadata.txt` do ASVspoof 2021 e converte para o protocolo de 2019.
 
-O ASVspoof 2021 distribui os rótulos num `trial_metadata.txt` com mais campos
-que o protocolo de 2019, e **em outra ordem**:
-
-    2019:  LA_0079 LA_E_1234567 -     A07   spoof
-    2021:  LA_0009 LA_E_9332881 alaw  ita_tx  A07  spoof  notrim  eval
-           locutor arquivo      codec canal   ataque chave  trim   fase
-
-O parser de 2019 (`parse_protocol_with_systems`) lê o ataque em `parts[3]` e a
-chave em `parts[4]`. No arquivo real do 2021 o bonafide traz `bonafide` também
-na coluna de ataque (`... alaw ita_tx bonafide bonafide notrim eval`), então o
-parser de 2019 **aceita as linhas bonafide com o canal no lugar do ataque e
-descarta todos os spoof** — um protocolo de uma classe só, que parece válido.
-
-Por isso este módulo não usa índice fixo: ele **localiza** o último token
-`bonafide`/`spoof` da linha (a chave) e deduz os demais a partir dele.
-
-A primeira versão deste módulo exigia uma única ocorrência desse token, e por
-isso descartava todo bonafide do arquivo real — o `--listar` saiu com 163.114
-trials e zero bonafide. O formato tinha sido suposto, não conferido; os testes
-usavam o formato suposto e passavam. Agora o descarte é sempre relatado.
-
-**Por que isso importa cientificamente.** O metadado traz codec e canal por
-áudio, e os ataques são os mesmos A07–A19 do eval de 2019. Isso permite comparar
-*o mesmo ataque* em condição limpa e transmitida — inclusive contra a simulação
-de canal deste projeto (`scripts/robustness_eval.py`), que usa Opus.
+Colunas: locutor arquivo codec canal ataque chave trim fase. A ordem difere da
+de 2019, então a chave é localizada (último token `bonafide`/`spoof`), não lida
+por índice fixo.
 """
 
 from __future__ import annotations
@@ -35,9 +13,7 @@ from pathlib import Path
 
 CHAVES = ("bonafide", "spoof")
 
-#: O metadado de 2021 traz no mínimo locutor, arquivo, codec, canal, ataque e
-#: chave. O protocolo de 2019 tem exatamente 5 campos, então a contagem separa
-#: os dois com segurança — e é o que impede o arquivo errado de passar.
+#: O protocolo de 2019 tem 5 campos; a contagem basta para recusá-lo.
 CAMPOS_MINIMOS_2021 = 6
 
 
@@ -66,21 +42,9 @@ def ler_metadata(caminho: str | Path,
                  relatorio: dict | None = None) -> list[Trial]:
     """Lê o `trial_metadata.txt` inteiro.
 
-    **A chave é o ÚLTIMO token `bonafide`/`spoof` da linha.** No arquivo real,
-    as linhas bonafide trazem `bonafide` também na coluna de ataque:
-
-        LA_0007 LA_E_5932896 alaw ita_tx bonafide bonafide notrim eval
-
-    A versão anterior exigia uma ocorrência só e descartava essas linhas em
-    silêncio — o `--listar` saiu com 163.114 trials e **zero bonafide**. Os
-    testes não pegaram porque o arquivo de exemplo usava `-` no lugar, que era
-    o formato suposto, não o real.
-
-    `relatorio`, se passado, recebe `ignoradas` e até 3 `exemplos` de linhas
-    descartadas — para que um descarte nunca mais seja silencioso.
-
-    Levanta em vez de devolver lista vazia: um protocolo vazio propagado adiante
-    vira um EER calculado sobre nada, e ninguém percebe até o número sair errado.
+    A chave é o último `bonafide`/`spoof` da linha: o bonafide real repete
+    `bonafide` na coluna de ataque. `relatorio`, se passado, recebe `ignoradas`
+    e até 3 `exemplos`. Levanta `MetadadoInvalido` se nada for reconhecido.
     """
     trials: list[Trial] = []
     ignoradas: list[str] = []
@@ -89,10 +53,7 @@ def ler_metadata(caminho: str | Path,
             partes = linha.split()
             if not partes:
                 continue
-            # Discriminador contra o protocolo de 2019, que tem exatamente 5
-            # campos e TAMBÉM casaria com a busca pela chave abaixo — lá
-            # `parts[3]` é o ataque, aqui é o canal. Aceitá-lo produziria
-            # condições inventadas ("-/A07") que pareceriam canais reais.
+            # Recusa o protocolo de 2019, que geraria condições falsas ("-/A07").
             if len(partes) < CAMPOS_MINIMOS_2021:
                 ignoradas.append(linha.rstrip())
                 continue
@@ -143,10 +104,7 @@ def filtrar(trials: list[Trial], condicao: str | None = None,
             codec: str | None = None, fase: str | None = None) -> list[Trial]:
     """Seleciona por condição completa (`codec/canal`), por codec e/ou por fase.
 
-    A fase importa: o metadado mistura três conjuntos do desafio (`eval`,
-    `progress`, `hidden`). Só o `eval` é o conjunto de avaliação oficial — as
-    contagens dele batem com as publicadas (14.816 bonafide, 133.360 spoof).
-    O `hidden` é um subconjunto à parte, que não deve entrar na média.
+    Só a fase `eval` é o conjunto oficial (14.816 bonafide, 133.360 spoof).
     """
     saida = trials
     if condicao:
@@ -161,14 +119,8 @@ def filtrar(trials: list[Trial], condicao: str | None = None,
 def subamostrar(trials: list[Trial], n: int, seed: int = 42) -> list[Trial]:
     """Subamostra estratificada por (chave, ataque), preservando as proporções.
 
-    O eval do 2021 tem 181.566 trials e não é preciso rodar todos: no regime
-    deste projeto (EER ~20%, ~10% de bonafide), 10.000 por condição dão IC 95%
-    de ±1,28 pp — suficiente para os efeitos em jogo (ver RESUMO_TCC, 12.2).
-
-    Estratificar importa porque uma amostra aleatória simples pode sub-representar
-    justamente A10 e A12, que dominam o erro. Cada estrato recebe a sua fração
-    proporcional, arredondada; a mesma semente dá a mesma amostra, então duas
-    condições sorteadas com a mesma semente são comparáveis entre si.
+    A mesma semente dá a mesma amostra, então condições diferentes ficam
+    comparáveis. 10.000 por condição dão IC 95% de ±1,28 pp no EER.
     """
     import random
 

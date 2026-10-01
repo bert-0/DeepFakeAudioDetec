@@ -1,20 +1,8 @@
-"""Converte para WAV os áudios de um ou mais protocolos, uma única vez.
+"""Converte para WAV PCM16 os áudios de um ou mais protocolos, uma única vez.
 
-Existe por causa de um defeito medido nos .flac do ASVspoof 2021: o libsndfile
-(o leitor rápido) falhou em 38 de 50 arquivos testados, com
-"unknown error in flac decoder" — mesmo na versão mais nova (1.2.2), e com o
-cabeçalho abrindo normalmente. Nesses casos o librosa cai no `audioread`, que no
-Windows abre um processo do FFmpeg POR ARQUIVO. A avaliação funciona, mas fica
-tão lenta que foi interrompida, e repetiria o custo a cada modelo avaliado.
-
-Aqui cada áudio é decodificado uma vez e gravado em WAV PCM 16 bits, que o
-libsndfile lê sem problema. Tenta primeiro o leitor rápido; só usa o FFmpeg
-quando ele falha. Os áudios são 16 bits na origem, então a conversão é exata:
-nenhuma amostra muda.
-
-É retomável: arquivos já convertidos são pulados, e cada WAV é gravado primeiro
-num temporário e depois renomeado, para que uma interrupção não deixe um arquivo
-pela metade que pareceria pronto.
+O libsndfile falha em boa parte dos .flac do ASVspoof 2021 e o fallback abre um
+FFmpeg por arquivo; converter antes evita esse custo a cada avaliação.
+Retomável: arquivos já convertidos são pulados.
 
 Uso:
     python scripts/converter_para_wav.py \\
@@ -41,8 +29,10 @@ RAPIDO, ALTERNATIVO, PULADO = "rapido", "alternativo", "pulado"
 
 
 def converter_um(tarefa: tuple[str, str, str]) -> tuple[str, str]:
-    """Converte um arquivo. Devolve (id, status) — status é o caminho usado,
-    ou `falhou: <erro>`. Nunca levanta: um arquivo ruim não derruba o lote."""
+    """Converte um arquivo e devolve (id, status); nunca levanta exceção.
+
+    O status é o leitor usado, `pulado` ou `falhou: <erro>`.
+    """
     audio_id, origem, destino = tarefa
     saida = Path(destino)
     if saida.is_file() and saida.stat().st_size > 0:
@@ -54,7 +44,7 @@ def converter_um(tarefa: tuple[str, str, str]) -> tuple[str, str]:
     try:
         try:
             wav, sr = sf.read(origem, dtype="float32", always_2d=True)
-            wav = wav.mean(axis=1)              # (amostras, canais) -> mono
+            wav = wav.mean(axis=1)              # mono
             caminho = RAPIDO
         except Exception:  # noqa: BLE001 — é exatamente o caso que motiva o script
             import warnings
@@ -78,8 +68,7 @@ def converter_um(tarefa: tuple[str, str, str]) -> tuple[str, str]:
 
 
 def ids_dos_protocolos(protocolos) -> list[str]:
-    """IDs únicos, na ordem em que aparecem. Referência e Opus não se repetem,
-    mas o mesmo protocolo pode ser passado duas vezes sem converter em dobro."""
+    """IDs únicos dos protocolos, na ordem em que aparecem."""
     vistos: dict[str, None] = {}
     for protocolo in protocolos:
         for nome, _, _ in parse_protocol_with_systems(protocolo):

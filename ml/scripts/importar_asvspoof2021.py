@@ -1,20 +1,7 @@
-"""Converte o metadado do ASVspoof 2021 no protocolo — e no config — deste projeto.
+"""Converte o metadado do ASVspoof 2021 LA em protocolo e config deste projeto.
 
-O ASVspoof 2021 LA transmite os **mesmos ataques A07–A19** do eval de 2019 por
-redes reais (VoIP e PSTN) com codecs reais, e traz uma condição de referência
-sem codec e sem transmissão. Isso dá o experimento pareado que a simulação da
-Seção 5 só consegue aproximar: mesmo ataque, canal real.
-
-Onde ficam os arquivos (a pasta inteira está no .gitignore):
-
-    ml/data/ASVspoof2021_LA/
-    ├── <o que sai do Zenodo 4837263>/flac/*.flac      ← áudio, SEM rótulo
-    └── keys/LA/CM/trial_metadata.txt                  ← rótulos: LA-keys-full.tar.gz
-                                                          de www.asvspoof.org/asvspoof2021/
-
-As chaves NÃO estão no repositório asvspoof-challenge/2021 do GitHub — lá só
-há a descrição do formato. E não confunda com o `.trl.txt` que vem junto do
-áudio no Zenodo: ele lista os arquivos sem rótulo, e este script o recusa.
+Os rótulos vêm de keys/LA/CM/trial_metadata.txt (LA-keys-full.tar.gz, em
+www.asvspoof.org); o `.trl.txt` do Zenodo não tem rótulo e é recusado.
 
 Uso:
     # 1. ver quais condições existem no metadado
@@ -28,12 +15,8 @@ Uso:
 
     # 3. o passo 2 imprime o comando do evaluate.py, já com o config gerado
 
-**Por que o config é gerado, e não copiado à mão.** Os artefatos do `evaluate.py`
-levam o nome `experiment.name` + partição. Copiar `fusion_v4.yaml` e trocar só
-os caminhos do `eval` faria a avaliação do 2021 gravar **por cima** dos
-resultados do eval de 2019 — métricas, scores reaproveitados e o cache de
-features. O config gerado muda o nome e desliga o cache (ver
-`src/config.config_derivado`).
+O config gerado muda o nome do experimento e desliga o cache, para não
+sobrescrever os resultados de 2019 (ver `src/config.config_derivado`).
 """
 
 from __future__ import annotations
@@ -85,10 +68,7 @@ def parse_args(argv=None) -> argparse.Namespace:
 def audios_faltando(selecao, pasta: str | Path, ext: str = ".flac") -> list[str]:
     """IDs da seleção cujo arquivo não existe na pasta de áudio.
 
-    Sem esta checagem, um caminho errado ou uma extração incompleta só aparece
-    no `evaluate.py`, como `FileNotFoundError` dentro de um worker do DataLoader,
-    enterrado num traceback de cem linhas. Conferir 10 mil caminhos custa menos
-    de um segundo.
+    Pega caminho errado ou extração incompleta antes do `evaluate.py`.
     """
     pasta = Path(pasta)
     return [t.arquivo for t in selecao if not (pasta / f"{t.arquivo}{ext}").is_file()]
@@ -96,19 +76,10 @@ def audios_faltando(selecao, pasta: str | Path, ext: str = ".flac") -> list[str]
 
 def falhas_de_leitura(selecao, pasta: str | Path, n: int = 50,
                       ext: str = ".flac") -> tuple[int, list[tuple[str, str]]]:
-    """Decodifica `n` áudios da amostra INTEIROS com o libsndfile.
+    """Decodifica por inteiro `n` áudios da amostra com o libsndfile.
 
-    Quando ele falha, o librosa cai em silêncio no `audioread`, que no Windows
-    abre um processo do FFmpeg POR ARQUIVO: a avaliação continua funcionando,
-    mas fica muito lenta e pesada. O aviso do librosa ("PySoundFile failed")
-    não diz o motivo, e aparece uma vez por processo — com 4 workers, não dá
-    para saber se falharam 4 arquivos ou todos.
-
-    **Decodificar, não só abrir.** A primeira versão usava `sf.info`, que lê só
-    o cabeçalho. Rodado nos arquivos reais do 2021, o cabeçalho abriu sem erro
-    (FLAC, 16 kHz, 16 bits) — e a falha do FLAC documentada no python-soundfile
-    ("unknown error in flac decoder") é justamente cabeçalho bom com decodificação
-    quebrada. O mesmo vale para arquivo truncado: o cabeçalho sobrevive.
+    Decodifica em vez de só ler o cabeçalho: FLAC quebrado ou truncado abre sem erro.
+    Se o libsndfile falha, o librosa cai no `audioread` (lento, um FFmpeg por arquivo).
     """
     import soundfile as sf
 
@@ -239,9 +210,7 @@ def main(argv=None) -> int:
     base = load_config(args.config_base)
     cfg = config_derivado(base, f"2021_{tag}", protocolo, args.audio_dir,
                           ext=args.audio_ext)
-    # Um config por MODELO: o protocolo é o mesmo para os dois modelos, mas o
-    # config não — sem o nome do experimento, avaliar o segundo modelo na mesma
-    # condição gravaria por cima do config do primeiro.
+    # Um config por modelo, senão o segundo modelo sobrescreve o config do primeiro.
     destino = salvar_config(
         cfg, protocolo.with_name(f"{protocolo.stem}__{base['experiment']['name']}.yaml"))
     print(f"Config derivado: {destino}")

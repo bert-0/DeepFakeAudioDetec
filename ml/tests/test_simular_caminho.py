@@ -23,7 +23,7 @@ def _banda_db(original, processado, lo, hi):
 
 
 def test_ida_e_volta_apaga_o_topo_da_banda():
-    """O fato que motiva o efeito, medido: preserva até 7,3 kHz, apaga 7,7-8."""
+    """Preserva até 7,3 kHz e apaga de 7,7 a 8 kHz."""
     x = np.random.default_rng(0).standard_normal(SR * 10).astype(np.float32) * 0.1
     y = ida_e_volta(x, SR)
     assert abs(len(y) - len(x)) <= 2

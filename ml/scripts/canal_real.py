@@ -1,22 +1,8 @@
-"""Camada 2: mede o sistema através de uma chamada REAL (Teams, Meet, Zoom).
+"""Camada 2: mede o sistema através de uma chamada real (Teams, Meet, Zoom).
 
-A avaliação de robustez do projeto (`robustness_eval.py`) simula o canal em
-software: codec Opus e limitação de banda. Isso é um **limite inferior** da
-degradação, porque não inclui o que só existe num cliente de conferência de
-verdade — supressão de ruído, cancelamento de eco e ganho automático. Nenhum
-dos três é simulável de forma honesta.
-
-Este script fecha essa lacuna em três passos:
-
-1. `preparar`  — monta uma playlist de áudios ROTULADOS do eval, com silêncio
-                 entre eles, e grava o mapa de posições.
-2. (manual)    — você toca `referencia.wav` dentro de uma chamada e grava o que
-                 chega do outro lado (veja o roteiro impresso no passo 1).
-3. `alinhar`   — localiza cada áudio dentro da gravação por correlação de
-                 envelope, recorta e emite um protocolo no formato ASVspoof.
-
-O que sai do passo 3 entra direto no `evaluate.py`. O EER resultante é o número
-da camada 2: o desempenho no canal real, não no simulado.
+`preparar` monta uma playlist rotulada do eval; você a toca numa chamada e
+grava o outro lado; `alinhar` recorta cada áudio da gravação e gera um
+protocolo ASVspoof para o `evaluate.py`.
 
 Uso:
     python scripts/canal_real.py preparar --config configs/baseline_v2.yaml \\
@@ -30,9 +16,8 @@ Sem VB-Cable e sem VLC:
     # sessão chamada: abre um Chrome separado cujo MICROFONE é a playlist
     python scripts/canal_real.py chrome --pasta outputs/canal_real
 
-`--sessao` separa as gravações da mesma playlist (limpo, controle, chamada):
-cada uma ganha a própria pasta e o próprio nome de experimento, e nenhuma
-sobrescreve a outra. `scripts/comparar_sessoes.py` põe as sessões lado a lado.
+`--sessao` separa gravações da mesma playlist (limpo, controle, chamada) em
+pastas próprias; `scripts/comparar_sessoes.py` compara as sessões.
 """
 
 from __future__ import annotations
@@ -61,27 +46,21 @@ from src.config import config_derivado, load_config, salvar_config  # noqa: E402
 from src.data.dataset import parse_protocol_with_systems  # noqa: E402
 from src.preprocess import load_audio  # noqa: E402
 
-#: Silêncio entre os áudios. Um segundo dá folga ao recorte e evita que a
-#: supressão de ruído trate a emenda como um fluxo contínuo de fala.
+#: Silêncio entre áudios: folga para o recorte e para a supressão de ruído.
 GAP_S = 1.0
 
-#: Modelo recomendado para chamada (canal real do ASVspoof 2021 LA, Seção 5.3
-#: do resumo). O config de avaliação é derivado dele, e o checkpoint precisa
-#: ser o do mesmo modelo — senão o evaluate falha ao carregar os pesos.
+#: Modelo recomendado para chamada; o checkpoint tem de ser do mesmo modelo.
 CONFIG_PADRAO = "configs/baseline_v2.yaml"
 CHECKPOINT_PADRAO = "checkpoints/baseline_lfcc_cnn_v2.pt"
 
-#: Uma chamada longa demais acumula deriva e cansa quem está segurando o
-#: procedimento. 80 áudios de ~4 s dão ~7 min, que é operável de uma sentada.
+#: Acima disso a chamada acumula deriva de relógio (80 áudios dão ~7 min).
 AVISO_MINUTOS = 12.0
 
 
 def sortear(registros, n_por_classe: int, seed: int):
-    """Amostra equilibrada: metade bonafide, metade spoof, espalhada por ataque.
+    """Amostra metade bonafide, metade spoof, com rodízio entre os ataques.
 
-    Sortear ao acaso puxaria os ataques na proporção do eval (4.914 de cada um
-    contra 7.355 bonafide no total), e uma playlist pequena ficaria sem A10 ou
-    sem A12 — justamente os dois que dominam o erro neste projeto.
+    Garante A10 e A12 (os que dominam o erro) mesmo em playlists pequenas.
     """
     rng = random.Random(seed)
     bonafide = [r for r in registros if r[1] == 0]
@@ -180,41 +159,30 @@ CONTROLE (importante)
 ────────────────────────────────────────────────────────────────────────────"""
 
 
-#: Silêncio antes da playlist no arquivo que o Chrome usa como microfone. O
-#: Chrome começa a "tocar" o arquivo quando a página abre o microfone — na tela
-#: de prévia do Meet, antes de entrar na reunião. Sem essa espera, o começo da
-#: playlist passaria enquanto ninguém ainda está ouvindo.
+#: O Chrome começa a tocar o arquivo já na prévia do Meet; a espera dá tempo
+#: de entrar na reunião.
 ESPERA_CHROME_S = 60.0
 
-#: Silêncio depois da playlist. Medido no Chromium: com `%noloop`, quando o
-#: arquivo acaba o microfone falso continua emitindo o ÚLTIMO bloco, repetido.
-#: Se o arquivo terminasse em fala, a chamada ouviria um zumbido até alguém
-#: fechar a janela; terminando em silêncio, o que se repete é silêncio.
+#: Com `%noloop` o microfone falso repete o último bloco no fim; terminar em
+#: silêncio evita um zumbido na chamada.
 SILENCIO_FINAL_S = 2.0
 
-#: Taxa do arquivo para o Chrome. 48 kHz é a taxa nativa do WebRTC; entregar
-#: nela evita depender da reamostragem interna do dispositivo falso.
+#: Taxa nativa do WebRTC; evita a reamostragem do dispositivo falso.
 TAXA_CHROME = 48000
 
 
 def tocar_audio(wav: np.ndarray, sample_rate: int, dispositivo: str | None = None) -> None:
-    """Toca um áudio num dispositivo de saída (o padrão, se nenhum for dado).
-
-    Substitui o VLC: o `soundcard`, que o monitor já usa para capturar, também
-    reproduz, e deixa escolher o dispositivo pelo nome.
-    """
+    """Toca um áudio no dispositivo de saída indicado (ou no padrão)."""
     import soundcard
-    import soxr
+
+    from src.preprocess.reamostragem import subir
 
     alto_falante = (soundcard.get_speaker(dispositivo) if dispositivo
                     else soundcard.default_speaker())
     print(f"Tocando em: {alto_falante.name}  ({len(wav) / sample_rate / 60:.1f} min)")
-    # Toca a 48 kHz, a mesma taxa em que a captura grava: 16 kHz obrigaria o
-    # Windows a converter no meio, e uma conversão errada muda a duração e o
-    # tom da gravação inteira (ver scripts/diagnosticar_captura.py).
-    wav48 = soxr.resample(np.asarray(wav, dtype=np.float32), sample_rate, TAXA_CHROME)
-    # Buffer de 1 s também na reprodução, pelo mesmo motivo da captura: com o
-    # padrão de ~10 ms, qualquer pausa do processo vira engasgo no que sai.
+    # 48 kHz, a taxa da captura: evita a conversão do Windows no meio.
+    wav48 = subir(wav, sample_rate, TAXA_CHROME)   # FIR: não apaga 7,6-8 kHz
+    # Buffer de 1 s; com o padrão de ~10 ms qualquer pausa vira engasgo.
     alto_falante.play(wav48, samplerate=TAXA_CHROME, blocksize=TAXA_CHROME)
 
 
@@ -238,21 +206,13 @@ def cmd_tocar(args) -> int:
 
 def arquivo_para_chrome(referencia: np.ndarray, sr: int, destino: Path,
                         espera_s: float = ESPERA_CHROME_S) -> Path:
-    """Grava a playlist no formato do microfone falso do Chrome.
+    """Grava a playlist como WAV PCM16 a 48 kHz para o microfone falso do Chrome.
 
-    WAV PCM de 16 bits a 48 kHz, com `espera_s` de silêncio no começo e
-    `SILENCIO_FINAL_S` no fim. O alinhamento não precisa saber da espera: ele
-    acha o atraso global sozinho.
-
-    Conferido no Chromium: o arquivo começa a tocar quando a página abre o
-    microfone, respeita `%noloop`, e sem ele se repete indefinidamente.
+    Acrescenta `espera_s` de silêncio no começo e `SILENCIO_FINAL_S` no fim.
     """
-    from scipy.signal import resample_poly
+    from src.preprocess.reamostragem import subir
 
-    from math import gcd
-
-    g = gcd(TAXA_CHROME, sr)
-    wav = resample_poly(np.asarray(referencia, dtype=np.float64), TAXA_CHROME // g, sr // g)
+    wav = subir(referencia, sr, TAXA_CHROME).astype(np.float64)
     silencio = np.zeros(int(round(espera_s * TAXA_CHROME)))
     final = np.zeros(int(round(SILENCIO_FINAL_S * TAXA_CHROME)))
     wav = np.clip(np.concatenate([silencio, wav, final]), -1.0, 1.0)
@@ -289,15 +249,10 @@ def achar_navegador(explicito: str | None = None) -> str | None:
 
 def comando_chrome(navegador: str, arquivo_wav: Path, perfil: Path,
                    url: str) -> list[str]:
-    """Linha de comando do Chrome com o arquivo no lugar do microfone.
+    """Linha de comando do Chrome com o WAV no lugar do microfone.
 
-    - `--use-fake-device-for-media-stream` troca câmera e microfone por
-      dispositivos falsos; `--use-file-for-fake-audio-capture` faz o microfone
-      falso tocar o WAV. São opções de teste do próprio WebRTC.
-    - `%noloop` impede o arquivo de recomeçar quando termina.
-    - `--user-data-dir` força uma instância NOVA: com o Chrome já aberto, sem
-      isso, a janela nasceria dentro do processo existente e as opções seriam
-      ignoradas em silêncio.
+    `--user-data-dir` força uma instância nova; sem ele, com o Chrome já
+    aberto, as opções seriam ignoradas em silêncio.
     """
     return [
         navegador,
@@ -345,8 +300,7 @@ Aberto: {Path(navegador).name}, numa instância separada (perfil próprio).
 
 def cmd_alinhar(args) -> int:
     pasta = Path(args.pasta)
-    # Sem sessão, o layout antigo (tudo direto na pasta). Com sessão, cada
-    # gravação da mesma playlist vive em pasta/<sessao>/ e não apaga as outras.
+    # Com sessão, cada gravação fica em pasta/<sessao>/; sem, direto na pasta.
     sessao = getattr(args, "sessao", None)
     destino_sessao = pasta / sessao if sessao else pasta
     mapa, sr = carregar_mapa(pasta / "mapa.json")
@@ -406,8 +360,7 @@ def cmd_alinhar(args) -> int:
     print(f"\nÁudio recortado em {saida}/  ({len(pedacos)} arquivos)")
     print(f"Protocolo em {proto}")
 
-    # Config gerado, não copiado à mão: com o `experiment.name` original, a
-    # avaliação gravaria por cima dos resultados do eval de 2019.
+    # Nome de experimento novo para não sobrescrever os resultados do eval 2019.
     base_path = getattr(args, "config_base", None) or CONFIG_PADRAO
     checkpoint = getattr(args, "checkpoint", None) or CHECKPOINT_PADRAO
     sufixo = f"canal_real_{pasta.name}" + (f"_{sessao}" if sessao else "")

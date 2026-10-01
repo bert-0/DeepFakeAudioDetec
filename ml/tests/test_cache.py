@@ -1,8 +1,7 @@
 """Testes do cache de features em arquivo único (memory-map).
 
-O cache é indexado pela POSIÇÃO da amostra no protocolo, não pelo nome do
-arquivo. Isso é rápido, mas só é seguro enquanto a lista de ids for a mesma —
-daí a maior parte dos testes aqui ser sobre invalidação.
+O cache é indexado pela posição no protocolo, então boa parte dos testes
+cobre a invalidação quando a lista de ids muda.
 """
 
 import json
@@ -41,12 +40,8 @@ def test_get_returns_none_before_put(tmp_path):
 
 
 def test_tensors_are_independent_copies(tmp_path):
-    """Escrever no tensor devolvido não pode contaminar o cache.
-
-    Se `get` devolvesse uma vista do memmap, o `.to(device)` seguinte ainda
-    funcionaria — mas qualquer operação in-place gravaria no arquivo, corrompendo
-    o cache em silêncio para todas as épocas seguintes.
-    """
+    """`get` devolve cópia, não vista do memmap: escrita in-place no tensor
+    não corrompe o cache."""
     cache = FeatureCache(tmp_path, ["a"], SHAPES)
     cache.put(0, make_features(1, SHAPES))
     primeiro = cache.get(0)
@@ -66,7 +61,7 @@ def test_survives_reopening(tmp_path):
 
 
 def test_rebuilt_when_id_list_changes(tmp_path):
-    """Trocar o protocolo PRECISA invalidar: a linha 1 passa a ser outro áudio."""
+    """Trocar o protocolo invalida o cache: a linha 1 passa a ser outro áudio."""
     FeatureCache(tmp_path, ["a", "b", "c"], SHAPES).put(1, make_features(4, SHAPES))
     outro = FeatureCache(tmp_path, ["a", "z", "c"], SHAPES)
     assert outro.get(1) is None
@@ -92,7 +87,7 @@ def test_rebuilt_when_meta_is_corrupt(tmp_path):
 
 
 def test_rebuilt_when_data_file_is_missing(tmp_path):
-    """meta.json sozinho não pode fazer o cache se dar por pronto."""
+    """Só o meta.json, sem data.npy, não conta como cache pronto."""
     ids = ["a", "b"]
     FeatureCache(tmp_path, ids, SHAPES).put(0, make_features(8, SHAPES))
     (tmp_path / "data.npy").unlink()
@@ -115,7 +110,7 @@ def test_put_is_idempotent(tmp_path):
 
 
 def test_survives_pickle_like_a_dataloader_worker(tmp_path):
-    """O dataset é serializado para os workers; o memmap não pode ir junto."""
+    """O pickle (envio aos workers) não leva o memmap junto."""
     import pickle
 
     ids = ["a", "b"]
@@ -176,7 +171,7 @@ def build_fake_la(tmp_path, audio_cfg, n=4):
 
 
 def test_dataset_cached_matches_uncached(tmp_path, audio_cfg, feat_cfg):
-    """O cache não pode mudar UM BIT do que o modelo recebe."""
+    """Com ou sem cache, o modelo recebe exatamente as mesmas features."""
     proto, audio_dir = build_fake_la(tmp_path, audio_cfg)
     extractor = FeatureExtractor(audio_cfg, feat_cfg)
 
@@ -216,7 +211,7 @@ def test_dataset_cache_is_reused_between_instances(tmp_path, audio_cfg, feat_cfg
 
 
 def test_partitions_do_not_share_rows(tmp_path, audio_cfg, feat_cfg):
-    """train e dev têm protocolos diferentes: não podem cair na mesma matriz."""
+    """train e dev usam matrizes de cache separadas."""
     proto, audio_dir = build_fake_la(tmp_path, audio_cfg)
     extractor = FeatureExtractor(audio_cfg, feat_cfg)
     cache_dir = tmp_path / "cache"
@@ -229,7 +224,7 @@ def test_partitions_do_not_share_rows(tmp_path, audio_cfg, feat_cfg):
 
 
 def test_cache_disabled_when_augmentation_is_on(tmp_path, audio_cfg, feat_cfg):
-    """Com aumentação/recorte aleatório o cache congelaria uma única versão."""
+    """Com aumentação ou recorte aleatório o cache fica desligado."""
     from src.preprocess.augment import Augmenter
 
     proto, audio_dir = build_fake_la(tmp_path, audio_cfg)
@@ -243,7 +238,7 @@ def test_cache_disabled_when_augmentation_is_on(tmp_path, audio_cfg, feat_cfg):
 
 
 def test_dataset_works_through_dataloader_workers(tmp_path, audio_cfg, feat_cfg):
-    """Os workers gravam no mesmo memmap; nenhuma linha pode sair corrompida."""
+    """Workers gravando no mesmo memmap não corrompem nenhuma linha."""
     from torch.utils.data import DataLoader
 
     proto, audio_dir = build_fake_la(tmp_path, audio_cfg, n=8)

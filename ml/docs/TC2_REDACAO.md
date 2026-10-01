@@ -10,12 +10,13 @@ Convenções:
 
 - `[PENDENTE: ...]` marca um valor que ainda não existe ou que não está
   versionado. **Não entregar o texto com essas marcas.**
-- As tabelas estão numeradas na ordem em que aparecem (Tabelas 1 a 10). As duas
-  tabelas do cronograma (hoje Tabela 1 e Tabela 2) passam a ser a **Tabela 11 e
-  a Tabela 12**.
+- As tabelas estão numeradas na ordem em que aparecem (Tabelas 1 a 11). As duas
+  tabelas do cronograma (hoje Tabela 1 e Tabela 2) passam a ser a **Tabela 12 e
+  a Tabela 13**, e as dos apêndices, a **Tabela 14 e a Tabela 15**.
 - Números de 25/09/2026: `scripts/make_report.py` (comparativo, por ataque,
   robustez) e `outputs/*_history.json` (EER de validação). Canal real
-  (ASVspoof 2021 LA): RESUMO_TCC §5.3, de 28/09/2026.
+  (ASVspoof 2021 LA): RESUMO_TCC §5.3, de 28/09/2026. Captura ao vivo e voz
+  própria: RESUMO_TCC §10.2.1 a §10.2.6, de 29/09 a 01/10/2026.
 - Citações no formato autor-data da ABNT (NBR 10520). As referências novas e as
   correções estão no fim do arquivo.
 - Termos estrangeiros (*deepfake*, *spoof*, *bonafide*, *pooling*) em itálico no
@@ -25,9 +26,11 @@ Decisões da equipe já refletidas aqui:
 
 - **A coleta com colaboradores não aconteceu.** Ela sai do Resumo, da 4.9, da
   5.1, da 5.5, da 5.6, da 7.1, do Marco 2 e da Conclusão.
-- **A interface foi feita com FastAPI + Jinja2**, numa aplicação só, em vez de
-  uma API separada mais um front-end React (README da branch principal,
-  30/09/2026). O texto abaixo descreve essa versão (seções 4.8, 4.13 e 6.4).
+- **O sistema entregue é o do repositório:** a interface web (`web/`, FastAPI
+  e Jinja2, numa aplicação só, em vez de uma API separada mais um front-end
+  React) e o monitor de linha de comando (`monitor.py`), descritos na seção 4.13.
+- **A coleta com colaboradores foi substituída por gravações do próprio
+  autor**, usadas só como controle pareado (seção 5.5).
 
 ---
 
@@ -55,17 +58,20 @@ contra 7,24 p.p. do modelo com fusão. Em transmissão real por Opus (ASVspoof
 2021 LA), porém, a inversão não se repetiu, e o canal custou de 7 a 11 vezes o
 que a simulação do mesmo codec indicava. A degradação simulada não previu qual
 modelo resiste ao canal real, enquanto o ganho da fusão de scores se manteve
-(24,94% contra 29,43%). O sistema foi implementado como aplicação web e como
-monitor de chamadas ao vivo. Na captura ao vivo, a conversão de taxa de
-amostragem apaga a faixa de 7,6 a 8 kHz, de que o modelo depende; um teste com
-áudio real mostrou o score respondendo à largura de banda, e não à síntese.
-Sob o mesmo protocolo sem silêncio, os modelos obtiveram
+(24,94% contra 29,43%). Sob o mesmo protocolo sem silêncio, os modelos obtiveram
 EER menor que o dos modelos com CQT reportados na literatura (26% a 27%).
 Nenhum modelo atingiu as metas do planejamento, F1 de 0,85 (requisito) a 0,90
-(projeção) e EER inferior a 8%, e as causas dessa diferença são discutidas.
+(projeção) e EER inferior a 8%, e as causas dessa diferença são discutidas. O
+modelo foi integrado a um sistema de análise com interface web, que recebe
+arquivos ou captura o áudio do computador em tempo real. Na captura, a perda
+vinha do filtro de conversão de taxa, que apagava a faixa de 7,6 a 8 kHz, da
+qual o modelo depende: com um filtro FIR que a preserva, o custo caiu de 5,68
+para 0,39 p.p., sem retreino. Um controle pareado com a voz do autor, refeita
+por *vocoders*, mostrou que, em vozes externas à base, o modelo responde às
+condições de gravação, e não aos artefatos de síntese.
 
 **Palavras-chave:** Deepfake. Áudio. Fusão de características. LFCC. ASVspoof.
-Robustez de canal.
+Robustez de canal. Tempo real.
 
 ## ABSTRACT
 
@@ -91,19 +97,23 @@ for the fused model. Under real Opus transmission (ASVspoof 2021 LA), however,
 the inversion did not recur, and the channel cost 7 to 11 times what the
 simulation of the same codec indicated. Simulated degradation did not predict
 which model withstands the real channel, whereas the score-fusion gain held
-(24.94% against 29.43%). The system was implemented as a web application and
-as a live call monitor. In live capture, sample-rate conversion removes the
-7.6 to 8 kHz band on which the model depends; a test with real audio showed the
-score responding to bandwidth rather than to synthesis. Under the same
-silence-removed protocol, the models
+(24.94% against 29.43%). Under the same silence-removed protocol, the models
 achieved lower EER than CQT-based models reported in the literature (26% to
 27%). No model reached the planned targets of an F1 of 0.85 (requirement) to
 0.90 (projection) and an EER below 8%, and the reasons for this gap are
-discussed.
+discussed. The model was integrated into an analysis system with a web
+interface that accepts files or captures the computer's audio in real time.
+The capture loss came from the sample-rate converter's filter, which removed
+the 7.6 to 8 kHz band on which the model depends: with an FIR filter that
+preserves it, the cost fell from 5.68 to 0.39 p.p. without retraining. A paired
+control with the author's own voice, resynthesized by vocoders, showed that on
+voices outside the dataset the model responds to recording conditions rather
+than to synthesis artifacts.
 
 **Keywords:** Deepfake. Audio. Feature fusion. LFCC. ASVspoof. Channel robustness.
+Real time.
 
-> Contagem: o Resumo tem cerca de 420 palavras, dentro da faixa de 150 a 500
+> Contagem: o Resumo tem cerca de 450 palavras, dentro da faixa de 150 a 500
 > que a NBR 6028 dá para trabalhos acadêmicos.
 
 ---
@@ -207,15 +217,17 @@ Fonte: Autoria própria.
 > • FFmpeg: conversão única dos arquivos FLAC da ASVspoof 2021 para WAV, porque
 > parte deles não decodifica no libsndfile.
 
-> • FastAPI e Jinja2: aplicação web, com as páginas geradas no servidor, na
-> mesma linguagem do modelo e sem etapa de compilação de front-end; servida
+> • SciPy: filtro FIR da conversão de taxa entre a captura (48 kHz) e o modelo
+> (16 kHz), seção 4.13.
+>
+> • SoundCard: captura do áudio de saída do computador (*loopback* do WASAPI,
+> no Windows) e do microfone.
+>
+> • FastAPI e Jinja2: servidor e páginas da interface web, geradas no servidor,
+> na mesma linguagem do modelo e sem etapa de compilação de front-end; servida
 > pelo Uvicorn.
 >
-> • SQLite: histórico das análises da aplicação web (apenas os resultados; o
-> áudio enviado é apagado ao fim de cada análise).
->
-> • SoundCard e soxr: captura do áudio de saída do sistema (*loopback*) no
-> monitor ao vivo e reamostragem contínua para 16 kHz.
+> • SQLite: histórico das análises da interface web.
 
 ## 4.9 Base de Dados — substituir por inteiro
 
@@ -361,44 +373,61 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > sozinha separa parcialmente as classes nesta base. As demais não foram
 > testadas isoladamente.
 
-## 4.13 Arquitetura do Sistema — seção nova
+## 4.13 Sistema de Análise — seção nova
 
-> O modelo é usado por dois programas, que compartilham o mesmo caminho de
-> análise: uma aplicação web, para arquivos, e um monitor de chamadas ao vivo.
+> O modelo é usado por um sistema com duas entradas: o envio de um arquivo e a
+> captura em tempo real. A captura pode ler o áudio que o computador reproduz,
+> como o de uma chamada ou de um vídeo, ou o microfone, para analisar uma voz
+> ao vivo. Todas passam pelo mesmo analisador, de modo que um arquivo e a sua
+> reprodução ao vivo recebem o mesmo tratamento.
 >
-> **Análise por janelas.** O áudio é dividido em janelas de 4 s, a duração com
-> que o modelo foi treinado, com passo de 2 s. Cada janela passa pelo mesmo
-> pré-processamento, pela mesma extração de características e pelo mesmo
-> modelo do treinamento, e recebe um *score* entre 0 (humano) e 1 (sintético).
-> O resultado do áudio é a média dos *scores* das janelas, ponderada pela
-> fração de fala de cada uma: uma janela quase silenciosa é completada por
-> repetição e produz uma entrada que não existe no treino, e por isso pesa
-> menos. Um teste automatizado verifica que o monitor produz o mesmo *score*
-> que a inferência em arquivo para o mesmo áudio.
+> **Captura.** O áudio de saída é lido por *loopback* do WASAPI, no Windows, e o
+> microfone pela mesma interface, os dois à taxa de 48 kHz. A leitura roda numa
+> *thread* própria, com *buffer* de 1 s, para que o processamento não provoque
+> perda de amostras. Os "aprimoramentos de áudio" do driver precisam estar
+> desligados, na saída e no microfone: na saída, eles comprimem a dinâmica do
+> sinal e levam todos os scores para perto de 1,0; no microfone, elevam o score
+> da voz humana (seção 5.5).
 >
-> **Aplicação web.** Implementada com FastAPI e páginas geradas no servidor
-> (Jinja2). Tem três abas: envio de arquivo (WAV, FLAC, MP3, M4A, OGG, Opus e
-> AAC, até 25 MB), resultados, com o *score* médio, o veredito pelo limiar e o
-> *score* de cada janela, e acompanhamento do monitor ao vivo. O arquivo
-> enviado é apagado assim que a análise termina, e o histórico guarda apenas o
-> resultado. A mesma análise é oferecida em JSON por uma rota da API.
+> **Conversão de taxa.** O áudio é convertido para os 16 kHz do modelo por um
+> filtro FIR de 2047 coeficientes (janela de Kaiser), com corte em 7,9 kHz,
+> aplicado em forma polifásica. O conversor padrão das bibliotecas de áudio
+> apaga a faixa de 7,6 a 8 kHz, da qual o modelo depende; a seção 5.5 mede o
+> efeito dessa escolha. Arquivos gravados acima de 16 kHz passam pelo mesmo
+> filtro.
 >
-> **Monitor ao vivo.** Captura o áudio de saída do computador durante uma
-> chamada (*loopback*), reamostra para 16 kHz e analisa as janelas à medida
-> que se completam. O navegador não tem acesso ao áudio do sistema; por isso a
-> captura fica no monitor, e a aplicação web apenas exibe o estado que ele
-> grava.
+> **Janelas e agregação.** O analisador classifica janelas de 4 s com passo de
+> 2 s, o mesmo tamanho usado no treinamento. Janelas em silêncio ficam fora das
+> médias, assim como todas as janelas de uma sessão identificada como de banda
+> estreita (cinco janelas com som e sem energia acima de 4 kHz). As demais entram com peso igual à fração de fala que resta após a remoção de
+> silêncio, porque uma janela com pouca fala vira, no pré-processamento, muita
+> repetição, fora do domínio de treino. O resultado é a média ponderada dos
+> scores e o número de janelas acima do limiar.
 >
-> **Limiar por tipo de áudio.** A seção 5.5 mostra que a conversão de taxa de
-> amostragem apaga a faixa de 7,6 a 8 kHz e desloca os *scores*. O sistema usa,
-> por isso, dois limiares: o original, calibrado na validação, para arquivos
-> nativos de 16 kHz, e um recalibrado para a captura ao vivo e para arquivos
-> gravados acima de 16 kHz, que são convertidos antes da análise.
+> **Limiar por tipo de áudio.** O limiar calibrado na validação vale para áudio
+> nativo de 16 kHz, o formato da base. Áudio capturado ao vivo, ou gravado
+> acima de 16 kHz, passa pela conversão de taxa e usa um segundo limiar,
+> calibrado na partição de desenvolvimento submetida à mesma conversão. O
+> sistema escolhe o limiar pela taxa de amostragem da entrada e informa qual
+> foi usado. O limiar recalibrado fica numa cópia do checkpoint, aceita apenas
+> se os pesos forem idênticos aos do original.
+>
+> **Interface.** A interface web, feita com FastAPI e páginas renderizadas com
+> Jinja2, tem quatro abas. Em "Enviar arquivo", o usuário escolhe um áudio
+> (WAV, FLAC, MP3, M4A, OGG, Opus ou AAC, até 25 MB). Em "Resultado", vê o score
+> médio, o limiar, a decisão (indício ou não de síntese) e um gráfico com o
+> score de cada janela ao longo do tempo, com as janelas parciais destacadas;
+> o relatório pode ser baixado em JSON. Em "Ao vivo", escolhe a fonte (som do
+> computador ou microfone) e o dispositivo, inicia e encerra a captura e
+> acompanha os scores enquanto ela ocorre. Em "Histórico", consulta e
+> exclui análises anteriores, guardadas num banco SQLite. A interface
+> apresenta o resultado como indício, e não como prova, e a página "Sobre"
+> descreve as limitações medidas na seção 5.
 >
 > **Atendimento dos requisitos funcionais.** O envio de arquivos WAV e MP3
 > (RF01), o pré-processamento (RF02), a extração de características (RF03), a
 > classificação (RF04 e RF05) e a exibição do resultado e do *score* (RF06 e
-> RF07) estão implementados na aplicação web. Na RF07, o valor exibido é o
+> RF07) estão implementados na interface web. Na RF07, o valor exibido é o
 > *score* do modelo, e não uma probabilidade calibrada: a seção 5.5 mostra que
 > a sua escala muda com o canal.
 
@@ -410,7 +439,8 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > contrário, os valores foram medidos no conjunto de avaliação completo da
 > ASVspoof 2019 LA (71.237 áudios), composto de ataques ausentes do
 > treinamento, com uma execução por modelo (semente 42). A seção 5.5 acrescenta
-> a avaliação em canal real na ASVspoof 2021 LA. As limitações decorrentes desse desenho são discutidas na seção
+> a avaliação em canal real na ASVspoof 2021 LA, a captura em tempo real pelo
+> sistema da seção 4.13 e um controle pareado com a voz do autor. As limitações decorrentes desse desenho são discutidas na seção
 > 5.7.
 
 ## 5.1 Configuração Experimental — substituir por inteiro
@@ -826,66 +856,103 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 > produzido por um canal real: o fusion_v4 obtém F1 de 0,9473 nessa condição,
 > acima do exigido pelo RNF04, sem distinguir nenhum áudio.
 >
-> **Captura ao vivo.** Toda captura do monitor passa pela taxa de 48 kHz do
-> dispositivo e volta a 16 kHz. O filtro dessa conversão apaga a faixa de 7,6 a
-> 8 kHz, atenuada em cerca de 50 dB nos mesmos áudios antes e depois da captura. A
-> Tabela 10 mostra o efeito, reproduzido em software com o mesmo reamostrador
-> do monitor, numa amostra estratificada de 10.002 áudios.
-
-**Tabela 10 – Efeito da captura ao vivo (ida e volta 16 → 48 → 16 kHz)**
-
-| modelo | EER sem captura | EER com captura | humanos acima do limiar original | humanos acima do limiar recalibrado |
-|---|---|---|---|---|
-| baseline_v2 | 19,02% | 24,70% | 10% → 71% | 17% |
-| fusion_v4 | 20,25% | 24,98% | 100% | não se aplica |
-
-Fonte: Autoria própria. Amostra de 10.002 áudios da ASVspoof 2019 LA (IC 95%
-de cerca de ±1,28 p.p.).
-
-<!-- RESUMO_TCC §10.2.1 e §10.2.2 (30/09/2026) -->
-
-> A captura custa cerca de 5 p.p. de EER aos dois modelos, mais que o Opus
-> simulado. O efeito maior, porém, é sobre o limiar: todos os *scores* sobem, e
-> no limiar original 71% dos áudios humanos passam a ser marcados como
-> sintéticos pelo baseline_v2. No fusion_v4, todos os áudios humanos recebem
-> probabilidade 1,0, e o modelo se torna o classificador trivial da seção 4.6.
-> O modelo, portanto, usa a faixa de 7,6 a 8 kHz, e ela não sobrevive a nenhuma
-> conversão de taxa de amostragem.
->
-> Como mitigação sem retreino, o limiar do baseline_v2 foi recalibrado no
-> conjunto de validação submetido à mesma conversão, de 0,6539 para 0,9829. Na
-> avaliação, com captura, a fração de humanos marcados como sintéticos caiu de
-> 71% para 17%, ao custo de deixar passar 31% dos áudios sintéticos, contra 5%
-> antes. O EER não muda, porque só o limiar se move. No fusion_v4, a
-> recalibração não é possível: com todos os áudios humanos em 1,0, não existe
-> limiar que os separe. A mesma conversão ocorre na leitura de qualquer arquivo
-> gravado a 44,1 ou 48 kHz, como os de celulares, microfones e vídeos, o que
-> motivou a escolha do limiar pelo tipo de áudio (seção 4.13).
->
-> A medição também identificou uma condição de uso. Com os "aprimoramentos de
-> áudio" do driver de som ligados, o piso das pausas subiu cerca de 31 dB e
-> todos os áudios, humanos inclusive, foram a *score* próximo de 1,0. Desligar
-> esses efeitos é pré-requisito do monitor.
->
-> **Teste funcional com áudio real.** Com o monitor ao vivo, o baseline_v2 e o
-> limiar recalibrado, foram tocados três áudios fora da base: um vídeo narrado
-> por voz sintética, a voz do Google Tradutor e um audiolivro narrado por uma
-> pessoa. A voz humana recebeu os *scores* mais altos (média de 0,807) e foi a
-> única a ultrapassar o limiar, em 7 de 32 janelas; as vozes sintéticas
-> ficaram em 0,490 e 0,469, sem nenhuma janela acima do limiar. O audiolivro
-> chegou praticamente sem conteúdo acima de 4 kHz, e as vozes sintéticas, com
-> banda mais larga. O *score* respondeu à largura de banda do áudio, e não à
-> síntese. Três áudios não constituem uma medida, mas o teste mostra, com áudio
-> real, a dependência que as medidas anteriores quantificaram. Somam-se a isso
-> os limites de generalização: o modelo foi treinado com ataques de 2019, e
-> vozes sintéticas comerciais atuais são de outra geração. O caminho de
-> análise foi verificado em três pontos (reprodução da avaliação de 2019,
-> igualdade entre monitor e inferência em arquivo e reprodução do caminho de
-> captura em software), de modo que a falha é do modelo, e não do programa.
->
 > Não foram avaliadas as demais condições da ASVspoof 2021 LA (outros codecs e
-> telefonia), nem arquivos MP3. A avaliação em vozes externas à base, com
-> gravações de colaboradores, prevista no planejamento, não foi realizada.
+> telefonia), nem arquivos MP3.
+>
+> **Captura ao vivo.** O sistema da seção 4.13 acrescenta um canal que nenhuma
+> das bases traz: o caminho do áudio dentro do próprio computador, da
+> reprodução à captura. Para medi-lo, uma lista de 40 áudios do conjunto de
+> avaliação (20 *bonafide* e 20 *spoof*, cobrindo os treze ataques) foi tocada
+> no computador e capturada pelo sistema, e cada trecho capturado foi alinhado
+> ao arquivo de origem. Antes de atribuir qualquer diferença ao canal, o
+> procedimento foi validado em três elos: os recortes da lista, sem passar pelo
+> alto-falante, reproduzem os scores da avaliação amostra a amostra; o monitor
+> em tempo real dá o mesmo score do processamento do arquivo (diferença abaixo
+> de 10⁻⁶); e o caminho de captura, uma vez identificado, foi reproduzido em
+> software, com scores iguais aos capturados áudio a áudio.
+>
+> A primeira captura levou todos os áudios para perto de 1,0, inclusive os
+> *bonafide* (de 0,006 para 0,999). A comparação de espectros apontou dois
+> efeitos. O primeiro eram os "aprimoramentos de áudio" do driver, que
+> comprimiam a dinâmica e elevavam em 31,5 dB o ruído nas pausas; desligados,
+> o espectro capturado coincidiu com o original até 7,5 kHz. O segundo
+> permaneceu: a faixa de 7,6 a 8 kHz chegava ao modelo atenuada em cerca de
+> 50 dB. A captura ocorre a 48 kHz, e o conversor padrão de 48 para 16 kHz
+> (soxr) corta essa faixa no seu filtro antialiasing. Como o mesmo conversor é
+> usado para abrir arquivos gravados acima de 16 kHz, o efeito atinge também
+> quase todo áudio do mundo real, que nasce a 44,1 ou 48 kHz.
+>
+> A Tabela 10 mede o efeito na amostra estratificada de 10.002 áudios do
+> conjunto de avaliação, submetida à ida e volta 16 → 48 → 16 kHz, primeiro com
+> o conversor padrão e depois com o filtro FIR da seção 4.13.
+
+**Tabela 10 – Efeito da conversão de taxa da captura (baseline_v2, 10.002 áudios)**
+
+| condição | EER | áudios humanos acima do limiar original |
+|---|---|---|
+| limpo | 19,02% | 10% |
+| captura, conversor padrão (soxr) | 24,70% | 71% |
+| captura, filtro FIR | **19,41%** | **12%** |
+
+Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p.
+
+<!-- RESUMO_TCC §10.2.1 e §10.2.5 (29 e 30/09/2026) -->
+
+> Com o conversor padrão, a captura custava 5,68 p.p. de EER, mais que o Opus
+> simulado na mesma amostra (1,30 p.p.), e o limiar colapsava: 7 em cada 10
+> áudios humanos passavam a ser marcados como sintéticos. No fusion_v4, todos
+> os 1.032 áudios humanos da amostra chegavam a probabilidade 1,0, o mesmo
+> comportamento do Opus real. Com o filtro FIR, o custo cai para 0,39 p.p.,
+> dentro do intervalo de confiança, e o limiar recalibrado para a captura fica
+> em 0,686, próximo do original (0,654). A degradação atribuída à captura era,
+> portanto, quase toda do filtro do conversor, e foi corrigida sem retreino. O
+> resultado confirma que o modelo usa a faixa de 7,6 a 8 kHz, a mesma razão que
+> levou os organizadores da ASVspoof 2021 LA a limitar o LFCC do seu sistema
+> de referência a 0–4 kHz (seção 4.12). O filtro não recupera o que outro
+> programa cortou antes da captura: o mesmo arquivo de vozes humanas recebeu
+> score médio de 0,03 enviado como arquivo, 0,33 tocado pelo Reprodutor do
+> Windows e 0,98 tocado pelo VLC, que altera o áudio. Os áudios sintéticos
+> receberam 1,00 nas três formas.
+>
+> **Vozes externas à base.** Em lugar da coleta com colaboradores, o autor
+> gravou cinco frases (48 kHz, microfone comum, duas em inglês e três em
+> português) e cada uma foi refeita por *copy-synthesis* com dois vocoders
+> usados pelos ataques da base: Griffin-Lim (GRIFFIN; LIM, 1984), do ataque
+> A11, e WORLD (MORISE; YOKOMORI; OZAWA, 2016), dos ataques A02, A03, A05 e
+> A07. Original e versões sintéticas têm o mesmo locutor, microfone, sala e
+> texto; só o vocoder muda. É um controle pareado: se o modelo detecta o
+> vocoder, cada versão sintética deve receber score maior que o original da
+> mesma frase (Tabela 11).
+
+**Tabela 11 – Scores com a voz do autor (baseline_v2, limiar 0,686)**
+
+| frase | original (humano) | Griffin-Lim | WORLD |
+|---|---|---|---|
+| 1 (inglês) | 0,901 | 0,446 | 0,443 |
+| 2 (inglês) | 0,472 | 0,264 | 0,413 |
+| 1 (português) | 0,898 | 0,720 | 0,718 |
+| 2 (português) | 0,593 | 0,315 | 0,453 |
+| 3 (português) | 0,688 | 0,707 | 0,898 |
+
+Fonte: Autoria própria.
+
+<!-- RESUMO_TCC §10.2.6 (01/10/2026), rodada sem aprimoramentos do microfone -->
+
+> O resultado é negativo. Três dos cinco originais ficaram acima do limiar, e
+> em 8 das 10 frases a versão sintética recebeu score menor que o original.
+> Numa primeira rodada, gravada com os aprimoramentos do microfone ligados,
+> os cinco originais ficaram acima do limiar (média de 0,95, contra 0,71 sem os
+> aprimoramentos) e as dez versões sintéticas ficaram abaixo do original; nas
+> duas rodadas, 18 de 20. O modelo detecta o ataque A11 na base, mas não o
+> mesmo vocoder aplicado a outra voz. O que ele aprendeu não é o artefato
+> genérico do vocoder, e sim características do sistema e da base (modelo
+> acústico, locutores, condições de gravação), e diante de uma voz nova o score
+> responde às condições de gravação. Um teste qualitativo com áudios da
+> internet apontou na mesma direção: um audiobook narrado por humano, em banda
+> estreita, recebeu score médio maior (0,81) que um vídeo narrado por IA (0,49)
+> e que a voz do Google Tradutor (0,47). O sistema funciona de ponta a ponta,
+> mas o modelo, treinado só na ASVspoof 2019, não generaliza para vozes e
+> geradores fora dela.
 
 ## 5.6 Resultados Esperados e Obtidos — substituir por inteiro
 
@@ -900,7 +967,7 @@ de cerca de ±1,28 p.p.).
 | EER inferior a 8% | 18,99% (modelo isolado); 13,13% (fusão de scores) | não atingido |
 | ganho a cada incremento | fusão −1,38 p.p.; atenção +0,95 p.p. | só na fusão; no EER global, dentro da variância entre execuções |
 | processamento em até 30 s por amostra (RNF06) | 2,745 s em CPU para um arquivo de 60 s | atingido |
-| sistema com envio de arquivo e exibição do resultado (RF01, RF06, RF07) | aplicação web e monitor ao vivo | atingido |
+| sistema com envio de arquivo e exibição do resultado (RF01, RF06, RF07) | interface web com envio de arquivo, captura em tempo real e histórico | atingido |
 | suporte a WAV e MP3 (RNF05) | aceitos na entrada; sem avaliação de desempenho em MP3 | atingido parcialmente |
 
 Fonte: Autoria própria.
@@ -937,19 +1004,31 @@ Fonte: Autoria própria.
 > processamento de um cliente de conferência (supressão de ruído, cancelamento
 > de eco) não foi medido.
 >
-> • **Sem vozes externas.** A coleta com colaboradores não foi realizada, e todos
-> os áudios *bonafide* vêm da ASVspoof (2019 e 2021).
+> • **Vozes externas em pequena escala.** A coleta com colaboradores não foi
+> realizada. As únicas vozes externas à base são cinco frases do próprio autor,
+> em duas rodadas, suficientes para mostrar a falha de generalização com
+> controle pareado, mas não para medir uma taxa de erro.
+>
+> • **Dependência do caminho do som.** O resultado ao vivo depende de
+> configurações fora do sistema: os aprimoramentos de áudio do driver e o
+> programa que reproduz o áudio alteram o score. A captura foi medida num
+> único computador, com driver Realtek e Windows.
+>
+> • **Limiar escolhido pela taxa do arquivo.** O sistema escolhe o limiar pela
+> taxa de amostragem da entrada, não pelo conteúdo: um arquivo de 16 kHz que já
+> passou por outra conversão perdeu o topo da banda e recebe o limiar
+> original. Áudio abaixo de 16 kHz (telefonia) não foi medido.
 >
 > • **Atalhos da base.** O modelo depende de duração e energia em 1% a 2% da
 > variância do score.
 >
-> • **Dependência da faixa de 7,6 a 8 kHz.** A faixa some em qualquer conversão
-> de taxa de amostragem, o que inclui a captura ao vivo e a maioria dos
-> arquivos gravados fora da base. A recalibração do limiar reduz o problema,
-> mas não recupera a ordenação perdida.
+> • **Dependência da faixa de 7,6 a 8 kHz.** O filtro FIR do sistema preserva
+> a faixa, mas não a recupera quando outro programa já a cortou antes da
+> captura: o *player*, o codec da chamada ou uma conversão anterior do arquivo.
 >
-> • **Teste com áudio real qualitativo.** Três áudios, sem rótulo por janela;
-> indica a dependência de largura de banda, mas não a mede.
+> • **Teste com áudios da internet qualitativo.** Três áudios, sem rótulo por
+> janela; aponta a mesma dependência das condições de gravação, mas não a
+> mede.
 
 ---
 
@@ -959,11 +1038,11 @@ Fonte: Autoria própria.
 - **Marco 6:** trocar "Testes de robustez realizados" por "Testes de robustez
   realizados com degradação simulada de canal e com transmissão real (ASVspoof
   2021 LA, condição Opus)".
-- **Marcos 5 e 6:** trocar "API REST funcional" e "Sistema integrado
-  (front-end + back-end)" por "Aplicação web (FastAPI + Jinja2) com o pipeline
-  de IA integrado, envio de arquivo, resultado por janela e histórico" e
-  "Monitor de chamadas ao vivo integrado à aplicação web".
-- **Marco 7:** manter.
+- **Marcos 5 a 7 (API e front-end):** concluídos. Trocar "API REST funcional" e
+  "Sistema integrado (front-end + back-end)" por "Interface web (FastAPI +
+  Jinja2) com o pipeline de IA integrado: envio de arquivo, captura em tempo
+  real, resultado por janela e histórico" e "Monitor de linha de comando
+  integrado ao mesmo analisador". Marco 7: manter.
 - **6 (texto) e 6.1:** onde o texto diz "front-end" e "API back-end" como
   partes separadas, e na responsabilidade de Pedro ("desenvolvimento completo
   do front-end web"), ajustar para a aplicação web única. Confirmar com o Pedro
@@ -971,22 +1050,26 @@ Fonte: Autoria própria.
 
 ## 7.1 Privacidade e Utilização dos Dados — substituir por inteiro
 
-> Os experimentos utilizam exclusivamente as bases públicas ASVspoof 2019 e
-> ASVspoof 2021, que têm finalidade de pesquisa científica e são distribuídas
-> sob licença própria dos organizadores. Nenhuma voz foi coletada de pessoas externas à base. A coleta
-> de amostras com colaboradores, prevista no planejamento, não foi realizada. Se
-> for retomada em trabalhos futuros, deverá observar a Lei Geral de Proteção de
-> Dados (Lei nº 13.709/2018 – LGPD). Características vocais podem ser
+> O treinamento e a avaliação dos modelos utilizam as bases públicas ASVspoof
+> 2019 e ASVspoof 2021, que têm finalidade de pesquisa científica e são distribuídas
+> sob licença própria dos organizadores. A única voz externa à base é a do
+> próprio autor, gravada por ele para o controle pareado da seção 5.5. A coleta
+> de amostras com colaboradores, prevista no planejamento, não foi realizada.
+>
+> O sistema roda localmente e não envia áudio a serviços externos. O arquivo
+> enviado pela interface é apagado logo após a análise, e o histórico guarda
+> apenas o nome do arquivo e os scores, com registros que o usuário pode
+> excluir. A captura ao vivo grava a sessão em disco, no próprio computador,
+> para conferência posterior; ao excluir o registro no histórico, a gravação é
+> apagada junto. Como a captura alcança
+> tudo o que o computador reproduz, inclusive a voz de terceiros numa chamada,
+> o seu uso exige o consentimento dos participantes.
+>
+> Se a coleta com colaboradores for retomada em trabalhos futuros, deverá
+> observar a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 – LGPD). Características vocais podem ser
 > consideradas dados biométricos e, portanto, dados pessoais sensíveis, o que
 > exige consentimento específico, finalidade declarada e descarte ao fim da
 > pesquisa.
->
-> A aplicação web apaga o arquivo enviado assim que a análise termina, e o
-> histórico armazena apenas o resultado (duração, *scores* e limiar), sem o
-> áudio. Para demonstrações, o sistema inclui uma ferramenta que gera versões
-> sintéticas da voz do próprio usuário com *vocoders* da época da ASVspoof
-> 2019, a partir de gravações feitas por ele mesmo; ela não coleta vozes de
-> terceiros, e as gravações não foram usadas nos experimentos deste trabalho.
 
 ## 8. CONCLUSÃO — substituir por inteiro
 
@@ -1002,7 +1085,7 @@ Fonte: Autoria própria.
 > quais ataques o modelo detecta. A atenção no *pooling*, na forma mínima
 > avaliada, não trouxe ganho e quase não alterou o perfil do modelo. Os efeitos
 > sobre o EER global ficam dentro da variação entre execuções reportada na
-> literatura. Quatro achados, porém, têm magnitude que supera essa variação.
+> literatura. Cinco achados, porém, têm magnitude que supera essa variação.
 >
 > Primeiro, o desempenho na validação não antecipa o desempenho na avaliação.
 > Cinco modelos alcançaram EER de validação abaixo de 0,71% e ficaram todos
@@ -1037,13 +1120,17 @@ Fonte: Autoria própria.
 > essa precisão que o canal real apaga. O ganho da fusão de scores, por outro
 > lado, se manteve no canal real.
 >
-> O sistema foi implementado de ponta a ponta, com aplicação web e monitor de
-> chamadas ao vivo, e o seu caminho de análise foi verificado. O uso real,
-> porém, expôs a principal limitação do modelo: ele depende da faixa de 7,6 a
-> 8 kHz, que desaparece em qualquer conversão de taxa de amostragem, e com áudio
-> real o *score* respondeu à largura de banda, e não à síntese. A recalibração
-> do limiar torna o monitor utilizável, mas não corrige a ordenação. O modelo
-> treinado não está pronto para uso fora da base.
+> Quinto, o modelo foi integrado a um sistema que analisa arquivos e o áudio do
+> computador em tempo real, e o uso fora da base expôs duas dependências. A
+> primeira é da faixa de 7,6 a 8 kHz: o conversor de taxa padrão a apagava, e
+> isso custava 5,68 p.p. na captura; com um filtro FIR que a preserva, o custo
+> caiu para 0,39 p.p., sem retreino. A segunda é das condições de gravação: com
+> a voz do autor refeita por vocoders, num controle pareado, as versões
+> sintéticas receberam scores menores que o original em 18 de 20 casos. O
+> modelo detecta os ataques da base, mas não o mesmo vocoder aplicado a uma voz
+> nova, e o score passa a responder ao microfone, à sala e ao processamento do
+> driver. O sistema funciona de ponta a ponta; o limite está no que o modelo
+> aprendeu.
 >
 > As metas de F1 (0,85 no RNF04 e 0,90 na projeção do planejamento) e de EER
 > inferior a 8% não foram atingidas. A meta de EER se baseava em sistemas que
@@ -1053,14 +1140,14 @@ Fonte: Autoria própria.
 >
 > Como trabalhos futuros, destacam-se: repetir os treinamentos com várias
 > sementes; estender a avaliação às demais condições da ASVspoof 2021 LA, ao
-> processamento de clientes de conferência e a vozes externas à base; calibrar
-> os modelos no canal de destino, o que permitiria aproveitar a fusão de scores
-> em tempo real; investigar mecanismos de atenção mais
-> expressivos; usar encoders pré-treinados em fala, direção apontada pela
-> literatura para os ataques autorregressivos; retreinar com o LFCC limitado a
-> 0 a 4 kHz, como no sistema de referência da ASVspoof 2021 LA, ou com a
-> conversão de taxa no aumento de dados; e avaliar com ataques atuais, como os
-> da ASVspoof 5. Fica também como hipótese a
+> processamento de clientes de conferência e a vozes externas à base, com
+> coleta consentida; treinar sem depender do topo da banda, com LFCC limitado
+> ou aumento de dados com conversão de taxa; incluir no treino gravações em
+> condições variadas (microfones comuns, salas, outras línguas) e ataques
+> atuais, como os da ASVspoof 5 (WANG et al., 2024); calibrar os modelos no canal de destino, o
+> que permitiria aproveitar a fusão de scores em tempo real; investigar
+> mecanismos de atenção mais expressivos; e usar encoders pré-treinados em
+> fala, direção apontada pela literatura para os ataques autorregressivos. Fica também como hipótese a
 > testar a associação entre o ramo de espectrograma e os ataques por filtragem
 > de forma de onda (A13, A17 e A18).
 
@@ -1146,6 +1233,10 @@ entrega.
 
 **Acrescentar (NBR 6023):**
 
+GRIFFIN, Daniel W.; LIM, Jae S. Signal estimation from modified short-time
+Fourier transform. *IEEE Transactions on Acoustics, Speech, and Signal
+Processing*, v. 32, n. 2, p. 236-243, 1984.
+
 KINGMA, Diederik P.; BA, Jimmy. Adam: a method for stochastic optimization. In:
 INTERNATIONAL CONFERENCE ON LEARNING REPRESENTATIONS, 3., 2015, San Diego.
 *Proceedings* [...]. San Diego: ICLR, 2015.
@@ -1159,6 +1250,10 @@ d'Olonne. *Proceedings* [...]. 2018. p. 312-319.
 LAVRENTYEVA, Galina et al. STC antispoofing systems for the ASVspoof2019
 challenge. In: INTERSPEECH, 2019, Graz. *Proceedings* [...]. 2019.
 p. 1033-1037.
+
+MORISE, Masanori; YOKOMORI, Fumiya; OZAWA, Kenji. WORLD: a vocoder-based
+high-quality speech synthesis system for real-time applications. *IEICE
+Transactions on Information and Systems*, v. E99-D, n. 7, p. 1877-1884, 2016.
 
 MÜLLER, Nicolas M. et al. Speech is silver, silence is golden: what do
 ASVspoof-trained models really learn? In: ASVSPOOF 2021 WORKSHOP, 2021.
@@ -1176,6 +1271,10 @@ WANG, Xin et al. ASVspoof 2019: a large-scale public database of synthesized,
 converted and replayed speech. *Computer Speech & Language*, v. 64, 101114,
 2020. DOI: 10.1016/j.csl.2020.101114.
 *(Conferido em 25/09/2026: volume, número do artigo e DOI.)*
+
+WANG, Xin et al. ASVspoof 5: crowdsourced speech data, deepfakes, and
+adversarial attacks at scale. In: THE AUTOMATIC SPEAKER VERIFICATION SPOOFING
+COUNTERMEASURES WORKSHOP (ASVSPOOF 2024), 2024. *Proceedings* [...]. 2024.
 
 > As páginas, cidades e números de artigo acima foram escritos de memória.
 > Conferir cada um na fonte (DOI ou anais) antes da entrega.

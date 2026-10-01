@@ -51,9 +51,8 @@ def main() -> None:
     probs = torch.softmax(model(features), dim=1)[0]
     spoof_prob = float(probs[1])
 
-    # O limiar segue o áudio (src/limiares.py): arquivo nativo de 16 kHz usa o
-    # calibrado no dev; gravado acima disso perde 7,6-8 kHz ao ser convertido e
-    # usa o recalibrado, se existir. Sem calibração, cai no argmax (0,5).
+    # O limiar depende da taxa do arquivo (ver src/limiares.py); sem
+    # calibração, vale o argmax.
     threshold, origem, aviso = None, "", None
     if config["train"].get("calibrate_threshold"):
         escolha = escolher_limiar(limiares_do_checkpoint(args.checkpoint, ckpt),

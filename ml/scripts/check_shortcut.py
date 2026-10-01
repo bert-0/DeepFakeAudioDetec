@@ -1,27 +1,7 @@
-"""Procura atalhos triviais na base: o modelo aprende voz ou aprende artefato?
+"""Procura atalhos triviais na base (duração, duração sem silêncio, energia RMS).
 
-Um detector pode atingir EER baixo sem olhar para a voz, se bonafide e spoof
-diferirem em alguma propriedade banal do arquivo. Na literatura do ASVspoof
-isso é documentado: a duração do silêncio no início e no fim das gravações
-difere entre as classes, e modelos treinados sem cuidado aprendem a contar
-silêncio em vez de detectar síntese.
-
-Este script mede três atalhos conhecidos **antes** de qualquer feature ou
-modelo, direto no waveform:
-
-  1. duração original do áudio
-  2. duração após remover o silêncio (`trim_silence`)
-  3. energia RMS
-
-Para cada um, calcula o EER que um classificador **trivial** obteria usando
-somente aquela grandeza, e compara com um **teste de permutação**: embaralha os
-rótulos 500 vezes para descobrir o que o acaso produz nesta amostra. Julgar "está
-perto de 50%?" a olho não funciona — com classes desbalanceadas (~9 spoof por
-bonafide no LA) e amostra finita, o acaso não entrega exatamente 50%.
-
-Um EER abaixo do percentil 5 do nulo indica sinal real na grandeza. Isso não
-implica que o detector dependa dele: compare as magnitudes. Um atalho de ~44%
-não explica um modelo de ~19%.
+Para cada grandeza calcula o EER de um classificador trivial e o compara com um
+teste de permutação dos rótulos.
 
 Uso:
     python scripts/check_shortcut.py --config configs/fusion_v4.yaml
@@ -58,14 +38,8 @@ def teste_permutacao(rotulos: np.ndarray, valores: np.ndarray,
                      n: int = 500, seed: int = 0) -> tuple[float, float]:
     """Distribuição nula do EER trivial, embaralhando os rótulos.
 
-    Um EER de 43,8% parece "quase 50%", mas não dá para julgar isso a olho: com
-    classes desbalanceadas (no LA são ~9 spoof por bonafide) e amostra finita, o
-    acaso não produz exatamente 50%. Embaralhar os rótulos preserva os tamanhos
-    das classes e a distribuição dos valores, e mostra o que o acaso realmente
-    produz nesta amostra.
-
-    Devolve (média do nulo, percentil 5). Um EER observado **abaixo** do
-    percentil 5 não é explicável por acaso: há sinal de verdade na grandeza.
+    Devolve (média do nulo, percentil 5); com classes desbalanceadas o acaso
+    não dá exatamente 50%.
     """
     rng = np.random.default_rng(seed)
     nulos = np.empty(n)
@@ -77,12 +51,7 @@ def teste_permutacao(rotulos: np.ndarray, valores: np.ndarray,
 
 
 def eer_trivial(rotulos: np.ndarray, valores: np.ndarray) -> float:
-    """EER usando só `valores` como score. Testa os dois sentidos.
-
-    Um atalho pode correlacionar em qualquer direção (spoof mais longo ou mais
-    curto), então o pior caso para a hipótese "não há atalho" é o melhor dos
-    dois sentidos.
-    """
+    """EER usando só `valores` como score, no melhor dos dois sentidos."""
     a = compute_eer(rotulos, valores)
     b = compute_eer(rotulos, -valores)
     return min(a, b)
@@ -135,7 +104,6 @@ def main() -> int:
                        ("energia RMS", np.array(rms))):
         mb, ms = vals[rotulos == 0].mean(), vals[rotulos == 1].mean()
         eer = eer_trivial(rotulos, vals) * 100
-        # O que o acaso produz NESTA amostra, com estes tamanhos de classe.
         nulo, p5 = teste_permutacao(rotulos, vals)
         nulo, p5 = nulo * 100, p5 * 100
         significativo = eer < p5

@@ -1,8 +1,7 @@
 """Testes da conversão para WAV (scripts/converter_para_wav.py).
 
-Motivação medida: nos .flac do ASVspoof 2021, o libsndfile falhou em 38 de 50
-arquivos ("unknown error in flac decoder"), e o fallback do librosa abre um
-FFmpeg por arquivo no Windows. A conversão faz esse custo uma vez só.
+Nos .flac do ASVspoof 2021 o libsndfile falhou em 38 de 50 arquivos e o
+fallback do librosa abre um FFmpeg por arquivo; a conversão paga isso uma vez.
 """
 
 import sys

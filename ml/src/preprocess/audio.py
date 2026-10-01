@@ -11,14 +11,15 @@ from pathlib import Path
 import librosa
 import numpy as np
 
+from .reamostragem import para_taxa
+
 
 class AudioLoadError(RuntimeError):
     """Falha ao ler um arquivo de áudio, com o caminho embutido na mensagem."""
 
 
-#: Folga ao comparar a duração decodificada com a declarada no cabeçalho.
-#: Reamostragem e arredondamento mudam o comprimento em alguns quadros, nunca
-#: em fração perceptível do sinal.
+#: Folga ao comparar a duração decodificada com a do cabeçalho: reamostragem e
+#: arredondamento mudam o comprimento em alguns quadros.
 TOLERANCIA_S = 0.01
 TOLERANCIA_RELATIVA = 0.01
 
@@ -26,9 +27,7 @@ TOLERANCIA_RELATIVA = 0.01
 def _duracao_do_cabecalho(path: str | Path) -> float | None:
     """Duração que o cabeçalho declara, em segundos, ou `None` se ilegível.
 
-    O cabeçalho **sobrevive à truncagem**: um FLAC cortado pela metade continua
-    anunciando a duração original. É justamente isso que o torna útil aqui —
-    ele diz o que o arquivo deveria ter, para comparar com o que saiu.
+    O cabeçalho sobrevive à truncagem, então diz quanto o arquivo deveria ter.
     """
     try:
         import soundfile as sf
@@ -40,31 +39,17 @@ def _duracao_do_cabecalho(path: str | Path) -> float | None:
 
 
 def load_audio(path: str | Path, sample_rate: int) -> np.ndarray:
-    """Carrega um arquivo de áudio como mono, reamostrado para `sample_rate`.
+    """Carrega o áudio como mono em `sample_rate`; erros levam o caminho no texto.
 
-    Um único `.flac` corrompido entre os 121.461 da base derruba um treino de
-    horas — e sem este tratamento a mensagem não diz **qual**. O `librosa.load`,
-    ao falhar no soundfile, tenta o backend `audioread`; sem ffmpeg instalado
-    isso termina em `NoBackendError` com mensagem **vazia**, descartando o erro
-    real do libsndfile (`flac decoder lost sync`, `Internal psf_fseek() failed`).
-
-    Aqui o caminho vai para a mensagem e a exceção original fica encadeada,
-    acessível por `__cause__`.
-
-    **Nem todo decodificador falha num arquivo truncado.** No Linux o libsndfile
-    recusa e o erro sobe. No Windows o `audioread`, com os backends que costumam
-    vir instalados, decodifica o pedaço que existe e devolve áudio parcial sem
-    reclamar — e aí o treino consome meio enunciado como se fosse inteiro. Foi
-    medido: os testes de truncagem passam no Linux e falhavam no Windows.
-
-    Por isso a leitura não confia no decodificador: a duração obtida é conferida
-    contra a que o cabeçalho declara. A verificação é a mesma nos dois sistemas,
-    qualquer que seja o backend que o librosa tenha escolhido.
+    A duração lida é conferida com a do cabeçalho, porque no Windows o
+    `audioread` devolve áudio parcial de um arquivo truncado sem reclamar.
     """
     try:
-        wav, _ = librosa.load(str(path), sr=sample_rate, mono=True)
+        # Taxa original + FIR próprio: o soxr do librosa apagaria 7,6-8 kHz.
+        wav, taxa = librosa.load(str(path), sr=None, mono=True)
+        wav = para_taxa(wav, taxa, sample_rate)
     except FileNotFoundError:
-        raise  # já traz o caminho e é inequívoco
+        raise  # já traz o caminho
     except Exception as erro:
         detalhe = str(erro) or type(erro).__name__
         raise AudioLoadError(
@@ -107,16 +92,9 @@ def fix_length(
     n_samples: int,
     rng: np.random.Generator | None = None,
 ) -> np.ndarray:
-    """Ajusta o sinal para exatamente `n_samples` (padding por repetição ou recorte).
+    """Ajusta para `n_samples`: recorta se longo, repete o sinal (não zeros) se curto.
 
-    O padding repete o próprio sinal (em vez de zeros) para não introduzir
-    longos trechos de silêncio que distorceriam as features.
-
-    Se `rng` for informado e o sinal for mais longo que `n_samples`, o recorte é
-    feito em uma posição **aleatória** (random crop). Isso é usado apenas no
-    treino: cada época vê um trecho diferente do mesmo áudio, o que aumenta a
-    diversidade dos dados e reduz o overfitting. Sem `rng` o recorte é
-    determinístico (início do sinal), garantindo avaliação reprodutível.
+    Com `rng` o recorte cai numa posição aleatória (treino); sem ele, pega o início.
     """
     if wav.size == n_samples:
         return wav
@@ -125,7 +103,6 @@ def fix_length(
             return wav[:n_samples]
         start = int(rng.integers(0, wav.size - n_samples + 1))
         return wav[start:start + n_samples]
-    # wav.size < n_samples -> repete até cobrir o comprimento
     repeats = int(np.ceil(n_samples / wav.size))
     return np.tile(wav, repeats)[:n_samples]
 
@@ -137,8 +114,7 @@ def preprocess_waveform(
 ) -> np.ndarray:
     """Aplica o pré-processamento completo a um waveform já carregado.
 
-    `rng` habilita o recorte aleatório (ver `fix_length`); deve ser passado
-    apenas no conjunto de treino.
+    `rng` liga o recorte aleatório; passe só no treino.
     """
     if audio_cfg.get("trim_silence", False):
         wav = trim_silence(wav, audio_cfg.get("top_db", 30))

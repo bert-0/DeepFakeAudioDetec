@@ -1499,6 +1499,101 @@ uso real. Os dois caminhos de correção estão identificados: treino com banda
 limitada ou LFCC restrito abaixo de 7,5 kHz (o raciocínio do baseline de 2021,
 Seção 2.1) e dados de ataques atuais (ASVspoof 5, Seção 10.7).
 
+### 10.2.4 Teste pela interface web e o efeito do player
+
+Playlists da demonstração (`scripts/montar_demo.py`: 3 bonafide e 3 spoof do
+eval de 2019, 4 s de silêncio entre eles), `baseline_v2`, aprimoramentos
+desligados, limiar escolhido automaticamente:
+
+| playlist | envio de arquivo | ao vivo, Reprodutor do Windows | ao vivo, VLC |
+|---|---|---|---|
+| reais (bonafide) | 0,03 — sem indício | **0,33 — sem indício** (0 janelas acima) | 0,98 — 7 de 9 janelas acima |
+| falsos (spoof) | 1,00 — indício | **1,00 — indício** (8 de 8) | 1,00 — indício |
+
+Pelo Reprodutor do Windows o sistema separa os dois grupos ao vivo. Pelo VLC,
+**o mesmo arquivo de vozes reais** vai de 0,33 a 0,98: o player altera o áudio
+(reamostragem ou filtros próprios) o bastante para o modelo. Mais um exemplo da
+dependência do caminho do som — e uma instrução prática: na demonstração, tocar
+pelo Reprodutor do Windows ou pelo `canal_real.py tocar`.
+
+### 10.2.5 A perda na captura era do conversor de taxa — corrigida sem retreino
+
+A captura, o `tocar` e a leitura de arquivos acima de 16 kHz passaram a usar um
+FIR de 2047 coeficientes com corte em 7,9 kHz (`src/preprocess/reamostragem.py`)
+no lugar do `soxr`. Em ruído branco, na ida e volta 16 → 48 → 16 kHz,
+7,6–7,8 kHz vai de −8,0 dB para 0,0 dB e 7,8–7,95 kHz de −32,7 dB para −2,8 dB.
+Custo ao vivo: ~2 ms por bloco de 100 ms.
+
+Medido no eval (`robustness_eval.py --amostra 10000`, mesmos 10.002 áudios,
+IC ±1,28 pp), `baseline_v2`:
+
+| condição | EER | precisão | recall | humanos acima do limiar original |
+|---|---|---|---|---|
+| limpo | 19,02% | 0,9837 | 0,7149 | 10% |
+| captura com soxr | 24,70% | 0,9209 | 0,9523 | 71% |
+| **captura com FIR** | **19,41%** | 0,9810 | 0,7271 | **12%** |
+
+**A captura deixou de custar**: +0,39 pp, dentro do IC, contra +5,68 pp antes.
+O ponto de operação volta junto: recalibrado no dev passado pelo FIR, o limiar
+fica em **0,686** (EER no dev 10,33%), contra 0,654 do original e 0,983 do
+caminho com soxr. Ou seja: a degradação que a Seção 10.2.1 atribuía "à captura"
+era quase toda do filtro do conversor, que apagava a faixa de 7,6–8 kHz.
+
+O que continua: o filtro não recupera o que outro programa já cortou antes da
+captura — o player (VLC, 10.2.4), o codec da chamada (Opus em banda larga corta
+perto de 8 kHz) ou um arquivo convertido antes. Para esses casos, a correção
+continua sendo treinar sem depender do topo da banda (Seção 2.1).
+
+### 10.2.6 Demonstração com a própria voz: controle pareado (resultado negativo)
+
+5 frases gravadas pelo autor (Audacity, WASAPI, mono, 48 kHz, português) e
+refeitas por *copy-synthesis* com Griffin-Lim (o vocoder do ataque A11) e WORLD
+(A02/A03/A05/A07) — `gerar_sintetico.py`. Original e falso têm o mesmo locutor,
+microfone, sala e texto; só o vocoder muda. Scores (`avaliar_arquivos.py`,
+`baseline_v2`, limiar 0,686):
+
+| frase | original (humano) | Griffin-Lim | WORLD |
+|---|---|---|---|
+| 1 | **0,984** | 0,564 | 0,866 |
+| 2 | **0,980** | 0,648 | 0,962 |
+| 3 | **0,989** | 0,850 | 0,936 |
+| 4 | **0,992** | 0,848 | 0,976 |
+| 5 | **0,811** | 0,448 | 0,585 |
+
+**Versões sintéticas acima do original da mesma frase: 0 de 10.** O modelo
+marcou a voz humana como sintética em todas as frases, e as versões refeitas
+pelo vocoder ficaram *abaixo* dela. Com o canal controlado, a conclusão fica
+isolada: a decisão responde às condições de gravação (microfone, sala, língua,
+processamento do driver), não aos artefatos do vocoder — e o vocoder, ao
+reconstruir a voz, suaviza justamente o que levava o score para cima. Mesmo
+padrão do audiobook (10.2.3).
+
+**Regravação sem os aprimoramentos do microfone** (2 frases em inglês, 3 em
+português):
+
+| frase | original | Griffin-Lim | WORLD |
+|---|---|---|---|
+| 1 (inglês) | 0,901 | 0,446 | 0,443 |
+| 2 (inglês) | 0,472 | 0,264 | 0,413 |
+| 1 (português) | 0,898 | 0,720 | 0,718 |
+| 2 (português) | 0,593 | 0,315 | 0,453 |
+| 3 (português) | 0,688 | 0,707 | 0,898 |
+
+- **Os aprimoramentos do microfone empurravam a voz humana para cima:** média
+  dos originais de 0,95 (5 de 5 acima do limiar) para 0,71 (3 de 5). É o mesmo
+  efeito dos aprimoramentos da saída (10.2.1).
+- **Língua: sem efeito claro** (inglês 0,69, português 0,73; 2 e 3 frases).
+- **As versões do vocoder seguem abaixo do original: 18 de 20** nas duas
+  rodadas. Isso não é do driver. O modelo acerta o ataque A11 (Tacotron2 +
+  Griffin-Lim) no eval, mas não o Griffin-Lim aplicado a outra voz: o que ele
+  aprendeu do A11 não é o artefato genérico do vocoder, e sim marcas do sistema
+  e da base do ASVspoof (modelo acústico, locutores, condições de gravação).
+
+**Consequência:** para a demonstração, as playlists do ASVspoof (10.2.4)
+funcionam ao vivo; a voz própria entra como evidência da limitação de
+generalização, com controle pareado. A correção é de dados: treino com
+gravações em condições variadas (microfones comuns, salas, outras línguas).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

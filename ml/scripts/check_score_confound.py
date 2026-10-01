@@ -1,20 +1,7 @@
-"""O modelo *usa* os atalhos triviais da base, ou apenas convive com eles?
+"""Mede se o score do detector depende de grandezas triviais (energia, duração).
 
-`check_shortcut.py` responde se a **base** carrega atalhos. Este responde a
-pergunta seguinte, que é a que importa: o **detector** se apoia neles?
-
-A distinção é essencial e fácil de confundir. Se spoof é sistematicamente mais
-alto que bonafide, então score e energia vão correlacionar — mas isso acontece
-mesmo que o modelo ignore o nível por completo, porque *ambos* são consequência
-da classe. Correlação global não separa as duas hipóteses.
-
-O que separa é a **correlação dentro de cada classe**. Entre áudios que são
-todos bonafide, a classe não varia; se ainda assim o score acompanhar a energia,
-o modelo está lendo nível. Se não acompanhar, a correlação global era só reflexo
-da classe.
-
-Usa correlação de Spearman (por postos): não assume relação linear e é imune a
-transformações monotônicas do score.
+Complementa o `check_shortcut.py`: usa a correlação de Spearman dentro de cada
+classe, porque a global reflete só o efeito da classe nas duas grandezas.
 
 Uso:
     python scripts/check_score_confound.py --config configs/fusion_v4.yaml \\
@@ -50,12 +37,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def piso_de_ruido(n: int) -> float:
-    """|rho| que o acaso produz com `n` pontos: ~2 erros-padrão de Spearman.
-
-    Sem isto o veredito dependeria de um limiar escolhido a olho — e o limiar
-    certo depende do tamanho da amostra. Com 300 pontos por classe, |rho| de
-    0,11 é ruído; com 3.000, é sinal.
-    """
+    """|rho| que o acaso produz com `n` pontos (~2 erros-padrão de Spearman)."""
     return 2.0 / np.sqrt(max(n - 1, 2))
 
 
@@ -109,12 +91,10 @@ def main() -> int:
     print("-" * 72)
     dependencias = []
     for nome, vals in grandezas.items():
-        # Uma grandeza constante não tem correlação definida — sem este guarda,
-        # o spearmanr devolve NaN e o veredito viraria sempre "desprezível".
+        # Grandeza constante: o spearmanr daria NaN e o veredito, "desprezível".
         if np.ptp(vals) == 0:
             print(f"{nome:24s} {'—':>9s} {'—':>10s} {'—':>9s}  constante, não avaliável")
             continue
-        # A global mistura o efeito da classe; as de dentro de cada classe, não.
         g = spearmanr(sco, vals).statistic
         b = spearmanr(sco[rot == 0], vals[rot == 0]).statistic
         s = spearmanr(sco[rot == 1], vals[rot == 1]).statistic

@@ -79,8 +79,7 @@ def test_invariante_a_transformacao_monotonica():
 
 
 def test_empates_nao_criam_pontos_de_operacao():
-    """Com score saturado (vários spoof e bonafide em exatamente -1,0), a curva
-    não pode separar áudios empatados — nem depender da ordem do array."""
+    """Áudios empatados (score saturado em -1,0) não viram pontos de operação."""
     bona = np.array([-1.0, -1.0, 0.5, 0.9])
     spoof = np.array([-1.0, -1.0, -1.0, -1.0])
     pmiss, pfa, _ = curva_det(bona, spoof)

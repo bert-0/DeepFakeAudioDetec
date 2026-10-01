@@ -1,10 +1,8 @@
 """Análise de um arquivo de áudio para a interface web.
 
-Usa exatamente o caminho do monitor (`AnalisadorContinuo` sobre `FileSource`),
-que dá o mesmo score do `infer.py` para o mesmo áudio
-(`tests/test_monitor_consistencia.py`). O limiar segue o tipo de áudio
-(`src/limiares.py`): arquivo nativo de 16 kHz usa o original; gravado acima
-disso, o recalibrado para conversão de taxa.
+Usa o mesmo caminho do monitor (`AnalisadorContinuo` sobre `FileSource`), que dá
+o score do `infer.py` (tests/test_monitor_consistencia.py). O limiar depende da
+taxa nativa do arquivo (`src/limiares.py`).
 """
 
 from __future__ import annotations
@@ -46,8 +44,8 @@ class Resultado:
 
 
 class Detector:
-    """Carrega config e checkpoint uma vez; cada análise cria o seu analisador
-    (o estado do canal é da sessão, não pode vazar de um arquivo para outro)."""
+    """Carrega config e checkpoint uma vez; cada análise cria seu analisador,
+    para o estado do canal não vazar de um arquivo para outro."""
 
     def __init__(self, config: str | None = None, checkpoint: str | None = None,
                  device: str | None = None):
@@ -87,6 +85,6 @@ class Detector:
             janelas_uteis=resumo["janelas_uteis"],
             janelas_independentes=resumo["janelas_independentes"],
             janelas=[{"t": round(x.instante, 2), "score": round(x.score, 4),
-                      "util": id(x) in uteis}
+                      "util": id(x) in uteis, "peso": round(x.peso, 3)}
                      for x in agregador.leituras],
         )

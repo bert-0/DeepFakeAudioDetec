@@ -1,15 +1,8 @@
 """Mede como uma gravação se deformou no tempo em relação ao que foi tocado.
 
-Quando o `alinhar` recupera poucos trechos, a pergunta é *como* a gravação
-deixou de bater com a referência. Três assinaturas possíveis, que este script
-separa medindo o deslocamento de cada pedaço da referência dentro da gravação:
-
-- **deslocamento constante** — só atraso; o alinhamento deveria funcionar;
-- **deslocamento crescendo em linha reta** — taxa de amostragem errada em
-  algum ponto do caminho (ex.: 44,1 kHz tratado como 48 kHz). A inclinação dá
-  o fator;
-- **degraus** — amostras perdidas ou inseridas (descontinuidades da captura,
-  engasgos da reprodução). Cada degrau é um buraco.
+Localiza cada pedaço da referência na gravação e separa três casos: atraso
+constante, deslocamento em rampa (taxa de amostragem errada) e degraus
+(amostras perdidas ou inseridas).
 
 Uso:
     python scripts/diagnosticar_captura.py --pasta outputs/canal_real \\
@@ -37,8 +30,7 @@ FATORES = np.linspace(0.85, 1.15, 601)
 
 
 def correlacao_normalizada(pedaco: np.ndarray, sinal: np.ndarray) -> tuple[int, float]:
-    """Melhor posição de `pedaco` em `sinal`, com Pearson calculado EM CADA
-    deslocamento (normalização local, não pela gravação inteira)."""
+    """Melhor posição de `pedaco` em `sinal`, com Pearson normalizado em cada deslocamento."""
     from scipy.signal import correlate
 
     m = len(pedaco)
@@ -81,8 +73,7 @@ def deslocamentos(env_r: np.ndarray, env_c: np.ndarray,
                   pedaco_s: float = PEDACO_S) -> list[tuple[float, float, float]]:
     """(instante na referência, deslocamento em s, correlação) por pedaço.
 
-    Cada pedaço é procurado na gravação INTEIRA, sem palpite — assim nem um
-    buraco grande escapa da busca.
+    Cada pedaço é procurado na gravação inteira, para não perder buracos grandes.
     """
     n = int(pedaco_s * TAXA_ENVELOPE_HZ)
     saida = []
@@ -99,8 +90,7 @@ def _n_saltos(pontos) -> tuple[int, float]:
     d = np.array([dd for _, dd, c in pontos if c >= 0.5])
     if len(d) < 2:
         return 0, 0.0
-    # Mediana de 3: um pedaço que casou no lugar errado (fala parecida em outro
-    # ponto da playlist) é um ponto fora isolado; um degrau de verdade persiste.
+    # Mediana de 3 descarta casamentos errados isolados; um degrau real persiste.
     if len(d) >= 3:
         from scipy.signal import medfilt
 
@@ -111,9 +101,10 @@ def _n_saltos(pontos) -> tuple[int, float]:
 
 
 def analisar(referencia: np.ndarray, captura: np.ndarray, sr: int):
-    """Escala e deslocamentos. Entre "taxa errada" e "sem correção", fica a
-    explicação que deixa MENOS saltos: buracos também mudam a duração total e
-    enganam o ajuste de escala, mas não somem quando se reescala."""
+    """Estima escala e deslocamentos; reescala só se isso deixar menos saltos.
+
+    Buracos também mudam a duração total e enganam o ajuste de escala.
+    """
     env_r, env_c = envelope(referencia, sr), envelope(captura, sr)
     fator, corr_fator, corr_um = estimar_fator(env_r, env_c)
     sem = deslocamentos(env_r, env_c)
@@ -134,10 +125,8 @@ def diagnosticar(fator, corr_fator, corr_um, usar, pontos,
     linhas.append(f"Pedaços de {PEDACO_S:.0f} s bem localizados"
                   f"{' (após corrigir a escala)' if usar != 1.0 else ''}: "
                   f"{len(bons)}/{len(pontos)} (correlação ≥ 0,5)")
-    # Decide pelos pedaços, não pela correlação global: se a gravação começou
-    # depois da reprodução, a referência inteira não cabe nela e a correlação
-    # global despenca — foi o que aconteceu no primeiro controle real (0,09),
-    # com 54 de 54 pedaços bem localizados.
+    # Decide pelos pedaços: se a gravação começou atrasada, a correlação global
+    # despenca mesmo com os pedaços bem localizados.
     if len(bons) < max(3, len(pontos) // 2):
         linhas.append("DIAGNÓSTICO: quase nada da referência aparece na gravação. O que foi "
                       "gravado não é a playlist (dispositivo errado, volume zero, outro som "

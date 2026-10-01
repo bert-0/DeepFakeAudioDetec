@@ -1,23 +1,63 @@
 {% extends "base.html" %}
-{% block titulo %}Resultados — Análise de Autenticidade de Voz{% endblock %}
+{% block titulo %}Histórico — Análise de Autenticidade de Voz{% endblock %}
 {% block conteudo %}
 <div class="cartao">
   {% if not analises %}
-    <div class="texto"><p>Nenhuma análise ainda. <a href="/">Enviar um arquivo</a>.</p></div>
+    <div class="texto"><p>O histórico está vazio.</p></div>
   {% else %}
-  <table>
-    <tr><th>Data</th><th>Arquivo</th><th>Duração</th><th>Score</th><th>Resultado</th></tr>
-    {% for a in analises %}
-    {% set acima = a.score_medio is not none and a.limiar is not none and a.score_medio >= a.limiar %}
-    <tr>
-      <td>{{ a.criado_em | data }}</td>
-      <td><a href="/analises/{{ a.id }}">{{ a.arquivo }}</a></td>
-      <td>{{ a.duracao_s | mmss }}</td>
-      <td class="{{ 'vermelho' if acima else 'verde' }}">{{ a.score_medio | br(2) }}</td>
-      <td>{% if a.score_medio is none %}sem fala{% elif acima %}indício de síntese{% else %}sem indício{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <form action="/historico/excluir" method="post" id="form-excluir">
+    <table>
+      <tr>
+        <th class="marcar"><input type="checkbox" id="todos" title="Selecionar todos"></th>
+        <th>Data</th><th>Arquivo</th><th>Duração</th><th>Score</th><th>Resultado</th>
+      </tr>
+      {% for a in analises %}
+      {% set acima = a.score_medio is not none and a.limiar is not none and a.score_medio >= a.limiar %}
+      <tr>
+        <td class="marcar"><input type="checkbox" name="ids" value="{{ a.id }}"></td>
+        <td>{{ a.criado_em | data }}</td>
+        <td><a href="/analises/{{ a.id }}">{{ a.arquivo }}</a></td>
+        <td>{{ a.duracao_s | mmss }}</td>
+        <td class="{{ 'vermelho' if acima else 'verde' }}">{{ a.score_medio | br(2) }}</td>
+        <td>{% if a.score_medio is none %}sem fala{% elif acima %}indício de síntese{% else %}sem indício{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </form>
+  <div class="acoes">
+    <button type="submit" form="form-excluir" id="excluir" disabled>Excluir selecionados</button>
+    <form action="/historico/limpar" method="post" id="form-limpar">
+      <button type="submit">Limpar todo o histórico</button>
+    </form>
+  </div>
+  <p class="nota">Excluir um registro de sessão ao vivo apaga também a gravação dela em
+    <code>outputs/ao_vivo/</code>. Limpar o histórico apaga todas as gravações.</p>
   {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var caixas = document.querySelectorAll("input[name=ids]"), todos = document.getElementById("todos"),
+      excluir = document.getElementById("excluir");
+  if (!todos) return;
+  function atualizar() {
+    var n = Array.prototype.filter.call(caixas, function (c) { return c.checked; }).length;
+    excluir.disabled = n === 0;
+    excluir.textContent = n ? "Excluir selecionados (" + n + ")" : "Excluir selecionados";
+  }
+  todos.addEventListener("change", function () {
+    caixas.forEach(function (c) { c.checked = todos.checked; }); atualizar();
+  });
+  caixas.forEach(function (c) { c.addEventListener("change", atualizar); });
+  document.getElementById("form-excluir").addEventListener("submit", function (e) {
+    var n = Array.prototype.filter.call(caixas, function (c) { return c.checked; }).length;
+    if (!confirm("Excluir " + n + " registro(s)? As gravações das sessões ao vivo também são apagadas. Não dá para desfazer.")) e.preventDefault();
+  });
+  document.getElementById("form-limpar").addEventListener("submit", function (e) {
+    if (!confirm("Apagar todo o histórico (" + caixas.length + " registros) e todas as gravações ao vivo? Não dá para desfazer.")) e.preventDefault();
+  });
+  atualizar();
+})();
+</script>
 {% endblock %}

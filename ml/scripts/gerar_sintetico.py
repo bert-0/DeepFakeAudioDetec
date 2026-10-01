@@ -1,25 +1,7 @@
-"""Gera versões sintéticas da SUA voz com vocoders da época do ASVspoof 2019.
+"""Refaz gravações da sua voz com vocoders da época do ASVspoof 2019.
 
-**A ideia: controle pareado.** Você grava algumas frases; o script refaz cada
-uma com um vocoder antigo. O original e o falso têm o mesmo locutor, o mesmo
-microfone, a mesma sala e o mesmo texto — a única diferença é o vocoder. Se o
-monitor separa os dois, ele reage à síntese, não ao canal (o problema do
-audiobook, RESUMO 10.2.3).
-
-Métodos (é *copy-synthesis*: a voz é analisada e reconstruída pelo vocoder,
-que é a parte onde ficam os artefatos que o detector aprende):
-
-- `griffinlim` — espectrograma mel -> Griffin-Lim. É o vocoder do ataque A11
-  (Tacotron2 + Griffin-Lim), um dos que o baseline_v2 mais acerta no eval.
-  Só usa o `librosa`, já instalado.
-- `world` — análise e síntese pelo vocoder WORLD, o dos ataques A02, A03, A05
-  (treino) e A07 (eval). Precisa de `pip install pyworld "setuptools<81"`
-  (o pyworld importa o `pkg_resources`, removido nas versões novas).
-
-**Tudo sai a 48 kHz.** A gravação do microfone nasce a 44,1/48 kHz e chega ao
-modelo sem a faixa de 7,6-8 kHz; salvar a 48 kHz faz o monitor escolher o
-limiar recalibrado também com `--arquivo`, que é o certo para este áudio
-(src/limiares.py).
+Controle pareado: original e falso diferem só no vocoder (Griffin-Lim ou WORLD).
+O WORLD precisa de `pip install pyworld "setuptools<81"`. Tudo sai a 48 kHz.
 
 Uso:
     python scripts/gerar_sintetico.py --entrada gravacoes/ --saida outputs/demo_propria
@@ -109,6 +91,14 @@ def main(argv=None) -> int:
 
     saida = Path(args.saida)
     saida.mkdir(parents=True, exist_ok=True)
+    # Só os arquivos que este script gera: sem isso, versões de gravações
+    # antigas ficam na pasta e se misturam com as novas na avaliação.
+    antigos = [f for f in saida.iterdir() if f.name in ("pareado.wav", "pareado_cola.txt")
+               or f.suffix == ".wav" and f.stem.endswith(("_original", "_griffinlim", "_world"))]
+    for f in antigos:
+        f.unlink()
+    if antigos:
+        print(f"{len(antigos)} arquivo(s) de uma geração anterior removido(s) de {saida}")
     geradores = {"griffinlim": griffin_lim, "world": lambda w, sr: world(w, sr, args.tom)}
     itens = []
     for arq in arquivos:

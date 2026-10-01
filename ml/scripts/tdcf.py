@@ -1,13 +1,9 @@
 """min t-DCF (ASVspoof 2019) a partir dos scores que o `evaluate.py` já salvou.
 
-O t-DCF (*tandem detection cost function*, Kinnunen et al., 2018) é a métrica
-oficial do ASVspoof 2019. Ele avalia a contramedida (CM, este projeto) em série
-com um sistema de verificação de locutor (ASV) fixo, fornecido pelos
-organizadores, e é o número que a Tabela 1 de Todisco et al. (2019) reporta ao
-lado do EER (B01 0,2366; B02 0,2116).
-
-Não refaz inferência: lê `outputs/<modelo>_eval_scores.npz`. Os scores ASV vêm
-no próprio pacote LA da base:
+O t-DCF (Kinnunen et al., 2018) avalia a contramedida em série com o ASV fixo
+dos organizadores; é a métrica oficial do ASVspoof 2019. Lê
+`outputs/<modelo>_eval_scores.npz` (sem refazer inferência); os scores ASV vêm
+no pacote LA da base:
 
     data/LA/ASVspoof2019_LA_asv_scores/ASVspoof2019.LA.asv.eval.gi.trl.scores.txt
 
@@ -22,19 +18,9 @@ Uso (de dentro de `ml/`):
         --scores outputs/baseline_lfcc_cnn_v2_eval_scores.npz \\
                  outputs/fusion_lcnn_v4_eval_scores.npz
 
-Duas conversões que o script faz e que o script oficial exigiria à mão:
-
-1. **Sentido do score.** O `.npz` guarda scores de *spoof* (os log-odds, ou a
-   probabilidade em arquivos antigos); o t-DCF espera score **maior =
-   bonafide**. Usa-se o negativo, que preserva a ordenação.
-2. **Empates.** O softmax satura em exatamente 1,0 em dezenas de milhares de
-   áudios. O script oficial percorre a curva DET amostra a amostra, e com
-   empates isso cria pontos de operação que não existem (depende da ordem do
-   array). Aqui a curva só é avaliada nos **limiares distintos** — o resultado
-   é o que um limiar real conseguiria. Em dados sem empates, os dois coincidem.
-
-`--exportar` grava também o arquivo de scores no formato do script oficial
-(`utt_id ataque chave score`, score maior = bonafide), para conferência cruzada.
+O score de spoof é negado (o t-DCF espera maior = bonafide) e a curva DET só é
+avaliada nos limiares distintos, para que empates não criem pontos de operação
+falsos. `--exportar` grava os scores no formato do script oficial.
 """
 
 from __future__ import annotations
@@ -61,9 +47,7 @@ CHAVES_ASV = ("target", "nontarget", "spoof")
 def ler_scores_asv(caminho: str | Path) -> dict[str, np.ndarray]:
     """Lê o arquivo de scores ASV da base: {'target', 'nontarget', 'spoof'}.
 
-    A chave é o token que for `target`, `nontarget` ou `spoof`, e o score é o
-    último token. Assim funciona com as variantes de 3 e 4 colunas que circulam
-    (com ou sem o id do locutor na frente) sem depender da posição.
+    Chave pelo token, score no último: aceita as variantes de 3 e 4 colunas.
     """
     grupos: dict[str, list[float]] = {k: [] for k in CHAVES_ASV}
     with open(caminho, encoding="utf-8") as fh:
@@ -82,10 +66,9 @@ def ler_scores_asv(caminho: str | Path) -> dict[str, np.ndarray]:
 
 
 def curva_det(positivos: np.ndarray, negativos: np.ndarray):
-    """(Pmiss, Pfa, limiares) aceitando como positivo quem tem score >= limiar.
+    """(Pmiss, Pfa, limiares), com positivo quando score >= limiar.
 
-    Avaliada só nos limiares distintos, mais o limiar +inf (rejeita tudo): um
-    limiar não separa áudios de score idêntico, então a curva também não.
+    Só nos limiares distintos, mais +inf: nenhum limiar separa scores idênticos.
     """
     positivos = np.sort(np.asarray(positivos, dtype=float))
     negativos = np.sort(np.asarray(negativos, dtype=float))
@@ -145,10 +128,8 @@ def postos_medios(x: np.ndarray) -> np.ndarray:
 def ler_npz(caminho: str | Path):
     """(ids, labels, score de spoof, systems) de um `.npz` do `evaluate.py`.
 
-    O score é o `logodds` (logit[1] − logit[0]) quando o arquivo o tem: ele não
-    satura. Arquivo antigo, só com a probabilidade, é aceito apenas se nenhum
-    bonafide saturou em 1,0 — a mesma regra de `src/scores.py`. Com bonafide e
-    spoof empatados em 1,0, o t-DCF mediria o arredondamento do float32.
+    Usa o `logodds` quando existe. Arquivo antigo, só com a probabilidade, é
+    recusado se algum bonafide saturou em 1,0 (mesma regra de `src/scores.py`).
     """
     dados = np.load(caminho, allow_pickle=False)
     labels = np.asarray(dados["labels"]).astype(int)
@@ -164,8 +145,7 @@ def ler_npz(caminho: str | Path):
 
 
 def score_bonafide(score_spoof: np.ndarray) -> np.ndarray:
-    """Score com a convenção do t-DCF (maior = bonafide) a partir de um score em
-    que maior = spoof (probabilidade ou log-odds; os dois ordenam igual)."""
+    """Converte score de spoof para a convenção do t-DCF (maior = bonafide)."""
     return -np.asarray(score_spoof, dtype=float)
 
 

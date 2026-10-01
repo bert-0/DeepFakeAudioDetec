@@ -1,10 +1,7 @@
 """Análise de erros por tipo de ataque (TC1 §5.4).
 
-O EER global esconde onde o modelo realmente falha: uma média de 20% pode ser
-"20% em todos os ataques" ou "0% em doze ataques e 90% em um". Este script
-calcula o EER **por algoritmo de síntese** (A07…A19 no conjunto de avaliação),
-sempre comparando aquele ataque contra TODOS os áudios bonafide — que é o
-protocolo padrão de reporte da ASVspoof.
+Calcula o EER por algoritmo de síntese (A07–A19 no eval), cada ataque contra
+todos os bonafide, como no protocolo de reporte do ASVspoof.
 
 Uso:
     python scripts/per_attack_eval.py --config configs/baseline_v3a.yaml \
@@ -121,9 +118,8 @@ def main() -> None:
         ids, sistemas = protocol_ids_and_systems(config, args.partition)
         systems = np.array(sistemas)
 
-    # `evaluate.py` já percorreu esta partição com este mesmo checkpoint. Repetir
-    # a inferência daria exatamente os mesmos scores — no `eval` do LA, 71.237
-    # áudios de novo. O arquivo só é aceito se o modelo e o protocolo baterem.
+    # Reaproveita os scores do `evaluate.py` (71.237 áudios no eval do LA), desde
+    # que o checkpoint e o protocolo batam.
     reuso, motivo = (None, "recálculo pedido com --recompute")
     if not args.recompute:
         reuso, motivo = load_scores(scores_path(OUTPUT_DIR, name, args.partition),

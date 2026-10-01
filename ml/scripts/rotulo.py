@@ -1,10 +1,7 @@
 """Descobre o rótulo verdadeiro de um áudio, procurando nos três protocolos.
 
-Existe porque procurar o ID "na mão" falha em silêncio: um `findstr` que não
-acha nada é indistinguível de protocolo errado, pasta errada, ID de outra
-partição ou formato diferente do esperado. Aqui, quando não acha, o script diz
-**onde procurou, quantas linhas tinha cada protocolo e com que cara são os IDs
-de verdade** — que é o que permite ver o erro num relance.
+Quando não acha, mostra onde procurou, quantas linhas tinha cada protocolo e
+exemplos de ID, para o erro ficar evidente.
 
 Uso:
     python scripts/rotulo.py --config configs/fusion_v4.yaml LA_E_A9898607
@@ -26,23 +23,15 @@ ROTULO = {0: "bonafide", 1: "spoof"}
 
 
 def identificador(alvo: str) -> str:
-    """Aceita tanto o ID quanto o caminho do arquivo.
+    """Aceita o ID ou o caminho do arquivo.
 
-    A barra invertida é normalizada à mão: num caminho do Windows colado
-    dentro de um shell Linux, `Path` não a trata como separador e o `stem`
-    devolveria a linha inteira. Como o caminho quase sempre vem copiado do
-    PowerShell, o caso importa.
+    A barra invertida é trocada à mão: no Linux, `Path` não a trata como separador.
     """
     return Path(alvo.replace("\\", "/")).stem
 
 
 def listar_exemplos(caminho_config: str, particao: str, n: int) -> int:
-    """Lista áudios rotulados, para montar a demonstração sem caçar IDs.
-
-    Os spoof saem **espalhados entre os ataques**, em vez dos primeiros do
-    protocolo: pegar os primeiros daria todos do mesmo algoritmo, e a figura
-    mostraria um caso só em vez do intervalo de dificuldade.
-    """
+    """Lista áudios rotulados para a demonstração, com os spoof espalhados entre ataques."""
     config = load_config(caminho_config)
     registros = parse_protocol_with_systems(config["data"]["protocols"][particao])
     if not registros:

@@ -1,14 +1,7 @@
-"""Latência ponta a ponta de uma análise (RNF01 da APS).
+"""Latência ponta a ponta de uma análise (RNF01: até 30 s por arquivo de 60 s).
 
-O RNF01 exige **máx. 30 s por análise** para arquivos de até 60 s. Este script
-mede o caminho completo que a aplicação percorreria: ler o arquivo do disco,
-pré-processar, extrair features, inferir e agregar — não só a passada do modelo.
-
-Mede a **janela deslizante** (`AnalisadorContinuo`), e não o `infer.py`. O
-`infer.py` chama `fix_length`, que corta o sinal em `audio.duration`: um envio
-de 60 s teria só os primeiros 4 s analisados, 6,7% do arquivo. Para um sistema
-de perícia isso é inaceitável, então a aplicação precisa janelar o arquivo
-inteiro e agregar.
+Usa a janela deslizante (`AnalisadorContinuo`), que analisa o arquivo inteiro,
+e não o `infer.py`, que corta o sinal em `audio.duration`.
 
 Uso:
     python scripts/bench_latencia.py --config configs/fusion_v4.yaml \\
@@ -31,7 +24,7 @@ from src.capture.analyzer import AnalisadorContinuo, Agregador  # noqa: E402
 from src.capture.sources import FileSource  # noqa: E402
 from src.config import load_config, resolve_device  # noqa: E402
 
-#: Limite do RNF01: nenhuma análise pode passar disto.
+#: Limite do RNF01 por análise.
 LIMITE_RNF01_S = 30.0
 
 

@@ -1,10 +1,7 @@
 """Testes do alinhamento de uma gravação de chamada real (camada 2).
 
-O alinhamento é o que torna a camada 2 mensurável: sem ele a gravação é um
-bloco de minutos sem rótulo. Um alinhamento errado não falha de forma visível —
-ele produz recortes com o rótulo do vizinho e um EER que *parece* resultado.
-Por isso os testes exercitam o canal real (codec, banda, ruído, AGC, deriva de
-relógio) e não só o caminho limpo.
+Um alinhamento errado não falha de forma visível, só troca rótulos; por isso os
+testes simulam o canal real (codec, banda, ruído, AGC, deriva de relógio).
 """
 
 import argparse
@@ -114,11 +111,8 @@ def test_sobrevive_a_ruido_de_fundo():
 
 
 def test_absorve_deriva_de_relogio():
-    """Duas placas de som não andam exatamente na mesma taxa.
-
-    0,1% em 12 s dá 12 ms — pouco. O que mata é o acúmulo: o ajuste é
-    sequencial justamente para que o erro não cresça trecho a trecho.
-    """
+    """Segue uma deriva de 0,1% entre as placas de som sem acumular erro
+    trecho a trecho."""
     import scipy.signal as sps
 
     ref, mapa = _playlist(n=6)
@@ -138,10 +132,10 @@ def test_absorve_deriva_de_relogio():
 
 
 # --------------------------------------------------------------------------- #
-# O portão: um alinhamento ruim precisa se declarar, não emitir lixo rotulado
+# Alinhamento ruim é descartado, não vira recorte rotulado
 # --------------------------------------------------------------------------- #
 def test_descarta_trecho_que_nao_foi_tocado():
-    """Se a chamada cai no meio, o resto não existe na gravação."""
+    """Se a chamada cai no meio, os trechos que faltam são descartados."""
     ref, mapa = _playlist(n=4)
     metade = len(ref) // 2
     captura = _atrasar(ref[:metade], 0.3)
@@ -152,7 +146,7 @@ def test_descarta_trecho_que_nao_foi_tocado():
 
 
 def test_ruido_puro_nao_produz_recorte_confiavel():
-    """Gravar o microfone errado não pode virar um EER."""
+    """Gravar o microfone errado não gera recortes confiáveis."""
     ref, mapa = _playlist()
     captura = 0.2 * RNG.standard_normal(len(ref) + 8000).astype(np.float32)
 
@@ -170,7 +164,7 @@ def test_correlacao_de_trecho_identico_e_um():
 
 
 def test_limiar_esta_entre_o_canal_real_e_o_ruido():
-    """Trava a margem medida: o canal degradado fica bem acima do limiar."""
+    """O canal degradado fica pelo menos 30% acima do limiar."""
     from src.preprocess.channel import limitar_banda, opus_roundtrip
 
     ref, mapa = _playlist()
@@ -200,7 +194,7 @@ def test_mapa_sobrevive_ao_disco(tmp_path):
 
 
 def test_linha_de_protocolo_e_lida_pelo_parser(tmp_path):
-    """O que sai daqui precisa entrar no evaluate.py sem conversão."""
+    """O protocolo gerado é lido pelo parser do evaluate.py sem conversão."""
     from src.capture.alinhamento import linha_de_protocolo
     from src.data.dataset import parse_protocol_with_systems
 
@@ -216,11 +210,7 @@ def test_linha_de_protocolo_e_lida_pelo_parser(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# O fluxo inteiro do scripts/canal_real.py, com um canal simulado no meio.
-#
-# É o ensaio do procedimento da camada 2: sem isso, o primeiro teste de verdade
-# seria também o primeiro teste do código — com uma chamada real aberta e duas
-# pessoas esperando.
+# Fluxo completo do scripts/canal_real.py com canal simulado
 # --------------------------------------------------------------------------- #
 def _base_falsa(raiz: Path, n: int = 8) -> Path:
     import soundfile as sf
@@ -295,7 +285,7 @@ def test_preparar_cobre_varios_ataques(tmp_path):
 
 
 def test_alinhar_gera_config_que_nao_sobrescreve_2019(tmp_path, capsys):
-    """O texto antigo mandava copiar o config e rodar `rm -rf` num cache."""
+    """O config gerado tem nome próprio e não manda copiar config nem `rm -rf`."""
     import soundfile as sf
     import yaml
 
@@ -329,8 +319,7 @@ def test_alinhar_gera_config_que_nao_sobrescreve_2019(tmp_path, capsys):
 
 
 def test_sessoes_da_mesma_playlist_nao_se_sobrescrevem(tmp_path, capsys):
-    """Limpo, controle e chamada saem da mesma playlist. Com uma pasta só, a
-    segunda gravação apagava os recortes da primeira."""
+    """Cada sessão (limpo, chamada) grava em pasta e experimento próprios."""
     import soundfile as sf
     import yaml
 
@@ -367,9 +356,7 @@ def test_sessoes_da_mesma_playlist_nao_se_sobrescrevem(tmp_path, capsys):
 
 
 # --------------------------------------------------------------------------- #
-# Precisão de amostra. O envelope tem resolução de 10 ms; o recorte herdava um
-# erro de até 5 ms, meio passo do STFT, e o modelo mudou o score em até 0,17
-# para o MESMO áudio (sessão "limpo" contra o eval de 2019).
+# Precisão de amostra (erro de 5 ms mudava o score em até 0,17)
 # --------------------------------------------------------------------------- #
 def _playlist_longa(n=12, seed=0):
     rng = np.random.default_rng(seed)
@@ -388,8 +375,8 @@ def test_recorte_exato_a_amostra(atraso_s):
 
 
 def test_sem_forma_de_onda_fica_a_posicao_do_envelope():
-    """Se o canal preserva o envelope mas destrói a forma de onda, o trecho não
-    é descartado: fica a posição do envelope, sem o ajuste fino."""
+    """Sem forma de onda aproveitável, o trecho fica na posição do envelope,
+    sem ajuste fino, em vez de ser descartado."""
     ref, mapa = _playlist_longa()
     rng = np.random.default_rng(1)
     env = np.repeat(envelope(ref, SR), SR // 100)
@@ -402,8 +389,8 @@ def test_sem_forma_de_onda_fica_a_posicao_do_envelope():
 
 
 def test_gravacao_que_comecou_depois_da_reproducao():
-    """Medido no primeiro controle real: a gravação começou 7 s depois. Os
-    trechos que tocaram antes se perdem; os demais têm de alinhar exatos."""
+    """Gravação iniciada 7 s depois (caso real): os trechos anteriores se
+    perdem e os demais alinham exatos."""
     ref, mapa = _playlist_longa(n=15)
     corte = int(7.0 * SR)
     encaixes = alinhar(mapa, ref, ref[corte:], SR)

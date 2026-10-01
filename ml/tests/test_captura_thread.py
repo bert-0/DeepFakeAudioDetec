@@ -1,9 +1,7 @@
 """Captura do loopback numa thread própria (src/capture/sources.py).
 
-O `soundcard` real só existe no Windows com placa de som; aqui ele é trocado por
-um falso que grava uma senoide contínua, avisa de descontinuidade quando
-mandado e demora quanto se quiser — o suficiente para testar a ordem dos
-blocos, a contagem de perdas e a reamostragem sem bordas.
+O `soundcard` real só existe no Windows; aqui um falso entrega o sinal dado e
+simula descontinuidades e falhas sob demanda.
 """
 
 import sys
@@ -66,17 +64,16 @@ def _coletar(fonte, n_blocos, atraso_s=0.0):
 
 
 def test_consumidor_lento_nao_perde_nem_reordena(monkeypatch):
-    """Com o "modelo" demorando entre blocos, o que sai tem de ser exatamente a
-    reamostragem do sinal inteiro, sem buraco e sem troca de ordem."""
-    import soxr
+    """Com o consumidor lento, a saída é a reamostragem exata do sinal, sem buracos."""
+    from src.preprocess.reamostragem import DecimadorFIR
 
     rng = np.random.default_rng(0)
     sinal = rng.standard_normal(48000 * 3) * 0.1
     _soundcard_falso(monkeypatch, _GravadorFalso(sinal, avisar_em=[]))
     fonte = WasapiLoopbackSource(16000, bloco_ms=100)
     capturado = _coletar(fonte, 20, atraso_s=0.02)
-    referencia = soxr.resample(sinal[: 20 * 4800].astype(np.float32), 48000, 16000)
-    n = len(capturado) - 200        # o fim do fluxo ainda não foi descarregado
+    referencia = DecimadorFIR()(sinal[: 20 * 4800])   # o sinal inteiro, de uma vez
+    n = len(capturado)
     assert fonte.descontinuidades == 0
     np.testing.assert_allclose(capturado[:n], referencia[:n], atol=1e-4)
 
@@ -118,8 +115,7 @@ def test_fechar_encerra_a_thread(monkeypatch):
 
 
 def test_buffer_do_wasapi_e_pedido_grande(monkeypatch):
-    """O padrão do soundcard é um período (~10 ms): qualquer pausa da thread
-    perdia áudio. O pedido tem de cobrir pausas de centenas de ms."""
+    """O padrão do soundcard (~10 ms) perdia áudio em qualquer pausa da thread."""
     from src.capture.sources import BUFFER_CAPTURA_S
 
     gravador = _GravadorFalso(np.zeros(48000), [])
@@ -127,3 +123,24 @@ def test_buffer_do_wasapi_e_pedido_grande(monkeypatch):
     _coletar(WasapiLoopbackSource(16000, bloco_ms=100), 2)
     assert gravador.blocksize == int(48000 * BUFFER_CAPTURA_S)
     assert BUFFER_CAPTURA_S >= 0.5
+
+
+def test_microfone_abre_o_padrao_sem_loopback_e_usa_o_mesmo_caminho(monkeypatch):
+    from src.capture.sources import MicrofoneSource
+
+    aberturas = []
+    sinal = np.sin(2 * np.pi * 440 * np.arange(48000) / 48000)
+    gravador = _GravadorFalso(sinal, avisar_em=[])
+    mic = types.SimpleNamespace(recorder=lambda samplerate, blocksize=None: gravador)
+    falso = types.SimpleNamespace(
+        default_microphone=lambda: types.SimpleNamespace(name="microfone interno"),
+        get_microphone=lambda nome, include_loopback: aberturas.append(
+            (nome, include_loopback)) or mic)
+    monkeypatch.setitem(sys.modules, "soundcard", falso)
+
+    fonte = MicrofoneSource(16000)
+    assert aberturas == [("microfone interno", False)]
+    assert len(_coletar(fonte, 5)) == 5 * 1600, "mesma conversão 48 -> 16 kHz do loopback"
+
+    MicrofoneSource(16000, nome_dispositivo="Headset")
+    assert aberturas[-1] == ("Headset", False)

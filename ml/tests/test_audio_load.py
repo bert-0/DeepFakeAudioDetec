@@ -1,4 +1,4 @@
-"""Testes da leitura de áudio — o ponto onde um arquivo ruim derruba o treino."""
+"""Testes da leitura de áudio e dos erros para arquivos ruins."""
 
 import warnings
 from pathlib import Path
@@ -34,7 +34,7 @@ def _decodificador_permissivo(fracao):
 
 
 def test_arquivo_integro_e_lido_normalmente(tmp_path):
-    """O caminho feliz não pode ter mudado."""
+    """Arquivo íntegro continua sendo lido normalmente."""
     caminho = _escreve_flac(tmp_path / "bom.flac", segundos=1.0)
     wav = load_audio(caminho, 16000)
     assert wav.dtype == np.float32
@@ -47,9 +47,7 @@ def test_reamostragem_continua_valendo(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: sem o tratamento, um .flac truncado entre os 121.461 da base
-# derruba um treino de horas com `NoBackendError` de mensagem VAZIA — o log
-# não diz qual arquivo quebrou, e o erro real do libsndfile é descartado.
+# Regressão: .flac truncado dava `NoBackendError` sem mensagem nem caminho
 # --------------------------------------------------------------------------- #
 def test_arquivo_truncado_levanta_erro_com_o_caminho(tmp_path):
     caminho = _trunca(_escreve_flac(tmp_path / "LA_E_1234567.flac"))
@@ -65,7 +63,7 @@ def test_arquivo_truncado_levanta_erro_com_o_caminho(tmp_path):
 
 
 def test_a_mensagem_aponta_para_a_ferramenta_de_diagnostico(tmp_path):
-    """Quem lê o log às 3h da manhã precisa saber o próximo comando."""
+    """A mensagem sugere o próximo comando (`--deep`)."""
     caminho = _trunca(_escreve_flac(tmp_path / "ruim.flac"))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -75,21 +73,8 @@ def test_a_mensagem_aponta_para_a_ferramenta_de_diagnostico(tmp_path):
 
 
 def test_a_excecao_original_fica_encadeada(tmp_path, monkeypatch):
-    """Quando o DECODIFICADOR falha, a causa real não pode se perder.
-
-    O decodificador é simulado de propósito. Existem dois caminhos até o
-    `AudioLoadError`, e eles dão garantias diferentes:
-
-    - o decodificador levanta (libsndfile no Linux) — há exceção original, e
-      ela precisa ficar encadeada, senão o erro real do libsndfile
-      (`flac decoder lost sync`) some;
-    - o decodificador devolve áudio parcial sem levantar (audioread no
-      Windows) — **não existe exceção original**, e quem barra é a conferência
-      de duração.
-
-    Sem a simulação, este teste afirmaria no Windows algo que não pode ser
-    verdade — foi exatamente assim que ele falhou lá.
-    """
+    """Quando o decodificador levanta (libsndfile no Linux), a exceção original
+    fica encadeada. O decodificador é simulado para o teste valer no Windows."""
     caminho = _escreve_flac(tmp_path / "ruim.flac")
 
     def decodificador_que_falha(*args, **kwargs):
@@ -104,12 +89,8 @@ def test_a_excecao_original_fica_encadeada(tmp_path, monkeypatch):
 
 
 def test_erro_sem_causa_encadeada_ainda_diz_o_que_houve(tmp_path, monkeypatch):
-    """O outro caminho não tem causa para encadear — a mensagem tem que bastar.
-
-    É o caso do Windows: nenhum componente levantou exceção, então não há
-    `__cause__`. A mensagem precisa, sozinha, dizer o que se esperava, o que
-    veio, e o próximo comando.
-    """
+    """Sem exceção original (áudio parcial, caso do Windows), a mensagem diz
+    a duração esperada, a obtida e o próximo comando."""
     caminho = _escreve_flac(tmp_path / "ruim.flac", segundos=4.0)
     monkeypatch.setattr("librosa.load", _decodificador_permissivo(0.25))
 
@@ -124,11 +105,7 @@ def test_erro_sem_causa_encadeada_ainda_diz_o_que_houve(tmp_path, monkeypatch):
 
 
 def test_erro_de_mensagem_vazia_ainda_identifica_o_tipo(tmp_path, monkeypatch):
-    """O caso real: `NoBackendError()` — `str(erro)` é `''`.
-
-    Sem o recuo para `type(erro).__name__`, a mensagem terminaria em
-    "falha ao ler o áudio X: ." e o motivo sumiria por completo.
-    """
+    """Erro com `str(erro) == ''` (como `NoBackendError()`) aparece pelo nome do tipo."""
     class ErroSemMensagem(Exception):
         pass
 
@@ -141,8 +118,7 @@ def test_erro_de_mensagem_vazia_ainda_identifica_o_tipo(tmp_path, monkeypatch):
 
 
 def test_arquivo_inexistente_continua_sendo_filenotfound(tmp_path):
-    """`FileNotFoundError` já é inequívoco e é tratado em outros pontos;
-    embrulhá-lo mudaria o comportamento de quem o captura."""
+    """`FileNotFoundError` não é embrulhado, para não mudar quem o captura."""
     with pytest.raises(FileNotFoundError):
         load_audio(tmp_path / "nao_existe.flac", 16000)
 
@@ -153,18 +129,7 @@ def test_audio_load_error_e_capturavel_como_runtimeerror(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Regressão de plataforma
-#
-# Os três testes de truncagem acima passam no Linux porque o libsndfile recusa
-# o arquivo. No Windows o `audioread` decodifica o pedaço que existe e devolve
-# áudio parcial **sem erro** — foi assim que apareceram, rodando a suíte lá.
-#
-# Um treino nesse estado consome meio enunciado como se fosse inteiro. O
-# `check_data.py --deep` não cobre o buraco: ele usa `sf.read()` direto, então
-# protege a base antes do treino, mas não a leitura durante ele.
-#
-# Estes testes simulam o decodificador permissivo, para que a proteção seja
-# verificada nos dois sistemas e no CI — que roda Linux.
+# Áudio parcial sem erro (audioread no Windows), com decodificador simulado
 # --------------------------------------------------------------------------- #
 def test_audio_parcial_e_recusado_mesmo_sem_erro_do_decodificador(tmp_path, monkeypatch):
     caminho = _escreve_flac(tmp_path / "LA_E_1234567.flac", segundos=4.0)
@@ -187,21 +152,21 @@ def test_a_mensagem_do_truncado_aponta_o_check_data(tmp_path, monkeypatch):
 
 
 def test_diferenca_de_arredondamento_nao_e_confundida_com_truncagem(tmp_path, monkeypatch):
-    """Reamostrar muda o comprimento em alguns quadros; isso não é defeito."""
+    """Diferença de poucos quadros pela reamostragem não conta como truncagem."""
     caminho = _escreve_flac(tmp_path / "bom.flac", segundos=3.0)
     monkeypatch.setattr("librosa.load", _decodificador_permissivo(0.999))
     load_audio(caminho, 16000)   # não deve levantar
 
 
 def test_audio_mais_longo_que_o_cabecalho_nao_levanta(tmp_path, monkeypatch):
-    """A checagem é unilateral: sobra não é sinal de corrupção."""
+    """Áudio mais longo que o cabeçalho não é tratado como corrupção."""
     caminho = _escreve_flac(tmp_path / "bom.flac", segundos=1.0)
     monkeypatch.setattr("librosa.load", _decodificador_permissivo(1.5))
     load_audio(caminho, 16000)
 
 
 def test_formato_sem_cabecalho_legivel_ainda_carrega(tmp_path, monkeypatch):
-    """Se o libsndfile não abre o formato, não há o que comparar — não trava."""
+    """Sem cabeçalho legível não há o que comparar, e o áudio carrega."""
     caminho = _escreve_flac(tmp_path / "bom.flac", segundos=1.0)
     monkeypatch.setattr("src.preprocess.audio._duracao_do_cabecalho",
                         lambda p: None)
@@ -210,6 +175,6 @@ def test_formato_sem_cabecalho_legivel_ainda_carrega(tmp_path, monkeypatch):
 
 
 def test_reamostragem_real_nao_dispara_o_alarme(tmp_path):
-    """Caminho real, sem mock: 16k -> 8k precisa continuar passando."""
+    """Reamostragem real 16k -> 8k (sem mock) não dispara a checagem."""
     caminho = _escreve_flac(tmp_path / "bom.flac", segundos=2.0, sr=16000)
     assert abs(len(load_audio(caminho, 8000)) - 16000) <= 2

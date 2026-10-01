@@ -1,8 +1,7 @@
-"""Testes do reaproveitamento de scores entre evaluate / per_attack / fusão.
+"""Reaproveitamento de scores entre evaluate, per_attack e fusão.
 
-Reusar um score errado é pior que recalcular: as métricas do relatório
-descreveriam um modelo que não é o avaliado, sem nenhum sinal de erro. Por isso
-quase todo teste aqui é sobre a RECUSA do reuso.
+Reusar um score errado descreveria outro modelo sem nenhum aviso; por isso quase
+todo teste aqui é sobre a recusa do reuso.
 """
 
 import numpy as np
@@ -37,11 +36,7 @@ def test_roundtrip_preserves_values(tmp_path):
 
 
 def test_scores_keep_full_precision(tmp_path):
-    """O .txt do ASVspoof arredonda em 6 casas; o .npz não pode arredondar.
-
-    Scores muito próximos viram empates quando arredondados, e empates mudam o
-    EER — foi por isso que a fusão por posto precisou tratar empates.
-    """
+    """O .npz não arredonda como o .txt do ASVspoof (6 casas): empates mudariam o EER."""
     finos = [0.5, 0.5 + 1e-12, 1.0 - 1e-15]
     caminho = gravar(tmp_path / "s.npz", ids=IDS, labels=[0, 1, 1], scores=finos)
     (_, scores, _, _), _ = load_scores(caminho, ids=IDS, fingerprint=FP, partition="eval")
@@ -114,10 +109,9 @@ def test_logodds_are_saved_and_returned(tmp_path):
 
 
 def test_old_file_without_saturated_bonafide_is_still_reused(tmp_path):
-    """Os arquivos de 2019 não têm log-odds e não têm bonafide em 1,0: valem.
+    """Arquivos de 2019, sem log-odds e sem bonafide em 1,0, continuam valendo.
 
-    O log-odds derivado precisa ordenar os áudios igual à probabilidade — é o
-    que garante que o EER de um arquivo antigo não muda.
+    O log-odds derivado ordena como a probabilidade, então o EER não muda.
     """
     probs = [0.10, 1.0, 0.75]
     caminho = gravar(tmp_path / "s.npz", scores=probs)

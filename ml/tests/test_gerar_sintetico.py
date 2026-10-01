@@ -57,3 +57,18 @@ def test_gera_pares_e_playlist_a_48k(tmp_path):
     ordem = [ln.split()[1] for ln in cola.splitlines() if "frase" in ln]
     assert ordem == ["frase0_original", "frase0_griffinlim",
                      "frase1_original", "frase1_griffinlim"]
+
+
+def test_geracao_nova_apaga_a_anterior(tmp_path):
+    """Versões de gravações antigas não podem ficar misturadas com as novas."""
+    entrada = tmp_path / "grav"
+    entrada.mkdir()
+    sf.write(entrada / "nova.wav", _voz(), SR)
+    saida = tmp_path / "demo"
+    saida.mkdir()
+    sf.write(saida / "velha_original.wav", _voz(), SR)
+    sf.write(saida / "minha_anotacao.wav", _voz(), SR)
+    assert main(["--entrada", str(entrada), "--saida", str(saida), "--metodos", "griffinlim"]) == 0
+    assert not (saida / "velha_original.wav").exists()
+    assert (saida / "minha_anotacao.wav").exists(), "só apaga o que o script gera"
+    assert (saida / "nova_original.wav").exists()

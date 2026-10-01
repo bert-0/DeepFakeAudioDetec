@@ -5,18 +5,8 @@ Gera, em `outputs/demo/`:
     falsos.wav  + falsos_cola.txt   — só spoof
     misto.wav   + misto_cola.txt    — alternados, para o contraste numa passada
 
-A "cola" diz, para cada áudio, em que segundo ele começa, o rótulo, o ataque e
-o score esperado — para acompanhar a tela do monitor durante a apresentação.
-
-**Silêncio de 4 s entre os áudios.** A janela do monitor tem 4 s: com menos
-silêncio, uma janela pega o fim de um áudio e o começo do outro, e o score
-mistura os dois (foi o que aconteceu no controle do teste ao vivo). Com 4 s,
-cada janela vê um áudio só, e o silêncio das pontas é removido pelo `trim`.
-
-**Os áudios padrão foram escolhidos entre os que o modelo acerta**, com o score
-medido pelo caminho real de captura (sessão "controle sem aprimoramentos",
-RESUMO 10.2.1). É uma ilustração, não uma medida — na apresentação, diga isso
-e mostre em seguida o EER e a tabela por ataque.
+A "cola" traz o início, o rótulo, o ataque e o score esperado de cada áudio.
+Os áudios padrão são acertos do modelo: servem de ilustração, não de medida.
 
 Uso:
     python scripts/montar_demo.py --config configs/baseline_v2.yaml
@@ -38,13 +28,13 @@ from src.config import load_config  # noqa: E402
 from src.data.dataset import parse_protocol_with_systems  # noqa: E402
 from src.preprocess import load_audio  # noqa: E402
 
-#: Silêncio entre áudios: igual à janela do monitor (ver o cabeçalho).
+#: Silêncio entre áudios igual à janela do monitor (4 s), para uma janela não
+#: misturar dois áudios.
 GAP_S = 4.0
-#: Silêncio no começo: tempo de o monitor mostrar a tabela antes do 1º áudio.
+#: Tempo para o monitor mostrar a tabela antes do 1º áudio.
 INICIO_S = 3.0
 
-#: (id, score medido ao vivo pelo caminho de captura, no limiar recalibrado
-#: 0,9829). Fonte: sessão controle_sem_efeitos, baseline_v2.
+#: (id, score medido ao vivo pela captura; limiar recalibrado 0,9829, baseline_v2).
 REAIS_PADRAO = [("LA_E_4943653", 0.049), ("LA_E_6693368", 0.298),
                 ("LA_E_5826594", 0.355)]
 FALSOS_PADRAO = [("LA_E_1297915", 1.000), ("LA_E_8004902", 1.000),

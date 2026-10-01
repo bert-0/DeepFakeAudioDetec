@@ -1,32 +1,8 @@
-"""Persistência dos scores de uma partição, para não refazer a mesma inferência.
+"""Scores de uma partição salvos em `.npz`, para não repetir a inferência.
 
-`run_pipeline.py` roda, em sequência, `evaluate.py` e depois `per_attack_eval.py`
-sobre o **mesmo modelo** e a **mesma partição**. Os dois faziam a passada inteira
-de inferência: no `eval` do ASVspoof LA são 71.237 áudios percorridos duas vezes
-por experimento, para chegar exatamente aos mesmos scores. `score_fusion.py`
-repetia a passada de novo, uma por modelo combinado.
-
-Aqui os scores são gravados uma vez e relidos pelas análises seguintes. As
-métricas não mudam: são os mesmos números, calculados uma vez só.
-
-**Reusar score errado seria pior que recalcular.** Por isso o arquivo guarda,
-além dos scores, a identidade do que os produziu — a lista de ids na ordem, a
-partição e uma impressão digital dos *pesos* do checkpoint. Se qualquer um dos
-três não bater (o modelo foi retreinado, o protocolo mudou), `load_scores`
-devolve `None` e quem chamou recalcula.
-
-O arquivo `.txt` no estilo ASVspoof continua sendo gerado pelo `evaluate.py`:
-ele é o artefato legível/auditável (e a entrada do script oficial de t-DCF).
-Este `.npz` é o formato interno, em precisão total — o `.txt` arredonda para
-seis casas, o que criaria empates artificiais no cálculo do EER.
-
-**Log-odds.** A probabilidade em float32 satura em exatamente 1,0 quando a
-margem entre as saídas da rede passa de ~17; se bonafide e spoof empatam ali, o
-EER mede o arredondamento. Por isso o arquivo guarda também `logodds`
-(logit[1] - logit[0]), que não satura, e é sobre ele que o EER é calculado.
-Arquivos antigos, sem esse campo, continuam aceitos **só se nenhum bonafide
-saturou** — nesse caso a ordem que importa para o EER está intacta. Os
-demais são recusados e a inferência é refeita.
+O arquivo guarda ids, partição e um hash dos pesos; se algo não bater, o
+reuso é recusado. Guarda também os log-odds, usados no EER (a probabilidade
+satura em 1,0).
 """
 
 from __future__ import annotations
@@ -43,12 +19,7 @@ VERSION = 1
 
 
 def checkpoint_fingerprint(state_dict: dict) -> str:
-    """Hash dos pesos do modelo — muda sempre que o modelo é retreinado.
-
-    Usa os pesos, e não a data do arquivo: copiar ou restaurar um checkpoint não
-    deve invalidar scores que continuam corretos, e um retreino que por acaso
-    preserve o mtime não pode passar batido.
-    """
+    """Hash dos pesos do modelo (não do mtime, que muda ao copiar o arquivo)."""
     h = hashlib.md5()
     for chave in sorted(state_dict):
         tensor = state_dict[chave]
@@ -81,13 +52,10 @@ def save_scores(path: str | Path, *, ids, labels, scores, systems,
 
 
 def load_scores(path: str | Path, *, ids, fingerprint: str, partition: str):
-    """Relê os scores se ainda descreverem este modelo nesta partição.
+    """Relê os scores se ainda valem para este modelo e partição.
 
-    Devolve `(labels, scores, systems, logodds)` ou `None`, com o motivo da
-    recusa. `logodds` é o que deve entrar no EER: o salvo, ou — em arquivo
-    antigo sem saturação de bonafide — derivado das probabilidades. O
-    motivo é devolvido em vez de impresso porque quem chama sabe se aquilo é uma
-    informação útil ou ruído.
+    Devolve `((labels, scores, systems, logodds), motivo)` ou `(None, motivo)`.
+    Arquivo antigo sem log-odds só é aceito se nenhum bonafide saturou.
     """
     path = Path(path)
     if not path.exists():

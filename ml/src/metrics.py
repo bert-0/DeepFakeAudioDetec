@@ -1,5 +1,5 @@
 """Métricas de avaliação (TC1 §4.11): accuracy, precision, recall, F1, EER e
-matriz de confusão. A classe positiva é `spoof` (rótulo 1)."""
+matriz de confusão. Classe positiva: spoof (rótulo 1)."""
 
 from __future__ import annotations
 
@@ -17,9 +17,7 @@ from sklearn.metrics import (
 
 
 def compute_eer(labels: np.ndarray, scores: np.ndarray) -> float:
-    """Equal Error Rate: ponto em que falso positivo (FPR) e falso negativo
-    (FNR) se igualam. `scores` = probabilidade da classe spoof. Menor é melhor.
-    """
+    """Equal Error Rate (FPR = FNR). Scores maiores indicam spoof."""
     eer, _ = compute_eer_with_threshold(labels, scores)
     return eer
 
@@ -27,41 +25,31 @@ def compute_eer(labels: np.ndarray, scores: np.ndarray) -> float:
 def compute_eer_with_threshold(
     labels: np.ndarray, scores: np.ndarray
 ) -> tuple[float, float]:
-    """Devolve (EER, threshold) no ponto de erro igual.
-
-    O threshold é o ponto de corte que equilibra falsos positivos e falsos
-    negativos. Calibrá-lo no conjunto de validação evita o corte fixo de 0,5,
-    que é fortemente enviesado quando as classes são desbalanceadas ou quando
-    a perda usa pesos de classe.
-    """
+    """Devolve (EER, threshold) no ponto de erro igual."""
     labels = np.asarray(labels)
     scores = np.asarray(scores, dtype=float)
     if np.unique(labels).size < 2:
-        # Sem ambas as classes (bonafide e spoof) o EER é indefinido.
+        # EER indefinido sem as duas classes.
         return float("nan"), 0.5
     if not np.isfinite(scores).all():
-        # Modelo divergiu (NaN/inf). Devolve NaN em vez de estourar dentro do
-        # sklearn, para que quem chamou possa tratar o caso com uma mensagem útil.
+        # Modelo divergiu; NaN em vez de exceção do sklearn.
         return float("nan"), 0.5
     fpr, tpr, thresholds = roc_curve(labels, scores, pos_label=1)
     fnr = 1.0 - tpr
     idx = int(np.nanargmin(np.abs(fpr - fnr)))
     eer = float((fpr[idx] + fnr[idx]) / 2.0)
     threshold = float(thresholds[idx])
-    # roc_curve pode devolver +inf no primeiro ponto; nesse caso não há corte útil.
+    # roc_curve pode devolver +inf no primeiro ponto.
     if not np.isfinite(threshold):
         threshold = 1.0
     return eer, threshold
 
 
 def probabilidade_e_logodds(logits) -> tuple[np.ndarray, np.ndarray]:
-    """Das saídas da rede (N, 2): P(spoof) e o log-odds logit[1] - logit[0].
+    """Das saídas (N, 2) da rede: P(spoof) e o log-odds logit[1] - logit[0].
 
-    Com duas classes, P(spoof) = sigmoide(log-odds): os dois ordenam os áudios
-    igual — até o float32 arredondar. A partir de uma margem de ~17 o softmax
-    vira EXATAMENTE 1,0 e áudios diferentes empatam; o log-odds não satura.
-    Como o EER depende só da ordem, ele é calculado sobre o log-odds. A
-    probabilidade continua sendo o score exibido e a unidade do threshold.
+    O EER usa o log-odds porque o softmax em float32 satura em 1,0 a partir de
+    uma margem de ~17 e cria empates.
     """
     import torch
 
@@ -72,11 +60,9 @@ def probabilidade_e_logodds(logits) -> tuple[np.ndarray, np.ndarray]:
 
 
 def logodds_de_probabilidade(scores: np.ndarray) -> np.ndarray:
-    """Log-odds a partir de probabilidades já salvas (arquivos antigos).
+    """Log-odds a partir de probabilidades salvas em arquivos antigos.
 
-    Preserva a ordem das probabilidades — inclusive os empates em 1,0, que já
-    estão perdidos. Só serve para pôr arquivos antigos na mesma escala dos
-    novos; não recupera a informação que a saturação apagou.
+    Não desfaz os empates em 1,0 que a saturação já criou.
     """
     p = np.asarray(scores, dtype=np.float64)
     eps = float(np.finfo(np.float32).eps) / 2
@@ -91,15 +77,10 @@ def compute_metrics(
     threshold: float | None = None,
     eer_scores: np.ndarray | None = None,
 ) -> dict[str, float]:
-    """Calcula todas as métricas a partir dos rótulos, predições e scores.
+    """Calcula as métricas a partir dos rótulos, predições e scores.
 
-    Se `threshold` for informado, as predições são recalculadas como
-    `scores >= threshold` (ignorando `preds`), permitindo reportar as métricas
-    em um ponto de corte calibrado em vez do 0,5 implícito do argmax.
-
-    `eer_scores`, se informado, é usado só no EER — tipicamente os log-odds
-    (ver `probabilidade_e_logodds`). O threshold continua em probabilidade,
-    que é a unidade guardada no checkpoint e usada pelo monitor.
+    Com `threshold`, as predições viram `scores >= threshold` (ignora `preds`).
+    `eer_scores` (tipicamente os log-odds) substitui `scores` só no EER.
     """
     if threshold is not None:
         preds = (np.asarray(scores) >= threshold).astype(int)
@@ -121,7 +102,7 @@ def plot_confusion_matrix(
     """Salva a matriz de confusão como imagem PNG."""
     import matplotlib
 
-    matplotlib.use("Agg")  # backend sem display (servidores/headless)
+    matplotlib.use("Agg")  # sem display
     import matplotlib.pyplot as plt
 
     cm = confusion_matrix(labels, preds, labels=[0, 1])
@@ -157,11 +138,9 @@ def format_metrics(metrics: dict[str, float]) -> str:
 
 
 def save_score_file(ids, labels, scores, out_path: str | Path) -> None:
-    """Salva um arquivo de scores por utterance no estilo ASVspoof.
+    """Salva scores por utterance no estilo ASVspoof: `utt_id key P(spoof)`.
 
-    Cada linha: `utt_id  key  score`, onde `key` é bonafide/spoof e `score` é a
-    probabilidade de spoof. Útil para auditoria e para ferramentas externas
-    (ex.: cálculo do t-DCF com o script oficial da ASVspoof).
+    Serve de entrada para o script oficial de t-DCF.
     """
     inv = {0: "bonafide", 1: "spoof"}
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)

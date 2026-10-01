@@ -47,8 +47,7 @@ def test_arquivo_do_chrome_tem_o_formato_e_a_espera(tmp_path):
 
 
 def test_espera_do_chrome_nao_atrapalha_o_alinhamento(tmp_path, capsys):
-    """O caminho inteiro: o que o Chrome tocaria, voltando para 16 kHz com a
-    espera no começo, tem de alinhar como uma gravação comum."""
+    """O áudio do Chrome, com espera inicial e de volta a 16 kHz, alinha como gravação comum."""
     from scipy.signal import resample_poly
 
     saida = _playlist(tmp_path)
