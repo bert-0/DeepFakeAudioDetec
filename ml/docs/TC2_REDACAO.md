@@ -67,8 +67,9 @@ arquivos ou captura o áudio do computador em tempo real. Na captura, a perda
 vinha do filtro de conversão de taxa, que apagava a faixa de 7,6 a 8 kHz, da
 qual o modelo depende: com um filtro FIR que a preserva, o custo caiu de 5,68
 para 0,39 p.p., sem retreino. Um controle pareado com a voz do autor, refeita
-por *vocoders*, mostrou que, em vozes externas à base, o modelo responde às
-condições de gravação, e não aos artefatos de síntese.
+por *vocoders*, mostrou que, em vozes externas à base, o modelo responde às condições de gravação, e não aos artefatos de síntese;
+tocados por um alto-falante e captados pelo microfone, os áudios sintéticos
+ficaram abaixo do limiar.
 
 **Palavras-chave:** Deepfake. Áudio. Fusão de características. LFCC. ASVspoof.
 Robustez de canal. Tempo real.
@@ -107,13 +108,14 @@ The capture loss came from the sample-rate converter's filter, which removed
 the 7.6 to 8 kHz band on which the model depends: with an FIR filter that
 preserves it, the cost fell from 5.68 to 0.39 p.p. without retraining. A paired
 control with the author's own voice, resynthesized by vocoders, showed that on
-voices outside the dataset the model responds to recording conditions rather
-than to synthesis artifacts.
+voices outside the dataset the model responds to recording conditions rather than to synthesis artifacts;
+played through a loudspeaker and captured by a microphone, the synthetic
+samples fell below the threshold.
 
 **Keywords:** Deepfake. Audio. Feature fusion. LFCC. ASVspoof. Channel robustness.
 Real time.
 
-> Contagem: o Resumo tem cerca de 450 palavras, dentro da faixa de 150 a 500
+> Contagem: o Resumo tem cerca de 470 palavras, dentro da faixa de 150 a 500
 > que a NBR 6028 dá para trabalhos acadêmicos.
 
 ---
