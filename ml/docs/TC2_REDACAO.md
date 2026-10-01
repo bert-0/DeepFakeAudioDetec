@@ -1047,9 +1047,16 @@ Fonte: Autoria própria.
 > • **Dependência do caminho do som.** O resultado ao vivo depende de
 > configurações fora do sistema: os aprimoramentos de áudio do driver e o
 > programa que reproduz o áudio alteram o score. A captura foi medida num
-> único computador, com driver Realtek e Windows. A reprodução pelo ar
-> (alto-falante e microfone) foi observada em três pares de sessões, sem
-> amostra rotulada, e nela o modelo não separou os grupos de forma estável.
+> único computador, com driver Realtek e Windows.
+>
+> • **Reprodução pelo ar fora do domínio do modelo.** O treino usa só áudio
+> digital (*Logical Access*); áudio tocado por alto-falante e captado por
+> microfone corresponde ao cenário *Physical Access*, que não foi incluído. A
+> observação foi qualitativa: três pares de sessões, num único celular e
+> computador, sem amostra rotulada nem EER. Nela, os áudios sintéticos ficaram
+> abaixo do limiar e a ordem entre os grupos dependeu da equalização do
+> alto-falante. Medir esse caminho exigiria tocar uma amostra rotulada pelo
+> mesmo trajeto e calibrar o limiar nele.
 >
 > • **Limiar escolhido pela taxa do arquivo.** O sistema escolhe o limiar pela
 > taxa de amostragem da entrada, não pelo conteúdo: um arquivo de 16 kHz que já
