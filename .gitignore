@@ -26,6 +26,21 @@ ml/data/volunteers/
 *.flac
 *.wav
 *.mp3
+# Formatos de navegador, celular e ferramentas de clonagem (Incremento 4)
+*.m4a
+*.ogg
+*.opus
+*.webm
+*.aac
+*.aiff
+*.wma
+
+# Coleta do Incremento 4: vozes, clones e termos assinados (LGPD). A tabela
+# código de locutor -> nome também fica fora, guardada por um responsável.
+ml/data/vozes/
+ml/data/clones/
+ml/data/termos/
+*locutores_nomes*
 
 # Sistema operacional / editores
 .DS_Store
