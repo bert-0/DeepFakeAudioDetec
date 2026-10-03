@@ -12,7 +12,7 @@ Convenções:
   versionado. **Não entregar o texto com essas marcas.**
 - As tabelas estão numeradas na ordem em que aparecem (Tabelas 1 a 11). As duas
   tabelas do cronograma (hoje Tabela 1 e Tabela 2) passam a ser a **Tabela 12 e
-  a Tabela 13**.
+  a Tabela 13**, e as dos apêndices, a **Tabela 14 e a Tabela 15**.
 - Números de 25/09/2026: `scripts/make_report.py` (comparativo, por ataque,
   robustez) e `outputs/*_history.json` (EER de validação). Canal real
   (ASVspoof 2021 LA): RESUMO_TCC §5.3, de 28/09/2026. Captura ao vivo e voz
@@ -26,8 +26,9 @@ Decisões da equipe já refletidas aqui:
 
 - **A coleta com colaboradores não aconteceu.** Ela sai do Resumo, da 4.9, da
   5.1, da 5.5, da 5.6, da 7.1, do Marco 2 e da Conclusão.
-- **O sistema entregue é o do repositório:** o monitor (`monitor.py`) e a
-  interface web (`web/`), descritos na seção 4.13.
+- **O sistema entregue é o do repositório:** a interface web (`web/`, FastAPI
+  e Jinja2, numa aplicação só, em vez de uma API separada mais um front-end
+  React) e o monitor de linha de comando (`monitor.py`), descritos na seção 4.13.
 - **A coleta com colaboradores foi substituída por gravações do próprio
   autor**, usadas só como controle pareado (seção 5.5).
 
@@ -38,34 +39,37 @@ Decisões da equipe já refletidas aqui:
 Este trabalho investiga a detecção de áudios *deepfake* com fusão de
 características e mecanismo de atenção, avaliando o ganho de cada componente
 sobre uma linha de base e a robustez dos modelos à degradação de canal. Foram
-treinados sete modelos na trilha *Logical Access* da base ASVspoof 2019 e
-avaliados em 71.237 áudios gerados por treze ataques ausentes do treino, com
-remoção de silêncio. O desempenho na validação não antecipou o da avaliação:
-modelos com EER de validação entre 0,03% e 9,74% ficaram todos entre 18,99% e
-21,56% na avaliação. A fusão tardia de LFCC e espectrograma log-mel, com
-encoders LCNN, reduziu o EER de 21,56% para 20,18% (−1,38 ponto percentual). A
-atenção no *pooling*, acrescentada ao modelo com fusão, não trouxe ganho
-(+0,95 p.p.). A combinação de scores de dois modelos de arquiteturas diferentes
-atingiu 13,13% de EER e min t-DCF de 0,3129, e um grupo de controle com modelos semelhantes rendeu
-apenas 0,30 p.p. Isso indica que o ganho vem da diversidade entre os modelos. A
-análise por ataque mostrou que modelos com EER global parecido erram em ataques
-diferentes, e que os ataques com geração autorregressiva (A10, A12 e A15)
-concentram a dificuldade. Sob degradação simulada de canal, o ranking dos
+treinados sete modelos na trilha *Logical Access* da base ASVspoof 2019, com
+remoção de silêncio, e avaliados em 71.237 áudios, dos quais 63.882 sintéticos,
+gerados por treze ataques: onze inéditos e dois que reutilizam algoritmos do
+treino. O desempenho na validação não antecipou o da avaliação: modelos com EER
+de validação entre 0,03% e 9,74% ficaram todos entre 18,99% e 21,56% na
+avaliação. A fusão tardia de LFCC e espectrograma log-mel, com encoders LCNN,
+reduziu o EER de 21,56% para 20,18% (−1,38 ponto percentual). A atenção no
+*pooling*, acrescentada ao modelo com fusão, não trouxe ganho (+0,95 p.p.). A
+combinação de scores de dois modelos de arquiteturas diferentes atingiu 13,13%
+de EER e min t-DCF de 0,3129, e um grupo de controle com modelos semelhantes
+rendeu apenas 0,30 p.p. Isso indica que o ganho vem da diversidade entre os
+modelos. A análise por ataque mostrou que modelos com EER global parecido erram
+em ataques diferentes, e que dois ataques com geração autorregressiva, A10 e
+A12, resistem aos sete modelos. Sob degradação simulada de canal, o ranking dos
 modelos se inverteu: o melhor modelo no áudio limpo piorou até 23,42 p.p.,
 contra 7,24 p.p. do modelo com fusão. Em transmissão real por Opus (ASVspoof
-2021 LA), porém, a inversão não se repetiu, e o custo do canal foi de 7 a 11
-vezes o da simulação. A degradação simulada não previu qual modelo resiste ao
-canal real, enquanto o ganho da fusão de scores se manteve (24,94% contra
-29,43%). Sob o mesmo protocolo sem silêncio, os resultados
-ficam abaixo dos modelos com CQT reportados na literatura (26% a 27%). Nenhum
-modelo atingiu as metas de F1 ≥ 0,85 e EER < 8% fixadas no planejamento, e as
-causas dessa diferença são discutidas. O modelo foi integrado a um sistema de
-análise com interface web, que recebe arquivos ou captura o áudio do computador
-em tempo real. Na captura, a perda vinha do filtro de conversão de taxa, que
-apagava a faixa de 7,6 a 8 kHz: com um filtro FIR que a preserva, o custo caiu
-de 5,68 para 0,39 p.p., sem retreino. Um controle pareado com a voz do autor,
-refeita por vocoders, mostrou que o modelo responde às condições de gravação, e
-não aos artefatos de síntese, em vozes externas à base.
+2021 LA), porém, a inversão não se repetiu, e o canal custou de 7 a 11 vezes o
+que a simulação do mesmo codec indicava. A degradação simulada não previu qual
+modelo resiste ao canal real, enquanto o ganho da fusão de scores se manteve
+(24,94% contra 29,43%). Sob o mesmo protocolo sem silêncio, os modelos obtiveram
+EER menor que o dos modelos com CQT reportados na literatura (26% a 27%).
+Nenhum modelo atingiu as metas do planejamento, F1 de 0,85 (requisito) a 0,90
+(projeção) e EER inferior a 8%, e as causas dessa diferença são discutidas. O
+modelo foi integrado a um sistema de análise com interface web, que recebe
+arquivos ou captura o áudio do computador em tempo real. Na captura, a perda
+vinha do filtro de conversão de taxa, que apagava a faixa de 7,6 a 8 kHz, da
+qual o modelo depende: com um filtro FIR que a preserva, o custo caiu de 5,68
+para 0,39 p.p., sem retreino. Um controle pareado com a voz do autor, refeita
+por *vocoders*, mostrou que, em vozes externas à base, o modelo responde às condições de gravação, e não aos artefatos de síntese;
+tocados por um alto-falante e captados pelo microfone, os áudios sintéticos
+ficaram abaixo do limiar.
 
 **Palavras-chave:** Deepfake. Áudio. Fusão de características. LFCC. ASVspoof.
 Robustez de canal. Tempo real.
@@ -75,42 +79,88 @@ Robustez de canal. Tempo real.
 This work investigates audio deepfake detection with feature fusion and an
 attention mechanism, measuring the gain of each component over a baseline and
 the models' robustness to channel degradation. Seven models were trained on
-the ASVspoof 2019 Logical Access track and evaluated on 71,237 utterances
-produced by thirteen attacks unseen in training, with leading and trailing
-silence removed. Validation performance did not anticipate evaluation
-performance: models with validation EER between 0.03% and 9.74% all scored
-between 18.99% and 21.56% on evaluation. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
+the ASVspoof 2019 Logical Access track, with leading and trailing silence
+removed, and evaluated on 71,237 utterances, 63,882 of them spoofed by thirteen
+attacks: eleven unseen and two that reuse training algorithms. Validation
+performance did not anticipate evaluation performance: models with validation
+EER between 0.03% and 9.74% all scored between 18.99% and 21.56% on
+evaluation. Late fusion of LFCC and log-mel spectrogram with LCNN encoders
 reduced the EER from 21.56% to 20.18% (−1.38 percentage points). Attentive
 pooling added to the fused model did not help (+0.95 p.p.). Score-level fusion
-of two architecturally different models reached 13.13% EER and a min t-DCF of 0.3129, whereas a control
-pair of similar models gained only 0.30 p.p., indicating that the gain comes
-from model diversity. Per-attack analysis showed that models with similar pooled
-EER fail on different attacks, and that autoregressive waveform generation (A10,
-A12, A15) concentrates the difficulty. Under simulated channel degradation the
-model ranking inverted: the best clean-condition model degraded by up to 23.42
-p.p., against 7.24 p.p. for the fused model. Under real Opus transmission
-(ASVspoof 2021 LA), however, the inversion did not recur, and the channel cost
-7 to 11 times more than in simulation. Simulated degradation did not predict
+of two architecturally different models reached 13.13% EER and a min t-DCF of
+0.3129, whereas a control pair of similar models gained only 0.30 p.p.,
+indicating that the gain comes from model diversity. Per-attack analysis showed
+that models with similar pooled EER fail on different attacks, and that two
+attacks with autoregressive waveform generation, A10 and A12, withstand all
+seven models. Under simulated channel degradation the model ranking inverted:
+the best clean-condition model degraded by up to 23.42 p.p., against 7.24 p.p.
+for the fused model. Under real Opus transmission (ASVspoof 2021 LA), however,
+the inversion did not recur, and the channel cost 7 to 11 times what the
+simulation of the same codec indicated. Simulated degradation did not predict
 which model withstands the real channel, whereas the score-fusion gain held
-(24.94% against 29.43%). Under the same silence-removed
-protocol, results are below those reported for CQT-based models (26% to 27%).
-No model reached the planned targets of F1 ≥ 0.85 and EER < 8%, and the reasons
-for this gap are discussed. The model was integrated into an analysis system
-with a web interface that accepts files or captures the computer's audio in
-real time. The capture loss came from the sample-rate converter's filter, which
-removed the 7.6 to 8 kHz band: with an FIR filter that preserves it, the cost
-fell from 5.68 to 0.39 p.p. without retraining. A paired control with the
-author's own voice, resynthesized by vocoders, showed that on voices outside
-the dataset the model responds to recording conditions rather than to
-synthesis artifacts.
+(24.94% against 29.43%). Under the same silence-removed protocol, the models
+achieved lower EER than CQT-based models reported in the literature (26% to
+27%). No model reached the planned targets of an F1 of 0.85 (requirement) to
+0.90 (projection) and an EER below 8%, and the reasons for this gap are
+discussed. The model was integrated into an analysis system with a web
+interface that accepts files or captures the computer's audio in real time.
+The capture loss came from the sample-rate converter's filter, which removed
+the 7.6 to 8 kHz band on which the model depends: with an FIR filter that
+preserves it, the cost fell from 5.68 to 0.39 p.p. without retraining. A paired
+control with the author's own voice, resynthesized by vocoders, showed that on
+voices outside the dataset the model responds to recording conditions rather than to synthesis artifacts;
+played through a loudspeaker and captured by a microphone, the synthetic
+samples fell below the threshold.
 
 **Keywords:** Deepfake. Audio. Feature fusion. LFCC. ASVspoof. Channel robustness.
 Real time.
 
-> Contagem: o Resumo tem cerca de 410 palavras, dentro da faixa de 150 a 500
+> Contagem: o Resumo tem cerca de 450 palavras, dentro da faixa de 150 a 500
 > que a NBR 6028 dá para trabalhos acadêmicos.
 
 ---
+
+## Citações "(TODISCO et al., 2021)" — trocar em todo o texto
+
+A obra citada assim é de Wang et al. (2020), a descrição da base (ver
+Referências). No texto do TC1 ela aparece em quatro lugares:
+
+- **3.1**, fim do segundo parágrafo: "(TODISCO et al., 2021)" →
+  "(WANG et al., 2020)".
+- **4.2**, segundo parágrafo: "(TODISCO et al., 2021)" → "(WANG et al., 2020;
+  TODISCO et al., 2019)", porque ali se fala dos desafios ASVspoof.
+- **4.9** e **introdução do capítulo 5**: já substituídas nas redações abaixo.
+
+## Tempo verbal — trechos do TC1 a passar para o passado
+
+O TC1 descrevia o trabalho como plano. Nos parágrafos que este arquivo não
+substitui por inteiro, trocar:
+
+- **4.1**, segundo parágrafo: "o desempenho do sistema será avaliado" →
+  "o desempenho do sistema foi avaliado".
+- **4.2**, último parágrafo: "que o sistema de detecção proposto deverá ser
+  capaz de identificar" → "que o sistema de detecção proposto precisa ser capaz
+  de identificar".
+- **4.5**, introdução: "as funcionalidades que o sistema deverá executar" →
+  "as funcionalidades que o sistema executa".
+- **4.7**, primeiro parágrafo: "O desenvolvimento do projeto seguirá um modelo
+  incremental" → "O desenvolvimento do projeto seguiu um modelo incremental".
+- **4.11**, introdução: "O desempenho do sistema será avaliado" → "O
+  desempenho do sistema foi avaliado".
+- **4.11**, parágrafo da matriz de confusão: "também será utilizada a matriz de
+  confusão para análise detalhada do comportamento do modelo durante o processo
+  de classificação" → "também foi utilizada a matriz de confusão, gerada para
+  cada modelo no conjunto de avaliação, para análise detalhada do comportamento
+  do modelo na classificação" (`src/metrics.py`, `plot_confusion_matrix`).
+
+## 4.3 Levantamento de Requisitos — ajustes
+
+- "O sistema recebe como entrada um arquivo de áudio fornecido pelo usuário," →
+  "O sistema recebe como entrada um arquivo de áudio fornecido pelo usuário ou
+  o áudio captado em tempo real (seção 4.13),".
+- "podendo incluir uma probabilidade associada à classificação" → "acompanhada
+  do score do modelo, entre 0 (humano) e 1 (sintético)" (a seção 4.13 diz que o
+  valor exibido é o score, e não uma probabilidade calibrada).
 
 ## 3.4 Inteligência Artificial Aplicada — trecho a substituir
 
@@ -144,9 +194,17 @@ Na frase "Entre os trabalhos de maior relevância...":
 > Okabe, Koshinaka e Shinoda (2018), sobre o *pooling* com atenção; e Müller et
 > al. (2021), sobre o efeito do silêncio na base ASVspoof.
 
-## 4.3 Levantamento de Requisitos — nota sobre os requisitos
+No último parágrafo da 4.2, citar as obras que estão nas Referências e não
+eram citadas no texto:
 
-Parágrafo a acrescentar ao fim da 4.6:
+> [...] incluindo os modelos Tacotron (WANG et al., 2017), WaveNet (OORD et
+> al., 2016) e sistemas de conversão de voz [...] que o sistema de detecção
+> proposto precisa ser capaz de identificar. Entre os sistemas de detecção,
+> foram consultados o RawNet2 (TAK et al., 2021), o AASIST (JUNG et al., 2022)
+> e o sistema de Chen et al. (2021), voltado à robustez de canal na ASVspoof
+> 2021, além do desafio ADD 2022 (YI et al., 2022).
+
+## 4.6 Requisitos Não Funcionais — parágrafo a acrescentar ao fim
 
 > A avaliação dos requisitos não funcionais, feita na seção 5.6, mostrou que o
 > RNF04 está mal especificado para esta base. No conjunto de avaliação, 89,7% dos
@@ -205,11 +263,14 @@ Fonte: Autoria própria.
 > • SciPy: filtro FIR da conversão de taxa entre a captura (48 kHz) e o modelo
 > (16 kHz), seção 4.13.
 >
-> • soundcard: captura do áudio de saída do computador (*loopback* do WASAPI,
+> • SoundCard: captura do áudio de saída do computador (*loopback* do WASAPI,
 > no Windows) e do microfone.
 >
-> • FastAPI, Jinja2 e SQLite: servidor, páginas da interface web e histórico de
-> análises.
+> • FastAPI e Jinja2: servidor e páginas da interface web, geradas no servidor,
+> na mesma linguagem do modelo e sem etapa de compilação de front-end; servida
+> pelo Uvicorn.
+>
+> • SQLite: histórico das análises da interface web.
 
 ## 4.9 Base de Dados — substituir por inteiro
 
@@ -261,11 +322,11 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > antecipada e na calibração do limiar de decisão. O de avaliação é usado apenas
 > uma vez, na medição final.
 >
-> Os treze ataques do conjunto de avaliação (A07 a A19) não aparecem no
-> treinamento. Dois deles, A16 e A19, usam os mesmos algoritmos de A04 e A06, mas
-> em outro conjunto de locutores. Todo resultado de avaliação deste trabalho mede,
-> portanto, generalização para ataques desconhecidos, e não desempenho na
-> distribuição de treino. Esse desenho explica por que os EERs ficam na casa das
+> Dos treze ataques do conjunto de avaliação (A07 a A19), onze são inéditos. Os
+> outros dois, A16 e A19, reutilizam os algoritmos de A04 e A06, com sistemas
+> treinados em outros dados (WANG et al., 2020). Os resultados de avaliação
+> deste trabalho medem, portanto, sobretudo generalização para ataques
+> desconhecidos, e não desempenho na distribuição de treino. Esse desenho explica por que os EERs ficam na casa das
 > dezenas de pontos percentuais.
 
 ## 4.11 Métricas de Avaliação — acrescentar ao fim
@@ -339,6 +400,21 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 >
 > **Ambiente.** PyTorch, com treinamento em uma GPU NVIDIA GeForce GTX 1650. Cada
 > treinamento levou cerca de 3 horas.
+>
+> **Diferenças em relação ao sistema de referência LFCC-LCNN.** Conferido no
+> código dos sistemas de referência (o B03 da ASVspoof 2021 LA e a variante
+> treinada na 2019 LA por Wang e Yamagishi), o pipeline deste trabalho difere
+> em cinco pontos: remove o silêncio, que eles mantêm; normaliza a amplitude
+> pelo pico e as características por áudio, enquanto eles normalizam por lote
+> dentro da rede; não usa pré-ênfase nem troca o primeiro coeficiente pela
+> log-energia; usa janela de 25 ms, contra 20 ms; e usa a faixa de 0 a 8 kHz,
+> enquanto o B03 da edição de 2021, voltada a telefonia e voz sobre IP, limita
+> o LFCC a 0 a 4 kHz. Nenhum dos dois usa normalização de média e variância
+> por coeficiente (CMVN). As duas primeiras diferenças são deliberadas: a
+> remoção do silêncio evita o atalho descrito por Müller et al. (2021), e a
+> normalização de amplitude evita que o modelo aprenda a energia do sinal, que
+> sozinha separa parcialmente as classes nesta base. As demais não foram
+> testadas isoladamente.
 
 ## 4.13 Sistema de Análise — seção nova
 
@@ -390,6 +466,13 @@ Fonte: Autoria própria, a partir dos protocolos da base (WANG et al., 2020).
 > exclui análises anteriores, guardadas num banco SQLite. A interface
 > apresenta o resultado como indício, e não como prova, e a página "Sobre"
 > descreve as limitações medidas na seção 5.
+>
+> **Atendimento dos requisitos funcionais.** O envio de arquivos WAV e MP3
+> (RF01), o pré-processamento (RF02), a extração de características (RF03), a
+> classificação (RF04 e RF05) e a exibição do resultado e do *score* (RF06 e
+> RF07) estão implementados na interface web. Na RF07, o valor exibido é o
+> *score* do modelo, e não uma probabilidade calibrada: a seção 5.5 mostra que
+> a sua escala muda com o canal.
 
 ---
 
@@ -499,7 +582,7 @@ Fonte: Autoria própria.
 > de avaliação (TODISCO et al., 2019). Esses sistemas, porém, processam o áudio
 > **com** o silêncio. Müller et al. (2021) mostram que, na ASVspoof 2019, a
 > duração do silêncio inicial sozinha separa as classes com 15,12% de EER, e que
-> a remoção do silêncio piora o RawNet2 de 3,61% para 15,50%. Como este trabalho
+> a remoção do silêncio piora o RawNet2 (TAK et al., 2021) de 3,61% para 15,50%. Como este trabalho
 > remove o silêncio, a comparação equivalente é com os modelos que Müller et al.
 > (2021) treinaram e avaliaram sob o mesmo protocolo (Tabela 4).
 >
@@ -532,8 +615,8 @@ Fonte: Autoria própria; Müller et al. (2021), Tabela 2.
 
 <!-- RESUMO_TCC §5.1 -->
 
-> Os sete modelos ficam abaixo dos três modelos baseados em CQT, e a fusão de
-> scores fica abaixo da média do RawNet2. Algumas diferenças de protocolo
+> Os sete modelos têm EER menor que o dos três modelos baseados em CQT, e a
+> fusão de scores tem EER menor que a média do RawNet2. Algumas diferenças de protocolo
 > permanecem. Müller et al. (2021) usam limiar de remoção de silêncio de 40 dB,
 > contra 30 dB aqui, e o áudio inteiro, contra a janela fixa de 4 s. Eles
 > reportam também média e desvio de várias execuções, enquanto aqui há uma
@@ -576,12 +659,12 @@ Fonte: Autoria própria; geradores segundo Wang et al. (2020, Tabela 1).
 > fusion_v4 (6,54%). Com o A11 acontece o inverso: 3,85% no baseline_v2 e 33,74%
 > no fusion_v4.
 >
-> Os sete modelos se agrupam em três famílias de perfil por ataque, com
-> correlação de postos de 0,97 dentro de cada família: LFCC com 20 filtros
+> Os sete modelos se agrupam em três famílias de perfil por ataque, com correlação de postos de 0,90 a 0,97 dentro de cada família e de 0,34 a 0,85
+> entre famílias: LFCC com 20 filtros
 > (v1 e v2); LFCC com 70 filtros em um ramo (v3a, v3 e baseline_lcnn_v4); e
-> LFCC com espectrograma (fusion_v4 e attention_v4). A primeira família falha
-> nos ataques que reutilizam algoritmos do treinamento (A07, A16 e A19) e acerta
-> o A11. A segunda resolve esses ataques e falha em A12, A13 e A18. A terceira
+> LFCC com espectrograma (fusion_v4 e attention_v4). A primeira família falha em A07, A16 e A19, próximos do treinamento (A16 e A19
+> reutilizam os algoritmos de A04 e A06, e o A07 usa o vocoder WORLD, também
+> presente no treino), e acerta o A11. A segunda resolve esses ataques e falha em A12, A13 e A18. A terceira
 > resolve também A13, A17 e A18, mas falha em A10, A11, A14 e A15.
 >
 > A falha da primeira família não depende do classificador. O sistema de
@@ -783,8 +866,7 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 > degradação simulada não previu qual modelo resiste ao canal real**. Terceiro,
 > o ganho da fusão de scores se mantém: a combinação por postos dos dois
 > modelos atinge 24,94%, 4,50 p.p. abaixo do melhor modelo isolado, o mesmo
-> fenômeno observado na ASVspoof 2019. Os ataques A10 e A12 continuam os mais
-> difíceis também no canal real (42,98% e 37,53% após a fusão).
+> fenômeno observado na ASVspoof 2019. Os ataques A10 e A12 continuam resistindo aos dois modelos também no canal real (42,98% e 37,53% após a fusão).
 >
 > A regra de postos exige o conjunto completo de scores e não se aplica a um
 > fluxo contínuo de áudio. A média das probabilidades, que se aplica, dá 29,41%,
@@ -802,8 +884,8 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 > A vantagem do fusion_v4 consistia na detecção quase perfeita de alguns
 > ataques, e é essa precisão que o canal real destrói; na média por ataque, ele
 > passa de melhor (13,74% contra 16,19%) a pior (31,42% contra 26,75%). A
-> vantagem que sobrevive está em A13 e A18, dois dos ataques por filtragem de
-> forma de onda discutidos na seção 5.4. Os perfis dos dois modelos também se
+> vantagem que sobrevive está em A13 e A18, dois dos três ataques em que o ramo
+> de espectrograma mais ganhou (seção 5.4). Os perfis dos dois modelos também se
 > aproximam (correlação de 0,34 em 2019 e de 0,48 no Opus real), o que é
 > coerente com o ganho menor da fusão de scores nessa condição (4,50 contra 5,86
 > p.p.). Com cerca de 690 áudios sintéticos por ataque, o intervalo de
@@ -868,7 +950,7 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p.
 > portanto, quase toda do filtro do conversor, e foi corrigida sem retreino. O
 > resultado confirma que o modelo usa a faixa de 7,6 a 8 kHz, a mesma razão que
 > levou os organizadores da ASVspoof 2021 LA a limitar o LFCC do seu sistema
-> de referência a 0–4 kHz (seção 2.1). O filtro não recupera o que outro
+> de referência a 0–4 kHz (seção 4.12). O filtro não recupera o que outro
 > programa cortou antes da captura: o mesmo arquivo de vozes humanas recebeu
 > score médio de 0,03 enviado como arquivo, 0,33 tocado pelo Reprodutor do
 > Windows e 0,98 tocado pelo VLC, que altera o áudio. Os áudios sintéticos
@@ -909,8 +991,8 @@ Fonte: Autoria própria.
 
 <!-- RESUMO_TCC §10.2.6 (01/10/2026), rodada sem aprimoramentos do microfone -->
 
-> O resultado é negativo. Três dos cinco originais ficaram acima do limiar, e
-> em 8 das 10 frases a versão sintética recebeu score menor que o original.
+> O resultado é negativo. Três dos cinco originais ficaram acima do limiar, e 8 das 10 versões sintéticas receberam score menor que o original da mesma
+> frase.
 > Numa primeira rodada, gravada com os aprimoramentos do microfone ligados,
 > os cinco originais ficaram acima do limiar (média de 0,95, contra 0,71 sem os
 > aprimoramentos) e as dez versões sintéticas ficaram abaixo do original; nas
@@ -927,25 +1009,28 @@ Fonte: Autoria própria.
 
 ## 5.6 Resultados Esperados e Obtidos — substituir por inteiro
 
-> O planejamento do TC1 estabeleceu três projeções, e nenhuma se confirmou
-> integralmente (Quadro 2).
+> O Quadro 2 compara as projeções e os requisitos do planejamento do TC1 com o
+> que foi obtido. As três projeções de desempenho (F1, EER e ganho a cada
+> incremento) não se confirmaram integralmente; os requisitos do sistema foram
+> atendidos, com a ressalva de que o desempenho em MP3 não foi avaliado.
 
 **Quadro 2 – Resultados esperados e obtidos**
 
 | projeção | obtido | situação |
 |---|---|---|
-| F1 superior a 0,90 | 0,69 a 0,83 | não atingido |
+| F1 superior a 0,90 (projeção) e mínimo de 0,85 (RNF04) | 0,69 a 0,83 | não atingido |
 | EER inferior a 8% | 18,99% (modelo isolado); 13,13% (fusão de scores) | não atingido |
 | ganho a cada incremento | fusão −1,38 p.p.; atenção +0,95 p.p. | só na fusão; no EER global, dentro da variância entre execuções |
 | processamento em até 30 s por amostra (RNF06) | 2,745 s em CPU para um arquivo de 60 s | atingido |
-| sistema de análise com interface | envio de arquivo e captura em tempo real, com histórico | atingido |
+| sistema com envio de arquivo e exibição do resultado (RF01, RF06, RF07) | interface web com envio de arquivo, captura em tempo real e histórico | atingido |
+| suporte a WAV e MP3 (RNF05) | aceitos na entrada; sem avaliação de desempenho em MP3 | atingido parcialmente |
 
 Fonte: Autoria própria.
 
 > A meta de EER tomou como referência o sistema B02 (8,09%), que processa o
 > áudio com o silêncio. Sob o protocolo sem silêncio, que remove um atalho
-> conhecido da base (MÜLLER et al., 2021), os resultados deste trabalho ficam
-> abaixo dos modelos com CQT da literatura, como mostra a Tabela 4. A meta de F1
+> conhecido da base (MÜLLER et al., 2021), os modelos deste trabalho têm EER
+> menor que o dos modelos com CQT da literatura, como mostra a Tabela 4. A meta de F1
 > esbarra no desequilíbrio das classes, discutido na seção 4.6: o F1 da classe
 > majoritária não mede capacidade de detecção.
 
@@ -982,9 +1067,16 @@ Fonte: Autoria própria.
 > • **Dependência do caminho do som.** O resultado ao vivo depende de
 > configurações fora do sistema: os aprimoramentos de áudio do driver e o
 > programa que reproduz o áudio alteram o score. A captura foi medida num
-> único computador, com driver Realtek e Windows. A reprodução pelo ar
-> (alto-falante e microfone) foi observada em três pares de sessões, sem
-> amostra rotulada, e nela o modelo não separou os grupos de forma estável.
+> único computador, com driver Realtek e Windows.
+>
+> • **Reprodução pelo ar fora do domínio do modelo.** O treino usa só áudio
+> digital (*Logical Access*); áudio tocado por alto-falante e captado por
+> microfone corresponde ao cenário *Physical Access*, que não foi incluído. A
+> observação foi qualitativa: três pares de sessões, num único celular e
+> computador, sem amostra rotulada nem EER. Nela, os áudios sintéticos ficaram
+> abaixo do limiar e a ordem entre os grupos dependeu da equalização do
+> alto-falante. Medir esse caminho exigiria tocar uma amostra rotulada pelo
+> mesmo trajeto e calibrar o limiar nele.
 >
 > • **Limiar escolhido pela taxa do arquivo.** O sistema escolhe o limiar pela
 > taxa de amostragem da entrada, não pelo conteúdo: um arquivo de 16 kHz que já
@@ -993,6 +1085,14 @@ Fonte: Autoria própria.
 >
 > • **Atalhos da base.** O modelo depende de duração e energia em 1% a 2% da
 > variância do score.
+>
+> • **Dependência da faixa de 7,6 a 8 kHz.** O filtro FIR do sistema preserva
+> a faixa, mas não a recupera quando outro programa já a cortou antes da
+> captura: o *player*, o codec da chamada ou uma conversão anterior do arquivo.
+>
+> • **Teste com áudios da internet qualitativo.** Três áudios, sem rótulo por
+> janela; aponta a mesma dependência das condições de gravação, mas não a
+> mede.
 
 ---
 
@@ -1002,10 +1102,14 @@ Fonte: Autoria própria.
 - **Marco 6:** trocar "Testes de robustez realizados" por "Testes de robustez
   realizados com degradação simulada de canal e com transmissão real (ASVspoof
   2021 LA, condição Opus)".
-- **Marcos 5 a 7 (API e front-end):** concluídos. O modelo está integrado a um
-  servidor FastAPI com interface web (envio de arquivo, análise ao vivo,
-  resultado e histórico) e a um monitor de linha de comando, descritos na seção
-  4.13.
+- **Marcos 5 a 7 (API e front-end):** concluídos. Trocar "API REST funcional" e
+  "Sistema integrado (front-end + back-end)" por "Interface web (FastAPI +
+  Jinja2) com o pipeline de IA integrado: envio de arquivo, captura em tempo
+  real, resultado por janela e histórico" e "Monitor de linha de comando
+  integrado ao mesmo analisador". Marco 7: manter.
+- **6 (texto) e 6.1:** manter. A divisão descrita é a real: o back-end (modelo,
+  pipeline e API) e o front-end foram desenvolvidos em frentes separadas, a
+  implementação por Humberto e o front-end por Pedro.
 
 ## 7.1 Privacidade e Utilização dos Dados — substituir por inteiro
 
@@ -1088,18 +1192,22 @@ Fonte: Autoria própria.
 > sintéticas receberam scores menores que o original em 18 de 20 casos. O
 > modelo detecta os ataques da base, mas não o mesmo vocoder aplicado a uma voz
 > nova, e o score passa a responder ao microfone, à sala e ao processamento do
-> driver. O sistema funciona de ponta a ponta; o limite está no que o modelo
+> driver. O mesmo ocorreu na reprodução pelo ar, cenário de *Physical Access*
+> ausente do treino: tocados por um alto-falante de celular e captados pelo
+> microfone, os áudios sintéticos caíram para abaixo do limiar, e a ordem entre
+> humanos e sintéticos passou a depender da equalização do celular. O sistema funciona de ponta a ponta; o limite está no que o modelo
 > aprendeu.
 >
-> As metas de F1 superior a 0,90 e EER inferior a 8% não foram atingidas. A
-> segunda se baseava em sistemas que usam o silêncio como atalho. Sob o mesmo
-> protocolo, os resultados ficam abaixo dos modelos com CQT da literatura. A
-> primeira revelou que o F1 da classe majoritária não é métrica adequada para
-> esta base.
+> As metas de F1 (0,85 no RNF04 e 0,90 na projeção do planejamento) e de EER
+> inferior a 8% não foram atingidas. A meta de EER se baseava em sistemas que
+> usam o silêncio como atalho; sob o mesmo protocolo, os modelos deste trabalho
+> têm EER menor que o dos modelos com CQT da literatura. A meta de F1 revelou
+> que o F1 da classe majoritária não é métrica adequada para esta base.
 >
 > Como trabalhos futuros, destacam-se: repetir os treinamentos com várias
 > sementes; estender a avaliação às demais condições da ASVspoof 2021 LA, ao
-> processamento de clientes de conferência e a vozes externas à base, com
+> processamento de clientes de conferência, à reprodução pelo ar e a vozes
+> externas à base, com
 > coleta consentida; treinar sem depender do topo da banda, com LFCC limitado
 > ou aumento de dados com conversão de taxa; incluir no treino gravações em
 > condições variadas (microfones comuns, salas, outras línguas) e ataques
@@ -1107,8 +1215,8 @@ Fonte: Autoria própria.
 > que permitiria aproveitar a fusão de scores em tempo real; investigar
 > mecanismos de atenção mais expressivos; e usar encoders pré-treinados em
 > fala, direção apontada pela literatura para os ataques autorregressivos. Fica também como hipótese a
-> testar a associação entre o ramo de espectrograma e os ataques por filtragem
-> de forma de onda (A13, A17 e A18).
+> testar a associação entre o ramo de espectrograma e os ataques A13, A17 e A18, que geram
+> a forma de onda filtrando ou modificando uma fala existente.
 
 ---
 
@@ -1192,48 +1300,85 @@ entrega.
 
 **Acrescentar (NBR 6023):**
 
+*(Todas conferidas em 01/10/2026 nos anais da ISCA, IEEE, IEICE e arXiv:
+autores, título, páginas e DOI.)*
+
+CHEN, Xinhui et al. UR Channel-Robust Synthetic Speech Detection System for
+ASVspoof 2021. In: 2021 EDITION OF THE AUTOMATIC SPEAKER VERIFICATION AND
+SPOOFING COUNTERMEASURES CHALLENGE, 2021. *Proceedings* [...]. 2021. p. 75-82.
+DOI: 10.21437/ASVSPOOF.2021-12.
+
 GRIFFIN, Daniel W.; LIM, Jae S. Signal estimation from modified short-time
 Fourier transform. *IEEE Transactions on Acoustics, Speech, and Signal
-Processing*, v. 32, n. 2, p. 236-243, 1984.
+Processing*, v. 32, n. 2, p. 236-243, 1984. DOI: 10.1109/TASSP.1984.1164317.
+
+JUNG, Jee-weon et al. AASIST: Audio Anti-Spoofing using Integrated
+Spectro-Temporal Graph Attention Networks. In: IEEE INTERNATIONAL CONFERENCE ON
+ACOUSTICS, SPEECH AND SIGNAL PROCESSING (ICASSP), 2022, Singapura.
+*Proceedings* [...]. 2022. p. 6367-6371. DOI: 10.1109/ICASSP43922.2022.9747766.
 
 KINGMA, Diederik P.; BA, Jimmy. Adam: a method for stochastic optimization. In:
 INTERNATIONAL CONFERENCE ON LEARNING REPRESENTATIONS, 3., 2015, San Diego.
-*Proceedings* [...]. San Diego: ICLR, 2015.
+*Proceedings* [...]. San Diego: ICLR, 2015. Disponível em:
+https://arxiv.org/abs/1412.6980.
 
 KINNUNEN, Tomi et al. t-DCF: a detection cost function for the tandem
 assessment of spoofing countermeasures and automatic speaker verification. In:
 THE SPEAKER AND LANGUAGE RECOGNITION WORKSHOP (ODYSSEY), 2018, Les Sables
-d'Olonne. *Proceedings* [...]. 2018. p. 312-319.
-*(Citada na 4.11: o t-DCF foi calculado.)*
+d'Olonne. *Proceedings* [...]. 2018. p. 312-319. DOI: 10.21437/Odyssey.2018-44.
 
 LAVRENTYEVA, Galina et al. STC antispoofing systems for the ASVspoof2019
 challenge. In: INTERSPEECH, 2019, Graz. *Proceedings* [...]. 2019.
-p. 1033-1037.
+p. 1033-1037. DOI: 10.21437/Interspeech.2019-1768.
 
 MORISE, Masanori; YOKOMORI, Fumiya; OZAWA, Kenji. WORLD: a vocoder-based
 high-quality speech synthesis system for real-time applications. *IEICE
 Transactions on Information and Systems*, v. E99-D, n. 7, p. 1877-1884, 2016.
+DOI: 10.1587/transinf.2015EDP7457.
 
 MÜLLER, Nicolas M. et al. Speech is silver, silence is golden: what do
-ASVspoof-trained models really learn? In: ASVSPOOF 2021 WORKSHOP, 2021.
-*Proceedings* [...]. 2021. p. 55-60.
+ASVspoof-trained models really learn? In: 2021 EDITION OF THE AUTOMATIC SPEAKER
+VERIFICATION AND SPOOFING COUNTERMEASURES CHALLENGE, 2021. *Proceedings* [...].
+2021. p. 55-60. DOI: 10.21437/ASVSPOOF.2021-9.
 
 OKABE, Koji; KOSHINAKA, Takafumi; SHINODA, Koichi. Attentive statistics pooling
 for deep speaker embedding. In: INTERSPEECH, 2018, Hyderabad. *Proceedings*
-[...]. 2018. p. 2252-2256.
+[...]. 2018. p. 2252-2256. DOI: 10.21437/Interspeech.2018-993.
 
 TODISCO, Massimiliano et al. ASVspoof 2019: future horizons in spoofed and fake
 audio detection. In: INTERSPEECH, 2019, Graz. *Proceedings* [...]. 2019.
-p. 1008-1012.
+p. 1008-1012. DOI: 10.21437/Interspeech.2019-2249.
 
 WANG, Xin et al. ASVspoof 2019: a large-scale public database of synthesized,
 converted and replayed speech. *Computer Speech & Language*, v. 64, 101114,
 2020. DOI: 10.1016/j.csl.2020.101114.
-*(Conferido em 25/09/2026: volume, número do artigo e DOI.)*
 
 WANG, Xin et al. ASVspoof 5: crowdsourced speech data, deepfakes, and
 adversarial attacks at scale. In: THE AUTOMATIC SPEAKER VERIFICATION SPOOFING
-COUNTERMEASURES WORKSHOP (ASVSPOOF 2024), 2024. *Proceedings* [...]. 2024.
+COUNTERMEASURES WORKSHOP (ASVSPOOF 2024), 2024, Kos. *Proceedings* [...]. 2024.
+p. 1-8. DOI: 10.21437/ASVspoof.2024-1.
 
-> As páginas, cidades e números de artigo acima foram escritos de memória.
-> Conferir cada um na fonte (DOI ou anais) antes da entrega.
+Referências do TC1 completadas (conferidas em 01/10/2026):
+
+OORD, Aaron van den et al. WaveNet: a generative model for raw audio. arXiv
+preprint arXiv:1609.03499, 2016. Disponível em: https://arxiv.org/abs/1609.03499.
+
+TAK, Hemlata et al. End-to-end anti-spoofing with RawNet2. In: IEEE
+INTERNATIONAL CONFERENCE ON ACOUSTICS, SPEECH AND SIGNAL PROCESSING (ICASSP),
+2021. *Proceedings* [...]. 2021. p. 6369-6373. DOI:
+10.1109/ICASSP39728.2021.9414234.
+
+VASWANI, Ashish et al. Attention is all you need. In: ADVANCES IN NEURAL
+INFORMATION PROCESSING SYSTEMS, 30., 2017, Long Beach. *Proceedings* [...].
+2017. p. 5998-6008.
+
+WANG, Yuxuan et al. Tacotron: towards end-to-end speech synthesis. In:
+INTERSPEECH, 2017, Estocolmo. *Proceedings* [...]. 2017. p. 4006-4010. DOI:
+10.21437/Interspeech.2017-1452.
+
+YI, Jiangyan et al. ADD 2022: the first audio deep synthesis detection
+challenge. In: IEEE INTERNATIONAL CONFERENCE ON ACOUSTICS, SPEECH AND SIGNAL
+PROCESSING (ICASSP), 2022, Singapura. *Proceedings* [...]. 2022. p. 9216-9220.
+DOI: 10.1109/ICASSP43922.2022.9746939.
+
+> Ainda não conferidas: Goodfellow, Jurafsky e LGPD (livro, livro on-line e lei).

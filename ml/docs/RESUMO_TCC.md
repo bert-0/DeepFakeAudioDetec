@@ -39,13 +39,15 @@ uma chamada real.
 |---|---|---|
 | train | 25.380 | A01–A06 |
 | dev | 24.844 | A01–A06 |
-| eval | 71.237 | **A07–A19 (13 ataques inéditos)** |
+| eval | 71.237 | **A07–A19 (11 inéditos + A16/A19, que repetem os algoritmos de A04/A06)** |
 | **total** | **121.461** | |
 
 O eval tem 7.355 bonafide e 63.882 spoof — **4.914 por ataque**, e **89,7% de
 spoof**. Esse desequilíbrio volta a importar na Seção 8.
 
-O ponto metodológico central: **os ataques do eval não aparecem no treino**.
+O ponto metodológico central: **onze dos treze ataques do eval não aparecem no
+treino**; A16 e A19 reutilizam os algoritmos de A04 e A06, com outros dados
+(Wang et al., 2020).
 Todo número de eval neste documento é generalização para ataque não visto, não
 desempenho em distribuição conhecida. É por isso que os EERs são de dezenas de
 pontos percentuais e não de unidades.
@@ -771,8 +773,8 @@ Fonte: `outputs/report/por_ataque_eval.md` (25/09/2026). EER (%).
 | **média por ataque** | 17,98 | 16,83 | 15,73 | 15,49 | 16,19 | **14,32** | 15,18 | |
 
 **Três famílias de perfil.** Correlação de Spearman entre os perfis por ataque:
-v1 × v2 = 0,97; v3 × v3a = 0,97; fusion_v4 × attention_v4 = 0,97; entre
-famílias, 0,34 a 0,91. As famílias são:
+v1 × v2 = 0,97; v3 × v3a = 0,97; v3a × lcnn_v4 = 0,91; v3 × lcnn_v4 = 0,90;
+fusion_v4 × attention_v4 = 0,97; entre famílias, 0,34 a 0,85. As famílias são:
 
 1. **LFCC com 20 filtros** (v1, v2): falham nos ataques parecidos com o treino
    (A07, A16, A19 — A16 e A19 usam os algoritmos de A04 e A06) e acertam A11.
@@ -793,7 +795,7 @@ famílias, 0,34 a 0,91. As famílias são:
 | A15 | **+19,83** | +2,96 |
 | A10 | +8,04 | −0,93 |
 | A14 | +5,60 | **+10,75** |
-| demais (6) | −0,72 a −0,17 | −0,04 a +0,06 |
+| demais (5) | −0,72 a −0,17 | −0,04 a +0,06 |
 | **global** | **−1,38** | **+0,95** |
 
 - **A fusão de características não é um efeito de 1,38 pp.** É uma troca de
@@ -2055,10 +2057,9 @@ com CQT (26–27%) e a fusão de scores fica abaixo da média do RawNet2 (15,50%
   **falsa** e precisa sair. O papel que a coleta teria (bonafide fora da
   ASVspoof) fica como trabalho futuro. Redação de substituição em
   `ml/docs/TC2_REDACAO.md`.
-- **API (FastAPI) e front-end (React)**, Marcos 5 a 7: **estão com o Pedro**,
-  fora deste repositório, e ainda não foram recebidos. Até chegarem, o texto
-  não pode descrevê-los como prontos nem citar números deles; nada nesta
-  documentação os mede.
+- **API e front-end — resolvido (30/09/2026).** A interface foi feita com
+  FastAPI + Jinja2, numa aplicação só dentro de `ml/web/`, em vez de API
+  separada + React (README). Descrita no TC2 na 4.8, na nova 4.13 e na 6.4.
 - **MP3.** Declarar que o teste de robustez usou Opus. O RF01/RNF05 (aceitar
   MP3) é atendido na entrada do `infer.py`, mas não há avaliação de desempenho
   em MP3.
