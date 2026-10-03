@@ -9,11 +9,14 @@ from .sources import (
     CaptureError,
     FileSource,
     MicrofoneSource,
+    MicrofoneWasapiSource,
     WasapiLoopbackSource,
     abrir_fonte,
+    abrir_microfone,
     listar_dispositivos,
 )
 from .stream import JanelaDeslizante
 
 __all__ = ["AudioSource", "CaptureError", "FileSource", "MicrofoneSource",
-           "WasapiLoopbackSource", "abrir_fonte", "listar_dispositivos", "JanelaDeslizante"]
+           "MicrofoneWasapiSource", "WasapiLoopbackSource", "abrir_fonte", "abrir_microfone",
+           "listar_dispositivos", "JanelaDeslizante"]

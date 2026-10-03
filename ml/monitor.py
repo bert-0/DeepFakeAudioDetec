@@ -19,7 +19,8 @@ tipo de áudio (src/limiares.py); o score é indício, não veredito.
     # reprocessar uma gravação, de forma reprodutível
     python monitor.py --config ... --checkpoint ... --arquivo chamada.wav
 
-    # pelo microfone (o padrão do Windows, ou --dispositivo-audio "<nome>")
+    # pelo microfone (o padrão do Windows, ou --dispositivo-audio "<nome>");
+    # WASAPI exclusivo a 48 kHz com o sounddevice, modo compartilhado sem ele
     python monitor.py --config ... --checkpoint ... --fonte microfone
 
     # ver os dispositivos disponíveis
@@ -34,7 +35,7 @@ from pathlib import Path
 
 import numpy as np
 
-from src.capture import CaptureError, FileSource, MicrofoneSource, WasapiLoopbackSource
+from src.capture import CaptureError, FileSource, WasapiLoopbackSource, abrir_microfone
 from src.capture.analyzer import AnalisadorContinuo, Agregador
 from src.config import load_config, resolve_device
 from src.data.dataset import buscar_rotulo
@@ -160,12 +161,19 @@ def main() -> int:
     try:
         if args.arquivo:
             fonte = FileSource(args.arquivo, analisador.sample_rate)
+        elif args.fonte == "microfone":
+            fonte = abrir_microfone(analisador.sample_rate, args.dispositivo_audio)
         else:
-            classe = MicrofoneSource if args.fonte == "microfone" else WasapiLoopbackSource
-            fonte = classe(analisador.sample_rate, nome_dispositivo=args.dispositivo_audio)
+            fonte = WasapiLoopbackSource(analisador.sample_rate,
+                                         nome_dispositivo=args.dispositivo_audio)
     except CaptureError as erro:
         print(f"[ERRO] {erro}")
         return 1
+    if getattr(fonte, "modo", None):
+        nome = getattr(fonte, "nome", None) or args.dispositivo_audio or "padrão"
+        print(f"Microfone: {nome} (WASAPI {fonte.modo})")
+    if getattr(fonte, "aviso", None):
+        print(f"[AVISO] {fonte.aviso}")
 
     gravado: list[np.ndarray] = []
     limite = args.segundos
