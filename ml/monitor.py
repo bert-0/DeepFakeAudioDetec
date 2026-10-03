@@ -134,13 +134,30 @@ def main() -> int:
             particao, label, sistema = achado
             verdade = "spoof" if label else "bonafide"
 
+    try:
+        if args.arquivo:
+            fonte = FileSource(args.arquivo, analisador.sample_rate)
+        elif args.fonte == "microfone":
+            fonte = abrir_microfone(analisador.sample_rate, args.dispositivo_audio)
+        else:
+            fonte = WasapiLoopbackSource(analisador.sample_rate,
+                                         nome_dispositivo=args.dispositivo_audio)
+    except CaptureError as erro:
+        print(f"[ERRO] {erro}")
+        return 1
+
     origem = ("arquivo" if args.arquivo else
               "microfone" if args.fonte == "microfone" else "saída do sistema (loopback)")
+    if getattr(fonte, "modo", None):
+        nome = getattr(fonte, "nome", None) or args.dispositivo_audio or "padrão"
+        origem += f" — {nome} (WASAPI {fonte.modo})"
     if analisador.n_modelos > 1:
         print(f"Modelos: {analisador.n_modelos} em fusão (média) | dispositivo: {device}")
     else:
         print(f"Modelo: {analisador.config['model']['name']} | dispositivo: {device}")
     print(f"Fonte:  {origem}")
+    if getattr(fonte, "aviso", None):
+        print(f"[AVISO] {fonte.aviso}")
     if verdade:
         extra = f" (ataque {sistema})" if sistema != "-" else ""
         print(f"Rótulo verdadeiro: {verdade.upper()}{extra}  "
@@ -158,22 +175,6 @@ def main() -> int:
           "deslocam o score;\n        desligue os aprimoramentos de áudio do "
           "Windows. Trate o número como indício.\n")
 
-    try:
-        if args.arquivo:
-            fonte = FileSource(args.arquivo, analisador.sample_rate)
-        elif args.fonte == "microfone":
-            fonte = abrir_microfone(analisador.sample_rate, args.dispositivo_audio)
-        else:
-            fonte = WasapiLoopbackSource(analisador.sample_rate,
-                                         nome_dispositivo=args.dispositivo_audio)
-    except CaptureError as erro:
-        print(f"[ERRO] {erro}")
-        return 1
-    if getattr(fonte, "modo", None):
-        nome = getattr(fonte, "nome", None) or args.dispositivo_audio or "padrão"
-        print(f"Microfone: {nome} (WASAPI {fonte.modo})")
-    if getattr(fonte, "aviso", None):
-        print(f"[AVISO] {fonte.aviso}")
 
     gravado: list[np.ndarray] = []
     limite = args.segundos

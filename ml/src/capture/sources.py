@@ -259,7 +259,9 @@ class MicrofoneWasapiSource(AudioSource):
         self._parar = threading.Event()
         self.descontinuidades = 0
         quadros = int(self._taxa_dispositivo * self._bloco_ms / 1000)
-        conversor = _conversor(self._taxa_dispositivo, self.sample_rate)
+        # Na taxa do dispositivo, o áudio sai bruto: o FIR 1:1 cortaria em 7,9 kHz.
+        conversor = (_conversor(self._taxa_dispositivo, self.sample_rate)
+                     if self.sample_rate != self._taxa_dispositivo else (lambda x: x))
 
         def callback(dados, n_quadros, tempo, status):
             if getattr(status, "input_overflow", False):
