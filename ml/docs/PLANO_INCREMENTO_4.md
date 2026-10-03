@@ -149,7 +149,7 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   gravados antes ou clone tocando numa chamada?
 - Datas de entrega do texto e da banca, e a data de congelamento.
 - Quem cuida de cada frente.
-- Qual microfone será usado na coleta (na banca, o da webcam, informado em
-  02/10/2026), e se há uma interface USB com
+- Qual microfone será usado na coleta (na banca, o embutido do notebook, junto
+  da webcam, informado em 02/10/2026), e se há uma interface USB com
   ASIO disponível.
 - Quais ferramentas de clonagem usar, e qual fica fora do treino.

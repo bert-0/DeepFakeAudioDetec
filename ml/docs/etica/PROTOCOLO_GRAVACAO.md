@@ -30,7 +30,8 @@ gravação começa antes do termo assinado (TERMO_CONSENTIMENTO.md). Campos
 
 ## Equipamento e sala
 
-- Microfone: na apresentação, o da webcam. Na coleta: [A DEFINIR];
+- Microfone: na apresentação, o embutido do notebook, junto da webcam ("Grupo
+  de microfones (Realtek(R) Audio)", sem fone conectado). Na coleta: [A DEFINIR];
   recomendação, o mesmo da apresentação, para a condição de captura ser a da
   demonstração. Interface USB com ASIO: [A DEFINIR].
 - Captura pela aba Gravar: WASAPI exclusivo, 48 ou 96 kHz conforme o

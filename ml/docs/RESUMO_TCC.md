@@ -1742,8 +1742,10 @@ primeiro falhar e é declarado assim no texto.
 ### 10.2.10 Microfone do notebook: exclusivo x compartilhado (teste de equipamento)
 
 `scripts/testar_microfone.py`, "Grupo de microfones (Realtek(R) Audio)", a mesma
-frase gravada em WASAPI exclusivo e compartilhado, 48 kHz, 02/10/2026. Não é o
-microfone da apresentação (o da webcam), que ainda não foi testado.
+frase gravada em WASAPI exclusivo e compartilhado, 48 kHz, 02/10/2026. É o
+microfone embutido do notebook, junto da webcam: o da apresentação. A
+confirmar: as duas rodadas foram feitas com um fone de ouvido conectado, e
+falta repetir sem ele para saber se o driver desviava a entrada.
 
 | rodada | | exclusivo | compartilhado |
 |---|---|---|---|
