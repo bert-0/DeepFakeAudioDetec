@@ -11,7 +11,8 @@ import torch
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from scripts.fusao_ao_vivo import alinhar, carregar, fundir, main, ponto_de_operacao  # noqa: E402
+from scripts.fusao_ao_vivo import (  # noqa: E402
+    alinhar, carregar, fundir, limiar_por_alarme_falso, main, ponto_de_operacao, por_que_passam)
 
 
 def _npz(pasta, nome, scores, labels, limiar, ids=None):
@@ -76,6 +77,45 @@ def test_limiar_calibrado_no_dev_e_limiares_pedidos(tmp_path, capsys):
     assert "calibrado no dev" in saida and "pedido (0.4000)" in saida
     assert "o que o monitor usa hoje" in saida
     assert (tmp_path / "r.json").is_file()
+
+
+def test_limiar_por_alarme_falso_deixa_no_maximo_o_alvo_de_humanos_acima():
+    labels = np.array([0, 0, 0, 0, 1])
+    scores = np.array([0.1, 0.45, 0.475, 0.15, 0.9])
+    t = limiar_por_alarme_falso(labels, scores, 0.25)
+    assert ponto_de_operacao(labels, scores, t)["humanos_acima"] == 0.25
+    assert 0.45 < t <= 0.475
+    assert ponto_de_operacao(labels, scores, limiar_por_alarme_falso(labels, scores, 0.0))[
+        "humanos_acima"] == 0.0
+
+
+def test_acima_de_meio_a_media_exige_que_os_dois_concordem():
+    labels = np.array([0, 1, 1])
+    a = np.array([0.0, 1.0, 1.0])
+    b = np.array([0.0, 0.0, 0.9])
+    # o primeiro sintético, que só o A pega, não chega a 0,6 nem com o A em 1,0
+    q = por_que_passam(labels, a, b, 0.5, 0.5, 0.6)
+    assert q == {"so_um_pega_e_passa": 0.5, "passam_qualquer_que_seja_o_outro": 0.5}
+    assert por_que_passam(labels, a, b, 0.5, 0.5, 0.4)["so_um_pega_e_passa"] == 0.0
+
+
+def test_mesmo_alarme_falso_no_dev_que_o_primeiro_modelo(tmp_path, capsys):
+    dev = tmp_path / "dev"
+    dev.mkdir()
+    da, db = _npz(dev, "a", A, LABELS, 0.5), _npz(dev, "b", B, LABELS, 0.5)
+    a, b = _npz(tmp_path, "a", A, LABELS, 0.5), _npz(tmp_path, "b", B, LABELS, 0.5)
+    r = fundir(carregar(a), carregar(b), (carregar(da), carregar(db)), alvos=(0.5,))
+    nome = r["mesmo_alarme_falso"]["limiar"]
+    # o A deixa 1 de 4 humanos acima de 0,5 no dev; a fusão é ajustada para o mesmo
+    assert nome == "alarme falso de a no dev (25.0%)"
+    assert r["fusao"]["pontos_dev"][nome]["humanos_acima"] == 0.25
+    assert r["fusao"]["pontos_dev"]["alarme falso de 50.0% no dev"]["humanos_acima"] == 0.5
+    assert set(r["fusao"]["por_que_passam"]) == set(r["fusao"]["pontos"])
+
+    assert main([str(a), str(b), "--dev", str(da), str(db)]) == 0
+    assert "Com o mesmo alarme falso no dev que a" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        main([str(a), str(b), "--alarme-falso", "0.1"])
 
 
 def test_robustness_eval_salva_os_scores_por_audio(tmp_path):

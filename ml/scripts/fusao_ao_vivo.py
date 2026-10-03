@@ -15,7 +15,11 @@ Uso (os dois modelos na mesma amostra e condição):
         outputs/fusion_lcnn_v4_amostra10000_captura_48k_fir_eval_captura_48k_fir_scores.npz
 
 Com `--dev` (os mesmos dois comandos com `--partition dev`), o limiar da fusão é
-calibrado no dev, como no `calibrar_captura.py`.
+escolhido no dev de dois jeitos: no ponto de EER, como no `calibrar_captura.py`,
+e com o mesmo alarme falso que o primeiro modelo tem no dev no limiar dele. O
+segundo usa só os humanos do dev, a parte que se mantém no eval; os ataques do
+dev são os do treino e não se mantêm (RESUMO_TCC §10.2.9). `--alarme-falso`
+acrescenta outras taxas-alvo.
 """
 
 from __future__ import annotations
@@ -68,12 +72,35 @@ def ponto_de_operacao(labels: np.ndarray, scores: np.ndarray, limiar: float) -> 
             "sinteticos_passam": float((scores[sinteticos] < limiar).mean())}
 
 
+def limiar_por_alarme_falso(labels: np.ndarray, scores: np.ndarray, alvo: float) -> float:
+    """Menor limiar com no máximo `alvo` dos humanos acima dele."""
+    humanos = np.sort(scores[labels == 0])[::-1]
+    k = int(np.floor(alvo * len(humanos) + 1e-9))
+    if k >= len(humanos):
+        return float(humanos[-1])
+    return float(np.nextafter(humanos[k], np.inf))
+
+
+def por_que_passam(labels: np.ndarray, a: np.ndarray, b: np.ndarray,
+                   la: float, lb: float, limiar: float) -> dict:
+    """Sintéticos que só um modelo pega (cada um no seu limiar) e passam na média,
+    e os que passam qualquer que seja o outro modelo: acima de 0,5, um score
+    abaixo de 2·limiar − 1 já impede a média de chegar ao limiar."""
+    s = labels == 1
+    sa, sb = a[s], b[s]
+    so_um = (sa >= la) != (sb >= lb)
+    return {"so_um_pega_e_passa": float((so_um & ((sa + sb) / 2 < limiar)).mean()),
+            "passam_qualquer_que_seja_o_outro": float((np.minimum(sa, sb) < 2 * limiar - 1).mean())}
+
+
 def fundir(a: dict, b: dict, dev: tuple[dict, dict] | None = None,
-           extras: dict[str, float] | None = None) -> dict:
+           extras: dict[str, float] | None = None, alvos: tuple[float, ...] = ()) -> dict:
     """Métricas de cada modelo e da fusão pela média, em vários limiares."""
     a, b = alinhar(a, b)
     if not (a["labels"] == b["labels"]).all():
         raise ValueError("rótulos diferentes para os mesmos áudios")
+    if alvos and dev is None:
+        raise ValueError("o limiar por alarme falso é escolhido no dev: passe --dev")
     labels = a["labels"]
     media = combine([a["scores"], b["scores"]], "mean")
     postos = combine([a["scores"], b["scores"]], "rank", [a["logodds"], b["logodds"]])
@@ -93,10 +120,18 @@ def fundir(a: dict, b: dict, dev: tuple[dict, dict] | None = None,
         limiares["média dos dois limiares"] = (la + lb) / 2
     if dev is not None:
         da, db = alinhar(*dev)
-        eer_dev, lim_dev = compute_eer_with_threshold(
-            da["labels"], combine([da["scores"], db["scores"]], "mean"))
+        media_dev = combine([da["scores"], db["scores"]], "mean")
+        eer_dev, lim_dev = compute_eer_with_threshold(da["labels"], media_dev)
         limiares["calibrado no dev (ponto de EER da fusão)"] = lim_dev
         saida["eer_dev_fusao"] = eer_dev
+        if not np.isnan(la):
+            alvo = float((da["scores"][da["labels"] == 0] >= la).mean())
+            nome = f"alarme falso de {a['nome']} no dev ({alvo * 100:.1f}%)"
+            limiares[nome] = limiar_por_alarme_falso(da["labels"], media_dev, alvo)
+            saida["mesmo_alarme_falso"] = {"limiar": nome, "comparar_com": a["nome"]}
+        for alvo in alvos:
+            limiares[f"alarme falso de {alvo * 100:.1f}% no dev"] = \
+                limiar_por_alarme_falso(da["labels"], media_dev, alvo)
     limiares.update(extras or {})
 
     saida["fusao"] = {
@@ -104,6 +139,16 @@ def fundir(a: dict, b: dict, dev: tuple[dict, dict] | None = None,
         "eer_postos": compute_eer(labels, postos),
         "pontos": {nome: ponto_de_operacao(labels, media, lim) for nome, lim in limiares.items()},
     }
+    if dev is not None:
+        saida["fusao"]["pontos_dev"] = {nome: ponto_de_operacao(da["labels"], media_dev, lim)
+                                        for nome, lim in limiares.items()}
+    if not (np.isnan(la) or np.isnan(lb)):
+        sa, sb = a["scores"][labels == 1], b["scores"][labels == 1]
+        saida["fusao"]["so_um_pega"] = {a["nome"]: float(((sa >= la) & (sb < lb)).mean()),
+                                        b["nome"]: float(((sb >= lb) & (sa < la)).mean())}
+        saida["fusao"]["por_que_passam"] = {
+            nome: por_que_passam(labels, a["scores"], b["scores"], la, lb, lim)
+            for nome, lim in limiares.items()}
     return saida
 
 
@@ -125,10 +170,26 @@ def relatar(r: dict) -> None:
     print(f"{'fusão (postos, referência)':28s} {_pct(f['eer_postos']):>7s}")
     if "eer_dev_fusao" in r:
         print(f"\nEER da fusão no dev: {_pct(r['eer_dev_fusao'])}")
+    if "so_um_pega" in f:
+        print("\nSintéticos que só um modelo pega, cada um no seu limiar:")
+        for nome, x in f["so_um_pega"].items():
+            print(f"  {nome:28s} {_pct(x)}")
     print("\nFusão pela média, por limiar:")
     for nome, p in f["pontos"].items():
-        print(f"  {p['limiar']:.4f}  humanos acima {_pct(p['humanos_acima'])}  "
+        dev = f" (dev {_pct(f['pontos_dev'][nome]['humanos_acima'])})" if "pontos_dev" in f else ""
+        print(f"  {p['limiar']:.4f}  humanos acima {_pct(p['humanos_acima'])}{dev}  "
               f"sintéticos passam {_pct(p['sinteticos_passam'])}  — {nome}")
+        if "por_que_passam" in f:
+            q = f["por_que_passam"][nome]
+            print(f"          só um modelo pega e passa {_pct(q['so_um_pega_e_passa'])}  "
+                  f"passam qualquer que seja o outro {_pct(q['passam_qualquer_que_seja_o_outro'])}")
+    if "mesmo_alarme_falso" in r:
+        c = r["mesmo_alarme_falso"]
+        fusao = f["pontos"][c["limiar"]]["sinteticos_passam"]
+        modelo = r["modelos"][c["comparar_com"]]["ponto"]["sinteticos_passam"]
+        print(f"\nCom o mesmo alarme falso no dev que {c['comparar_com']}: sintéticos passam "
+              f"{_pct(fusao).strip()} na fusão contra {_pct(modelo).strip()} "
+              f"({(fusao - modelo) * 100:+.1f} pp)")
 
 
 def main(argv=None) -> int:
@@ -137,12 +198,18 @@ def main(argv=None) -> int:
     p.add_argument("--dev", nargs=2, default=None, help="os mesmos .npz na partição dev")
     p.add_argument("--limiar", type=float, action="append", default=[],
                    help="limiar extra a avaliar na fusão (repita a opção)")
+    p.add_argument("--alarme-falso", type=float, action="append", default=[],
+                   help="fração-alvo de humanos acima do limiar, escolhida no dev "
+                        "(repita a opção; exige --dev)")
     p.add_argument("--json", default=None, help="grava o resultado neste arquivo")
     args = p.parse_args(argv)
+    if args.alarme_falso and not args.dev:
+        p.error("--alarme-falso exige --dev")
 
     dev = tuple(carregar(c) for c in args.dev) if args.dev else None
     extras = {f"pedido ({v:.4f})": v for v in args.limiar}
-    r = fundir(carregar(args.scores[0]), carregar(args.scores[1]), dev, extras)
+    r = fundir(carregar(args.scores[0]), carregar(args.scores[1]), dev, extras,
+               tuple(args.alarme_falso))
     relatar(r)
     if args.json:
         Path(args.json).write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding="utf-8")

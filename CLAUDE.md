@@ -104,6 +104,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   original (RESUMO_TCC §10.2.8).
 - Captura 48 → 16 kHz: soxr 24,70%, FIR 19,41% (limpo 19,02%). Limiar de captura
   do baseline_v2: 0,686 (original 0,654).
+- Fusão ao vivo (média) dos dois na captura FIR: EER 14,2%. Limiar escolhido no
+  dev com o alarme falso do v2 (0,3473): 10,6% de humanos acima e 16,5% de
+  sintéticos passando, contra 10,7% e 28,8% do v2. Limiares acima de 0,5 exigem
+  que os dois concordem e deixam passar 42–49%; o monitor ainda aplica o limiar
+  do primeiro checkpoint (RESUMO_TCC §10.2.9).
 - Ao vivo: aprimoramentos de áudio do Windows (saída e microfone) precisam estar
   desligados; o VLC altera o áudio; reprodução pelo ar (celular → microfone)
   não separa real de falso.

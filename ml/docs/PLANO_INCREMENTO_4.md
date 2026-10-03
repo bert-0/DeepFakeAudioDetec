@@ -101,8 +101,9 @@ primeiro: nenhuma gravação começa antes deles.
 - Ablação de ramos e oclusão da banda alta, só com avaliação.
 - Fusão ao vivo dos dois modelos (média das probabilidades, como no monitor) na
   captura FIR, com o limiar da fusão escolhido no dev
-  (`scripts/fusao_ao_vivo.py`). Acrescentado em 03/10/2026, depois que o
-  fusion_v4 deixou de saturar com o FIR (RESUMO_TCC §10.2.8).
+  (`scripts/fusao_ao_vivo.py`). Acrescentado em 02/10/2026, depois que o
+  fusion_v4 deixou de saturar com o FIR (RESUMO_TCC §10.2.8). Medido no
+  mesmo dia (§10.2.9); falta o monitor usar o limiar da fusão.
 - Limiar calibrado no caminho da demonstração, com o `calibrar_captura.py`.
 
 **Texto do TCC**

@@ -938,7 +938,7 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 
 Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p.
 
-<!-- RESUMO_TCC §10.2.1, §10.2.5 e §10.2.8 (29/09 a 03/10/2026) -->
+<!-- RESUMO_TCC §10.2.1, §10.2.5 e §10.2.8 (29/09 a 02/10/2026) -->
 
 > Com o conversor padrão, a captura custava 5,68 p.p. de EER, mais que o Opus
 > simulado na mesma amostra (1,30 p.p.), e o limiar colapsava: 7 em cada 10

@@ -1632,7 +1632,7 @@ Referência, mesmos arquivos pelo som do computador: reais 0,33, falsos 1,00.
 ### 10.2.8 fusion_v4 com o FIR: a saturação era do conversor
 
 `robustness_eval.py --amostra 10000 --so clean captura_48k_fir`, mesmos 10.002
-áudios do eval, limiar do checkpoint 0,7173, 03/10/2026:
+áudios do eval, limiar do checkpoint 0,7173, 02/10/2026:
 
 | condição | EER | precisão | recall | humanos em probabilidade 1,0 |
 |---|---|---|---|---|
@@ -1668,6 +1668,76 @@ passando. No fusion_v4 a recalibração pelo EER do dev não serve, porque o dev
 quase separável não informa sobre ataques inéditos. Decisão: usar o limiar
 original nele (renomear a cópia `_captura` para o sistema não a achar). O
 limiar do caminho da demonstração sai do Incremento 4, medido com vozes reais.
+
+### 10.2.9 Fusão ao vivo na captura FIR: o EER melhora, o limiar não acompanha
+
+`robustness_eval.py --amostra 10000 --so captura_48k_fir` nos dois modelos, no
+eval e no dev (mesmos 10.002 áudios em cada partição), e `fusao_ao_vivo.py`
+sobre os scores salvos. baseline_v2 com a cópia `_captura` (limiar 0,686, o do
+ao vivo); fusion_v4 com o limiar original 0,7173 (10.2.8). 02/10/2026.
+
+| | EER | limiar | humanos acima | sintéticos que passam |
+|---|---|---|---|---|
+| baseline_v2 | 19,41% | 0,686 | 10,7% | 28,8% |
+| fusion_v4 | 20,16% | 0,7173 | 0,4% | 43,8% |
+| fusão pela média (a do monitor) | **14,2%** | | | |
+| fusão por postos (referência) | 13,3% | | | |
+
+- **O ganho da fusão volta com o FIR:** −5,2 pp sobre o melhor isolado. É o
+  padrão da Seção 4 no eval limpo (média 14,03%, postos 13,13%; aqui também
+  0,9 pp entre as duas regras). No Opus real a média empatava com o v2
+  (29,41% contra 29,43%, 5.3) porque o fusion_v4 saturava; sem saturação, a
+  regra do monitor recupera a diversidade entre os modelos.
+- **Critério combinado antes (o ponto de EER da fusão no dev) falhou.** EER da
+  fusão no dev 0,8%, limiar 0,5363. No eval: 0,4% dos humanos acima e 42,2%
+  dos sintéticos passando. Os outros dois limiares testados dão o mesmo
+  formato: 0,686 (o do v2) 0,3% e 48,5%; 0,7016 (média dos dois) 0,3% e
+  49,1%. Nos três, passam mais sintéticos que com o v2 sozinho (28,8%).
+
+**Segundo critério, combinado em 02/10/2026 antes de calcular o número no
+eval.** Do dev para o eval se mantém a fração de humanos acima do limiar, não a
+de sintéticos que passam (os ataques do dev são os do treino). O limiar da
+fusão passa a ser escolhido no dev com **o mesmo alarme falso que o v2 tem no
+dev no limiar 0,686**. Regra de decisão: a fusão volta a ser a recomendação do
+monitor se, nesse limiar, deixar passar **pelo menos 2 pp menos sintéticos que
+o v2** no eval (28,8%, ou seja, 26,8% ou menos); senão fica o v2 sozinho (5.3)
+e a fusão entra só como resultado de EER. Este critério veio depois de ver o
+primeiro falhar e é declarado assim no texto.
+
+**Resultado** (`fusao_ao_vivo.py` com `--dev`, saída em
+`outputs/fusao_ao_vivo_captura.json`):
+
+| limiar da fusão | humanos acima, dev → eval | sintéticos que passam (eval) |
+|---|---|---|
+| 0,686 (o do v2) | 0,3% → 0,3% | 48,5% |
+| 0,7016 (média dos dois limiares) | 0,2% → 0,3% | 49,1% |
+| 0,5363 (ponto de EER da fusão no dev) | 0,7% → 0,4% | 42,2% |
+| **0,3473 (alarme falso do v2 no dev, 10,3%)** | **10,3% → 10,6%** | **16,5%** |
+| v2 sozinho, 0,686 | 10,3% → 10,7% | 28,8% |
+
+- **Regra cumprida.** Com o mesmo alarme falso do v2 (10,6% contra 10,7% no
+  eval), a fusão deixa passar 16,5% dos sintéticos contra 28,8%: **−12,4 pp**,
+  bem além dos 2 pp combinados. Na captura com FIR a fusão volta a ser a
+  recomendação. O alarme falso no eval tem IC 95% de cerca de ±1,9 pp (1.032
+  humanos).
+- **O lado dos humanos se mantém do dev para o eval; o dos sintéticos, não.**
+  É o que torna o critério do alarme falso transferível e o do EER não.
+- **Por que os limiares acima de 0,5 falham.** Acima de 0,5 a média só marca
+  sintético quando os dois modelos concordam: um score abaixo de 2·limiar − 1
+  basta para o sintético passar. Em 0,686, 47,8% dos sintéticos passam
+  qualquer que seja o outro modelo. Só um modelo pega 38,3% dos sintéticos
+  (26,6% só o v2, 11,7% só o fusion_v4), justamente a diversidade que dá o
+  ganho no EER; em 0,686 passam 31,4 pp deles, em 0,3473 passam 0,2%.
+- **Por que o dev escolheu 0,5363.** No dev o fusion_v4 sozinho tem recall
+  1,0000 (10.2.8): não existe ali o caso "o v2 pega, o fusion_v4 não", e o
+  ponto de EER da fusão fica decidido só pela cauda dos humanos.
+- **Validade.** Captura FIR (16 → 48 → 16 kHz) na amostra de 10.002 áudios. Não
+  vale para o Opus real, onde o fusion_v4 satura (5.3), nem para arquivos
+  nativos de 16 kHz, onde o limiar da fusão não foi medido.
+- **O monitor ainda não usa esse limiar.** Com dois `--checkpoint` ele aplica o
+  limiar do primeiro (0,686 ou 0,7173), o ponto de 48 a 49% de sintéticos
+  passando; a interface web roda um modelo só. Até ligar o limiar da fusão, a
+  recomendação prática do monitor continua o v2 sozinho.
 
 ### 10.3 Bases públicas que já trazem canal
 
@@ -2145,4 +2215,9 @@ python scripts/bench_latencia.py --config ... --checkpoint ... --device cpu
 python scripts/canal_real.py preparar --config configs/baseline_v2.yaml --n-por-classe 20
 python scripts/canal_real.py alinhar --pasta outputs/canal_real --gravacao ... --sessao <limpo|controle|chamada>
 python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
+
+# Seção 10.2.9 — fusão ao vivo na captura FIR (os dois modelos, eval e dev)
+python scripts/robustness_eval.py --config configs/baseline_v2.yaml --checkpoint checkpoints/baseline_lfcc_cnn_v2_captura.pt --amostra 10000 --so captura_48k_fir [--partition dev]
+python scripts/robustness_eval.py --config configs/fusion_v4.yaml --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000 --so captura_48k_fir [--partition dev]
+python scripts/fusao_ao_vivo.py <v2 eval .npz> <v4 eval .npz> --dev <v2 dev .npz> <v4 dev .npz> --json outputs/fusao_ao_vivo_captura.json
 ```
