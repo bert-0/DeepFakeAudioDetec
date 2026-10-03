@@ -1389,7 +1389,8 @@ porque é calculado pelos log-odds (correção da 5.3).
 **Consequências:**
 
 - **Para o monitor** (que mostra probabilidade): o fusion_v4 é inutilizável ao
-  vivo, e o v2 funciona com o limiar deslocado. A recomendação do v2 (5.3)
+  vivo *com o soxr* (com o FIR deixa de saturar: 10.2.8), e o v2 funciona com o
+  limiar deslocado. A recomendação do v2 (5.3)
   ganha uma segunda justificativa, independente do canal da chamada.
 - **A captura custa mais que o Opus simulado** (v2: +5,68 pp contra +1,30 pp
   do Opus a 25 kbps na mesma amostra) — e está presente em toda chamada.
@@ -1627,6 +1628,34 @@ Referência, mesmos arquivos pelo som do computador: reais 0,33, falsos 1,00.
 
 **Para a apresentação:** a demonstração principal vai pelo som do computador
 (10.2.4); o microfone serve para a voz ao vivo e para mostrar a limitação.
+
+### 10.2.8 fusion_v4 com o FIR: a saturação era do conversor
+
+`robustness_eval.py --amostra 10000 --so clean captura_48k_fir`, mesmos 10.002
+áudios do eval, limiar do checkpoint 0,7173, 03/10/2026:
+
+| condição | EER | precisão | recall | humanos em probabilidade 1,0 |
+|---|---|---|---|---|
+| limpo | 20,25% | 0,9996 | 0,5547 | 0 de 1.032 |
+| captura com soxr (10.2.1) | 24,98% | 0,8968 | 1,0000 | **1.032 de 1.032** |
+| **captura com FIR** | **20,16%** | 0,9992 | 0,5621 | **0 de 1.032** |
+
+- **A captura deixou de custar** (−0,09 pp, dentro do IC) e **a saturação
+  sumiu**. Ela vinha do soxr apagar 7,6–8 kHz, não do modelo. O fusion_v4 passa
+  a ser usável ao vivo, e com isso a fusão dos dois modelos também pode ser
+  testada ao vivo (antes, a média das probabilidades virava a do v2 sozinho).
+- **Ponto de operação conservador:** no limiar 0,7173, derivado de precisão e
+  recall, ~0,4% dos humanos ficam acima (cerca de 4 de 1.032) e ~44% dos
+  sintéticos passam. É o perfil já visto no eval completo (recall 0,55).
+- **O Opus real continua saturando** (97% dos humanos em 1,0, Seção 5.3): lá a
+  causa é o codec e a rede, não o conversor.
+
+**Recalibração (`calibrar_captura.py`):** no dev com captura FIR, EER 0,13%
+(log-odds e probabilidade), nenhum humano em 1,0; limiar 0,7173 → **0,9984**.
+O dev só tem os ataques do treino (A01–A06), e com as classes quase separadas
+o ponto de EER fica no extremo: é o mesmo 0,03% de validação que não previu o
+eval (Seção 5.2). Um limiar mais alto deixa passar mais sintéticos inéditos.
+**Pendente:** medir a cópia `_captura` no eval antes de usá-la no sistema.
 
 ### 10.3 Bases públicas que já trazem canal
 

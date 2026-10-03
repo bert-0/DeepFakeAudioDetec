@@ -96,8 +96,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 
 - Eval 2019 LA sem silêncio: baseline_v2 18,99%, fusion_v4 20,18%, fusão de
   scores dos dois 13,13%. Validação não prevê avaliação (0,03% → 20,18%).
-- Canal real (2021 LA, Opus): baseline_v2 29,43%, fusion_v4 32,62%; o fusion_v4
-  satura a probabilidade em 1,0 e o `calibrar_captura` o recusa.
+- Canal real (2021 LA, Opus): baseline_v2 29,43%, fusion_v4 32,62%; no Opus o
+  fusion_v4 satura a probabilidade em 1,0.
+- Captura com FIR, fusion_v4: 20,16% (limpo 20,25%), sem saturação; o soxr era a
+  causa. A cópia `_captura` dele (limiar 0,9984, dev com EER 0,13%) ainda não foi
+  medida no eval: não usar antes disso (RESUMO_TCC §10.2.8).
 - Captura 48 → 16 kHz: soxr 24,70%, FIR 19,41% (limpo 19,02%). Limiar de captura
   do baseline_v2: 0,686 (original 0,654).
 - Ao vivo: aprimoramentos de áudio do Windows (saída e microfone) precisam estar

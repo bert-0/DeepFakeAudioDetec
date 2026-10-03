@@ -938,13 +938,15 @@ Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p. em cada medida.
 
 Fonte: Autoria própria. IC de 95% de cerca de ±1,28 p.p.
 
-<!-- RESUMO_TCC §10.2.1 e §10.2.5 (29 e 30/09/2026) -->
+<!-- RESUMO_TCC §10.2.1, §10.2.5 e §10.2.8 (29/09 a 03/10/2026) -->
 
 > Com o conversor padrão, a captura custava 5,68 p.p. de EER, mais que o Opus
 > simulado na mesma amostra (1,30 p.p.), e o limiar colapsava: 7 em cada 10
 > áudios humanos passavam a ser marcados como sintéticos. No fusion_v4, todos
 > os 1.032 áudios humanos da amostra chegavam a probabilidade 1,0, o mesmo
-> comportamento do Opus real. Com o filtro FIR, o custo cai para 0,39 p.p.,
+> comportamento do Opus real. Com o filtro FIR, a saturação do fusion_v4
+> desaparece (nenhum áudio humano em 1,0; EER de 20,16% na captura, contra
+> 20,25% no áudio limpo), e o custo do baseline_v2 cai para 0,39 p.p.,
 > dentro do intervalo de confiança, e o limiar recalibrado para a captura fica
 > em 0,686, próximo do original (0,654). A degradação atribuída à captura era,
 > portanto, quase toda do filtro do conversor, e foi corrigida sem retreino. O
