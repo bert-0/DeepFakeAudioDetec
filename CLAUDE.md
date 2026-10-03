@@ -56,8 +56,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   normaliza pelo pico, janela de 4 s), `reamostragem.py` (FIR polifásico; o
   `soxr` apagava 7,6–8 kHz e não deve voltar ao caminho do modelo).
 - `src/features/`, `src/models/`: LFCC, log-mel, CNN, LCNN, fusão e atenção.
-- `src/capture/`: fontes de áudio (arquivo, loopback, microfone), analisador
-  em janelas de 4 s com passo de 2 s, peso pela fração de fala.
+- `src/capture/`: fontes de áudio (arquivo, loopback, microfone por WASAPI
+  exclusivo com `sounddevice`, ou `soundcard` sem ele), analisador em janelas
+  de 4 s com passo de 2 s, peso pela fração de fala; `checagens.py` (depois de
+  gravar: saturação, fala, banda, piso de ruído).
+- `docs/etica/`: rascunhos do termo de consentimento e do protocolo de gravação.
 - `src/limiares.py`: limiar por tipo de áudio (nativo 16 kHz: original; 44,1/48
   kHz e ao vivo: o de captura, só se calibrado com o FIR e com os mesmos pesos).
 - `web/`: FastAPI + Jinja2 + SQLite. Abas Enviar arquivo, Resultado, Ao vivo e

@@ -58,13 +58,14 @@ A aba Gravar mostra as checagens; se alguma falhar, regravar a frase.
 
 | checagem | falha quando |
 |---|---|
-| saturação | amostras no limite do conversor |
-| fração de fala | pouca fala no arquivo (frase cortada ou silêncio longo) |
+| saturação | 3 ou mais amostras seguidas no limite do conversor |
+| fala | menos de 4 s de fala, ou menos de 0,5 s de silêncio antes ou depois |
 | banda | nada acima de 4 kHz (o caminho perdeu a banda alta) |
-| piso de ruído | ruído alto nas pausas |
+| piso de ruído | ruído nas pausas a menos de 35 dB da fala: o corte de silêncio do modelo (30 dB) não o remove |
 
 Os limites ficam no código (`src/capture/checagens.py`) e são os mesmos para
-todos os locutores.
+todos os locutores. Começar a falar cerca de 1 s depois de iniciar a gravação
+e esperar 1 s antes de parar.
 
 ## Metadados de cada arquivo
 
