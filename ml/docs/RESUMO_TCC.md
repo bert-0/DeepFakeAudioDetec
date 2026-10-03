@@ -1655,7 +1655,19 @@ Referência, mesmos arquivos pelo som do computador: reais 0,33, falsos 1,00.
 O dev só tem os ataques do treino (A01–A06), e com as classes quase separadas
 o ponto de EER fica no extremo: é o mesmo 0,03% de validação que não previu o
 eval (Seção 5.2). Um limiar mais alto deixa passar mais sintéticos inéditos.
-**Pendente:** medir a cópia `_captura` no eval antes de usá-la no sistema.
+
+Medido no eval (mesma amostra, captura FIR), derivado de precisão e recall:
+
+| limiar | humanos acima | sintéticos que passam | recall | precisão |
+|---|---|---|---|---|
+| original 0,7173 | ~0,4% (cerca de 4 de 1.032) | 44% | 0,5621 | 0,9992 |
+| recalibrado 0,9984 | 0% | **50%** | 0,5017 | 1,0000 |
+
+Confirmado: o limiar do dev troca ~4 alarmes falsos por ~540 sintéticos a mais
+passando. No fusion_v4 a recalibração pelo EER do dev não serve, porque o dev
+quase separável não informa sobre ataques inéditos. Decisão: usar o limiar
+original nele (renomear a cópia `_captura` para o sistema não a achar). O
+limiar do caminho da demonstração sai do Incremento 4, medido com vozes reais.
 
 ### 10.3 Bases públicas que já trazem canal
 
