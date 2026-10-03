@@ -32,7 +32,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.capture.checagens import checar, energia_por_faixa  # noqa: E402
 from src.capture.sources import CaptureError, MicrofoneWasapiSource  # noqa: E402
 
-TAXA = 48000
 #: Abaixo disso é a variação natural entre duas leituras da mesma frase.
 LIMIAR_DB = 6.0
 #: Desvio do espectro do ruído em relação ao ganho geral; abaixo disso, a
@@ -85,6 +84,8 @@ def medir(wav: np.ndarray, sr: int) -> dict:
         # logo no começo, antes de uma supressão de ruído convergir
         "ruido_inicio": mediana(0.25, 0.75),
         "ruido_fim": mediana(dur - 2.0, dur - 0.5),
+        # antes do aviso de leitura, que vem aos 3 s
+        "espectro_ruido_inicio": _espectro(wav, sr, 1.0, 2.75),
         "espectro_ruido_fim": _espectro(wav, sr, dur - 2.0, dur - 0.5),
         "linha_do_tempo": [mediana(a, a + 0.5) for a in np.arange(0, dur - 0.25, 0.5)],
         "faixas": energia_por_faixa(wav, sr),
@@ -94,7 +95,7 @@ def medir(wav: np.ndarray, sr: int) -> dict:
 
 def comparar(exclusivo: dict | None, compartilhado: dict | None) -> list[str]:
     """Indícios de processamento no caminho, um por linha."""
-    saida = []
+    saida, adaptou = [], []
     for modo, m in (("exclusivo", exclusivo), ("compartilhado", compartilhado)):
         if m is None:
             continue
@@ -103,6 +104,19 @@ def comparar(exclusivo: dict | None, compartilhado: dict | None) -> list[str]:
             onde = "driver ou hardware" if modo == "exclusivo" else "Windows, driver ou hardware"
             saida.append(f"{modo}: o ruído constante caiu {-queda:.0f} dB durante a gravação; "
                          f"supressão de ruído no caminho ({onde})")
+        # Uma faixa do ruído que some em relação às outras: supressão adaptativa.
+        desvio = m["espectro_ruido_fim"] - m["espectro_ruido_inicio"]
+        desvio = desvio - np.median(desvio)
+        if desvio.min() <= -LIMIAR_ESPECTRO_DB:
+            a, b = BANDAS_HZ[int(np.argmin(desvio))]
+            adaptou.append((modo, desvio.min(), a, b))
+    if len(adaptou) == 2:
+        saida.append("nos dois modos uma faixa do ruído some do começo para o fim: supressão "
+                     "no hardware, ou o ruído de fundo não foi constante")
+    for modo, d, a, b in adaptou if len(adaptou) == 1 else []:
+        onde = ("driver ou hardware, ou o ruído de fundo variou" if modo == "exclusivo"
+                else "supressão adaptativa do Windows")
+        saida.append(f"{modo}: o ruído perde {-d:.0f} dB em {a}–{b} Hz do começo para o fim ({onde})")
     if exclusivo is None or compartilhado is None:
         return saida
 
@@ -163,7 +177,8 @@ def relatar(medidas: dict[str, dict], indicios: list[str]) -> None:
         print(f"  {m:14s} " + " ".join(f"{x:4.0f}" for x in medidas[m]["linha_do_tempo"]))
     falhas = [(m, c) for m in modos for c in medidas[m]["checagens"] if not c.ok]
     if falhas:
-        print("\nChecagens que falharam:")
+        print("\nChecagens que falharam (com ruído de fundo proposital, fala e piso "
+              "reprovam por construção; valem na gravação sem ruído):")
         for m, c in falhas:
             print(f"  {m} — {c.nome} ({c.valor}): {c.motivo}")
     print("\nIndícios:")
@@ -171,28 +186,30 @@ def relatar(medidas: dict[str, dict], indicios: list[str]) -> None:
         print(f"  - {linha}")
 
 
-def gravar(segundos: float, exclusivo: bool, dispositivo: str | None) -> tuple[np.ndarray, str, str]:
-    """Grava `segundos` a 48 kHz, sem conversão, e devolve (áudio, modo, nome).
-    Os primeiros `DESCARTE_S` segundos não entram."""
-    fonte = MicrofoneWasapiSource(TAXA, dispositivo, exclusivo=exclusivo)
-    descarte, total = int(DESCARTE_S * TAXA), int(segundos * TAXA)
+def gravar(segundos: float, exclusivo: bool,
+           dispositivo: str | None) -> tuple[np.ndarray, str, str, int]:
+    """Grava `segundos` na taxa do dispositivo, sem conversão, e devolve (áudio,
+    modo, nome, taxa). Os primeiros `DESCARTE_S` segundos não entram."""
+    fonte = MicrofoneWasapiSource(None, dispositivo, exclusivo=exclusivo)
+    taxa = fonte.taxa_dispositivo
+    descarte, total = int(DESCARTE_S * taxa), int(segundos * taxa)
     blocos, avisos = [], [SILENCIO_S, segundos - SILENCIO_S]
     for bloco in fonte.blocos():
         blocos.append(bloco)
-        decorrido = sum(len(b) for b in blocos) / TAXA - DESCARTE_S
+        decorrido = sum(len(b) for b in blocos) / taxa - DESCARTE_S
         if avisos and decorrido >= avisos[0]:
             print("    >> leia a frase" if len(avisos) == 2 else "    >> silêncio até o fim")
             avisos.pop(0)
-        if decorrido * TAXA >= total:
+        if decorrido * taxa >= total:
             break
     fonte.fechar()
-    return np.concatenate(blocos)[descarte:descarte + total], fonte.modo, fonte.nome
+    return np.concatenate(blocos)[descarte:descarte + total], fonte.modo, fonte.nome, taxa
 
 
-def salvar(destino: str | Path, wav: np.ndarray) -> None:
+def salvar(destino: str | Path, wav: np.ndarray, taxa: int) -> None:
     import soundfile as sf
 
-    sf.write(destino, wav, TAXA, subtype=FORMATO)
+    sf.write(destino, wav, taxa, subtype=FORMATO)
 
 
 def main(argv=None) -> int:
@@ -224,17 +241,17 @@ def main(argv=None) -> int:
         input(f"\n[{pedido}] Enter para gravar {args.segundos:.0f} s; espere o aviso "
               "para ler a frase...")
         try:
-            wav, modo, nome = gravar(args.segundos, pedido == "exclusivo", args.dispositivo)
+            wav, modo, nome, taxa = gravar(args.segundos, pedido == "exclusivo", args.dispositivo)
         except CaptureError as erro:
             print(f"[ERRO] {erro}")
             return 1
         destino = pasta / f"{carimbo}_{pedido}.wav"
-        salvar(destino, wav)
-        print(f"    {nome} (WASAPI {modo}) -> {destino}")
+        salvar(destino, wav, taxa)
+        print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz) -> {destino}")
         if modo != pedido:
             print(f"[AVISO] pedido {pedido}, o driver abriu {modo}: a comparação entre os "
                   "modos não vale")
-        medidas[pedido] = medir(wav, TAXA)
+        medidas[pedido] = medir(wav, taxa)
     relatar(medidas, comparar(medidas["exclusivo"], medidas["compartilhado"]))
     print("\nOuça também os dois arquivos: se o ruído some ou \"respira\" junto com a fala, "
           "há supressão de ruído.")

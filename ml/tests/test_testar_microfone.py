@@ -62,6 +62,26 @@ def test_supressao_que_tira_os_graves_do_ruido():
     assert any("formato do espectro do ruído" in x and "50–250 Hz" in x for x in r), r
 
 
+def test_supressao_adaptativa_so_no_compartilhado():
+    sos = butter(8, 1000, btype="highpass", fs=SR, output="sos")
+    compartilhado = _cena(seed=1)
+    compartilhado[9 * SR:] = sosfilt(sos, compartilhado[9 * SR:])
+    r = comparar(medir(_cena(), SR), medir(compartilhado, SR))
+    assert any(x.startswith("compartilhado: o ruído perde") and "adaptativa do Windows" in x
+               for x in r), r
+
+
+def test_mesma_faixa_some_nos_dois_modos():
+    sos = butter(8, 1000, btype="highpass", fs=SR, output="sos")
+    cenas = []
+    for seed in (0, 1):
+        x = _cena(seed=seed)
+        x[9 * SR:] = sosfilt(sos, x[9 * SR:])
+        cenas.append(medir(x, SR))
+    r = comparar(*cenas)
+    assert any(x.startswith("nos dois modos uma faixa do ruído some") for x in r), r
+
+
 def test_conversao_de_taxa_perde_a_banda_alta():
     sos = butter(12, 7000, fs=SR, output="sos")
     compartilhado = sosfilt(sos, _cena(seed=1)).astype(np.float32)
@@ -77,14 +97,21 @@ def test_sem_ruido_de_fundo_avisa_que_o_teste_nao_decide():
 def test_grava_a_48_khz_sem_o_fir_e_sem_o_clique_do_inicio(monkeypatch):
     sinal = np.random.default_rng(4).standard_normal(SR * 2) * 0.1
     _sounddevice_falso(monkeypatch, sinal)
-    wav, modo, nome = gravar(1.0, True, None)
-    assert modo == "exclusivo" and len(wav) == SR
+    wav, modo, nome, taxa = gravar(1.0, True, None)
+    assert (modo, taxa) == ("exclusivo", SR) and len(wav) == SR
     np.testing.assert_allclose(wav, sinal[SR // 2:SR // 2 + SR], atol=1e-6)
+
+
+def test_grava_na_taxa_do_dispositivo(monkeypatch):
+    sinal = np.random.default_rng(6).standard_normal(96000 * 2) * 0.1
+    _sounddevice_falso(monkeypatch, sinal, taxas=(96000,))
+    wav, _, _, taxa = gravar(1.0, True, None)
+    assert taxa == 96000 and len(wav) == 96000
 
 
 def test_salva_em_24_bits(tmp_path):
     destino = tmp_path / "x.wav"
-    salvar(destino, np.random.default_rng(5).standard_normal(SR).astype(np.float32) * 0.01)
+    salvar(destino, np.random.default_rng(5).standard_normal(SR).astype(np.float32) * 0.01, SR)
     assert sf.info(destino).subtype == "PCM_24"
 
 

@@ -50,8 +50,9 @@ class _FluxoFalso:
 
 
 def _sounddevice_falso(monkeypatch, sinal=None, recusar=(), parar_no_fim=False,
-                       transbordar_em=()):
-    """`recusar`: pares (exclusivo, canais) que o driver não aceita a 48 kHz."""
+                       transbordar_em=(), taxas=(48000,)):
+    """`recusar`: pares (exclusivo, canais) que o driver não aceita; `taxas`: as
+    taxas que ele aceita."""
     sd = types.SimpleNamespace(
         sinal=np.zeros(0) if sinal is None else sinal, fluxos=[], parar_no_fim=parar_no_fim,
         transbordar_em=set(transbordar_em))
@@ -66,8 +67,8 @@ def _sounddevice_falso(monkeypatch, sinal=None, recusar=(), parar_no_fim=False,
     sd.WasapiSettings = lambda exclusive=False: types.SimpleNamespace(exclusive=exclusive)
 
     def check_input_settings(device, channels, dtype, extra_settings, samplerate):
-        assert samplerate == 48000 and dtype == "float32"
-        if (extra_settings.exclusive, channels) in recusar:
+        assert dtype == "float32"
+        if samplerate not in taxas or (extra_settings.exclusive, channels) in recusar:
             raise RuntimeError("Invalid sample rate")
 
     sd.check_input_settings = check_input_settings
@@ -117,10 +118,32 @@ def test_exclusivo_recusado_cai_no_compartilhado_com_aviso(monkeypatch):
     assert "recusou o modo exclusivo" in fonte.aviso
 
 
-def test_sem_48_khz_explica_como_configurar(monkeypatch):
-    _sounddevice_falso(monkeypatch, recusar={(True, 1), (True, 2), (False, 1), (False, 2)})
-    with pytest.raises(CaptureError, match="48000 Hz"):
+def test_sem_48_nem_96_khz_explica_como_configurar(monkeypatch):
+    _sounddevice_falso(monkeypatch, taxas=(44100,))
+    with pytest.raises(CaptureError, match="48 nem a 96 kHz.*48000 Hz"):
         MicrofoneWasapiSource(16000)
+
+
+def test_microfone_que_so_abre_a_96_khz(monkeypatch):
+    """Como o "USB Digital Audio" medido: só 96 kHz, 1 canal. 96 = 6 x 16, o FIR serve."""
+    from src.preprocess.reamostragem import DecimadorFIR
+
+    sinal = np.random.default_rng(5).standard_normal(96000 * 2) * 0.1
+    sd = _sounddevice_falso(monkeypatch, sinal, taxas=(96000,))
+    fonte = MicrofoneWasapiSource(16000)
+    assert (fonte.modo, fonte.taxa_dispositivo) == ("exclusivo", 96000)
+    capturado = _coletar(fonte, 10)
+    referencia = DecimadorFIR(96000, 16000)(sinal[: 10 * 9600])
+    np.testing.assert_allclose(capturado, referencia[: len(capturado)], atol=1e-4)
+    assert sd.fluxos[0].kw["samplerate"] == 96000
+
+
+def test_sem_taxa_pedida_entrega_o_audio_bruto(monkeypatch):
+    sinal = np.random.default_rng(6).standard_normal(96000) * 0.1
+    _sounddevice_falso(monkeypatch, sinal, taxas=(96000,))
+    fonte = MicrofoneWasapiSource(None)
+    assert fonte.sample_rate == 96000
+    np.testing.assert_allclose(_coletar(fonte, 5), sinal[: 5 * 9600], atol=1e-6)
 
 
 def test_escolhe_o_microfone_pelo_nome_so_no_wasapi(monkeypatch):

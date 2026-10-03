@@ -1742,30 +1742,45 @@ primeiro falhar e é declarado assim no texto.
 ### 10.2.10 Microfone do notebook: exclusivo x compartilhado (teste de equipamento)
 
 `scripts/testar_microfone.py`, "Grupo de microfones (Realtek(R) Audio)", a mesma
-frase gravada em WASAPI exclusivo e compartilhado, 48 kHz, com ruído de fundo,
-02/10/2026. Reanálise com `--analisar` depois de corrigir o script (critérios
-relativos à fala e ao ganho):
+frase gravada em WASAPI exclusivo e compartilhado, 48 kHz, 02/10/2026. Não é o
+microfone da apresentação (o da webcam), que ainda não foi testado.
 
-| | exclusivo | compartilhado |
-|---|---|---|
-| pico | −40,4 dBFS | −21,7 dBFS |
-| fala (p95 do RMS) | −53,2 dBFS | −36,1 dBFS |
-| ruído no começo / no fim | −81,3 / −78,3 dBFS | −61,7 / −65,7 dBFS |
+| rodada | | exclusivo | compartilhado |
+|---|---|---|---|
+| 1 (sem ruído de fundo, 16 bits) | pico | −40,4 dBFS | −21,7 dBFS |
+| | fala (p95 do RMS) | −53,2 dBFS | −36,1 dBFS |
+| 2 (ruído branco de fundo, 24 bits) | pico | −37,4 dBFS | −18,4 dBFS |
+| | fala (p95 do RMS) | −48,6 dBFS | −32,5 dBFS |
+| | ruído no começo / no fim | −59,3 / −65,1 dBFS | −48,7 / −49,3 dBFS |
 
-- **O compartilhado aplica +17 dB de ganho fixo** (fala e ruído sobem juntos):
-  volume ou reforço do microfone no Windows, que o exclusivo não aplica.
-- **E muda o formato do espectro do ruído além do ganho:** −17 dB em
-  250–500 Hz no fim da gravação, em relação ao ganho geral. É supressão de
-  ruído ou equalização no caminho compartilhado.
-- **No exclusivo o ruído não cai durante a gravação** (−81,3 → −78,3 dBFS):
-  nenhum indício de supressão no driver ou no hardware.
+- **O compartilhado aplica ganho fixo de +16 a +17 dB** nas duas rodadas (fala
+  e ruído sobem juntos): volume ou reforço do microfone no Windows, que o
+  exclusivo não aplica.
+- **Nenhum indício de supressão de ruído na rodada 2**, nos dois modos: o
+  espectro do ruído não muda de formato do começo para o fim nem de um modo
+  para o outro (critério: uma faixa até 8 kHz 10 dB fora do ganho geral). A
+  queda de 5,8 dB do ruído no exclusivo fica abaixo do limite de 6 dB, e o
+  começo tem um evento a −54 dBFS entre 0,5 e 1 s que puxa a medida.
+- **Retirado:** o "−17 dB em 250–500 Hz" da primeira análise veio da rodada 1,
+  feita sem o ruído de fundo (confirmado pelo usuário); ali o "ruído" era o do
+  próprio microfone e da sala, e o resultado não se repetiu com ruído branco.
 - **Consequência:** a coleta usa o exclusivo, como previsto no plano. O nível
-  do exclusivo é baixo (pico de −40 dBFS); o modelo normaliza pelo pico, mas a
-  gravação deve ser guardada em 24 bits.
-- **Limitações desta rodada:** o arquivo foi salvo em 16 bits e com o clique do
-  Enter no começo (corrigido no script: 24 bits e 0,5 s descartados); no
-  exclusivo a frase não caiu na janela pedida; não foi confirmado se o ruído de
-  fundo estava tocando nas duas gravações.
+  do exclusivo é baixo (pico de −37 a −40 dBFS); o modelo normaliza pelo pico,
+  e a gravação vai em 24 bits.
+- Na rodada 2 as checagens de fala e de piso reprovam por construção: o ruído
+  branco ficou a 20 dB da fala.
+
+Dispositivos de entrada no WASAPI, consultados no driver (sem gravar):
+
+| dispositivo | taxas aceitas a 1 canal |
+|---|---|
+| Grupo de microfones (Realtek(R) Audio) | 48 kHz, exclusivo e compartilhado |
+| Interface de áudio digital (2- USB Digital Audio) | só 96 kHz, exclusivo e compartilhado |
+| Microfone (DroidCam Audio) | 44,1 kHz nos dois modos; 48 kHz só no exclusivo |
+
+A fonte de microfone passou a aceitar 96 kHz (razão 6 para 16 kHz, o mesmo
+FIR: a 96 kHz os 2047 coeficientes dão −0,1 dB em 7,8 kHz e −103 dB em
+8,1 kHz).
 
 ### 10.3 Bases públicas que já trazem canal
 

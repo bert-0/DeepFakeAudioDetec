@@ -194,28 +194,32 @@ class MicrofoneSource(WasapiLoopbackSource):
         self._taxa_dispositivo = 48000
 
 
+#: Múltiplos inteiros de 16 kHz, para o FIR; 44,1 kHz cairia no soxr. Há
+#: microfones USB que só abrem a 96 kHz.
+TAXAS_MICROFONE = (48000, 96000)
+
+
 class MicrofoneWasapiSource(AudioSource):
-    """Microfone por WASAPI em modo exclusivo (sounddevice), a 48 kHz, com o FIR.
+    """Microfone por WASAPI em modo exclusivo (sounddevice), a 48 ou 96 kHz, com o FIR.
 
     No modo exclusivo o áudio não passa pelo mixer do Windows: sem os
     aprimoramentos do microfone e sem conversão de taxa. Se o driver recusar,
-    abre em modo compartilhado e deixa o motivo em `aviso`.
+    abre em modo compartilhado e deixa o motivo em `aviso`. Com `sample_rate`
+    None, entrega o áudio bruto, na taxa do dispositivo.
     """
 
-    def __init__(self, sample_rate: int, nome_dispositivo: str | None = None,
+    def __init__(self, sample_rate: int | None, nome_dispositivo: str | None = None,
                  bloco_ms: int = 100, exclusivo: bool = True):
-        self.sample_rate = sample_rate
         self.nome_dispositivo = nome_dispositivo
         self._bloco_ms = int(bloco_ms)
         self._exclusivo_pedido = exclusivo
-        # 48 kHz porque é a razão inteira para o FIR; 44,1 kHz cairia no soxr.
-        self._taxa_dispositivo = 48000
         #: "exclusivo" ou "compartilhado", conforme o driver aceitou.
         self.modo: str | None = None
         self.aviso: str | None = None
         #: Quantas vezes o PortAudio avisou que o buffer de entrada transbordou.
         self.descontinuidades = 0
         self._abrir()
+        self.sample_rate = sample_rate or self.taxa_dispositivo
 
     def _abrir(self) -> None:
         sd = _importar_sounddevice()
@@ -223,26 +227,27 @@ class MicrofoneWasapiSource(AudioSource):
         self._indice, self.nome = _microfone_wasapi(sd, self.nome_dispositivo)
         erros = []
         for exclusivo in ([True] if self._exclusivo_pedido else []) + [False]:
-            # Alguns drivers só aceitam estéreo no modo exclusivo.
-            for canais in (1, 2):
-                extra = sd.WasapiSettings(exclusive=exclusivo)
-                try:
-                    sd.check_input_settings(device=self._indice, channels=canais,
-                                            dtype="float32", extra_settings=extra,
-                                            samplerate=self._taxa_dispositivo)
-                except Exception as erro:
-                    modo = "exclusivo" if exclusivo else "compartilhado"
-                    erros.append(f"{modo}, {canais} canal(is): {erro}")
-                    continue
-                self.modo = "exclusivo" if exclusivo else "compartilhado"
-                self._canais, self._extra = canais, extra
-                if self._exclusivo_pedido and not exclusivo:
-                    self.aviso = ("o driver recusou o modo exclusivo; gravando em modo "
-                                  "compartilhado, em que os aprimoramentos do Windows "
-                                  "podem alterar o áudio")
-                return
+            for taxa in TAXAS_MICROFONE:
+                # Alguns drivers só aceitam estéreo no modo exclusivo.
+                for canais in (1, 2):
+                    extra = sd.WasapiSettings(exclusive=exclusivo)
+                    try:
+                        sd.check_input_settings(device=self._indice, channels=canais,
+                                                dtype="float32", extra_settings=extra,
+                                                samplerate=taxa)
+                    except Exception as erro:
+                        modo = "exclusivo" if exclusivo else "compartilhado"
+                        erros.append(f"{modo}, {taxa // 1000} kHz, {canais} canal(is): {erro}")
+                        continue
+                    self.modo = "exclusivo" if exclusivo else "compartilhado"
+                    self.taxa_dispositivo, self._canais, self._extra = taxa, canais, extra
+                    if self._exclusivo_pedido and not exclusivo:
+                        self.aviso = ("o driver recusou o modo exclusivo; gravando em modo "
+                                      "compartilhado, em que os aprimoramentos do Windows "
+                                      "podem alterar o áudio")
+                    return
         raise CaptureError(
-            f"o microfone '{self.nome}' não abre a 48 kHz ({'; '.join(erros)}). "
+            f"o microfone '{self.nome}' não abre a 48 nem a 96 kHz ({'; '.join(erros)}). "
             "Configure o formato dele para 48000 Hz em Som > Gravação > "
             "Propriedades > Avançado.")
 
@@ -258,10 +263,10 @@ class MicrofoneWasapiSource(AudioSource):
         fila: queue.Queue = queue.Queue()
         self._parar = threading.Event()
         self.descontinuidades = 0
-        quadros = int(self._taxa_dispositivo * self._bloco_ms / 1000)
+        quadros = int(self.taxa_dispositivo * self._bloco_ms / 1000)
         # Na taxa do dispositivo, o áudio sai bruto: o FIR 1:1 cortaria em 7,9 kHz.
-        conversor = (_conversor(self._taxa_dispositivo, self.sample_rate)
-                     if self.sample_rate != self._taxa_dispositivo else (lambda x: x))
+        conversor = (_conversor(self.taxa_dispositivo, self.sample_rate)
+                     if self.sample_rate != self.taxa_dispositivo else (lambda x: x))
 
         def callback(dados, n_quadros, tempo, status):
             if getattr(status, "input_overflow", False):
@@ -271,7 +276,7 @@ class MicrofoneWasapiSource(AudioSource):
         try:
             fluxo = self._sd.InputStream(
                 device=self._indice, channels=self._canais, dtype="float32",
-                samplerate=self._taxa_dispositivo, blocksize=quadros,
+                samplerate=self.taxa_dispositivo, blocksize=quadros,
                 extra_settings=self._extra, callback=callback)
         except Exception as erro:
             raise CaptureError(f"não foi possível abrir o microfone '{self.nome}': {erro}") from erro

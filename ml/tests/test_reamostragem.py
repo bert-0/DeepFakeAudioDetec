@@ -74,7 +74,7 @@ def test_arquivo_de_qualquer_taxa_chega_com_a_banda_inteira(tmp_path):
 
     from src.preprocess import load_audio
 
-    for taxa in (48000, 44100):
+    for taxa in (48000, 44100, 96000):
         x = np.random.default_rng(taxa).standard_normal(taxa * 4).astype(np.float32) * 0.1
         arq = tmp_path / f"a{taxa}.wav"
         sf.write(arq, x, taxa)
@@ -102,3 +102,12 @@ def test_razao_nao_inteira_exige_para_taxa():
 
     with pytest.raises(ValueError):
         _reamostrar(np.zeros(100), 44100, 16000)
+
+
+def test_microfone_a_96_khz_chega_com_o_topo_da_banda():
+    """Captura contínua de um microfone USB que só abre a 96 kHz (razão 6)."""
+    x96 = np.random.default_rng(7).standard_normal(96000 * 4)
+    y = DecimadorFIR(96000, SR)(x96)[4000:]
+    f, p = welch(y, SR, nperseg=4096)
+    topo = p[(f > 7600) & (f < 7800)].mean() / p[(f > 2000) & (f < 3500)].mean()
+    assert abs(10 * np.log10(topo)) < 0.5

@@ -24,6 +24,7 @@ def filtro(taxa_alta: int = TAXA_DISPOSITIVO, corte: float = CORTE_HZ,
            coeficientes: int = COEFICIENTES) -> np.ndarray:
     from scipy.signal import firwin
 
+    # A 96 kHz os mesmos 2047 bastam: -0,1 dB em 7,8 kHz e -103 dB em 8,1 kHz.
     h = firwin(coeficientes, corte, fs=taxa_alta, window=("kaiser", 10.0))
     h.setflags(write=False)
     return h
@@ -117,7 +118,7 @@ class DecimadorFIR:
         if de % para:
             raise ValueError(f"razão não inteira: {de} -> {para}")
         self.m = de // para
-        self.h = filtro(de)[::-1].copy()
+        self.h = filtro(de, CORTE_RELATIVO * para)[::-1].copy()
         self._resto = np.zeros(len(self.h) - 1)
         self._fase = 0
 

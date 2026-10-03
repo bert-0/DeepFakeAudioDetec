@@ -30,11 +30,14 @@ gravação começa antes do termo assinado (TERMO_CONSENTIMENTO.md). Campos
 
 ## Equipamento e sala
 
-- Microfone: [A DEFINIR: modelo]. Interface USB com ASIO: [A DEFINIR].
-- Captura pela aba Gravar: WASAPI exclusivo, 48 kHz, FIR para 16 kHz. O
-  arquivo guardado é o de 48 kHz em 24 bits, sem conversão. O compartilhado
-  fica de fora: no microfone do notebook ele aplica ganho e muda o espectro do
-  ruído (RESUMO_TCC §10.2.10).
+- Microfone: na apresentação, o da webcam. Na coleta: [A DEFINIR];
+  recomendação, o mesmo da apresentação, para a condição de captura ser a da
+  demonstração. Interface USB com ASIO: [A DEFINIR].
+- Captura pela aba Gravar: WASAPI exclusivo, 48 ou 96 kHz conforme o
+  microfone, FIR para 16 kHz. O arquivo guardado é o da taxa do microfone, em
+  24 bits, sem conversão. O compartilhado fica de fora: no microfone do
+  notebook ele aplica +16 a +17 dB de ganho que o exclusivo não tem (RESUMO_TCC
+  §10.2.10).
 - Aprimoramentos de áudio do Windows desligados no microfone (RESUMO_TCC
   §10.2.1). Antes da coleta, a mesma frase em modo compartilhado e exclusivo, e
   com ruído constante ao fundo, para ver se o hardware processa o áudio.
