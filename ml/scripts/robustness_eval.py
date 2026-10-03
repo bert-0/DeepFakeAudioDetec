@@ -10,7 +10,8 @@ Uso:
         --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000
 
 O EER sai dos log-odds (logit[1] - logit[0]), que não saturam. Cada linha mostra
-também o EER pela probabilidade e quantos bonafide saturaram em 1,0.
+também o EER pela probabilidade e quantos bonafide saturaram em 1,0. Os scores de
+cada áudio vão para um `.npz` por condição (usado por `fusao_ao_vivo.py`).
 """
 
 from __future__ import annotations
@@ -220,14 +221,19 @@ def main() -> None:
         condicoes = [(label, pert) for label, pert in condicoes if label in args.so]
 
     results: dict[str, dict] = {}
+    por_audio: dict[str, dict] = {}
     indices = None
     for label, perturbation in condicoes:
         ds = build_dataset(config, args.partition, extractor, args.smoke, augmenter=perturbation)
+        selecionados = list(range(len(ds)))
         if args.amostra:
             if indices is None:
                 indices = indices_estratificados(ds.labels, ds.system_ids, args.amostra, seed)
                 print(f"Amostra estratificada: {len(indices)} de {len(ds)} áudios\n")
-            ds = Subset(ds, indices)
+            selecionados = indices
+            base, ds = ds, Subset(ds, indices)
+        else:
+            base = ds
         # Sem cache: a perturbação muda as features. Como as perturbações são
         # serializáveis, os workers do config valem aqui também.
         loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
@@ -241,6 +247,12 @@ def main() -> None:
         metrics["bonafide_saturados"] = int((scores[labels == 0] >= 1.0).sum())
         metrics["n_bonafide"] = int((labels == 0).sum())
         results[label] = metrics
+        por_audio[label] = {
+            "ids": np.array([base.ids[i] for i in selecionados]),
+            "systems": np.array([base.system_ids[i] for i in selecionados]),
+            "labels": labels, "scores": scores, "logodds": logodds,
+            "threshold": np.nan if threshold is None else threshold,
+        }
         print(f"{label:12s} -> {format_metrics(metrics)}  "
               f"[EER pela prob.={metrics['eer_probabilidade'] * 100:.2f}%  "
               f"bonafide em 1,0: {metrics['bonafide_saturados']}/{metrics['n_bonafide']}]")
@@ -262,6 +274,10 @@ def main() -> None:
     plot_robustness(results, plot_path)
     print(f"\nResultados (JSON): {json_path}")
     print(f"Gráfico:           {plot_path}")
+    for label, dados in por_audio.items():
+        npz_path = OUTPUT_DIR / f"{name}_{args.partition}_{label}_scores.npz"
+        np.savez(npz_path, **dados)
+        print(f"Scores ({label}):  {npz_path}")
 
 
 if __name__ == "__main__":

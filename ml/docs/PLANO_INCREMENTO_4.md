@@ -99,6 +99,10 @@ primeiro: nenhuma gravação começa antes deles.
 - Cruzamento entre bases: treinado na 2019 e testado na ASVspoof 5, e o contrário.
 - Controle pareado com locutores fora do treino, nos caminhos arquivo e microfone.
 - Ablação de ramos e oclusão da banda alta, só com avaliação.
+- Fusão ao vivo dos dois modelos (média das probabilidades, como no monitor) na
+  captura FIR, com o limiar da fusão escolhido no dev
+  (`scripts/fusao_ao_vivo.py`). Acrescentado em 03/10/2026, depois que o
+  fusion_v4 deixou de saturar com o FIR (RESUMO_TCC §10.2.8).
 - Limiar calibrado no caminho da demonstração, com o `calibrar_captura.py`.
 
 **Texto do TCC**
