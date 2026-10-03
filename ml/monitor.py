@@ -1,17 +1,17 @@
 """Monitor de chamada ao vivo (RF04–RF07 da APS).
 
-Escuta a **saída de áudio do sistema** e classifica o que passa, janela a
-janela. Como pega o que sai da caixa de som, funciona com Microsoft Teams,
-Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
+Escuta a saída de áudio do sistema (loopback) ou um microfone e mostra um score
+por janela; funciona com Teams, Meet, Zoom ou qualquer outro. O limiar é escolhido pelo
+tipo de áudio (src/limiares.py); o score é indício, não veredito.
 
-    # ao vivo, com FUSÃO dos dois modelos (recomendado: 14,03% contra 20,18%)
+    # ao vivo (recomendado: o baseline_v2 sozinho; a fusão não ganhou no canal real)
+    python monitor.py --config configs/baseline_v2.yaml \\
+        --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
+
+    # ao vivo, com fusão pela média de dois modelos
     python monitor.py --config configs/fusion_v4.yaml \\
         --checkpoint checkpoints/fusion_lcnn_v4.pt \\
         --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
-
-    # ao vivo, um modelo só
-    python monitor.py --config configs/fusion_v4.yaml \\
-        --checkpoint checkpoints/fusion_lcnn_v4.pt
 
     # ao vivo, gravando o que ouviu (é assim que se mede o canal real)
     python monitor.py --config ... --checkpoint ... --gravar chamada.wav
@@ -19,34 +19,11 @@ Meet, Zoom ou qualquer outro, sem publicar aplicativo em tenant nenhum.
     # reprocessar uma gravação, de forma reprodutível
     python monitor.py --config ... --checkpoint ... --arquivo chamada.wav
 
+    # pelo microfone (o padrão do Windows, ou --dispositivo-audio "<nome>")
+    python monitor.py --config ... --checkpoint ... --fonte microfone
+
     # ver os dispositivos disponíveis
     python monitor.py --listar-dispositivos
-
-**Qual modelo usar.** O `fusion_lcnn_v4`, e não o melhor modelo do benchmark.
-Em áudio limpo o `baseline_lfcc_cnn_v2` ganha por 1,19 pp, mas sob as condições
-de uma chamada a ordem **se inverte** (medido com `robustness_eval.py` no eval
-completo, 71.237 áudios):
-
-    condição              v2      fusion_v4
-    limpo              18,99%        20,18%
-    opus 25 kbps       20,04%        22,08%
-    banda estreita     35,95%        25,53%   <- v4 ganha por 10,4 pp
-    ruído 5 dB SNR     42,41%        27,42%   <- v4 ganha por 15,0 pp
-    degradação máx.   +23,42 pp     +7,24 pp
-
-**O que degrada, e quanto.** O codec Opus custa pouco: +1,2 a +2,8 pp mesmo a
-15 kbps, abaixo do que o Teams usa. Quem derruba é perder a **banda alta**
-(+5,4 pp) e o **ruído acústico** do interlocutor (+7,2 pp a 5 dB de SNR). Uma
-chamada em banda larga e ambiente silencioso é terreno viável; uma que caiu para
-banda estreita, não.
-
-**Sobre o número que ele mostra.** O limiar gravado no checkpoint foi calibrado
-em áudio limpo, e fora do domínio ele se comporta de forma imprevisível: sob o
-mesmo Opus a 15 kbps o recall do v2 sobe (0,72 -> 0,86) e o do v4 cai
-(0,55 -> 0,39). Por isso o monitor mostra **score**, não veredito. Para um ponto
-de operação confiável, recalibre no canal de destino — é para isso que serve o
-`--gravar`: toque áudios de rótulo conhecido numa chamada real, capture, e
-avalie o resultado.
 """
 
 from __future__ import annotations
@@ -57,9 +34,11 @@ from pathlib import Path
 
 import numpy as np
 
-from src.capture import CaptureError, FileSource, WasapiLoopbackSource
+from src.capture import CaptureError, FileSource, MicrofoneSource, WasapiLoopbackSource
 from src.capture.analyzer import AnalisadorContinuo, Agregador
 from src.config import load_config, resolve_device
+from src.data.dataset import buscar_rotulo
+from src.limiares import escolher_limiar, limiares_do_checkpoint, taxa_nativa
 
 OUTPUT_DIR = Path("outputs")
 
@@ -71,8 +50,11 @@ def parse_args() -> argparse.Namespace:
                    help="checkpoint treinado; repita a opção para fundir modelos")
     p.add_argument("--arquivo", help="analisa um .wav em vez do áudio ao vivo")
     p.add_argument("--gravar", help="salva o áudio capturado neste .wav")
+    p.add_argument("--fonte", choices=("sistema", "microfone"), default="sistema",
+                   help="sistema: o que o computador toca (loopback); microfone: a voz ao vivo")
     p.add_argument("--dispositivo-audio", default=None,
-                   help="nome do dispositivo de saída a escutar (padrão: o do sistema)")
+                   help="nome do dispositivo (saída ou microfone, conforme --fonte; "
+                        "padrão: o do sistema)")
     p.add_argument("--hop", type=float, default=None,
                    help="passo entre janelas em segundos (padrão: metade da janela)")
     p.add_argument("--device", default=None, help="cuda | cpu")
@@ -81,26 +63,38 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--listar-dispositivos", action="store_true",
                    help="mostra os dispositivos de saída e sai")
     p.add_argument("--json", help="grava o histórico de scores neste arquivo")
+    p.add_argument("--parar-com", default=None, metavar="ARQUIVO",
+                   help="encerra como um Ctrl+C quando este arquivo aparecer (usado "
+                        "pela interface web, que não consegue mandar Ctrl+C no Windows)")
     return p.parse_args()
 
 
 def listar_dispositivos() -> int:
     try:
-        import soundcard
+        import soundcard  # noqa: F401
     except ImportError:
         print("[ERRO] instale o pacote de captura: pip install soundcard")
         return 1
-    print("Dispositivos de saída (use o nome com --dispositivo-audio):\n")
-    padrao = soundcard.default_speaker().name
-    for alto_falante in soundcard.all_speakers():
-        marca = " <- padrão" if alto_falante.name == padrao else ""
-        print(f"  {alto_falante.name}{marca}")
+    from src.capture import listar_dispositivos as listar
+
+    d = listar()
+    for fonte, titulo in (("sistema", "Saídas (--fonte sistema)"),
+                          ("microfone", "Microfones (--fonte microfone)")):
+        print(f"{titulo} — use o nome com --dispositivo-audio:")
+        for nome in d[fonte]:
+            print(f"  {nome}{' <- padrão' if nome == d['padrao'][fonte] else ''}")
+        print()
     return 0
 
 
-def barra(score: float, largura: int = 28) -> str:
-    cheio = int(round(score * largura))
-    return "#" * cheio + "." * (largura - cheio)
+def barra(score: float, limiar: float | None = None, largura: int = 28) -> str:
+    """Barra do score, com o limiar marcado por `|`."""
+    cheio = min(largura, int(round(score * largura)))
+    celulas = ["#"] * cheio + ["."] * (largura - cheio)
+    if limiar is not None:
+        i = min(largura - 1, max(0, int(round(limiar * largura))))
+        celulas[i] = "|"
+    return "".join(celulas)
 
 
 def main() -> int:
@@ -115,29 +109,60 @@ def main() -> int:
     config = load_config(args.config)
     device = resolve_device(args.device or config["train"]["device"])
     analisador = AnalisadorContinuo(config, args.checkpoint, device, hop_s=args.hop)
+    # Ao vivo e arquivos acima de 16 kHz usam o limiar recalibrado para a
+    # conversão de taxa; nativos de 16 kHz, o original (src/limiares.py).
+    import torch
+
+    primeiro = args.checkpoint[0]
+    lims = limiares_do_checkpoint(
+        primeiro, torch.load(primeiro, map_location="cpu", weights_only=False))
+    escolha = escolher_limiar(lims, analisador.sample_rate,
+                              taxa_nativa(args.arquivo) if args.arquivo else None,
+                              ao_vivo=not args.arquivo)
+    if analisador.threshold is not None:
+        analisador.threshold = escolha.limiar
     agregador = Agregador(
         janela_s=analisador.janela.tamanho / analisador.sample_rate,
         passo_s=analisador.janela.passo / analisador.sample_rate)
 
-    origem = "arquivo" if args.arquivo else "saída do sistema (loopback)"
+    # Arquivo do dataset: mostra o rótulo verdadeiro ao lado do score.
+    verdade = None
+    if args.arquivo:
+        achado = buscar_rotulo(config, Path(str(args.arquivo).replace("\\", "/")).stem)
+        if achado:
+            particao, label, sistema = achado
+            verdade = "spoof" if label else "bonafide"
+
+    origem = ("arquivo" if args.arquivo else
+              "microfone" if args.fonte == "microfone" else "saída do sistema (loopback)")
     if analisador.n_modelos > 1:
         print(f"Modelos: {analisador.n_modelos} em fusão (média) | dispositivo: {device}")
     else:
         print(f"Modelo: {analisador.config['model']['name']} | dispositivo: {device}")
     print(f"Fonte:  {origem}")
+    if verdade:
+        extra = f" (ataque {sistema})" if sistema != "-" else ""
+        print(f"Rótulo verdadeiro: {verdade.upper()}{extra}  "
+              f"— do protocolo de '{particao}'")
+    elif args.arquivo:
+        print("Rótulo verdadeiro: desconhecido (o id não está em nenhum "
+              "protocolo)")
     print(f"Janela: {analisador.janela.tamanho / analisador.sample_rate:.1f}s | "
           f"passo: {analisador.janela.passo / analisador.sample_rate:.1f}s")
     if analisador.threshold is not None:
-        print(f"Threshold do checkpoint: {analisador.threshold:.4f} "
-              "(calibrado no dev, em áudio LIMPO — ver aviso abaixo)")
-    print("\n[AVISO] o limiar acima foi calibrado em áudio LIMPO. Medido no "
-          "eval completo, o canal\n        de uma chamada custa +1 a +3 pp de "
-          "EER pelo codec, +5 pp por banda\n        estreita e +7 pp por ruído — e o recall no limiar herdado varia de\n        forma imprevisível. Trate o número como indício, não como veredito.\n")
+        print(f"Limiar: {analisador.threshold:.4f} ({escolha.origem})")
+    if escolha.aviso:
+        print(f"[AVISO] {escolha.aviso}")
+    print("\n[AVISO] codec, supressão de ruído e AGC da plataforma de chamada ainda "
+          "deslocam o score;\n        desligue os aprimoramentos de áudio do "
+          "Windows. Trate o número como indício.\n")
 
     try:
-        fonte = (FileSource(args.arquivo, analisador.sample_rate) if args.arquivo
-                 else WasapiLoopbackSource(analisador.sample_rate,
-                                           nome_dispositivo=args.dispositivo_audio))
+        if args.arquivo:
+            fonte = FileSource(args.arquivo, analisador.sample_rate)
+        else:
+            classe = MicrofoneSource if args.fonte == "microfone" else WasapiLoopbackSource
+            fonte = classe(analisador.sample_rate, nome_dispositivo=args.dispositivo_audio)
     except CaptureError as erro:
         print(f"[ERRO] {erro}")
         return 1
@@ -145,36 +170,62 @@ def main() -> int:
     gravado: list[np.ndarray] = []
     limite = args.segundos
     print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  {'peso':>5s}  sinal")
+    print("          score = P(síntese): 0,00 = voz humana | 1,00 = sintético"
+          + (f"   ('|' marca o limiar {analisador.threshold:.3f})"
+             if analisador.threshold is not None else ""))
     print("-" * 78)
+    def _mostrar(leitura) -> None:
+        """Imprime uma leitura (do fluxo ou da janela final)."""
+        agregador.adicionar(leitura)
+        if args.json:
+            gravar_json(agregador, args.json, analisador.threshold, escolha.origem, ativo=True)
+        if leitura.silencio:
+            print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
+                  f"{'—':>6s}  {'—':>5s}  (silêncio)")
+            return
+        banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
+                 if leitura.qualidade else "    —")
+        if not leitura.confiavel:
+            print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
+                  f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
+            return
+        media = agregador.media_movel()
+        marca = "" if leitura.peso >= 0.95 else "  (janela parcial)"
+        print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
+              f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
+              f"{barra(leitura.score, analisador.threshold)}{marca}")
+
     try:
         with fonte:
             for bloco in fonte.blocos():
+                # Parada pedida pela interface web; vai pelo Ctrl+C para salvar WAV e JSON.
+                if args.parar_com and Path(args.parar_com).exists():
+                    raise KeyboardInterrupt
                 if args.gravar:
                     gravado.append(bloco)
                 for leitura in analisador.processar(bloco):
-                    agregador.adicionar(leitura)
-                    if leitura.silencio:
-                        print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{'—':>6s}  {'—':>5s}  (silêncio)")
-                        continue
-                    banda = (f"{100 * leitura.qualidade.fracao_alta:5.1f}%"
-                             if leitura.qualidade else "    —")
-                    if not leitura.confiavel:
-                        print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
-                              f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
-                        continue
-                    media = agregador.media_movel()
-                    print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
-                          f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
-                          f"{barra(leitura.score)}")
+                    _mostrar(leitura)
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
+            # Trecho final que não completou uma janela (comum no ASVspoof: janela de
+            # 4 s, enunciados mais curtos).
+            for leitura in analisador.finalizar():
+                _mostrar(leitura)
     except KeyboardInterrupt:
         print("\nEncerrado.")
     finally:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
-        relatar(agregador, args.json, analisador.canal)
+        perdas = getattr(fonte, "descontinuidades", 0)
+        if perdas:
+            print(f"\n[AVISO] a captura perdeu amostras {perdas} vez(es) (o WASAPI "
+                  "avisou de descontinuidade). Cada perda é um salto na forma de "
+                  "onda; se forem muitas, feche outros programas de áudio e grave "
+                  "de novo.")
+        relatar(agregador, args.json, analisador.canal,
+                ao_vivo=not args.arquivo, limiar=analisador.threshold,
+                verdade=verdade, origem_limiar=escolha.origem,
+                microfone=not args.arquivo and args.fonte == "microfone")
     return 0
 
 
@@ -188,21 +239,66 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
     print("  Reprocesse com --arquivo para obter exatamente o mesmo resultado.")
 
 
-def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
+def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None = None,
+                origem_limiar: str = "", ativo: bool = False) -> Path:
+    """Grava o histórico de scores. Chamado a cada janela durante a captura
+    (`ativo=True`); escrita atômica para a aba Ao vivo não ler arquivo pela metade."""
+    import time
+
+    caminho = Path(destino)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    uteis = {id(x) for x in agregador.uteis}
+    dados = {
+        "ativo": ativo,
+        "atualizado_em": time.time(),
+        "limiar": limiar,
+        "origem_limiar": origem_limiar,
+        "resumo": agregador.resumo(),
+        "leituras": [{"indice": x.indice, "instante": x.instante, "score": x.score,
+                      "rms": x.rms, "silencio": x.silencio, "util": id(x) in uteis,
+                      "peso": round(x.peso, 3)}
+                     for x in agregador.leituras],
+    }
+    tmp = caminho.with_suffix(caminho.suffix + ".tmp")
+    tmp.write_text(json.dumps(dados, indent=2), encoding="utf-8")
+    tmp.replace(caminho)
+    return caminho
+
+
+def relatar(agregador: Agregador, destino: str | None, canal=None,
+            ao_vivo: bool = False, limiar: float | None = None,
+            verdade: str | None = None, origem_limiar: str = "",
+            microfone: bool = False) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
           f"({resumo['janelas_uteis']} úteis, "
           f"{resumo['janelas_silencio']} em silêncio, "
           f"{resumo['janelas_canal_ruim']} com canal ruim)")
-    # As janelas se sobrepõem, então a contagem infla a confiança: com passo de
-    # metade da janela, 5 janelas equivalem a 3 observações independentes.
+    # Com passo de meia janela, 5 janelas equivalem a 3 observações independentes.
     print(f"Janelas independentes (descontando a sobreposição): "
           f"{resumo['janelas_independentes']}")
     if canal is not None:
         print(f"Canal: {canal.descricao()}")
+    if destino and resumo["score_medio"] is None:
+        # Grava mesmo sem janelas, para a aba Ao vivo saber que a sessão acabou.
+        gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
+        if microfone and resumo["janelas_silencio"] == resumo["janelas_total"]:
+            print("\nTodas as janelas vieram em silêncio. Confira se o microfone está")
+            print("mudo, se o Windows deu permissão de acesso ao microfone e se o")
+            print("dispositivo aberto é o certo (--listar-dispositivos).")
+        elif ao_vivo and resumo["janelas_silencio"] == resumo["janelas_total"]:
+            # No Windows o loopback devolve silêncio sem erro se nada toca ou se o
+            # dispositivo aberto não é o que o sistema usa.
+            print("\nTodas as janelas vieram em silêncio. As duas causas comuns:")
+            print("  1. Não havia áudio tocando. O loopback captura a SAÍDA do")
+            print("     sistema — se nada toca, não há o que capturar.")
+            print("  2. O dispositivo aberto não é o que o Windows está usando")
+            print("     (ex.: som indo para o fone e a captura no alto-falante).")
+            print("     Liste com --listar-dispositivos e escolha com")
+            print("     --dispositivo-audio \"<nome exato>\".")
         return
     print(f"Score  médio {resumo['score_medio']:.3f} (ponderado) | "
           f"{resumo['score_medio_simples']:.3f} (simples) | "
@@ -210,16 +306,21 @@ def relatar(agregador: Agregador, destino: str | None, canal=None) -> None:
           f"máximo {resumo['score_maximo']:.3f}")
     print(f"Peso médio das janelas: {resumo['peso_medio']:.2f} "
           "(1,00 = janela cheia de fala)")
+    if limiar is not None:
+        lado = ("ABAIXO do limiar (indício de voz humana)"
+                if resumo["score_medio"] < limiar
+                else "ACIMA do limiar (indício de síntese)")
+        print(f"Média ponderada {resumo['score_medio']:.3f} {lado} "
+              f"— limiar {limiar:.3f}")
+        if verdade:
+            decidiu = "spoof" if resumo["score_medio"] >= limiar else "bonafide"
+            veredito = "COERENTE" if decidiu == verdade else "DIVERGENTE"
+            print(f"Contra o rótulo verdadeiro ({verdade}): {veredito}. "
+                  "Um caso não mede taxa de erro — para isso, evaluate.py.")
     print("Lembrete: score alto indica *indício* de síntese. A taxa de erro "
           "deste modelo\nem áudio de chamada ainda não foi medida.")
     if destino:
-        caminho = Path(destino)
-        caminho.parent.mkdir(parents=True, exist_ok=True)
-        historico = [{"indice": x.indice, "instante": x.instante,
-                      "score": x.score, "rms": x.rms, "silencio": x.silencio}
-                     for x in agregador.leituras]
-        caminho.write_text(json.dumps({"resumo": resumo, "leituras": historico},
-                                      indent=2), encoding="utf-8")
+        caminho = gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
         print(f"Histórico: {caminho}")
 
 

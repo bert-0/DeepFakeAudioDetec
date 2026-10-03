@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Colinha de comandos</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+  :root { --verde: #0b7a46; --verde-claro: #e6f4ec; --borda: #c9d3cc; --texto: #1d1d1d;
+          --suave: #555; --codigo: #f3f5f3; --amarelo: #fff6dc; --amarelo-borda: #e0c56a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "DejaVu Sans", Verdana, sans-serif; font-size: 9.6pt;
+         line-height: 1.42; color: var(--texto); }
+  h1 { font-size: 19pt; margin: 0 0 2px; }
+  .sub { color: var(--suave); margin: 0 0 10px; }
+  h2 { font-size: 12.5pt; margin: 16px 0 6px; padding-bottom: 3px;
+       border-bottom: 2px solid var(--verde); color: var(--verde); break-after: avoid; }
+  h3 { font-size: 10.3pt; margin: 10px 0 3px; break-after: avoid; }
+  p { margin: 3px 0 6px; }
+  pre, code { font-family: "DejaVu Sans Mono", Consolas, monospace; }
+  pre { margin: 3px 0 4px; padding: 6px 8px; font-size: 8.6pt; background: var(--codigo);
+        border-left: 3px solid var(--verde); white-space: pre-wrap; word-break: break-word; }
+  code { font-size: 8.8pt; background: var(--codigo); padding: 0 2px; white-space: nowrap; }
+  .cmd { break-inside: avoid; margin-bottom: 8px; }
+  .faz { margin: 2px 0 0; }
+  .faz b { color: var(--verde); }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 8.9pt; break-inside: avoid; }
+  th, td { text-align: left; vertical-align: top; padding: 4px 6px; border: 1px solid var(--borda); }
+  th { background: var(--verde-claro); }
+  .fluxo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 6px 0 8px; font-size: 8.8pt; }
+  .fluxo span { padding: 4px 7px; border: 1px solid var(--verde); background: var(--verde-claro); }
+  .fluxo i { font-style: normal; color: var(--verde); font-weight: bold; }
+  .aviso { padding: 6px 9px; margin: 6px 0 8px; background: var(--amarelo);
+           border: 1px solid var(--amarelo-borda); break-inside: avoid; }
+  .quebra { break-before: page; }
+  ul { margin: 3px 0 6px; padding-left: 18px; }
+  li { margin: 1px 0; }
+  .rodape { margin-top: 14px; font-size: 8pt; color: var(--suave); }
+</style>
+</head>
+<body>
+
+<h1>Colinha de comandos</h1>
+<p class="sub">Detector de voz sintética · TCC — Ciência da Computação, UNIP · todos os comandos
+são para o PowerShell, rodados de dentro da pasta <code>ml\</code></p>
+
+<h2>Como o sistema funciona, em uma linha</h2>
+<div class="fluxo">
+  <span>Áudio: arquivo, som do computador ou microfone</span><i>→</i>
+  <span>Conversão para 16 kHz (filtro FIR)</span><i>→</i>
+  <span>Janelas de 4 s, a cada 2 s</span><i>→</i>
+  <span>Modelo dá um score de 0 a 1 por janela</span><i>→</i>
+  <span>Média ponderada pela fala</span><i>→</i>
+  <span>Comparação com o limiar</span>
+</div>
+<ul>
+  <li><b>Score:</b> 0 = voz humana, 1 = voz sintética. É um <b>indício</b>, nunca prova.</li>
+  <li><b>Modelo padrão:</b> <code>baseline_v2</code> (LFCC + CNN), treinado na ASVspoof 2019 LA.</li>
+  <li><b>Limiar escolhido sozinho pelo tipo de áudio:</b> 0,654 para arquivo nativo de 16 kHz
+    (o formato da base); 0,686 (aparece como 0,69) para captura ao vivo e arquivos gravados a
+    44,1/48 kHz, que passam pela conversão de taxa.</li>
+  <li><b>Peso da janela:</b> janela com pouca fala (o resto é silêncio) pesa menos na média, porque
+    o modelo a completa por repetição e ela sai do padrão do treino.</li>
+</ul>
+
+<h2>1. Preparar o ambiente</h2>
+<div class="cmd">
+<pre>git pull</pre>
+<p class="faz"><b>O que faz:</b> baixa as últimas mudanças da branch para o seu computador. Rode
+antes de testar, para não usar uma versão antiga.</p>
+</div>
+<div class="cmd">
+<pre>cd ml
+pip install -r requirements.txt -r web\requirements.txt</pre>
+<p class="faz"><b>O que faz:</b> entra na pasta do código e instala as bibliotecas do modelo e da
+interface (FastAPI, Uvicorn, Jinja2). Só na primeira vez ou quando o arquivo de requisitos mudar.
+Para captura ao vivo, também é preciso o <code>soundcard</code> (<code>pip install soundcard</code>).</p>
+</div>
+
+<h2>2. Interface web</h2>
+<div class="cmd">
+<pre>uvicorn web.app:app</pre>
+<p class="faz"><b>O que faz:</b> sobe o servidor da interface. Abra
+<code>http://127.0.0.1:8000</code> no navegador. Para parar: <b>Ctrl+C</b> no terminal.</p>
+</div>
+<div class="cmd">
+<pre>uvicorn web.app:app --reload</pre>
+<p class="faz"><b>O que faz:</b> igual ao anterior, mas reinicia sozinho quando um arquivo do
+código é salvo. Útil para desenvolver; na apresentação, use o comando sem <code>--reload</code>.
+Rode <b>só um</b> dos dois.</p>
+</div>
+
+<h3>As quatro abas</h3>
+<table>
+  <tr><th style="width:22%">Aba</th><th>O que faz</th></tr>
+  <tr><td>Enviar arquivo</td><td>Analisa um áudio (WAV, MP3, M4A, FLAC, OGG, Opus, AAC, até 25 MB).
+    O arquivo é apagado logo depois da análise; só o resultado fica guardado.</td></tr>
+  <tr><td>Resultado</td><td>Score médio, limiar usado, decisão e um gráfico com uma barra por janela
+    (verde abaixo do limiar, vermelha acima, apagada = pouca fala). Botão para baixar o relatório em JSON.</td></tr>
+  <tr><td>Ao vivo</td><td>Escolhe a fonte (<b>som do computador</b> ou <b>microfone</b>) e o dispositivo,
+    inicia e para a captura. Ao parar, a sessão vai para o Histórico.</td></tr>
+  <tr><td>Histórico</td><td>Lista as análises. Excluir uma sessão ao vivo apaga também a gravação dela;
+    "Limpar todo o histórico" apaga tudo.</td></tr>
+</table>
+
+<h3>Trocar o modelo (opcional)</h3>
+<div class="cmd">
+<pre>$env:DETECTOR_CONFIG = "configs\baseline_v2.yaml"
+$env:DETECTOR_CHECKPOINT = "checkpoints\baseline_lfcc_cnn_v2.pt"
+uvicorn web.app:app</pre>
+<p class="faz"><b>O que faz:</b> define qual modelo o servidor carrega (os valores acima já são o
+padrão). As variáveis valem só para aquele terminal. Outras: <code>DETECTOR_DEVICE</code> (cpu ou
+cuda), <code>DETECTOR_BANCO</code> (arquivo do histórico), <code>DETECTOR_PASTA_AO_VIVO</code>
+(onde ficam as gravações).</p>
+</div>
+
+<h2>3. Monitor no terminal (sem a página)</h2>
+<p>É o mesmo analisador da aba Ao vivo, mas mostrando cada janela numa linha. Bom para explicar o
+funcionamento passo a passo.</p>
+
+<div class="cmd">
+<pre>python monitor.py --listar-dispositivos</pre>
+<p class="faz"><b>O que faz:</b> mostra os nomes exatos das saídas de som e dos microfones, com o
+padrão do Windows marcado. Use o nome em <code>--dispositivo-audio</code>.</p>
+</div>
+<div class="cmd">
+<pre>python monitor.py --config configs\baseline_v2.yaml --checkpoint checkpoints\baseline_lfcc_cnn_v2.pt</pre>
+<p class="faz"><b>O que faz:</b> analisa ao vivo o <b>som do computador</b> (o que sai no
+alto-falante: chamada, vídeo, player). Para encerrar: <b>Ctrl+C</b>; no fim aparece o resumo.</p>
+</div>
+<div class="cmd">
+<pre>python monitor.py --config configs\baseline_v2.yaml --checkpoint checkpoints\baseline_lfcc_cnn_v2.pt --fonte microfone</pre>
+<p class="faz"><b>O que faz:</b> analisa ao vivo o <b>microfone padrão</b> do Windows.</p>
+</div>
+<div class="cmd">
+<pre>python monitor.py --config configs\baseline_v2.yaml --checkpoint checkpoints\baseline_lfcc_cnn_v2.pt `
+    --fonte microfone --dispositivo-audio "Nome do microfone" --gravar teste_mic.wav</pre>
+<p class="faz"><b>O que faz:</b> usa um microfone específico e salva o que ouviu em
+<code>teste_mic.wav</code>, para analisar de novo depois. A crase no fim da linha continua o
+comando na linha de baixo (PowerShell).</p>
+</div>
+<div class="cmd">
+<pre>python monitor.py --config configs\baseline_v2.yaml --checkpoint checkpoints\baseline_lfcc_cnn_v2.pt --arquivo teste_mic.wav</pre>
+<p class="faz"><b>O que faz:</b> analisa um arquivo com o mesmo caminho do ao vivo. Dá sempre o
+mesmo resultado para o mesmo arquivo; se ele for da ASVspoof, mostra também o rótulo verdadeiro.</p>
+</div>
+
+<h3>Outras opções úteis</h3>
+<table>
+  <tr><th style="width:28%">Opção</th><th>O que faz</th></tr>
+  <tr><td><code>--segundos 30</code></td><td>Encerra sozinho depois de 30 s.</td></tr>
+  <tr><td><code>--json saida.json</code></td><td>Grava os scores de cada janela num arquivo (é o que a página lê).</td></tr>
+  <tr><td><code>--hop 1</code></td><td>Passo entre janelas em segundos (padrão: 2).</td></tr>
+  <tr><td><code>--device cuda</code></td><td>Usa a GPU, se houver (padrão: o do config).</td></tr>
+</table>
+
+<h3>Como ler a tabela do monitor</h3>
+<table>
+  <tr><th style="width:16%">Coluna</th><th>Significado</th></tr>
+  <tr><td>t</td><td>Instante de início da janela, em segundos.</td></tr>
+  <tr><td>score</td><td>Probabilidade de síntese daquela janela (0 a 1).</td></tr>
+  <tr><td>média</td><td>Média ponderada das janelas mais recentes: o valor que decide.</td></tr>
+  <tr><td>canal</td><td>Quanto da energia está acima de 4 kHz. Perto de 0% por várias janelas
+    indica áudio de banda estreita (telefone), e essas janelas ficam fora da média.</td></tr>
+  <tr><td>peso</td><td>Fração de fala na janela (1,00 = cheia). Abaixo de 0,95 aparece "janela parcial".</td></tr>
+  <tr><td>sinal</td><td>Barra do score; o <code>|</code> marca o limiar. "(silêncio)" = nada captado.</td></tr>
+</table>
+
+<h2>4. Demonstração com áudios da base</h2>
+<div class="cmd">
+<pre>python scripts\montar_demo.py --config configs\baseline_v2.yaml</pre>
+<p class="faz"><b>O que faz:</b> monta, em <code>outputs\demo\</code>, três playlists com áudios do
+conjunto de avaliação da ASVspoof 2019: <code>reais.wav</code> (3 vozes humanas),
+<code>falsos.wav</code> (3 sintéticas, ataques A09, A11 e A19) e <code>misto.wav</code> (alternados).
+Cada uma vem com uma "cola" <code>.txt</code> com o rótulo e o score esperado de cada trecho.</p>
+</div>
+<div class="cmd">
+<pre>python scripts\canal_real.py tocar --arquivo outputs\demo\reais.wav
+python scripts\canal_real.py tocar --arquivo outputs\demo\falsos.wav</pre>
+<p class="faz"><b>O que faz:</b> toca a playlist no alto-falante sem alterar o áudio. Ele espera um
+<b>Enter</b> para começar: inicie a análise ao vivo antes, espere ela carregar e só então aperte Enter.
+Alternativa: o Reprodutor de Mídia do Windows. <b>Não use o VLC</b>: ele altera o áudio (o mesmo
+arquivo de vozes reais foi de 0,33 para 0,98).</p>
+</div>
+
+<table>
+  <tr><th>Playlist</th><th>Enviada como arquivo</th><th>Ao vivo, som do computador</th><th>Pelo celular → microfone</th></tr>
+  <tr><td>reais</td><td>0,03</td><td>0,33 — sem indício</td><td>0,07 a 0,19</td></tr>
+  <tr><td>falsos</td><td>1,00</td><td>1,00 — indício</td><td>0,15 a 0,35 (não separa)</td></tr>
+</table>
+
+<h2>5. Testes com a própria voz</h2>
+<div class="cmd">
+<pre>python scripts\gerar_sintetico.py --entrada gravacoes\ --saida outputs\demo_propria</pre>
+<p class="faz"><b>O que faz:</b> pega suas gravações e refaz cada uma com dois vocoders usados nos
+ataques da base: Griffin-Lim (ataque A11) e WORLD (A02, A03, A05, A07). Original e falso têm a mesma
+voz, microfone e frase; só muda o vocoder. Gera também <code>pareado.wav</code>, com tudo em
+sequência. O WORLD precisa de <code>pip install pyworld "setuptools&lt;81"</code>.</p>
+</div>
+<div class="cmd">
+<pre>python scripts\avaliar_arquivos.py outputs\demo_propria
+python scripts\avaliar_arquivos.py teste_mic.wav outputs\demo\reais.wav</pre>
+<p class="faz"><b>O que faz:</b> mostra o score de cada arquivo numa tabela, pelo mesmo caminho da
+página. Numa pasta do <code>gerar_sintetico</code>, compara original, Griffin-Lim e WORLD de cada frase.</p>
+</div>
+
+<h2>6. Conferir que está tudo certo</h2>
+<div class="cmd">
+<pre>python -m pytest tests -q</pre>
+<p class="faz"><b>O que faz:</b> roda os testes automatizados (cerca de 680). No fim deve aparecer
+"passed" sem "failed". O GitHub roda os mesmos testes a cada envio.</p>
+</div>
+
+<h2>7. Antes de testar ao vivo</h2>
+<ul>
+  <li><b>Desligue os aprimoramentos de áudio</b> da saída e do microfone: Configurações › Som ›
+    (dispositivo) › Aprimoramentos de áudio. Na saída, eles levam todo score para perto de 1,0; no
+    microfone, sobem o score da voz humana.</li>
+  <li>Toque os áudios pelo Reprodutor do Windows ou pelo <code>canal_real.py tocar</code>, nunca pelo VLC.</li>
+  <li>Ensaie na mesma sala e com o mesmo microfone da apresentação.</li>
+</ul>
+
+<h3>Problemas comuns</h3>
+<table>
+  <tr><th style="width:34%">Sintoma</th><th>Causa e solução</th></tr>
+  <tr><td>Tudo aparece como "(silêncio)" no som do computador</td><td>Nada estava tocando, ou o som
+    sai por outro dispositivo (fone). Rode <code>--listar-dispositivos</code> e escolha a saída certa.</td></tr>
+  <tr><td>Tudo em silêncio no microfone</td><td>Microfone mudo, sem permissão no Windows
+    (Privacidade › Microfone) ou dispositivo errado.</td></tr>
+  <tr><td>Todos os scores perto de 1,0, até de voz humana</td><td>Aprimoramentos de áudio ligados, ou
+    o áudio passou pelo VLC.</td></tr>
+  <tr><td>"Não foi possível ler o áudio" com M4A ou AAC</td><td>Esses formatos precisam do FFmpeg
+    (<code>winget install Gyan.FFmpeg</code> e reabrir o terminal). Na demonstração, use WAV.</td></tr>
+  <tr><td>"Já há uma sessão ao vivo em andamento"</td><td>Uma sessão ficou aberta: clique em "Parar
+    análise" ou reinicie o servidor.</td></tr>
+  <tr><td>Aviso de "amostras perdidas" no fim</td><td>O computador ficou sobrecarregado. Feche outros
+    programas de áudio e grave de novo.</td></tr>
+  <tr><td>Erro ao iniciar o servidor (porta em uso)</td><td>Já há um servidor rodando em outro
+    terminal. Feche-o com Ctrl+C ou use <code>uvicorn web.app:app --port 8001</code>.</td></tr>
+</table>
+
+<h3>Respostas rápidas para a banca</h3>
+<table>
+  <tr><th style="width:34%">Pergunta</th><th>Resposta curta</th></tr>
+  <tr><td>Por que um filtro FIR na conversão?</td><td>O conversor padrão apagava a faixa de 7,6–8 kHz,
+    que o modelo usa: a captura custava 5,68 pontos de EER. Com o FIR, custa 0,39 (19,41% contra 19,02%).</td></tr>
+  <tr><td>Por que dois limiares?</td><td>Áudio que passa por 44,1/48 kHz chega diferente ao modelo. O
+    segundo limiar foi calibrado na partição de desenvolvimento com a mesma conversão, sem tocar no conjunto de avaliação.</td></tr>
+  <tr><td>Por que a página não grava pelo navegador?</td><td>O navegador não tem acesso ao som do sistema.
+    A página inicia o <code>monitor.py</code> como processo e para ele criando um arquivo que o monitor vigia.</td></tr>
+  <tr><td>Funciona com vozes de IA atuais?</td><td>Não de forma confiável. O modelo conhece ataques de
+    2018–2019 e, com vozes fora da base, reage às condições de gravação. Isso foi medido e está no trabalho.</td></tr>
+  <tr><td>O que fica guardado?</td><td>Só os resultados, num banco SQLite local. O arquivo enviado é
+    apagado; a gravação ao vivo fica no computador até a sessão ser excluída.</td></tr>
+</table>
+
+<p class="rodape">Números de RESUMO_TCC.md (seções 10.2.1 a 10.2.7). Modelo padrão: baseline_v2.</p>
+</body>
+</html>

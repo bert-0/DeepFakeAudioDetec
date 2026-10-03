@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block titulo %}Ao vivo — Análise de Autenticidade de Voz{% endblock %}
+{% block conteudo %}
+<div class="cartao">
+  <div class="linha-arquivo">
+    <span class="ao-vivo-rotulo"><span class="ponto" id="ponto"></span><span id="estado">Parado</span></span>
+    <span class="duracao" id="tempo">00:00</span>
+  </div>
+
+  <div class="escolha-fonte" id="escolha">
+    <label><input type="radio" name="fonte" value="sistema" checked> Som do computador</label>
+    <label><input type="radio" name="fonte" value="microfone"> Microfone</label>
+    <select id="dispositivo" aria-label="Dispositivo"><option value="">Padrão do Windows</option></select>
+  </div>
+
+  <div class="centro" id="parado">
+    <div data-fonte="sistema">
+      <p><b>Analisar o som do computador.</b> O que tocar no alto-falante — uma chamada,
+        um vídeo — é analisado em janelas de 4 s.</p>
+      <p class="legenda">Antes de começar, desligue os aprimoramentos de áudio do Windows
+        (Configurações › Som › alto-falante).</p>
+    </div>
+    <div data-fonte="microfone" class="oculto">
+      <p><b>Analisar a voz pelo microfone.</b> Fale perto do microfone; a voz é analisada
+        em janelas de 4 s.</p>
+      <p class="legenda">Antes de começar, desligue os aprimoramentos do microfone
+        (Configurações › Som › Entrada › microfone › Aprimoramentos de áudio). Eles
+        alteram a voz e deslocam o score.</p>
+    </div>
+  </div>
+
+  <div id="sessao" class="oculto">
+    <div class="centro">
+      <div class="score" id="score">—</div>
+      <div class="veredito" id="veredito"></div>
+      <div class="legenda" id="legenda"></div>
+    </div>
+    <div class="barras" id="barras"></div>
+    <p class="legenda-barras oculto" id="legenda-barras"><span id="contagem"></span>
+      <span class="chave"><i class="amostra abaixo"></i>abaixo<i class="amostra acima"></i>acima<i class="amostra abaixo parcial"></i>pouca fala</span></p>
+    <div class="faixa-aviso vermelho oculto" id="alerta">Média acima do limiar — indício de síntese, não prova.</div>
+  </div>
+
+  <div class="faixa-aviso amarelo oculto" id="erro"></div>
+  <div class="nota oculto" id="salvo"></div>
+
+  <div class="acoes">
+    <button type="button" class="verde" id="iniciar">Iniciar análise</button>
+    <button type="button" class="vermelho oculto" id="parar">Parar análise</button>
+  </div>
+</div>
+<noscript><p class="rodape">Esta página precisa de JavaScript.</p></noscript>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (v, c) { return v == null ? "—" : v.toLocaleString("pt-BR", {minimumFractionDigits: c, maximumFractionDigits: c}); };
+  var mmss = function (s) { s = Math.round(s || 0); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+  var ocultar = function (id, sim) { $(id).classList.toggle("oculto", sim); };
+  var NOMES = {sistema: "som do computador", microfone: "microfone"};
+  var dispositivos = null;
+
+  function fonte() { return document.querySelector("input[name=fonte]:checked").value; }
+  function mostrarFonte() {
+    var f = fonte();
+    document.querySelectorAll("[data-fonte]").forEach(function (el) {
+      el.classList.toggle("oculto", el.getAttribute("data-fonte") !== f);
+    });
+    var sel = $("dispositivo"); sel.length = 1;
+    sel.options[0].textContent = f === "microfone" ? "Microfone padrão do Windows" : "Saída padrão do Windows";
+    var lista = dispositivos ? dispositivos[f] || [] : [];
+    var padrao = dispositivos && dispositivos.padrao ? dispositivos.padrao[f] : null;
+    lista.forEach(function (nome) {
+      var o = document.createElement("option"); o.value = nome;
+      o.textContent = nome + (nome === padrao ? " (padrão)" : ""); sel.appendChild(o);
+    });
+    try { localStorage.setItem("fonte-ao-vivo", f); } catch (e) {}
+  }
+  try {
+    var salva = localStorage.getItem("fonte-ao-vivo");
+    if (salva) document.querySelector("input[name=fonte][value=" + salva + "]").checked = true;
+  } catch (e) {}
+  document.querySelectorAll("input[name=fonte]").forEach(function (r) { r.addEventListener("change", mostrarFonte); });
+  mostrarFonte();
+  fetch("/api/ao-vivo/dispositivos").then(function (r) { return r.json(); })
+    .then(function (d) { dispositivos = d; mostrarFonte(); }).catch(function () {});
+
+  function desenharSessao(d) {
+    var media = d.resumo.score_medio, limiar = d.limiar;
+    var uteis = d.leituras.filter(function (x) { return x.util; });
+    var acima = media != null && limiar != null && media >= limiar;
+    $("score").textContent = fmt(media, 2);
+    $("score").className = "score " + (media == null ? "amarelo" : (acima ? "vermelho" : "verde"));
+    $("veredito").textContent = media == null ? "Aguardando fala…" : (acima ? "Indício de voz sintética" : "Sem indício de voz sintética");
+    $("legenda").textContent = "média ponderada pela fala" + (limiar != null ? " · limiar " + fmt(limiar, 2) : "");
+    ocultar("alerta", !acima);
+
+    var barras = $("barras"); barras.innerHTML = "";
+    if (limiar != null) {
+      var linha = document.createElement("div"); linha.className = "linha-limiar";
+      linha.style.bottom = (limiar * 100) + "%"; barras.appendChild(linha);
+    }
+    var nAcima = 0;
+    d.leituras.forEach(function (x) {
+      var b = document.createElement("div"), sobre = limiar != null && x.score >= limiar;
+      var parcial = x.util && (x.peso == null ? 1 : x.peso) < 0.5;
+      if (x.util && sobre) nAcima++;
+      b.className = "barra " + (!x.util ? "silencio" : (sobre ? "acima" : "abaixo")) + (parcial ? " parcial" : "");
+      b.style.height = (x.util ? Math.max(x.score * 100, 3) : 3) + "%";
+      b.title = fmt(x.instante, 1) + " s — " + (x.util ? "score " + fmt(x.score, 3) + (parcial ? " (janela parcial)" : "") : "silêncio");
+      barras.appendChild(b);
+    });
+    $("contagem").textContent = nAcima + " de " + uteis.length + (uteis.length === 1 ? " janela" : " janelas") + " acima do limiar";
+    ocultar("legenda-barras", !uteis.length);
+  }
+
+  function desenhar(d) {
+    var ativo = !!d.rodando;
+    $("ponto").className = "ponto" + (ativo ? " ativo" : "");
+    var origem = d.fonte ? " · " + NOMES[d.fonte] : "";
+    $("estado").textContent = ativo ? "Ao vivo" + origem : (d.existe ? "Sessão encerrada" + origem : "Parado");
+    $("tempo").textContent = mmss(d.decorrido_s);
+    ocultar("iniciar", ativo); ocultar("parar", !ativo);
+    ocultar("parado", !!d.existe || ativo);
+    ocultar("escolha", ativo);
+    ocultar("sessao", !d.existe && !ativo);
+    ocultar("erro", !d.erro);
+    if (d.erro) $("erro").textContent = "O monitor não iniciou. Últimas linhas do registro: " + d.erro;
+    if (d.existe) desenharSessao(d);
+    else if (ativo) { $("score").textContent = "—"; $("veredito").textContent = "Iniciando a captura…"; $("legenda").textContent = ""; $("barras").innerHTML = ""; }
+    ocultar("salvo", !d.analise_id);
+    if (d.analise_id) $("salvo").innerHTML = 'Sessão salva no Histórico — <a href="/analises/' + d.analise_id + '">ver resultado</a>.';
+  }
+
+  function atualizar() {
+    return fetch("/api/ao-vivo").then(function (r) { return r.json(); }).then(desenhar).catch(function () {});
+  }
+  function acao(url, botao, corpo) {
+    botao.disabled = true;
+    var opcoes = {method: "POST"};
+    if (corpo) opcoes = {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)};
+    return fetch(url, opcoes).then(function (r) {
+      if (!r.ok) return r.json().then(function (e) { alert(e.detail || "Falhou."); });
+    }).finally(function () { botao.disabled = false; atualizar(); });
+  }
+  $("iniciar").addEventListener("click", function () {
+    acao("/api/ao-vivo/iniciar", this, {fonte: fonte(), dispositivo: $("dispositivo").value || null});
+  });
+  $("parar").addEventListener("click", function () { this.textContent = "Parando…"; var b = this;
+    acao("/api/ao-vivo/parar", b).then(function () { b.textContent = "Parar análise"; }); });
+  atualizar(); setInterval(atualizar, 2000);
+})();
+</script>
+{% endblock %}

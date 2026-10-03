@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Análise de Autenticidade de Voz{% endblock %}</title>
+  <script>
+    // Tema antes de desenhar a página, para não piscar. Padrão: escuro.
+    try { document.documentElement.dataset.tema = localStorage.getItem("tema") || "escuro"; }
+    catch (e) { document.documentElement.dataset.tema = "escuro"; }
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', path='estilo.css') }}">
+</head>
+<body>
+  <div class="app">
+    <div class="cabecalho">
+      <a href="/" class="titulo">Análise de Autenticidade de Voz</a>
+      <button type="button" class="interruptor" id="tema" role="switch" aria-label="Modo escuro">
+        <span class="estrela e1"></span><span class="estrela e2"></span><span class="bolinha"></span>
+      </button>
+      <a href="/sobre" class="sobre">Sobre</a>
+    </div>
+    <nav class="abas">
+      <a href="/" class="aba {{ 'ativa' if aba == 'enviar' }}">Enviar arquivo</a>
+      <a href="/resultado" class="aba {{ 'ativa' if aba == 'resultado' }}">Resultado</a>
+      <a href="/ao-vivo" class="aba {{ 'ativa' if aba == 'ao_vivo' }}">Ao vivo</a>
+      <a href="/historico" class="aba {{ 'ativa' if aba == 'historico' }}">Histórico</a>
+    </nav>
+    {% block conteudo %}{% endblock %}
+    <p class="rodape">TCC — Ciência da Computação, UNIP · modelo treinado no ASVspoof 2019 LA</p>
+  </div>
+  <script>
+    (function () {
+      var raiz = document.documentElement, botao = document.getElementById("tema");
+      function rotular() {
+        var escuro = raiz.dataset.tema === "escuro";
+        botao.setAttribute("aria-checked", escuro ? "true" : "false");
+        botao.title = escuro ? "Mudar para o modo claro" : "Mudar para o modo escuro";
+      }
+      botao.addEventListener("click", function () {
+        raiz.dataset.tema = raiz.dataset.tema === "escuro" ? "claro" : "escuro";
+        try { localStorage.setItem("tema", raiz.dataset.tema); } catch (e) {}
+        rotular();
+      });
+      rotular();
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

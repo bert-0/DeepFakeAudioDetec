@@ -1,0 +1,557 @@
+"""Testes da importação do ASVspoof 2021.
+
+O metadado de 2021 tem oito campos em outra ordem; o parser de 2019 o lê
+errado sem levantar erro.
+"""
+
+import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.data.asvspoof2021 import (  # noqa: E402
+    MetadadoInvalido,
+    condicoes,
+    escrever_protocolo,
+    filtrar,
+    ler_metadata,
+    linha_de_protocolo,
+)
+from src.data.dataset import parse_protocol_with_systems  # noqa: E402
+
+# Formato do eval-package: locutor arquivo codec canal ataque chave trim fase.
+# O bonafide aparece com `bonafide` (formato real) e com `-` na coluna de ataque.
+LINHAS = """\
+LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval
+LA_0009 LA_E_1000001 alaw ita_tx bonafide bonafide notrim eval
+LA_0010 LA_E_1000002 opus ita_tx A10 spoof notrim eval
+LA_0010 LA_E_1000003 opus ita_tx bonafide bonafide notrim progress
+LA_0011 LA_E_1000004 nocodec nocodec A12 spoof notrim eval
+LA_0011 LA_E_1000005 nocodec nocodec - bonafide notrim eval
+LA_0012 LA_E_1000006 gsm pstn A19 spoof notrim progress
+"""
+
+
+@pytest.fixture
+def metadata(tmp_path):
+    p = tmp_path / "trial_metadata.txt"
+    p.write_text(LINHAS, encoding="utf-8")
+    return p
+
+
+# --------------------------------------------------------------------------- #
+# Parser de 2019 no arquivo de 2021
+# --------------------------------------------------------------------------- #
+def test_parser_de_2019_leria_o_arquivo_de_2021_errado_e_em_silencio(metadata):
+    """O parser de 2019 aceita só o bonafide, com o canal no lugar do ataque,
+    e descarta os spoof sem erro."""
+    lidos = parse_protocol_with_systems(metadata)
+    assert lidos, "se isto voltar a ser vazio, o formato do fixture mudou"
+    assert all(label == 0 for _, label, _ in lidos), "só bonafide sobrevive"
+    assert {sistema for _, _, sistema in lidos} <= {"ita_tx", "nocodec", "pstn", "-"}, \
+        "o 'ataque' lido é na verdade o canal"
+
+
+def test_parser_de_2021_le_todas_as_linhas(metadata):
+    assert len(ler_metadata(metadata)) == 7
+
+
+# --------------------------------------------------------------------------- #
+# Leitura dos campos
+# --------------------------------------------------------------------------- #
+def test_campos_sao_atribuidos_na_ordem_certa(metadata):
+    t = ler_metadata(metadata)[0]
+    assert (t.locutor, t.arquivo) == ("LA_0009", "LA_E_9332881")
+    assert (t.codec, t.canal) == ("alaw", "ita_tx")
+    assert (t.ataque, t.chave) == ("A07", "spoof")
+
+
+def test_bonafide_nao_ganha_ataque(metadata):
+    bona = [t for t in ler_metadata(metadata) if t.chave == "bonafide"]
+    assert bona and all(t.ataque == "-" for t in bona)
+
+
+def test_ataques_sao_os_mesmos_de_2019(metadata):
+    """Os ataques do 2021 LA são os mesmos A07–A19 de 2019."""
+    ataques = {t.ataque for t in ler_metadata(metadata) if t.ataque != "-"}
+    assert ataques <= {f"A{i:02d}" for i in range(7, 20)}
+
+
+def test_ordem_diferente_dos_campos_ainda_e_lida(tmp_path):
+    """A chave serve de âncora, então campos a mais não quebram a leitura."""
+    p = tmp_path / "m.txt"
+    p.write_text("LA_0009 LA_E_1 opus ita_tx extra A07 spoof notrim eval\n",
+                 encoding="utf-8")
+    t = ler_metadata(p)[0]
+    assert (t.ataque, t.chave) == ("A07", "spoof")
+
+
+# --------------------------------------------------------------------------- #
+# Falha ruidosa
+# --------------------------------------------------------------------------- #
+def test_protocolo_de_2019_e_recusado(tmp_path):
+    """Um protocolo de 2019 é recusado já na leitura."""
+    p = tmp_path / "2019.txt"
+    p.write_text("LA_0079 LA_E_1234567 - A07 spoof\n", encoding="utf-8")
+    with pytest.raises(MetadadoInvalido, match="trial_metadata"):
+        ler_metadata(p)
+
+
+def test_arquivo_sem_chave_reconhecida_levanta(tmp_path):
+    p = tmp_path / "lixo.txt"
+    p.write_text("uma linha qualquer sem nada\noutra linha\n", encoding="utf-8")
+    with pytest.raises(MetadadoInvalido):
+        ler_metadata(p)
+
+
+# --------------------------------------------------------------------------- #
+# Condições (codec/canal)
+# --------------------------------------------------------------------------- #
+def test_condicoes_sao_contadas_por_classe(metadata):
+    achadas = dict((n, (b, s)) for n, b, s in condicoes(ler_metadata(metadata)))
+    assert achadas["alaw/ita_tx"] == (1, 1)
+    assert achadas["opus/ita_tx"] == (1, 1)
+    assert achadas["nocodec/nocodec"] == (1, 1)
+    assert achadas["gsm/pstn"] == (0, 1)
+
+
+def test_filtro_por_condicao_completa(metadata):
+    sel = filtrar(ler_metadata(metadata), condicao="opus/ita_tx")
+    assert len(sel) == 2 and all(t.codec == "opus" for t in sel)
+
+
+def test_filtro_por_codec_ignora_o_canal(metadata):
+    assert len(filtrar(ler_metadata(metadata), codec="nocodec")) == 2
+
+
+def test_filtro_sem_criterio_devolve_tudo(metadata):
+    assert len(filtrar(ler_metadata(metadata))) == 7
+
+
+# --------------------------------------------------------------------------- #
+# Protocolo convertido para o formato de 2019
+# --------------------------------------------------------------------------- #
+def test_protocolo_convertido_e_lido_pelo_parser_de_2019(metadata, tmp_path):
+    trials = ler_metadata(metadata)
+    destino = tmp_path / "convertido.txt"
+    assert escrever_protocolo(trials, destino) == 7
+
+    lidos = parse_protocol_with_systems(destino)
+    assert len(lidos) == 7
+    assert [n for n, _, _ in lidos] == [t.arquivo for t in trials]
+    assert [s for _, s, _ in lidos] == [0 if t.chave == "bonafide" else 1
+                                        for t in trials]
+    assert [a for _, _, a in lidos] == [t.ataque for t in trials]
+
+
+def test_linha_tem_os_cinco_campos_de_2019(metadata):
+    assert len(linha_de_protocolo(ler_metadata(metadata)[0]).split()) == 5
+
+
+def test_escrever_cria_o_diretorio(metadata, tmp_path):
+    destino = tmp_path / "novo" / "sub" / "p.txt"
+    escrever_protocolo(ler_metadata(metadata), destino)
+    assert destino.is_file()
+
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+def test_cli_recusa_selecao_de_uma_classe_so(metadata, tmp_path, capsys):
+    """Recusa gsm/pstn, que só tem spoof: sem duas classes não há EER."""
+    import argparse
+
+    from scripts.importar_asvspoof2021 import main
+
+    sys.argv = ["x", "--metadata", str(metadata), "--condicao", "gsm/pstn",
+                "--saida", str(tmp_path / "p.txt")]
+    assert main() == 1
+    assert "uma classe só" in capsys.readouterr().out
+    del argparse
+
+
+def test_cli_lista_condicoes(metadata, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    sys.argv = ["x", "--metadata", str(metadata), "--listar"]
+    assert main() == 0
+    saida = capsys.readouterr().out
+    assert "nocodec/nocodec" in saida and "opus/ita_tx" in saida
+    assert "A07" in saida and "A19" in saida
+
+
+def test_cli_gera_protocolo_utilizavel(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    destino = tmp_path / "opus.txt"
+    sys.argv = ["x", "--metadata", str(metadata), "--codec", "opus",
+                "--saida", str(destino)]
+    assert main() == 0
+    assert len(parse_protocol_with_systems(destino)) == 2
+
+
+# --------------------------------------------------------------------------- #
+# Config derivado: não pode sobrescrever os artefatos do eval de 2019
+# --------------------------------------------------------------------------- #
+def _base():
+    import yaml
+    return yaml.safe_load(Path("configs/fusion_v4.yaml").read_text(encoding="utf-8"))
+
+
+def test_config_derivado_nao_colide_com_os_artefatos_de_2019():
+    from src.config import config_derivado, output_name
+    from src.scores import scores_path
+
+    base = _base()
+    novo = config_derivado(base, "2021_opus_n10000", "p.txt", "flac/")
+
+    assert output_name(novo) != output_name(base)
+    assert scores_path("outputs", output_name(novo), "eval") != \
+        scores_path("outputs", output_name(base), "eval"), \
+        "o _eval_scores.npz de 2019 seria sobrescrito"
+
+
+def test_config_derivado_desliga_o_cache():
+    """Desliga o cache, que é indexado pela partição e colidiria com o de 2019."""
+    from src.config import config_derivado
+
+    assert config_derivado(_base(), "x", "p", "a")["train"]["cache_features"] is False
+
+
+def test_config_derivado_aponta_o_eval_para_o_audio_novo():
+    from src.config import config_derivado
+
+    cfg = config_derivado(_base(), "x", "outputs/p.txt", "data/2021/flac")
+    assert cfg["data"]["protocols"]["eval"] == "outputs/p.txt"
+    assert cfg["data"]["audio_dir"]["eval"] == "data/2021/flac"
+
+
+def test_config_derivado_nao_altera_o_original():
+    from src.config import config_derivado
+
+    base = _base()
+    antes = (base["experiment"]["name"], base["data"]["protocols"]["eval"],
+             base["train"]["cache_features"])
+    config_derivado(base, "x", "p", "a")
+    assert (base["experiment"]["name"], base["data"]["protocols"]["eval"],
+            base["train"]["cache_features"]) == antes
+
+
+def test_config_derivado_preserva_audio_features_e_modelo():
+    """Mantém áudio, features e modelo iguais aos do treino."""
+    from src.config import config_derivado
+
+    base = _base()
+    cfg = config_derivado(base, "x", "p", "a")
+    for secao in ("audio", "features", "model"):
+        assert cfg[secao] == base[secao]
+
+
+def test_sufixo_com_caracteres_de_caminho_e_saneado():
+    from src.config import config_derivado
+
+    nome = config_derivado(_base(), "2021/opus ita_tx", "p", "a")["experiment"]["name"]
+    assert "/" not in nome and " " not in nome
+
+
+# --------------------------------------------------------------------------- #
+# Subamostragem estratificada
+# --------------------------------------------------------------------------- #
+def _muitos_trials():
+    from src.data.asvspoof2021 import Trial
+
+    trials = [Trial("S", f"B{i}", "opus", "tx", "-", "bonafide") for i in range(1000)]
+    for a in ("A07", "A10", "A12", "A19"):
+        trials += [Trial("S", f"{a}_{i}", "opus", "tx", a, "spoof") for i in range(2250)]
+    return trials                                    # 10.000, 10% bonafide
+
+
+def test_subamostra_preserva_a_proporcao_das_classes():
+    from src.data.asvspoof2021 import subamostrar
+
+    amostra = subamostrar(_muitos_trials(), 1000, seed=1)
+    bona = sum(1 for t in amostra if t.chave == "bonafide")
+    assert abs(bona / len(amostra) - 0.10) < 0.01
+
+
+def test_subamostra_nao_perde_nenhum_ataque():
+    """A amostra estratificada não deixa nenhum ataque de fora."""
+    from src.data.asvspoof2021 import subamostrar
+
+    ataques = {t.ataque for t in subamostrar(_muitos_trials(), 50, seed=3)}
+    assert {"A07", "A10", "A12", "A19"} <= ataques
+
+
+def test_mesma_semente_da_mesma_amostra():
+    from src.data.asvspoof2021 import subamostrar
+
+    a = [t.arquivo for t in subamostrar(_muitos_trials(), 500, seed=7)]
+    b = [t.arquivo for t in subamostrar(_muitos_trials(), 500, seed=7)]
+    assert a == b
+
+
+def test_amostra_zero_ou_maior_que_a_base_devolve_tudo():
+    from src.data.asvspoof2021 import subamostrar
+
+    trials = _muitos_trials()
+    assert len(subamostrar(trials, 0)) == len(trials)
+    assert len(subamostrar(trials, 10**9)) == len(trials)
+
+
+# --------------------------------------------------------------------------- #
+# CLI com config derivado
+# --------------------------------------------------------------------------- #
+def test_cli_gera_config_seguro_e_carregavel(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+    from src.config import load_config
+
+    destino = tmp_path / "opus.txt"
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(destino),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", str(_pasta_com_audios(tmp_path, metadata))])
+    assert codigo == 0
+
+    cfg = load_config(destino.with_name("opus__fusion_lcnn_v4.yaml"))
+    assert cfg["experiment"]["name"] == "fusion_lcnn_v4__2021_opus"
+    assert cfg["data"]["protocols"]["eval"] == str(destino)
+    assert cfg["train"]["cache_features"] is False
+    assert "evaluate.py --config" in capsys.readouterr().out
+
+
+def test_cli_config_base_sem_audio_dir_e_recusado(metadata, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    assert main(["--metadata", str(metadata), "--codec", "opus",
+                 "--config-base", "configs/fusion_v4.yaml"]) == 1
+    assert "--audio-dir" in capsys.readouterr().out
+
+
+def test_cli_sem_config_base_avisa_para_nao_copiar_a_mao(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "opus",
+          "--saida", str(tmp_path / "p.txt")])
+    assert "sobrescreve os resultados" in capsys.readouterr().out
+
+
+
+# --------------------------------------------------------------------------- #
+# Regressão: bonafide com `bonafide` nas colunas de ataque e de chave
+# --------------------------------------------------------------------------- #
+def test_bonafide_no_formato_real_e_lido(tmp_path):
+    p = tmp_path / "m.txt"
+    p.write_text("LA_0007 LA_E_5932896 alaw ita_tx bonafide bonafide notrim eval\n"
+                 "LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval\n",
+                 encoding="utf-8")
+    trials = ler_metadata(p)
+    assert [t.chave for t in trials] == ["bonafide", "spoof"]
+    assert trials[0].ataque == "-", "o bonafide não tem ataque"
+
+
+def test_fixture_tem_as_duas_classes_nas_condicoes_certas(metadata):
+    """O fixture tem bonafide nas condições com as duas classes."""
+    achadas = {n: (b, s) for n, b, s in condicoes(ler_metadata(metadata))}
+    assert achadas["alaw/ita_tx"][0] == 1
+    assert achadas["opus/ita_tx"][0] == 1
+
+
+def test_descarte_de_linha_e_relatado(tmp_path):
+    from src.data.asvspoof2021 import ler_metadata as ler
+
+    p = tmp_path / "m.txt"
+    p.write_text("LA_0009 LA_E_1 alaw ita_tx A07 spoof notrim eval\n"
+                 "linha quebrada sem chave nenhuma aqui\n", encoding="utf-8")
+    relatorio: dict = {}
+    ler(p, relatorio)
+    assert relatorio["ignoradas"] == 1
+    assert "linha quebrada" in relatorio["exemplos"][0]
+
+
+def test_cli_para_quando_uma_classe_inteira_some(tmp_path, capsys):
+    """A CLI para quando uma classe inteira some da leitura."""
+    from scripts.importar_asvspoof2021 import main
+
+    p = tmp_path / "m.txt"
+    p.write_text("".join(f"LA_0009 LA_E_{i} alaw ita_tx A07 spoof notrim eval\n"
+                         for i in range(5)), encoding="utf-8")
+    assert main(["--metadata", str(p), "--listar"]) == 1
+    assert "uma classe só" in capsys.readouterr().out
+
+
+def test_listar_mostra_as_fases(metadata, capsys):
+    """O `--listar` mostra a divisão por fase (o Müller reporta a de progresso)."""
+    from scripts.importar_asvspoof2021 import main
+
+    assert main(["--metadata", str(metadata), "--listar"]) == 0
+    saida = capsys.readouterr().out
+    assert "progress" in saida and "eval" in saida
+
+
+def test_fases_conta_por_classe(metadata):
+    from src.data.asvspoof2021 import fases
+
+    contagem = fases(ler_metadata(metadata))
+    assert contagem["eval"] == (2, 3)
+    assert contagem["progress"] == (1, 1)
+
+
+# --------------------------------------------------------------------------- #
+# Filtro por fase (eval, progress, hidden)
+# --------------------------------------------------------------------------- #
+def test_filtro_por_fase(metadata):
+    from src.data.asvspoof2021 import filtrar
+
+    so_eval = filtrar(ler_metadata(metadata), fase="eval")
+    assert so_eval and all(t.fase == "eval" for t in so_eval)
+    assert len(so_eval) == 5
+
+
+def test_fase_combina_com_codec(metadata):
+    from src.data.asvspoof2021 import filtrar
+
+    sel = filtrar(ler_metadata(metadata), codec="opus", fase="progress")
+    assert [t.arquivo for t in sel] == ["LA_E_1000003"]
+
+
+def test_cli_avisa_quando_a_fase_nao_e_escolhida(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "alaw",
+          "--saida", str(tmp_path / "p.txt")])
+    assert "--fase eval" in capsys.readouterr().out
+
+
+def test_rotulo_do_arquivo_inclui_a_fase(metadata, tmp_path):
+    """Sem codec o rótulo vira `none_eval_n...`, sem o hífen do canal `-`."""
+    import argparse
+
+    from scripts.importar_asvspoof2021 import rotulo
+
+    a = argparse.Namespace(condicao="none/-", codec=None, fase="eval", amostra=10000)
+    assert rotulo(a) == "none_eval_n10000"
+
+
+def test_dois_modelos_na_mesma_condicao_nao_sobrescrevem_o_config(metadata, tmp_path):
+    """Cada modelo ganha seu config; só o protocolo é compartilhado."""
+    from scripts.importar_asvspoof2021 import main
+    from src.config import load_config
+
+    destino = tmp_path / "opus.txt"
+    audio = _pasta_com_audios(tmp_path, metadata)
+    for base in ("configs/fusion_v4.yaml", "configs/baseline_v2.yaml"):
+        assert main(["--metadata", str(metadata), "--codec", "opus",
+                     "--saida", str(destino), "--config-base", base,
+                     "--audio-dir", str(audio)]) == 0
+
+    nomes = sorted(p.name for p in tmp_path.glob("opus__*.yaml"))
+    assert nomes == ["opus__baseline_lfcc_cnn_v2.yaml", "opus__fusion_lcnn_v4.yaml"]
+    assert load_config(tmp_path / nomes[0])["model"]["name"] != \
+        load_config(tmp_path / nomes[1])["model"]["name"]
+
+
+
+# --------------------------------------------------------------------------- #
+# Áudio ausente: a falha aparece na importação, não no evaluate.py
+# --------------------------------------------------------------------------- #
+def _pasta_com_audios(tmp_path, metadata):
+    pasta = tmp_path / "flac"
+    pasta.mkdir(exist_ok=True)
+    for t in ler_metadata(metadata):
+        (pasta / f"{t.arquivo}.flac").write_bytes(b"x")
+    return pasta
+
+
+def test_importacao_recusa_amostra_com_audio_faltando(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    (pasta / "LA_E_1000002.flac").write_bytes(b"x")     # só 1 dos 2 do opus
+
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(tmp_path / "p.txt"),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", str(pasta)])
+    saida = capsys.readouterr().out
+
+    assert codigo == 1
+    assert "1 dos 2" in saida and "LA_E_1000003" in saida
+    assert "181.566" in saida, "precisa dizer quanto a pasta deveria ter"
+    assert not list(tmp_path.glob("*.yaml")), "nenhum config pode ser gerado"
+
+
+def test_importacao_explica_pasta_inexistente(metadata, tmp_path, capsys):
+    from scripts.importar_asvspoof2021 import main
+
+    main(["--metadata", str(metadata), "--codec", "opus",
+          "--saida", str(tmp_path / "p.txt"),
+          "--config-base", "configs/fusion_v4.yaml",
+          "--audio-dir", str(tmp_path / "nao_existe")])
+    assert "A pasta não existe" in capsys.readouterr().out
+
+
+
+# --------------------------------------------------------------------------- #
+# Leitura pelo libsndfile (o fallback do librosa é lento demais)
+# --------------------------------------------------------------------------- #
+def test_falha_de_leitura_e_detectada_com_o_erro_real(tmp_path):
+    import soundfile as sf
+
+    from scripts.importar_asvspoof2021 import falhas_de_leitura
+    from src.data.asvspoof2021 import Trial
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    sf.write(pasta / "bom.flac", np.zeros(1600, dtype="float32"), 16000)
+    (pasta / "ruim.flac").write_bytes(b"isto nao e um flac")
+
+    trials = [Trial("S", "bom", "none", "-", "-", "bonafide"),
+              Trial("S", "ruim", "none", "-", "A07", "spoof")]
+    testados, falhas = falhas_de_leitura(trials, pasta)
+
+    assert testados == 2
+    assert [nome for nome, _ in falhas] == ["ruim"]
+    assert falhas[0][1], "a mensagem real do libsndfile não pode sumir"
+
+
+def test_importacao_avisa_quando_o_libsndfile_nao_le(metadata, tmp_path, capsys):
+    """Com arquivos ilegíveis, gera o config mas avisa e sugere converter para WAV."""
+    from scripts.importar_asvspoof2021 import main
+
+    pasta = _pasta_com_audios(tmp_path, metadata)       # bytes que não são FLAC
+    codigo = main(["--metadata", str(metadata), "--codec", "opus",
+                   "--saida", str(tmp_path / "p.txt"),
+                   "--config-base", "configs/fusion_v4.yaml",
+                   "--audio-dir", str(pasta)])
+    saida = capsys.readouterr().out
+
+    assert codigo == 0
+    assert "libsndfile não conseguiu decodificar" in saida
+    # Atualizar o soundfile não resolvia (já estava no 0.14.0).
+    assert "pip install" not in saida
+    assert "converter_para_wav.py" in saida and "--audio-ext .wav" in saida
+
+
+
+def test_cabecalho_bom_com_decodificacao_quebrada_e_detectado(tmp_path):
+    """Detecta FLAC truncado, cujo cabeçalho `sf.info` abre sem erro."""
+    import soundfile as sf
+
+    from scripts.importar_asvspoof2021 import falhas_de_leitura
+    from src.data.asvspoof2021 import Trial
+
+    pasta = tmp_path / "flac"
+    pasta.mkdir()
+    t = np.arange(16000 * 2) / 16000
+    sf.write(pasta / "cortado.flac", (0.3 * np.sin(2 * np.pi * 200 * t)).astype("float32"), 16000)
+    dados = (pasta / "cortado.flac").read_bytes()
+    (pasta / "cortado.flac").write_bytes(dados[: len(dados) // 3])
+
+    sf.info(str(pasta / "cortado.flac"))            # o cabeçalho abre sem erro
+
+    _, falhas = falhas_de_leitura([Trial("S", "cortado", "none", "-", "-", "bonafide")], pasta)
+    assert [nome for nome, _ in falhas] == ["cortado"]

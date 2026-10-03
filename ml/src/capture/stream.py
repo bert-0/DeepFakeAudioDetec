@@ -1,12 +1,7 @@
 """Janela deslizante: do fluxo contínuo para as janelas fixas do modelo.
 
-O modelo classifica trechos de `audio.duration` segundos (4 s nos configs). Uma
-chamada é um fluxo sem fim, e os blocos que chegam da placa de som não têm
-relação com esse tamanho — são ~100 ms cada.
-
-Esta classe acumula os blocos e emite janelas de tamanho fixo com sobreposição.
-O passo (`hop`) menor que a janela existe para que um trecho sintético curto não
-caia exatamente na fronteira entre duas janelas e seja diluído nas duas.
+Acumula os blocos da placa de som (~100 ms) e emite janelas de
+`audio.duration` segundos com sobreposição.
 """
 
 from __future__ import annotations
@@ -30,8 +25,12 @@ class JanelaDeslizante:
         self.tamanho = int(tamanho)
         self.passo = int(passo)
         self._buffer = np.zeros(0, dtype=np.float32)
-        #: nº de amostras já descartadas — dá a posição absoluta de cada janela
+        #: amostras já descartadas; dá a posição absoluta de cada janela
         self._consumidas = 0
+        #: amostra em que termina a última janela emitida
+        self._cobertura = 0
+        #: início da última janela emitida; a final não cai na grade do passo
+        self.inicio_da_ultima = 0
 
     def alimentar(self, bloco: np.ndarray):
         """Adiciona um bloco e devolve as janelas completas que ele fechou."""
@@ -39,6 +38,8 @@ class JanelaDeslizante:
             self._buffer = np.concatenate([self._buffer,
                                            np.asarray(bloco, dtype=np.float32)])
         while self._buffer.size >= self.tamanho:
+            self.inicio_da_ultima = self._consumidas
+            self._cobertura = self._consumidas + self.tamanho
             yield self._buffer[:self.tamanho].copy()
             self._buffer = self._buffer[self.passo:]
             self._consumidas += self.passo
@@ -46,6 +47,18 @@ class JanelaDeslizante:
     def resto(self) -> np.ndarray:
         """O que sobrou sem completar uma janela (fim do arquivo/da chamada)."""
         return self._buffer.copy()
+
+    def finalizar(self):
+        """Emite o trecho final se sobrou áudio que nenhuma janela cobriu.
+
+        Sai mais curto que a janela; o `preprocess_waveform` completa por repetição.
+        """
+        total = self._consumidas + self._buffer.size
+        if self._buffer.size == 0 or total <= self._cobertura:
+            return
+        self.inicio_da_ultima = self._consumidas
+        self._cobertura = total
+        yield self._buffer.copy()
 
     @property
     def inicio_da_proxima(self) -> int:

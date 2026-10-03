@@ -6,8 +6,18 @@ import sys
 import numpy as np
 import pytest
 
-# Permite `import src...` ao rodar pytest a partir de ml/.
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+#: Raiz do projeto Python (`ml/`), onde ficam `configs/`, `src/` e `scripts/`.
+RAIZ_ML = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Permite `import src...` de qualquer diretório.
+sys.path.insert(0, RAIZ_ML)
+
+
+@pytest.fixture(autouse=True)
+def _roda_de_dentro_de_ml(monkeypatch):
+    """Roda todo teste com o diretório atual em `ml/`, de onde quer que o pytest
+    tenha sido chamado: vários testes usam caminhos relativos a `ml/`."""
+    monkeypatch.chdir(RAIZ_ML)
 
 
 @pytest.fixture

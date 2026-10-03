@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block titulo %}{{ a.arquivo }} — Análise de Autenticidade de Voz{% endblock %}
+{% block conteudo %}
+{% set pouca_fala = a.score_medio is none %}
+{% set uteis = a.janelas | selectattr('util') | list %}
+{% set n_acima = (uteis | selectattr('score', 'ge', a.limiar) | list | length) if a.limiar is not none else 0 %}
+{% set acima = not pouca_fala and a.limiar is not none and a.score_medio >= a.limiar %}
+{% set cor = 'amarelo' if pouca_fala else ('vermelho' if acima else 'verde') %}
+<div class="cartao">
+  <div class="linha-arquivo">
+    <span class="nome">{{ a.arquivo }}</span><span class="duracao">{{ a.duracao_s | mmss }}</span>
+  </div>
+
+  <div class="centro">
+    <div class="score {{ cor }}">{{ a.score_medio | br(2) }}</div>
+    <div class="veredito">
+      {% if pouca_fala %}Inconclusivo — não há fala para analisar
+      {% elif acima %}Indício de voz sintética
+      {% else %}Sem indício de voz sintética{% endif %}
+    </div>
+    <div class="legenda">score médio · 0 = voz humana, 1 = voz sintética
+      {% if a.limiar is not none %}· limiar {{ a.limiar | br(2) }}{% endif %}</div>
+  </div>
+
+  {% set janelas = a.janelas %}{% set limiar = a.limiar %}
+  {% include "_barras.html" %}
+  <div class="eixo"><span>0:00</span><span>{{ a.duracao_s | mmss }}</span></div>
+  {% if uteis %}
+  <p class="legenda-barras">{{ n_acima }} de {{ uteis | length }} {{ 'janela' if uteis | length == 1 else 'janelas' }} acima do limiar
+    <span class="chave"><i class="amostra abaixo"></i>abaixo<i class="amostra acima"></i>acima<i class="amostra abaixo parcial"></i>pouca fala</span></p>
+  {% endif %}
+
+  {% if acima %}
+  <div class="faixa-aviso vermelho">Score acima do limiar — indício de síntese, não prova.</div>
+  {% endif %}
+  {% if a.aviso_limiar %}
+  <div class="faixa-aviso amarelo">{{ a.aviso_limiar | frase }}</div>
+  {% endif %}
+
+  <details class="detalhes">
+    <summary>Detalhes da análise</summary>
+    <table>
+      <tr><th>Analisado em</th><td>{{ a.criado_em | data }}</td></tr>
+      {% if a.taxa_nativa %}<tr><th>Taxa do arquivo</th><td>{{ '%g' % (a.taxa_nativa / 1000) }} kHz</td></tr>{% endif %}
+      <tr><th>Score máximo numa janela</th><td>{{ a.score_maximo | br(3) }}</td></tr>
+      <tr><th>Limiar</th><td>{{ a.limiar | br(4) }} — {{ a.origem_limiar }}</td></tr>
+      <tr><th>Janelas com fala</th><td>{{ a.janelas_uteis }} (≈ {{ a.janelas_independentes | br(1) }} independentes)</td></tr>
+      <tr><th>Modelo</th><td>{{ a.modelo }}</td></tr>
+    </table>
+  </details>
+
+  <div class="acoes">
+    <a href="/analises/{{ a.id }}/relatorio.json" download>Baixar relatório</a>
+    <a href="/" class="verde">Nova análise</a>
+  </div>
+</div>
+{% endblock %}

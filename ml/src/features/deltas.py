@@ -1,8 +1,4 @@
-"""Coeficientes dinâmicos: delta (1ª ordem) e delta-delta (2ª ordem).
-
-Capturam a variação temporal das características — falas sintéticas frequentemente
-falham em reproduzir essas dinâmicas (TC1 §3.3).
-"""
+"""Coeficientes dinâmicos: delta e delta-delta (TC1 §3.3)."""
 
 from __future__ import annotations
 
@@ -11,14 +7,11 @@ import numpy as np
 
 
 def add_deltas(feat: np.ndarray, width: int = 9) -> np.ndarray:
-    """Concatena [feat; delta; delta-delta] ao longo do eixo de frequência.
-
-    `feat` tem shape (n_coef, n_frames); a saída tem shape (3*n_coef, n_frames).
-    """
+    """Concatena [feat; delta; delta-delta]: (n_coef, T) -> (3*n_coef, T)."""
     # `width` deve ser ímpar e menor que o número de frames.
     width = min(width, _largest_odd_leq(feat.shape[1]))
     if width < 3:
-        # Poucos frames para calcular deltas — devolve zeros do mesmo shape.
+        # Poucos frames: deltas zerados.
         d1 = np.zeros_like(feat)
         d2 = np.zeros_like(feat)
     else:

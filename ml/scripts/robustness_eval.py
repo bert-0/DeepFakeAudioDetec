@@ -1,14 +1,17 @@
-"""Avaliação de robustez (TC1 §5.5).
-
-Mede a degradação do modelo quando o áudio de avaliação é perturbado com ruído
-de fundo e variações de ganho — verificando se o sistema mantém desempenho em
-condições acústicas adversas (RNF de robustez).
+"""Avaliação de robustez (TC1 §5.5): EER sob ruído, ganho e degradações de canal.
 
 Uso:
     python scripts/robustness_eval.py --config configs/baseline.yaml \
         --checkpoint checkpoints/baseline_lfcc_cnn.pt
     python scripts/robustness_eval.py --config configs/attention.yaml \
         --checkpoint checkpoints/attention_fusion.pt --smoke
+    # conferência barata: 10 mil áudios estratificados por ataque
+    python scripts/robustness_eval.py --config configs/fusion_v4.yaml \
+        --checkpoint checkpoints/fusion_lcnn_v4.pt --amostra 10000
+
+O EER sai dos log-odds (logit[1] - logit[0]), que não saturam. Cada linha mostra
+também o EER pela probabilidade e quantos bonafide saturaram em 1,0. Os scores de
+cada áudio vão para um `.npz` por condição (usado por `fusao_ao_vivo.py`).
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -33,7 +36,12 @@ from src.config import (  # noqa: E402
 )
 from src.data import build_dataset  # noqa: E402
 from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_metrics, format_metrics  # noqa: E402
+from src.metrics import (  # noqa: E402
+    compute_eer,
+    compute_metrics,
+    format_metrics,
+    probabilidade_e_logodds,
+)
 from src.models import build_model  # noqa: E402
 from src.preprocess.augment import make_perturbation  # noqa: E402
 from src.preprocess.channel import (  # noqa: E402
@@ -54,26 +62,19 @@ CONDITIONS = [
     ("gain_+6dB", "gain", 6),
 ]
 
-# Condições de CANAL: o que uma chamada de Teams/Meet/Zoom faz com o áudio.
-# Separadas das acústicas acima porque respondem a outra pergunta — não "o
-# modelo aguenta um ambiente ruidoso?", e sim "o modelo sobrevive ao meio de
-# transmissão?". É a pergunta que decide se o monitor ao vivo (monitor.py) tem
-# base para existir.
-#
-# `nivel` do opus é o compression_level em [0,1]; a taxa em kbps resultante
-# depende do conteúdo (o Opus é VBR) e é medida e reportada em tempo de
-# execução, em vez de anunciada.
-# Os níveis foram calibrados para cair na faixa que o Teams usa de fato
-# (16-32 kbps para voz), medida em ruído rosa de 4 s:
-#   0.90 -> 30 kbps    0.92 -> 25 kbps    0.94 -> 19 kbps
-#   0.96 -> 15 kbps    1.00 ->  6 kbps
-# Varrer de 130 a 6 kbps testaria sobretudo faixas que uma chamada nunca usa.
+# Condições de canal: o que uma chamada (Teams/Meet/Zoom) faz com o áudio.
+# O nível do opus é o compression_level em [0,1]; como o Opus é VBR, a taxa é
+# medida em execução. Níveis escolhidos para a faixa de voz do Teams (16-32 kbps).
 CHANNEL_CONDITIONS = [
     ("opus_30kbps", [("opus", 0.90)]),        # rede boa
     ("opus_25kbps", [("opus", 0.92)]),        # típico
     ("opus_15kbps", [("opus", 0.96)]),        # rede apertada
     ("banda_estreita", [("band", 8000)]),     # telefonia: nada acima de 4 kHz
     ("banda_estreita_opus", [("band", 8000), ("opus", 0.92)]),  # o caso realista
+    # Captura ao vivo (16 -> 48 -> 16 kHz): apaga só 7,6-8 kHz, e isso sozinho
+    # inflou todos os scores no teste ao vivo (Seção 10.2.1 do resumo).
+    ("captura_48k", [("captura", 48000)]),            # soxr (o de antes)
+    ("captura_48k_fir", [("captura_fir", 48000)]),    # FIR longo (o atual)
 ]
 
 
@@ -94,21 +95,46 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sem-canal", action="store_true",
                    help="roda só as condições acústicas (ruído/ganho), pulando "
                         "as de canal (codec e banda estreita)")
+    p.add_argument("--so", nargs="+", default=None, metavar="CONDICAO",
+                   help="roda só estas condições (ex.: clean captura_48k)")
+    p.add_argument("--amostra", type=int, default=None, metavar="N",
+                   help="avalia só N áudios, estratificados por ataque (e bonafide), "
+                        "com a semente do config — mesma amostra em toda condição")
     return p.parse_args()
+
+
+def indices_estratificados(labels, systems, n: int, seed: int) -> list[int]:
+    """N índices com a mesma proporção de cada (rótulo, ataque), sem perder ataque raro."""
+    grupos: dict[tuple, list[int]] = {}
+    for i, chave in enumerate(zip(labels, systems)):
+        grupos.setdefault(chave, []).append(i)
+    total = len(labels)
+    if n >= total:
+        return list(range(total))
+    rng = np.random.default_rng(seed)
+    escolhidos: list[int] = []
+    for chave in sorted(grupos, key=str):
+        membros = grupos[chave]
+        k = max(1, round(n * len(membros) / total))
+        escolhidos.extend(rng.choice(membros, size=min(k, len(membros)), replace=False).tolist())
+    return sorted(escolhidos)
 
 
 @torch.no_grad()
 def run_inference(model, loader, device):
+    """Devolve (labels, preds, P(spoof), log-odds)."""
     model.eval()
-    labels, preds, scores = [], [], []
+    labels, preds, scores, logodds = [], [], [], []
     for features, y in loader:
         features = {k: v.to(device) for k, v in features.items()}
         logits = model(features)
-        probs = torch.softmax(logits, dim=1)[:, 1]
-        scores.append(probs.cpu().numpy())
+        probs, lo = probabilidade_e_logodds(logits)
+        scores.append(probs)
+        logodds.append(lo)
         preds.append(logits.argmax(dim=1).cpu().numpy())
         labels.append(y.numpy())
-    return (np.concatenate(labels), np.concatenate(preds), np.concatenate(scores))
+    return (np.concatenate(labels), np.concatenate(preds),
+            np.concatenate(scores), np.concatenate(logodds))
 
 
 def plot_robustness(results: dict, out_path: Path) -> None:
@@ -134,16 +160,11 @@ def plot_robustness(results: dict, out_path: Path) -> None:
 
 
 def relatar_taxas(sample_rate: int) -> None:
-    """Mostra a taxa que cada nível de compressão produz, medida.
-
-    O Opus é VBR: o `compression_level` é um pedido, não uma garantia. Sem esta
-    medição, o relatório citaria taxas nominais que o arquivo nunca teve.
-    """
+    """Mede a taxa real de cada nível do Opus (é VBR: o nível não garante a taxa)."""
     import numpy as np_
 
     rng = np_.random.default_rng(0)
-    # Ruído rosa: energia em todas as bandas, decrescente como a da fala. Um tom
-    # puro comprimiria a quase nada e daria uma taxa irrealista.
+    # Ruído rosa, parecido com o espectro da fala; um tom puro comprimiria demais.
     branco = rng.standard_normal(sample_rate * 4)
     espectro = np_.fft.rfft(branco)
     freqs = np_.fft.rfftfreq(len(branco), 1 / sample_rate)
@@ -171,9 +192,8 @@ def main() -> None:
     model = build_model(config["model"]).to(device)
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     model.load_state_dict(ckpt["model_state"])
-    # Mesmo ponto de corte usado por evaluate.py/infer.py. Sem ele, accuracy e F1
-    # sairiam no corte fixo de 0,5 e sugeririam um colapso que não existe: sob
-    # ruído os scores descem em bloco sem perder a ordenação (o EER não muda).
+    # Mesmo limiar de evaluate.py/infer.py. Com 0,5 fixo, o ruído pareceria um
+    # colapso: os scores descem em bloco, mas a ordenação (e o EER) se mantém.
     threshold = ckpt.get("threshold") if config["train"].get("calibrate_threshold") else None
     if threshold is not None:
         print(f"Threshold aplicado: {threshold:.4f} (calibrado no treino)")
@@ -190,25 +210,62 @@ def main() -> None:
     if not args.sem_canal:
         condicoes += [(label, construir_canal(etapas, sample_rate))
                       for label, etapas in CHANNEL_CONDITIONS]
-        relatar_taxas(sample_rate)
+        if not args.so or any(c.startswith("opus") or c.endswith("opus") for c in args.so):
+            relatar_taxas(sample_rate)
+    if args.so:
+        conhecidas = {label for label, _ in condicoes}
+        desconhecidas = set(args.so) - conhecidas
+        if desconhecidas:
+            raise SystemExit(f"condição desconhecida: {', '.join(sorted(desconhecidas))}. "
+                             f"Disponíveis: {', '.join(sorted(conhecidas))}")
+        condicoes = [(label, pert) for label, pert in condicoes if label in args.so]
 
     results: dict[str, dict] = {}
+    por_audio: dict[str, dict] = {}
+    indices = None
     for label, perturbation in condicoes:
         ds = build_dataset(config, args.partition, extractor, args.smoke, augmenter=perturbation)
-        # As perturbações mudam as features, então o cache fica desligado e cada
-        # condição recalcula tudo. Com `num_workers=0` isso era um único processo
-        # extraindo 71.237 áudios seis vezes; as perturbações agora são
-        # serializáveis, então os workers do config valem aqui também.
+        selecionados = list(range(len(ds)))
+        if args.amostra:
+            if indices is None:
+                indices = indices_estratificados(ds.labels, ds.system_ids, args.amostra, seed)
+                print(f"Amostra estratificada: {len(indices)} de {len(ds)} áudios\n")
+            selecionados = indices
+            base, ds = ds, Subset(ds, indices)
+        else:
+            base = ds
+        # Sem cache: a perturbação muda as features. Como as perturbações são
+        # serializáveis, os workers do config valem aqui também.
         loader = DataLoader(ds, batch_size=batch_size, shuffle=False,
                             num_workers=0 if args.smoke else config["train"]["num_workers"],
                             worker_init_fn=seed_worker)
-        labels, preds, scores = run_inference(model, loader, device)
-        metrics = compute_metrics(labels, preds, scores, threshold=threshold)
+        labels, preds, scores, logodds = run_inference(model, loader, device)
+        metrics = compute_metrics(labels, preds, scores, threshold=threshold,
+                                  eer_scores=logodds)
+        # EER pela probabilidade (o que versões antigas reportavam), para conferir.
+        metrics["eer_probabilidade"] = compute_eer(labels, scores)
+        metrics["bonafide_saturados"] = int((scores[labels == 0] >= 1.0).sum())
+        metrics["n_bonafide"] = int((labels == 0).sum())
         results[label] = metrics
-        print(f"{label:12s} -> {format_metrics(metrics)}")
+        por_audio[label] = {
+            "ids": np.array([base.ids[i] for i in selecionados]),
+            "systems": np.array([base.system_ids[i] for i in selecionados]),
+            "labels": labels, "scores": scores, "logodds": logodds,
+            "threshold": np.nan if threshold is None else threshold,
+        }
+        print(f"{label:12s} -> {format_metrics(metrics)}  "
+              f"[EER pela prob.={metrics['eer_probabilidade'] * 100:.2f}%  "
+              f"bonafide em 1,0: {metrics['bonafide_saturados']}/{metrics['n_bonafide']}]")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     name = output_name(config, args.smoke)
+    if args.amostra:
+        name = f"{name}_amostra{args.amostra}"
+    if args.so:
+        name = f"{name}_" + "_".join(args.so)
+    if ckpt.get("calibracao"):
+        # Checkpoint recalibrado (calibrar_captura.py): o sufixo evita sobrescrever o original.
+        name = f"{name}_limiar_captura"
     # A partição entra no nome: sem ela, uma execução em dev sobrescreve a de eval.
     json_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.json"
     plot_path = OUTPUT_DIR / f"{name}_{args.partition}_robustness.png"
@@ -217,6 +274,10 @@ def main() -> None:
     plot_robustness(results, plot_path)
     print(f"\nResultados (JSON): {json_path}")
     print(f"Gráfico:           {plot_path}")
+    for label, dados in por_audio.items():
+        npz_path = OUTPUT_DIR / f"{name}_{args.partition}_{label}_scores.npz"
+        np.savez(npz_path, **dados)
+        print(f"Scores ({label}):  {npz_path}")
 
 
 if __name__ == "__main__":

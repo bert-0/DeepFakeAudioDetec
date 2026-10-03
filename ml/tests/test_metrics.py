@@ -104,3 +104,43 @@ def test_save_score_file(tmp_path):
     lines = out.read_text().strip().splitlines()
     assert lines[0].split() == ["a", "bonafide", "0.100000"]
     assert lines[1].split() == ["b", "spoof", "0.900000"]
+
+
+def test_logodds_do_not_saturate_where_softmax_does():
+    """Margens 20 e 30 viram 1,0 no softmax; os log-odds seguem distintos."""
+    import torch
+
+    from src.metrics import probabilidade_e_logodds
+
+    probs, logodds = probabilidade_e_logodds(torch.tensor([[0.0, 20.0], [0.0, 30.0]]))
+    assert (probs == 1.0).all()
+    np.testing.assert_allclose(logodds, [20.0, 30.0])
+
+
+def test_logodds_order_matches_probability_order():
+    import torch
+
+    from src.metrics import probabilidade_e_logodds
+
+    logits = torch.randn(200, 2) * 3
+    probs, logodds = probabilidade_e_logodds(logits)
+    assert list(np.argsort(probs, kind="stable")) == list(np.argsort(logodds, kind="stable"))
+
+
+def test_compute_metrics_uses_eer_scores_only_for_eer():
+    labels = np.array([0] * 50 + [1] * 50)
+    probs = np.ones(100)                         # tudo saturado
+    logodds = np.array([20.0] * 50 + [30.0] * 50)
+    m = compute_metrics(labels, (probs >= 0.5).astype(int), probs,
+                        threshold=0.5, eer_scores=logodds)
+    assert m["eer"] == 0.0
+    assert m["threshold"] == 0.5
+    assert m["accuracy"] == 0.5, "as predições continuam vindo da probabilidade"
+
+
+def test_logodds_from_saved_probabilities_are_finite():
+    from src.metrics import logodds_de_probabilidade
+
+    lo = logodds_de_probabilidade(np.array([0.0, 0.3, 1.0]))
+    assert np.isfinite(lo).all()
+    assert lo[0] < lo[1] < lo[2]

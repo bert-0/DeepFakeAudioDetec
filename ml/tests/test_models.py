@@ -47,9 +47,8 @@ def test_model_backward_no_nan(name):
 @pytest.mark.parametrize(
     "name,expected",
     [
-        # Chaves gravadas pelos checkpoints treinados antes do pooling
-        # configurável. Um checkpoint antigo precisa continuar carregando com
-        # pooling="avg" — por isso a numeração das camadas não pode mudar.
+        # Chaves dos checkpoints anteriores ao pooling configurável: com
+        # pooling="avg", a numeração das camadas não pode mudar.
         ("baseline_cnn", {"classifier.2.weight", "classifier.2.bias"}),
         ("fusion", {"classifier.1.weight", "classifier.4.weight"}),
         ("attention", {"lfcc_attn.score.weight", "spec_attn.score.weight"}),
@@ -91,12 +90,7 @@ def test_channels_default_matches_legacy():
 
 @pytest.mark.parametrize("pool_cls", ["StatsPool", "AttentiveStatsPool"])
 def test_stats_pool_survives_large_values(pool_cls):
-    """Valores grandes fazem a soma de quadrados estourar o fp16.
-
-    Reproduz a divergência que ocorria sob AMP: com x~1e3, x^2~1e6 passa do
-    máximo do float16 (~65504). O pooling calcula em float32, então a saída
-    precisa continuar finita.
-    """
+    """Sob AMP, x~1e3 dá x^2~1e6, acima do máximo do fp16; em float32 a saída fica finita."""
     from src.models import blocks
 
     pool = getattr(blocks, pool_cls)(8)
@@ -150,11 +144,7 @@ def test_mfm_halves_channels_taking_maximum():
 
 
 def test_freq_stats_pool_preserves_frequency_information():
-    """Dois sinais com a MESMA média espectral, mas energia em faixas diferentes.
-
-    O StatsPool (que faz média na frequência) não consegue distingui-los;
-    o FreqStatsPool precisa distinguir.
-    """
+    """Mesma média espectral, energia em faixas diferentes: só o FreqStatsPool distingue."""
     from src.models.blocks import FreqStatsPool, StatsPool
 
     baixa = torch.zeros(1, 1, 8, 20)
@@ -237,10 +227,8 @@ def test_unknown_pooling_raises():
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: pooling 'freq_stats' precisa preservar a frequência TAMBÉM no
-# modelo de atenção. Antes, 'stats' e 'freq_stats' caíam no mesmo ramo e o
-# Incremento 3 descartava o eixo espectral que o Incremento 2 preservava —
-# a comparação entre eles deixava de isolar o efeito da atenção.
+# Regressão: 'freq_stats' também preserva a frequência na atenção. Antes caía
+# no ramo de 'stats', e a comparação com a fusão deixava de isolar a atenção.
 # --------------------------------------------------------------------------- #
 def test_attention_freq_stats_matches_fusion_dimension():
     fus = build_model({"name": "fusion", "encoder": "lcnn", "pooling": "freq_stats"})

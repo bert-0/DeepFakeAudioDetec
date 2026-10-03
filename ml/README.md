@@ -1,5 +1,7 @@
 # `ml/` — Pipeline de IA
 
+[![Testes](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml/badge.svg)](https://github.com/bert-0/DeepFakeAudioDetec/actions/workflows/testes.yml)
+
 Pipeline de detecção de deepfakes em áudio (pré-processamento → extração de
 características → modelo → métricas), construído nos três incrementos descritos
 no TC1.
@@ -431,11 +433,80 @@ partição de teste. Use `--threshold 0.42` para informar um valor manualmente.
 > treino. Em troca, a escolha pode variar entre máquinas, o que mexe nos últimos
 > dígitos do resultado. Para uma execução bit-a-bit reprodutível, use `false`.
 
+### Leitura de áudio: a truncagem não depende do decodificador
+
+Um `.flac` truncado entre os 121.461 da base derruba um treino de horas, e sem
+tratamento a mensagem não diz **qual** arquivo. Pior: **nem todo decodificador
+falha nele.** No Linux o libsndfile recusa e o erro sobe. No Windows o
+`audioread` decodifica o pedaço que existe e devolve áudio parcial **sem
+reclamar** — o treino consome meio enunciado como se fosse inteiro.
+
+Foi medido: os três testes de truncagem passavam no Linux e falhavam no
+Windows. Por isso o `load_audio` não confia no decodificador — ele confere a
+duração obtida contra a que o cabeçalho declara (o cabeçalho sobrevive à
+truncagem e continua anunciando a duração original). A verificação é a mesma
+nos dois sistemas, qualquer que seja o backend.
+
+O `check_data.py --deep` **não** cobria esse caso: ele usa `sf.read()` direto,
+então valida a base antes do treino, mas não a leitura durante ele.
+
 ## Testes
 
 ```bash
-python -m pytest          # roda a suíte (rápida, ~3 s, não precisa do dataset)
+python -m pytest                       # a suíte inteira (~18 s)
+ruff check --select E9,F .             # as mesmas regras que o CI aplica
 ```
+
+Nenhum teste precisa da base ASVspoof: todos geram o próprio áudio em diretório
+temporário. Por isso a suíte roda inteira num runner limpo.
+
+**No CI.** O `.github/workflows/testes.yml` roda os dois comandos acima a cada
+push e em cada pull request. Ele existe porque os testes só rodavam quando
+alguém lembrava de chamá-los na própria máquina — e dois defeitos reais
+escaparam assim, encontrados só ao operar o programa: um áudio mais curto que a
+janela devolvia zero leituras, e o score aparecia na tela sem dizer em que
+direção crescia.
+
+O ruff roda só com `E9,F` (erro de sintaxe, nome indefinido, comparação
+inválida, import morto). Regras de estilo ficam de fora de propósito: quebrar o
+CI por ponto e vírgula não ajuda ninguém a encontrar defeito.
+
+## Interface web (FastAPI + Jinja2)
+
+```bash
+pip install -r web/requirements.txt
+uvicorn web.app:app --reload          # de dentro de ml/; abre em http://127.0.0.1:8000
+```
+
+WAV, MP3, FLAC, OGG e Opus abrem direto. **M4A e AAC precisam do FFmpeg** no
+computador (no Windows: `winget install Gyan.FFmpeg`, depois reabrir o terminal);
+sem ele, a página avisa e pede outro formato. Na demonstração, prefira WAV.
+
+Abas: **Enviar arquivo** (arrastar ou selecionar), **Resultados** (histórico e,
+por análise: score médio, veredito pelo limiar, uma barra por janela de 4 s
+com a cor do lado do limiar, detalhes e relatório em JSON) e **Ao vivo**: o
+botão "Iniciar análise" abre o `monitor.py` como processo do servidor (o
+navegador não tem acesso ao áudio do sistema), o monitor grava o estado a cada
+janela e a página lê a cada 2 s. "Parar análise" cria o arquivo que o monitor
+vigia (`--parar-com`) — no Windows não dá para mandar Ctrl+C a outro processo —
+e a sessão encerrada vai para Resultados. A aba mostra só a sessão atual.
+Janelas parciais (pouca fala, completadas por repetição) aparecem apagadas: pesam
+pouco na média e costumam ter score alto. `POST /api/analisar` devolve o
+resultado em JSON; `GET /api/ao-vivo`, a sessão.
+
+A estrutura (abas, envio, resultado, ao vivo) segue o protótipo do docx
+"Outras partes da UI"; o visual foi trocado por um de ferramenta técnica
+(fundo claro, cantos retos, números em fonte monoespaçada, sem ícones), e os
+elementos de maquete saíram: barras de onda decorativas viraram uma barra por janela real, o
+"nível de confiança em %" virou o score (0 = humano, 1 = sintético, que não é
+uma confiança), e barra de progresso inventada, seletor de estados e botões
+sem função saíram. O caminho de análise é o do monitor, que dá o mesmo score do
+`infer.py` (`tests/test_monitor_consistencia.py`), e o limiar é escolhido pelo
+tipo de áudio. O arquivo enviado é apagado ao fim da análise; o histórico
+(SQLite em `outputs/web/historico.db`) guarda só o resultado.
+
+Variáveis opcionais: `DETECTOR_CONFIG`, `DETECTOR_CHECKPOINT` (padrão:
+`baseline_v2`), `DETECTOR_DEVICE` (padrão `cpu`), `DETECTOR_BANCO`.
 
 ## Inferência em um único áudio (RF05/RF06/RF07)
 
@@ -459,14 +530,45 @@ pip install soundcard                    # só para o modo ao vivo
 
 python monitor.py --listar-dispositivos  # descobrir a saída a escutar
 
-# durante uma chamada, gravando o que ouviu
-python monitor.py --config configs/fusion_v4.yaml \
-    --checkpoint checkpoints/fusion_lcnn_v4.pt \
+# uma vez: limiar recalibrado para a captura ao vivo (grava uma cópia do checkpoint)
+python scripts/calibrar_captura.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
+
+# durante uma chamada, gravando o que ouviu (o limiar recalibrado é achado sozinho)
+python monitor.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
     --gravar outputs/chamada.wav --json outputs/chamada.json
 
 # reprocessar a gravação (mesmos scores, bit a bit)
 python monitor.py --config ... --checkpoint ... --arquivo outputs/chamada.wav
 ```
+
+**Antes de usar ao vivo:** desligue os "aprimoramentos de áudio" do dispositivo
+de saída (Configurações → Som → alto-falante). Medido: com os efeitos da
+Realtek ligados, todo áudio foi a score ~1,0. E gere o limiar recalibrado uma
+vez (`scripts/calibrar_captura.py`): a captura passa por 48 kHz e volta a
+16 kHz, a faixa de 7,6-8 kHz some, e no limiar original 71% dos humanos passam
+por sintéticos (`docs/RESUMO_TCC.md`, 10.2.1).
+
+**Demonstração** (`scripts/montar_demo.py`): gera `outputs/demo/reais.wav`,
+`falsos.wav` e `misto.wav`, com 4 s de silêncio entre os áudios (a janela do
+monitor) e uma "cola" com o instante, o rótulo e o score esperado de cada um.
+Os áudios padrão foram escolhidos entre os que o modelo acerta, com score
+medido pela captura real — é ilustração; o EER é a medida.
+
+**Demonstração com a própria voz** (`scripts/gerar_sintetico.py`): você grava
+algumas frases e o script refaz cada uma com vocoders da época do ASVspoof
+2019 — Griffin-Lim (o do ataque A11) e WORLD (A02/A03/A05/A07; requer
+`pip install pyworld "setuptools<81"`). Sai uma playlist pareada
+(original → Griffin-Lim → WORLD) com cola. Original e falso têm o mesmo
+locutor, microfone e texto: se o monitor separa os dois, reage à síntese, não
+ao canal.
+
+**O limiar é escolhido pelo tipo de áudio** (`src/limiares.py`), no monitor e
+no `infer.py`: captura ao vivo e arquivos gravados acima de 16 kHz usam o
+recalibrado; arquivos nativos de 16 kHz, o original. Basta passar o checkpoint
+original: a cópia `_captura.pt` ao lado é achada sozinha, e só é aceita se os
+pesos forem os mesmos.
 
 O áudio é cortado em janelas do tamanho de `audio.duration` com metade de
 sobreposição, e cada janela passa pelo **mesmo** caminho do `infer.py`:
@@ -498,6 +600,22 @@ frases curtas de voz clonada está abaixo da resolução do sistema.
 O **passo** é livre. Com 99,65% de folga de CPU, `--hop 1` dá reação mais rápida
 sem custo relevante. O primeiro veredito sempre demora 4 s, porque é preciso
 encher a janela.
+
+#### O trecho final, quando o áudio é mais curto que a janela
+
+A janela deslizante só emite quando acumula 4 s. Um áudio **mais curto que
+isso** nunca fecha uma janela — e a maioria dos enunciados do ASVspoof é mais
+curta que 4 s. Sem tratamento, `monitor.py --arquivo` devolvia
+`Janelas analisadas: 0`, sem erro e sem aviso.
+
+O `finalizar()` emite o trecho restante ao fim da fonte, e só quando ele contém
+áudio que nenhuma janela cobriu — com passo de metade da janela, o fim de um
+arquivo longo normalmente já está dentro da última janela emitida, e repetir
+aquele trecho inflaria a contagem sem acrescentar informação.
+
+O trecho sai mais curto que a janela e o `preprocess_waveform` o completa por
+repetição, como no treino. O peso cai na proporção: um enunciado de 2,6 s pesa
+0,65, e a linha aparece marcada como `(janela parcial)`.
 
 ### Janelas sobrepostas não são observações independentes
 
@@ -559,10 +677,29 @@ completo, 71.237 áudios):
 | ruído 5 dB SNR | 42,41% | **27,42%** | v4 por 15,0 pp |
 | **degradação máxima** | +23,42 pp | **+7,24 pp** | |
 
-O codec Opus custa pouco (+1,2 a +2,8 pp até 15 kbps, abaixo do que o Teams
-usa). Quem derruba é perder a banda alta e o ruído acústico do interlocutor. Por
-isso o monitor usa o `fusion_lcnn_v4`: ele perde no benchmark limpo e ganha com
-folga em tudo que se parece com uma chamada real.
+Na simulação, o codec Opus custa pouco (+1,2 a +2,8 pp até 15 kbps) e quem
+derruba é perder a banda alta e o ruído acústico. Foi por isso que o monitor
+chegou a usar o `fusion_lcnn_v4`.
+
+**O canal real contradiz essa escolha.** No ASVspoof 2021 LA, com Opus
+transmitido por redes VoIP reais (amostra de 10 mil, fase `eval`):
+
+| | referência | Opus real |
+|---|---|---|
+| baseline_v2 | 18,15% | **29,43%** |
+| fusion_v4 | 19,51% | 32,62% |
+| fusão `rank` | — | **24,94%** |
+| fusão `mean` (a do monitor) | — | 29,41% |
+
+O `baseline_v2` vence o `fusion_v4` no canal real por 3,19 pp, e o custo real do
+Opus é de 7 a 11 vezes o simulado. A fusão dos dois ganha 4,50 pp pela regra
+`rank`, que precisa do conjunto inteiro; a média das probabilidades — a única
+que funciona janela a janela — empata com o v2 sozinho, porque o `fusion_v4`
+satura em 1,0 para 97% dos bonafide no Opus. **Para chamada, use o
+`baseline_v2` sozinho**: mesmo resultado que a fusão ao vivo, com metade do
+custo. (Uma primeira execução deu 49,06% para o `fusion_v4`: era artefato da
+saturação do softmax no cálculo do EER, corrigido — ver
+`scripts/checar_saturacao.py`.) Detalhes em `docs/RESUMO_TCC.md`, Seção 5.3.
 
 **O ponto de operação não transfere.** O limiar gravado no checkpoint foi
 calibrado em áudio limpo, e fora do domínio se comporta de forma imprevisível:
@@ -571,10 +708,106 @@ sob o mesmo Opus a 15 kbps o recall do v2 sobe (0,72 -> 0,86) e o do v4 cai
 **score**, não veredito, e um ponto de operação confiável exige recalibração no
 canal de destino.
 
-É para isso que serve o `--gravar`: toque numa chamada real áudios do ASVspoof
-com rótulo conhecido, capture o que chega do outro lado e avalie. Isso mede o
-canal com o Opus real e o processamento real, em vez da simulação. O par
-gravar/`--arquivo` garante que o resultado seja reproduzível.
+
+### Custo de rodar ao vivo (medido)
+
+Medido nesta CPU (4 threads, sem GPU), caminho completo — janela, features,
+rede e agregação:
+
+| | ms/janela | x tempo real | carga |
+|---|---|---|---|
+| 1 modelo (`fusion_v4`) | 80,4 | 25,7x | 3,9% de 1 núcleo |
+| 2 modelos (fusão ao vivo) | 96,9 | 21,3x | 4,7% de 1 núcleo |
+
+Com janela de 4 s e passo de 2 s são **0,5 janelas por segundo** a processar. A
+mesma CPU entrega 71 janelas/s em inferência pura — folga de **143x**. Memória:
+778 MB residentes com os dois modelos carregados, dos quais ~500 MB são o
+próprio PyTorch (os pesos somam 1,5 MB: 23.778 + 348.866 parâmetros).
+
+Comparado com o treino no mesmo hardware, lote de 32:
+
+| | ms/amostra |
+|---|---|
+| treino (forward + backward + otimizador) | 58,2 |
+| inferência (forward puro) | 14,0 |
+
+A razão é **4,16x**, e é estrutural: o backward recalcula gradiente por camada e
+o otimizador mantém dois momentos por parâmetro. Somado a isso, o treino
+atravessa 25.380 amostras por época enquanto o ao vivo processa 0,5 por segundo.
+Rodar ao vivo não se parece com treinar — cabe folgado numa CPU comum, sem GPU.
+
+### Camada 2: avaliação através de uma chamada real (`scripts/canal_real.py`)
+
+O `robustness_eval.py` simula o canal (codec Opus, limitação de banda) e por
+isso é um **limite inferior** da degradação: ele não inclui supressão de ruído,
+cancelamento de eco nem ganho automático, que só existem dentro de um cliente de
+conferência. O `canal_real.py` fecha essa lacuna.
+
+```bash
+# 1. monta uma playlist de áudios ROTULADOS, com silêncio entre eles
+python scripts/canal_real.py preparar --config configs/baseline_v2.yaml \
+    --n-por-classe 20 --saida outputs/canal_real
+#    -> imprime o roteiro da chamada (duas pontas, VB-Cable, controle)
+
+# 2. grave do lado que recebe a chamada...
+python monitor.py --config configs/baseline_v2.yaml \
+    --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt \
+    --gravar outputs/canal_real/chamada.wav
+#    ...e abra a ponta que toca: um Chrome cujo MICROFONE é a playlist
+#    (modo de teste do WebRTC — sem VB-Cable, sem VLC)
+python scripts/canal_real.py chrome --pasta outputs/canal_real --url "<link>"
+#    sessão de controle, sem chamada: toca a playlist no alto-falante
+python scripts/canal_real.py tocar --pasta outputs/canal_real
+
+# 3. localiza cada áudio na gravação, recorta e emite o protocolo ASVspoof
+python scripts/canal_real.py alinhar --pasta outputs/canal_real \
+    --gravacao outputs/canal_real/chamada.wav --sessao chamada
+#    -> imprime o comando do evaluate.py que dá o EER da sessão
+
+# 4. compara as sessões da mesma playlist (limpo, controle, chamada)
+python scripts/comparar_sessoes.py outputs/canal_real/*/config_canal_real.yaml
+```
+
+O passo a passo completo, com o controle e o que anotar, está em
+[`docs/ROTEIRO_TESTE_AO_VIVO.md`](docs/ROTEIRO_TESTE_AO_VIVO.md).
+
+**Como o alinhamento funciona, e por que não é um bipe.** A ideia óbvia — um tom
+entre os áudios — falha exatamente no cenário que interessa: a supressão de
+ruído é treinada para remover o que não é fala, e um seno puro é o exemplo
+canônico. O marcador some no caminho.
+
+O que se usa é correlação cruzada do **envelope de energia** contra a referência
+tocada. Codec, supressão de ruído e AGC mudam espectro e amplitude, não *quando*
+a fala acontece; normalizar antes de correlacionar tira o efeito do ganho. O
+ajuste é feito em duas etapas — atraso global da chamada, depois refino por
+trecho — e o refino é sequencial para acompanhar a deriva de relógio entre as
+duas placas de som, que é cumulativa.
+
+Correlação medida em `tests/test_alinhamento.py`, pior caso de cada cenário:
+
+| cenário | correlação |
+|---|---|
+| canal limpo | 0,798 |
+| opus + banda estreita de 8 kHz | 0,798 |
+| ruído puro (microfone errado) | 0,118 |
+
+O limiar de 0,5 fica entre os dois grupos com folga de 1,6x para baixo e 4,2x
+para cima. Trecho abaixo do limiar é **descartado**, não recortado: um recorte
+mal alinhado carrega o rótulo do vizinho e produz um EER que parece resultado.
+
+### Bases públicas que já contêm o canal real
+
+Antes de gravar qualquer chamada, vale usar o que já existe rotulado:
+
+| base | o que traz | serve para |
+|---|---|---|
+| **ASVspoof 2021 LA** | os mesmos ataques do eval de 2019, transmitidos por VoIP e PSTN reais, 6 codecs | camada 2 pronta, sem gravar nada |
+| **ASVspoof 2021 DF** | codecs de mídia e compressão | generalização a áudio recomprimido |
+| **In-the-Wild** | 37,9 h de áudio achado na internet (17,2 h falsos) | canal + domínio, o caso mais difícil |
+
+A 2021 LA é a mais direta: por regra do desafio **não há partição de treino** —
+os sistemas são treinados na 2019 LA, que é exatamente a base deste projeto. O
+modelo já treinado avalia nela sem nenhuma mudança.
 
 
 ## Estrutura

@@ -15,6 +15,7 @@ import torch
 from src.config import load_config, resolve_device
 from src.features import FeatureExtractor
 from src.models import build_model
+from src.limiares import escolher_limiar, limiares_do_checkpoint, taxa_nativa
 from src.preprocess import load_audio, preprocess_waveform
 
 CLASS_NAMES = {0: "bonafide (autêntico)", 1: "spoof (deepfake)"}
@@ -50,11 +51,16 @@ def main() -> None:
     probs = torch.softmax(model(features), dim=1)[0]
     spoof_prob = float(probs[1])
 
-    # Usa o mesmo ponto de corte calibrado no dev durante o treino; sem ele,
-    # cai no argmax (equivalente a threshold 0,5).
-    threshold = ckpt.get("threshold") if config["train"].get("calibrate_threshold") else None
+    # O limiar depende da taxa do arquivo (ver src/limiares.py); sem
+    # calibração, vale o argmax.
+    threshold, origem, aviso = None, "", None
+    if config["train"].get("calibrate_threshold"):
+        escolha = escolher_limiar(limiares_do_checkpoint(args.checkpoint, ckpt),
+                                  int(config["audio"]["sample_rate"]),
+                                  taxa_nativa(args.audio))
+        threshold, origem, aviso = escolha.limiar, escolha.origem, escolha.aviso
     if args.threshold is not None:
-        threshold = args.threshold
+        threshold, origem, aviso = args.threshold, "informado via --threshold", None
     pred = int(spoof_prob >= threshold) if threshold is not None else int(probs.argmax())
     confidence = float(probs[pred]) * 100
 
@@ -63,7 +69,9 @@ def main() -> None:
     print(f"Probabilidade: {confidence:.1f}%")
     print(f"  (bonafide={probs[0] * 100:.1f}%  |  spoof={probs[1] * 100:.1f}%)")
     if threshold is not None:
-        print(f"  threshold aplicado: {threshold:.4f}")
+        print(f"  limiar aplicado: {threshold:.4f} ({origem})")
+    if aviso:
+        print(f"  [AVISO] {aviso}")
 
 
 if __name__ == "__main__":

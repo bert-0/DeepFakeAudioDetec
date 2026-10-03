@@ -1,11 +1,6 @@
-"""Datasets para o pipeline de detecção de deepfakes.
+"""Datasets: ASVspoof 2019 LA e áudios sintéticos para o modo --smoke.
 
-- ASVspoofDataset: lê os .flac e o protocolo da base ASVspoof 2019 LA.
-- SmokeDataset: gera áudios sintéticos (bonafide vs. spoof) para validar o
-  pipeline ponta-a-ponta sem precisar da base (modo --smoke).
-
-Convenção de rótulos: 0 = bonafide (autêntico), 1 = spoof (sintético).
-A classe positiva é `spoof`, alinhada ao objetivo de detecção.
+Rótulos: 0 = bonafide, 1 = spoof (classe positiva).
 """
 
 from __future__ import annotations
@@ -28,15 +23,8 @@ LABEL_MAP = {"bonafide": 0, "spoof": 1}
 def _shared_epoch() -> torch.Tensor:
     """Contador de época em memória compartilhada entre processos.
 
-    Guardar a época como um `int` comum não funciona com
-    `DataLoader(persistent_workers=True)`: os workers recebem uma *cópia* do
-    dataset ao serem criados e nunca mais a atualizam, então `set_epoch()` no
-    processo principal não os alcança — o recorte aleatório e a aumentação
-    ficariam congelados na época em que o worker nasceu, repetindo o mesmo
-    trecho de áudio e a mesma perturbação em todas as épocas seguintes.
-
-    Um tensor em memória compartilhada é visto por todos os processos, e
-    funciona tanto com `fork` (Linux) quanto com `spawn` (Windows).
+    Com `persistent_workers=True` um `int` comum ficaria congelado na cópia de
+    cada worker, e `set_epoch()` não os alcançaria.
     """
     return torch.zeros(1, dtype=torch.long).share_memory_()
 
@@ -49,9 +37,7 @@ def parse_protocol_with_systems(
 ) -> list[tuple[str, int, str]]:
     """Lê o protocolo e devolve [(audio_file_name, label, system_id), ...].
 
-    Formato esperado: `SPEAKER  FILE  -  SYSTEM_ID  KEY`, KEY ∈ {bonafide, spoof}.
-    O `system_id` identifica o algoritmo de síntese (A01…A19) e vale "-" para
-    áudios bonafide. É o que permite avaliar o desempenho por tipo de ataque.
+    Formato: `SPEAKER FILE - SYSTEM_ID KEY`; `system_id` é A01…A19 ou "-".
     """
     items: list[tuple[str, int, str]] = []
     with open(protocol_path, "r", encoding="utf-8") as fh:
@@ -70,13 +56,23 @@ def parse_protocol(protocol_path: str | Path) -> list[tuple[str, int]]:
     return [(name, label) for name, label, _ in parse_protocol_with_systems(protocol_path)]
 
 
-def protocol_ids_and_systems(config: dict, partition: str) -> tuple[list[str], list[str]]:
-    """Ids e algoritmos de síntese de uma partição, direto do protocolo.
+def buscar_rotulo(config: dict, audio_id: str) -> tuple[str, int, str] | None:
+    """Procura o rótulo verdadeiro de um áudio nas três partições.
 
-    Permite conferir scores salvos em disco sem abrir um único áudio: se eles
-    ainda valem para este modelo, o dataset (e o cache de features) nem chega a
-    ser construído.
+    Devolve `(partição, label, system_id)`, ou `None` se o id não estiver em
+    nenhum protocolo. Protocolos ausentes são pulados.
     """
+    for particao, caminho in config.get("data", {}).get("protocols", {}).items():
+        if not Path(caminho).is_file():
+            continue
+        for nome, label, sistema in parse_protocol_with_systems(caminho):
+            if nome == audio_id:
+                return particao, label, sistema
+    return None
+
+
+def protocol_ids_and_systems(config: dict, partition: str) -> tuple[list[str], list[str]]:
+    """Ids e algoritmos de síntese de uma partição, sem abrir nenhum áudio."""
     registros = parse_protocol_with_systems(config["data"]["protocols"][partition])
     return [nome for nome, _, _ in registros], [sis for _, _, sis in registros]
 
@@ -109,28 +105,19 @@ class ASVspoofDataset(Dataset):
         self.seed = seed
         self.partition = partition
         self._epoch = _shared_epoch()
-        # Cache guarda uma única versão das features, então é incompatível com
-        # qualquer aleatoriedade por época (aumentação ou recorte aleatório).
+        # O cache guarda uma versão só; não combina com aleatoriedade por época.
         stochastic = augmenter is not None or random_crop
         self.cache_dir = None
         self.cache = None
         if cache_dir and not stochastic and self.items:
-            # O cache é indexado pelo *fingerprint* da configuração de features,
-            # não pelo nome do experimento: assim experimentos que usam features
-            # idênticas (ex.: v3a, v3 e v4, todos com n_filter=70) compartilham
-            # os mesmos arquivos em vez de duplicá-los — cada cópia custa ~11 GB.
+            # Pasta pelo fingerprint das features, não pelo experimento:
+            # configs com features iguais compartilham o cache (~11 GB cada).
             self._cache_key = _config_fingerprint(audio_cfg, extractor)
             self.cache_dir = Path(cache_dir) / self._cache_key
             self.cache = self._open_cache()
 
     def _open_cache(self) -> FeatureCache | None:
-        """Abre o cache da partição, descobrindo os shapes com uma extração.
-
-        Os shapes só são conhecidos depois de extrair uma amostra — e como a
-        matriz em disco precisa do tamanho da linha para ser criada, essa
-        primeira extração acontece aqui, no processo principal. Ela não é
-        desperdiçada: o resultado já é gravado na posição 0.
-        """
+        """Abre o cache da partição; extrai a amostra 0 para descobrir os shapes."""
         quantos, tamanho = legacy_pt_files(self.cache_dir)
         if quantos:
             print(f"[cache] {quantos} arquivos .pt do formato antigo em "
@@ -142,8 +129,7 @@ class ASVspoofDataset(Dataset):
                                  {k: tuple(v.shape) for k, v in features.items()})
             cache.put(0, features)
         except OSError as erro:
-            # Falta de espaço ou permissão não deve derrubar o treino: sem cache
-            # ele continua, só recalculando as features a cada época.
+            # Sem espaço ou permissão, o treino segue sem cache.
             print(f"[cache] desativado para '{self.partition}': {erro}")
             return None
         return cache
@@ -162,10 +148,7 @@ class ASVspoofDataset(Dataset):
     def _sample_rng(self, idx: int) -> np.random.Generator:
         """Gerador próprio de cada amostra, derivado de (semente, época, índice).
 
-        Deriva em vez de guardar estado: com `num_workers > 0` o dataset é
-        copiado para cada worker, então um `rng` guardado no objeto daria a
-        mesma sequência em todos eles — e se repetiria a cada época, quando os
-        workers são recriados.
+        Não guarda estado: um `rng` no objeto seria copiado igual para cada worker.
         """
         return np.random.default_rng((self.seed, int(self._epoch[0]), idx))
 
@@ -196,13 +179,9 @@ class ASVspoofDataset(Dataset):
 # Smoke — dados sintéticos
 # --------------------------------------------------------------------------- #
 class SmokeDataset(Dataset):
-    """Gera áudios sintéticos separáveis para validar o pipeline.
+    """Áudios sintéticos separáveis, só para exercitar o pipeline.
 
-    - bonafide: soma de harmônicos "limpos" + ruído baixo.
-    - spoof: harmônicos + artefato de alta frequência + ruído (imita o tipo de
-      inconsistência espectral que um detector deve aprender).
-
-    Não é dado realista — serve apenas para exercitar o código ponta-a-ponta.
+    Bonafide: harmônicos + ruído baixo. Spoof: o mesmo + tom perto de Nyquist.
     """
 
     def __init__(self, n: int, audio_cfg: dict, extractor: FeatureExtractor,
@@ -231,8 +210,7 @@ class SmokeDataset(Dataset):
     def __getitem__(self, idx: int):
         rng = np.random.default_rng(self.seed * 100_000 + idx)
         label = idx % 2  # metade bonafide, metade spoof
-        # Sinal mais longo que o alvo quando há recorte aleatório, para que o
-        # modo --smoke exercite de fato esse caminho.
+        # Mais longo que o alvo, para o recorte aleatório ter o que recortar.
         wav = self._synth(rng, spoof=bool(label),
                           n_samples=int(self.n_samples * 1.5) if self.random_crop
                           else self.n_samples)
@@ -253,8 +231,7 @@ class SmokeDataset(Dataset):
             wav += (1.0 / k) * np.sin(2 * np.pi * f0 * k * t + rng.uniform(0, 2 * np.pi))
         wav += 0.01 * rng.standard_normal(n)  # ruído de fundo baixo
         if spoof:
-            # Artefato de alta frequência (tom puro perto de Nyquist) + ruído extra,
-            # imitando a "assinatura" espectral de sinais sintéticos.
+            # Artefato de alta frequência + ruído extra.
             wav += 0.3 * np.sin(2 * np.pi * (self.sr * 0.45) * t)
             wav += 0.03 * rng.standard_normal(n)
         return wav.astype(np.float32)
@@ -273,9 +250,8 @@ def build_dataset(
 ) -> Dataset:
     """Constrói o dataset de uma partição ('train' | 'dev' | 'eval').
 
-    `augmenter`: callable opcional `wav -> wav` aplicado após o pré-processamento
-    (aumentação no treino ou perturbação na avaliação de robustez).
-    `random_crop`: recorte temporal aleatório — usar apenas no treino.
+    `augmenter` é um `wav -> wav` aplicado após o pré-processamento;
+    `random_crop` só deve ser usado no treino.
     """
     if smoke:
         smoke_cfg = config["smoke"]
@@ -286,8 +262,7 @@ def build_dataset(
 
     cache_dir = None
     if config["train"].get("cache_features", False):
-        # Base comum a todos os experimentos; o dataset cria dentro dela uma
-        # subpasta por fingerprint de features (ver ASVspoofDataset).
+        # Base comum; o dataset cria uma subpasta por fingerprint.
         cache_dir = Path(config["data"]["root"]).parent / "cache"
     return ASVspoofDataset(
         protocol_path=config["data"]["protocols"][partition],
@@ -295,6 +270,8 @@ def build_dataset(
         audio_cfg=config["audio"],
         extractor=extractor,
         cache_dir=cache_dir,
+        # Outra extensão só se os áudios foram convertidos (converter_para_wav.py).
+        file_ext=config["data"].get("file_ext", ".flac"),
         augmenter=augmenter,
         random_crop=random_crop,
         seed=config["experiment"]["seed"],
@@ -302,23 +279,14 @@ def build_dataset(
     )
 
 
-# Chaves de `audio` que só governam aleatoriedade por época. Não entram no
-# fingerprint porque não podem afetar o que é gravado no cache: quando estão
-# ativas, o cache é desativado para aquele dataset (ver `stochastic` acima), e
-# dev/eval nunca as recebem. Incluí-las apenas duplicaria pastas idênticas.
+# Só controlam aleatoriedade por época, que já desliga o cache; fora do fingerprint.
 _NAO_AFETAM_CACHE = ("augment", "random_crop")
 
 
 def _config_fingerprint(audio_cfg: dict, extractor: FeatureExtractor) -> str:
-    """Hash curto de áudio+features para invalidar o cache quando a config muda.
+    """Hash curto de áudio+features (com parâmetros) que identifica o cache.
 
-    Inclui os *parâmetros* das features (n_filter, n_lfcc, n_mels, ...), não só
-    os tipos — caso contrário, alterar `n_filter` reusaria features antigas do
-    cache e o experimento seria silenciosamente inválido.
-
-    A lista de exclusões é curta e explícita de propósito: qualquer chave nova
-    de `audio` entra no fingerprint por padrão. Errar para o lado conservador
-    custa espaço; errar para o outro lado corromperia o experimento.
+    Chaves novas de `audio` entram por padrão; só `_NAO_AFETAM_CACHE` fica fora.
     """
     audio_relevante = {k: v for k, v in audio_cfg.items()
                        if k not in _NAO_AFETAM_CACHE}
