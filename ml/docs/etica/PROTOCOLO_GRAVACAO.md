@@ -32,14 +32,21 @@ gravação começa antes do termo assinado (TERMO_CONSENTIMENTO.md). Campos
 
 - Microfone: [A DEFINIR: modelo]. Interface USB com ASIO: [A DEFINIR].
 - Captura pela aba Gravar: WASAPI exclusivo, 48 kHz, FIR para 16 kHz. O
-  arquivo guardado é o de 48 kHz, sem conversão.
+  arquivo guardado é o de 48 kHz em 24 bits, sem conversão. O compartilhado
+  fica de fora: no microfone do notebook ele aplica ganho e muda o espectro do
+  ruído (RESUMO_TCC §10.2.10).
 - Aprimoramentos de áudio do Windows desligados no microfone (RESUMO_TCC
   §10.2.1). Antes da coleta, a mesma frase em modo compartilhado e exclusivo, e
   com ruído constante ao fundo, para ver se o hardware processa o áudio.
 - Sala: [A DEFINIR]. Distância boca–microfone de 15 a 30 cm, a mesma para
   todos.
-- Nível: pico entre −12 e −3 dBFS, sem saturar. Ajustar uma vez por locutor,
-  com uma frase de teste que não entra no conjunto.
+- Nível: no modo exclusivo o volume e o reforço do microfone do Windows não
+  valem; o nível é o do hardware. No microfone do notebook, pico de cerca de
+  −40 dBFS (RESUMO_TCC §10.2.10). O modelo normaliza pelo pico, então o que
+  importa é a distância entre fala e ruído, não o nível; guardar em 24 bits
+  para não perder resolução. Ajuste de nível só com microfone ou interface de
+  ganho físico: pico entre −12 e −3 dBFS, sem saturar, com uma frase de teste
+  que não entra no conjunto.
 
 ## Toda condição nas duas classes
 

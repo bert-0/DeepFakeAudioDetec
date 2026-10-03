@@ -6,15 +6,16 @@ silêncio, uma frase, silêncio. Depois compara:
 
 - o ruído constante cai durante a gravação: supressão de ruído no caminho. No
   exclusivo ela é do driver ou do hardware, e o Windows não a desliga;
-- o compartilhado tem menos ruído, outro nível de fala ou perde 7,6–8 kHz: os
+- o compartilhado muda o nível (ganho fixo ou automático), a distância entre
+  fala e ruído, o formato do espectro do ruído ou perde 7,6–8 kHz: os
   aprimoramentos ou a conversão de taxa do Windows estão no caminho.
 
 Uso:
     python scripts/testar_microfone.py [--dispositivo "<nome>"] [--segundos 12]
     python scripts/testar_microfone.py --analisar exclusivo.wav compartilhado.wav
 
-As gravações vão para outputs/teste_microfone/, fora do Git. É teste de
-equipamento: nada disso entra no conjunto de dados.
+As gravações vão para outputs/teste_microfone/, fora do Git, em 24 bits. É teste
+de equipamento: nada disso entra no conjunto de dados.
 """
 
 from __future__ import annotations
@@ -34,10 +35,20 @@ from src.capture.sources import CaptureError, MicrofoneWasapiSource  # noqa: E40
 TAXA = 48000
 #: Abaixo disso é a variação natural entre duas leituras da mesma frase.
 LIMIAR_DB = 6.0
-#: Ruído de fundo mais baixo que isso nos dois modos: ou não havia ruído
-#: constante, ou o hardware o remove; o teste não separa os dois casos.
-RUIDO_MINIMO_DBFS = -65.0
+#: Desvio do espectro do ruído em relação ao ganho geral; abaixo disso, a
+#: diferença entre dois trechos de ruído do mesmo ventilador.
+LIMIAR_ESPECTRO_DB = 10.0
+#: Ruído constante tão abaixo da fala é o ruído do próprio microfone: ou o
+#: ruído de fundo não estava tocando, ou o caminho o remove.
+DISTANCIA_SEM_RUIDO_DB = 45.0
 SILENCIO_S = 3.0
+#: O começo da gravação é descartado: pega o clique do Enter (medido: 0,3 a
+#: 0,4 s no microfone do notebook).
+DESCARTE_S = 0.5
+#: 16 bits perdem resolução no nível baixo do modo exclusivo (pico de −40 dBFS
+#: no microfone do notebook).
+FORMATO = "PCM_24"
+BANDAS_HZ = ((50, 250), (250, 500), (500, 1000), (1000, 2000), (2000, 4000), (4000, 8000))
 FRASE = ("O detector compara a voz gravada com a voz sintética, frase por frase, "
          "em janelas de quatro segundos.")
 
@@ -46,8 +57,16 @@ def _db(x) -> np.ndarray:
     return 20 * np.log10(np.maximum(x, 1e-12))
 
 
+def _espectro(wav: np.ndarray, sr: int, de: float, ate: float) -> np.ndarray:
+    from scipy.signal import welch
+
+    trecho = wav[int(max(de, 0) * sr):int(ate * sr)]
+    f, p = welch(trecho, sr, nperseg=min(4096, max(len(trecho), 8)))
+    return np.array([10 * np.log10(p[(f >= a) & (f < b)].mean() + 1e-30) for a, b in BANDAS_HZ])
+
+
 def medir(wav: np.ndarray, sr: int) -> dict:
-    """Níveis da gravação em dBFS e a energia por faixa."""
+    """Níveis da gravação em dBFS, a linha do tempo e a energia por faixa."""
     import librosa
 
     wav = np.asarray(wav, dtype=np.float32).reshape(-1)
@@ -66,6 +85,8 @@ def medir(wav: np.ndarray, sr: int) -> dict:
         # logo no começo, antes de uma supressão de ruído convergir
         "ruido_inicio": mediana(0.25, 0.75),
         "ruido_fim": mediana(dur - 2.0, dur - 0.5),
+        "espectro_ruido_fim": _espectro(wav, sr, dur - 2.0, dur - 0.5),
+        "linha_do_tempo": [mediana(a, a + 0.5) for a in np.arange(0, dur - 0.25, 0.5)],
         "faixas": energia_por_faixa(wav, sr),
         "checagens": checar(wav, sr),
     }
@@ -85,17 +106,34 @@ def comparar(exclusivo: dict | None, compartilhado: dict | None) -> list[str]:
     if exclusivo is None or compartilhado is None:
         return saida
 
-    if max(exclusivo["ruido_fim"], compartilhado["ruido_fim"]) < RUIDO_MINIMO_DBFS:
-        saida.append(f"ruído de fundo abaixo de {RUIDO_MINIMO_DBFS:.0f} dBFS nos dois modos: "
-                     "confira se o ruído constante estava tocando; se estava, o hardware o remove")
-    dif_ruido = compartilhado["ruido_fim"] - exclusivo["ruido_fim"]
-    if dif_ruido <= -LIMIAR_DB:
-        saida.append(f"o compartilhado tem {-dif_ruido:.0f} dB menos ruído: aprimoramentos do "
-                     "Windows ligados (supressão de ruído)")
+    dist_e = exclusivo["fala"] - exclusivo["ruido_fim"]
+    dist_c = compartilhado["fala"] - compartilhado["ruido_fim"]
+    if min(dist_e, dist_c) >= DISTANCIA_SEM_RUIDO_DB:
+        saida.append(f"o ruído constante ficou a mais de {DISTANCIA_SEM_RUIDO_DB:.0f} dB da fala "
+                     "nos dois modos: confira se ele estava tocando; se estava, o hardware o remove")
+    if dist_c - dist_e >= LIMIAR_DB:
+        saida.append(f"o compartilhado afasta o ruído da fala em mais {dist_c - dist_e:.0f} dB: "
+                     "supressão de ruído no Windows")
+
     dif_fala = compartilhado["fala"] - exclusivo["fala"]
+    dif_ruido = compartilhado["ruido_inicio"] - exclusivo["ruido_inicio"]
     if abs(dif_fala) >= LIMIAR_DB:
-        saida.append(f"o nível da fala muda {dif_fala:+.0f} dB do exclusivo para o compartilhado: "
-                     "ganho ou AGC do Windows")
+        if abs(dif_fala - dif_ruido) < LIMIAR_DB:
+            saida.append(f"o compartilhado aplica um ganho fixo de {dif_fala:+.0f} dB na fala e no "
+                         "ruído: volume ou reforço do microfone no Windows")
+        else:
+            saida.append(f"no compartilhado a fala muda {dif_fala:+.0f} dB e o ruído {dif_ruido:+.0f} dB: "
+                         "ganho automático (AGC) no Windows")
+
+    # Ganho muda todas as faixas por igual; supressão e equalização, não.
+    desvio = compartilhado["espectro_ruido_fim"] - exclusivo["espectro_ruido_fim"]
+    desvio = desvio - np.median(desvio)
+    pior = int(np.argmax(np.abs(desvio)))
+    if abs(desvio[pior]) >= LIMIAR_ESPECTRO_DB:
+        a, b = BANDAS_HZ[pior]
+        saida.append(f"o compartilhado muda o formato do espectro do ruído, além do ganho "
+                     f"({desvio[pior]:+.0f} dB em {a}–{b} Hz): supressão de ruído ou equalização")
+
     alta_e = exclusivo["faixas"].get("7,6–8 kHz", 0.0)
     alta_c = compartilhado["faixas"].get("7,6–8 kHz", 0.0)
     if alta_e > 1e-5 and alta_c < alta_e / 4:
@@ -119,25 +157,42 @@ def relatar(medidas: dict[str, dict], indicios: list[str]) -> None:
     for i, c in enumerate(medidas[modos[0]]["checagens"]):
         estados = ["ok" if medidas[m]["checagens"][i].ok else "regravar" for m in modos]
         print(f"{'checagem ' + c.nome:22s}" + "".join(f"{e:>16s}" for e in estados))
+
+    print("\nNível por meio segundo (dBFS); a frase deve aparecer entre 3 e 9 s:")
+    for m in modos:
+        print(f"  {m:14s} " + " ".join(f"{x:4.0f}" for x in medidas[m]["linha_do_tempo"]))
+    falhas = [(m, c) for m in modos for c in medidas[m]["checagens"] if not c.ok]
+    if falhas:
+        print("\nChecagens que falharam:")
+        for m, c in falhas:
+            print(f"  {m} — {c.nome} ({c.valor}): {c.motivo}")
     print("\nIndícios:")
     for linha in indicios:
         print(f"  - {linha}")
 
 
 def gravar(segundos: float, exclusivo: bool, dispositivo: str | None) -> tuple[np.ndarray, str, str]:
-    """Grava `segundos` a 48 kHz, sem conversão, e devolve (áudio, modo, nome)."""
+    """Grava `segundos` a 48 kHz, sem conversão, e devolve (áudio, modo, nome).
+    Os primeiros `DESCARTE_S` segundos não entram."""
     fonte = MicrofoneWasapiSource(TAXA, dispositivo, exclusivo=exclusivo)
-    total, blocos, avisos = int(segundos * TAXA), [], [SILENCIO_S, segundos - SILENCIO_S]
+    descarte, total = int(DESCARTE_S * TAXA), int(segundos * TAXA)
+    blocos, avisos = [], [SILENCIO_S, segundos - SILENCIO_S]
     for bloco in fonte.blocos():
         blocos.append(bloco)
-        decorrido = sum(len(b) for b in blocos) / TAXA
+        decorrido = sum(len(b) for b in blocos) / TAXA - DESCARTE_S
         if avisos and decorrido >= avisos[0]:
             print("    >> leia a frase" if len(avisos) == 2 else "    >> silêncio até o fim")
             avisos.pop(0)
         if decorrido * TAXA >= total:
             break
     fonte.fechar()
-    return np.concatenate(blocos)[:total], fonte.modo, fonte.nome
+    return np.concatenate(blocos)[descarte:descarte + total], fonte.modo, fonte.nome
+
+
+def salvar(destino: str | Path, wav: np.ndarray) -> None:
+    import soundfile as sf
+
+    sf.write(destino, wav, TAXA, subtype=FORMATO)
 
 
 def main(argv=None) -> int:
@@ -149,9 +204,9 @@ def main(argv=None) -> int:
                    help="só analisa duas gravações já feitas")
     args = p.parse_args(argv)
 
-    import soundfile as sf
-
     if args.analisar:
+        import soundfile as sf
+
         medidas = {}
         for modo, caminho in zip(("exclusivo", "compartilhado"), args.analisar):
             wav, sr = sf.read(caminho, dtype="float32", always_2d=True)
@@ -166,15 +221,15 @@ def main(argv=None) -> int:
     print(f"Frase: \"{FRASE}\"")
     medidas, carimbo = {}, time.strftime("%Y%m%d_%H%M%S")
     for pedido in ("exclusivo", "compartilhado"):
-        input(f"\n[{pedido}] Enter para gravar {args.segundos:.0f} s "
-              f"({SILENCIO_S:.0f} s de silêncio, a frase, silêncio)...")
+        input(f"\n[{pedido}] Enter para gravar {args.segundos:.0f} s; espere o aviso "
+              "para ler a frase...")
         try:
             wav, modo, nome = gravar(args.segundos, pedido == "exclusivo", args.dispositivo)
         except CaptureError as erro:
             print(f"[ERRO] {erro}")
             return 1
         destino = pasta / f"{carimbo}_{pedido}.wav"
-        sf.write(destino, wav, TAXA)
+        salvar(destino, wav)
         print(f"    {nome} (WASAPI {modo}) -> {destino}")
         if modo != pedido:
             print(f"[AVISO] pedido {pedido}, o driver abriu {modo}: a comparação entre os "

@@ -8,7 +8,7 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import butter, sosfilt
 
-from scripts.testar_microfone import comparar, gravar, main, medir
+from scripts.testar_microfone import comparar, gravar, main, medir, salvar
 from test_microfone_wasapi import _sounddevice_falso
 
 SR = 48000
@@ -37,14 +37,29 @@ def test_supressao_no_hardware_aparece_no_exclusivo():
     assert any(x.startswith("exclusivo: o ruído constante caiu 20 dB") for x in r), r
 
 
-def test_aprimoramentos_do_windows_tiram_ruido_no_compartilhado():
+def test_supressao_do_windows_afasta_o_ruido_da_fala():
     r = comparar(medir(_cena(), SR), medir(_cena(ruido=0.001, seed=1), SR))
-    assert any("aprimoramentos do Windows" in x for x in r), r
+    assert any("supressão de ruído no Windows" in x for x in r), r
 
 
-def test_ganho_automatico_muda_o_nivel_da_fala():
+def test_ganho_fixo_sobe_fala_e_ruido_juntos():
+    """O caso medido no microfone do notebook: +17 a +20 dB em tudo."""
+    r = comparar(medir(_cena(ruido=0.0003, fala=0.01), SR), medir(_cena(seed=1), SR))
+    assert any("ganho fixo de +20 dB" in x for x in r), r
+    assert not any("AGC" in x or "espectro" in x for x in r), r
+
+
+def test_ganho_automatico_muda_so_o_nivel_da_fala():
     r = comparar(medir(_cena(), SR), medir(_cena(fala=0.03, seed=1), SR))
-    assert any("ganho ou AGC" in x for x in r), r
+    assert any("ganho automático (AGC)" in x for x in r), r
+
+
+def test_supressao_que_tira_os_graves_do_ruido():
+    sos = butter(8, 1000, btype="highpass", fs=SR, output="sos")
+    compartilhado = _cena(seed=1)
+    compartilhado[10 * SR:] = sosfilt(sos, compartilhado[10 * SR:])
+    r = comparar(medir(_cena(), SR), medir(compartilhado, SR))
+    assert any("formato do espectro do ruído" in x and "50–250 Hz" in x for x in r), r
 
 
 def test_conversao_de_taxa_perde_a_banda_alta():
@@ -56,15 +71,21 @@ def test_conversao_de_taxa_perde_a_banda_alta():
 
 def test_sem_ruido_de_fundo_avisa_que_o_teste_nao_decide():
     r = comparar(medir(_cena(ruido=1e-5), SR), medir(_cena(ruido=1e-5, seed=1), SR))
-    assert any("confira se o ruído constante estava tocando" in x for x in r), r
+    assert any("confira se ele estava tocando" in x for x in r), r
 
 
-def test_grava_a_48_khz_sem_passar_pelo_fir(monkeypatch):
+def test_grava_a_48_khz_sem_o_fir_e_sem_o_clique_do_inicio(monkeypatch):
     sinal = np.random.default_rng(4).standard_normal(SR * 2) * 0.1
     _sounddevice_falso(monkeypatch, sinal)
     wav, modo, nome = gravar(1.0, True, None)
     assert modo == "exclusivo" and len(wav) == SR
-    np.testing.assert_allclose(wav, sinal[:SR], atol=1e-6)
+    np.testing.assert_allclose(wav, sinal[SR // 2:SR // 2 + SR], atol=1e-6)
+
+
+def test_salva_em_24_bits(tmp_path):
+    destino = tmp_path / "x.wav"
+    salvar(destino, np.random.default_rng(5).standard_normal(SR).astype(np.float32) * 0.01)
+    assert sf.info(destino).subtype == "PCM_24"
 
 
 def test_analisa_gravacoes_ja_feitas(tmp_path, capsys):
@@ -73,4 +94,5 @@ def test_analisa_gravacoes_ja_feitas(tmp_path, capsys):
     sf.write(b, _cena(ruido=0.001, seed=1), SR)
     assert main(["--analisar", str(a), str(b)]) == 0
     saida = capsys.readouterr().out
-    assert "ruído no fim" in saida and "aprimoramentos do Windows" in saida
+    assert "ruído no fim" in saida and "Nível por meio segundo" in saida
+    assert "supressão de ruído no Windows" in saida

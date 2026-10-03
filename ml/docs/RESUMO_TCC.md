@@ -1739,6 +1739,34 @@ primeiro falhar e é declarado assim no texto.
   passando; a interface web roda um modelo só. Até ligar o limiar da fusão, a
   recomendação prática do monitor continua o v2 sozinho.
 
+### 10.2.10 Microfone do notebook: exclusivo x compartilhado (teste de equipamento)
+
+`scripts/testar_microfone.py`, "Grupo de microfones (Realtek(R) Audio)", a mesma
+frase gravada em WASAPI exclusivo e compartilhado, 48 kHz, com ruído de fundo,
+02/10/2026. Reanálise com `--analisar` depois de corrigir o script (critérios
+relativos à fala e ao ganho):
+
+| | exclusivo | compartilhado |
+|---|---|---|
+| pico | −40,4 dBFS | −21,7 dBFS |
+| fala (p95 do RMS) | −53,2 dBFS | −36,1 dBFS |
+| ruído no começo / no fim | −81,3 / −78,3 dBFS | −61,7 / −65,7 dBFS |
+
+- **O compartilhado aplica +17 dB de ganho fixo** (fala e ruído sobem juntos):
+  volume ou reforço do microfone no Windows, que o exclusivo não aplica.
+- **E muda o formato do espectro do ruído além do ganho:** −17 dB em
+  250–500 Hz no fim da gravação, em relação ao ganho geral. É supressão de
+  ruído ou equalização no caminho compartilhado.
+- **No exclusivo o ruído não cai durante a gravação** (−81,3 → −78,3 dBFS):
+  nenhum indício de supressão no driver ou no hardware.
+- **Consequência:** a coleta usa o exclusivo, como previsto no plano. O nível
+  do exclusivo é baixo (pico de −40 dBFS); o modelo normaliza pelo pico, mas a
+  gravação deve ser guardada em 24 bits.
+- **Limitações desta rodada:** o arquivo foi salvo em 16 bits e com o clique do
+  Enter no começo (corrigido no script: 24 bits e 0,5 s descartados); no
+  exclusivo a frase não caiu na janela pedida; não foi confirmado se o ruído de
+  fundo estava tocando nas duas gravações.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
