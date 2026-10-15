@@ -39,14 +39,17 @@ gravação começa antes do termo assinado (TERMO_CONSENTIMENTO.md). Campos
   24 bits, sem conversão. O compartilhado fica de fora: no microfone do
   notebook ele aplica +16 a +17 dB de ganho que o exclusivo não tem (RESUMO_TCC
   §10.2.10).
+- Nenhum fone com microfone conectado ao notebook: com ele, o driver Realtek
+  troca o microfone embutido pelo do fone sem mudar o nome da entrada.
 - Aprimoramentos de áudio do Windows desligados no microfone (RESUMO_TCC
   §10.2.1). Antes da coleta, a mesma frase em modo compartilhado e exclusivo, e
   com ruído constante ao fundo, para ver se o hardware processa o áudio.
 - Sala: [A DEFINIR]. Distância boca–microfone de 15 a 30 cm, a mesma para
   todos.
 - Nível: no modo exclusivo o volume e o reforço do microfone do Windows não
-  valem; o nível é o do hardware. No microfone do notebook, pico de cerca de
-  −40 dBFS (RESUMO_TCC §10.2.10). O modelo normaliza pelo pico, então o que
+  valem; o nível é o do hardware. No microfone do fone, pela entrada do
+  notebook, pico de cerca de −40 dBFS (RESUMO_TCC §10.2.10); o do embutido
+  falta medir. O modelo normaliza pelo pico, então o que
   importa é a distância entre fala e ruído, não o nível; guardar em 24 bits
   para não perder resolução. Ajuste de nível só com microfone ou interface de
   ganho físico: pico entre −12 e −3 dBFS, sem saturar, com uma frase de teste

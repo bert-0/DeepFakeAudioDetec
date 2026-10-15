@@ -1739,13 +1739,17 @@ primeiro falhar e é declarado assim no texto.
   passando; a interface web roda um modelo só. Até ligar o limiar da fusão, a
   recomendação prática do monitor continua o v2 sozinho.
 
-### 10.2.10 Microfone do notebook: exclusivo x compartilhado (teste de equipamento)
+### 10.2.10 Entrada Realtek do notebook: exclusivo x compartilhado (teste de equipamento)
 
 `scripts/testar_microfone.py`, "Grupo de microfones (Realtek(R) Audio)", a mesma
-frase gravada em WASAPI exclusivo e compartilhado, 48 kHz, 02/10/2026. É o
-microfone embutido do notebook, junto da webcam: o da apresentação. A
-confirmar: as duas rodadas foram feitas com um fone de ouvido conectado, e
-falta repetir sem ele para saber se o driver desviava a entrada.
+frase gravada em WASAPI exclusivo e compartilhado, 48 kHz, 02/10/2026.
+
+**O microfone medido é o do fone de ouvido, não o embutido.** As duas rodadas
+foram feitas com um fone com microfone conectado, e com ele o driver Realtek
+troca a fonte dessa entrada para o microfone do fone sem mudar o nome nem
+mostrar outro dispositivo (informado pelo usuário em 14/10/2026). O microfone
+embutido do notebook, junto da webcam, que é o da apresentação, continua sem
+teste.
 
 | rodada | | exclusivo | compartilhado |
 |---|---|---|---|
@@ -1757,7 +1761,8 @@ falta repetir sem ele para saber se o driver desviava a entrada.
 
 - **O compartilhado aplica ganho fixo de +16 a +17 dB** nas duas rodadas (fala
   e ruído sobem juntos): volume ou reforço do microfone no Windows, que o
-  exclusivo não aplica.
+  exclusivo não aplica. É da entrada, não do microfone, e deve se repetir no
+  embutido; falta medir.
 - **Nenhum indício de supressão de ruído na rodada 2**, nos dois modos: o
   espectro do ruído não muda de formato do começo para o fim nem de um modo
   para o outro (critério: uma faixa até 8 kHz 10 dB fora do ganho geral). A
@@ -1767,8 +1772,12 @@ falta repetir sem ele para saber se o driver desviava a entrada.
   feita sem o ruído de fundo (confirmado pelo usuário); ali o "ruído" era o do
   próprio microfone e da sala, e o resultado não se repetiu com ruído branco.
 - **Consequência:** a coleta usa o exclusivo, como previsto no plano. O nível
-  do exclusivo é baixo (pico de −37 a −40 dBFS); o modelo normaliza pelo pico,
-  e a gravação vai em 24 bits.
+  do exclusivo é baixo (pico de −37 a −40 dBFS, no microfone do fone); o modelo
+  normaliza pelo pico, e a gravação vai em 24 bits.
+- **Risco para a coleta e a banca:** um fone com microfone conectado ao
+  notebook troca o microfone em silêncio, e o monitor continua mostrando
+  "Grupo de microfones". Nenhum fone com microfone ligado ao notebook durante
+  a gravação e a demonstração.
 - Na rodada 2 as checagens de fala e de piso reprovam por construção: o ruído
   branco ficou a 20 dB da fala.
 
@@ -1776,7 +1785,7 @@ Dispositivos de entrada no WASAPI, consultados no driver (sem gravar):
 
 | dispositivo | taxas aceitas a 1 canal |
 |---|---|
-| Grupo de microfones (Realtek(R) Audio) | 48 kHz, exclusivo e compartilhado |
+| Grupo de microfones (Realtek(R) Audio) — com o fone conectado, o microfone do fone | 48 kHz, exclusivo e compartilhado |
 | Interface de áudio digital (2- USB Digital Audio) | só 96 kHz, exclusivo e compartilhado |
 | Microfone (DroidCam Audio) | 44,1 kHz nos dois modos; 48 kHz só no exclusivo |
 

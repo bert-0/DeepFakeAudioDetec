@@ -114,7 +114,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   do primeiro checkpoint (RESUMO_TCC §10.2.9).
 - Ao vivo: aprimoramentos de áudio do Windows (saída e microfone) precisam estar
   desligados; o VLC altera o áudio; reprodução pelo ar (celular → microfone)
-  não separa real de falso.
+  não separa real de falso. Com um fone com microfone conectado, o driver
+  Realtek troca o microfone embutido ("Grupo de microfones") pelo do fone sem
+  mudar o nome; os testes de 02/10 (RESUMO_TCC §10.2.10) mediram o do fone.
 - Voz própria com copy-synthesis (Griffin-Lim, WORLD): versões sintéticas abaixo
   do original em 18 de 20; o modelo reage às condições de gravação, não ao
   vocoder. É o diagnóstico que motiva o Incremento 4.
