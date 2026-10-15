@@ -17,6 +17,8 @@ ml/data/LA/
 # (trial_metadata.txt, vários MB) e os scores do baseline são texto e
 # entrariam num `git add -A`.
 ml/data/ASVspoof2021_LA/
+# ASVspoof 5: os protocolos (.tsv, vários MB) são texto e entrariam num `git add -A`.
+ml/data/ASVspoof5/
 
 # Amostras de voluntarios — voz e dado biometrico sensivel (LGPD): NUNCA versionar
 ml/data/volunteers/
