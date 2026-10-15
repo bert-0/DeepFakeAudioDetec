@@ -5,6 +5,9 @@ Campos, separados por espaço apesar do `.tsv` (README do Zenodo, registro
 condição_de_adaptação ataque chave reservado. O README fala em "cinco colunas"
 e lista dez; o último é reservado ("-"), então 9 ou 10 campos são aceitos e
 cada linha é conferida pelo conteúdo, não só pela posição.
+
+Os FLAC são lidos direto dos `.tar` do Zenodo, sem extrair: os de treino e dev
+somam 57,5 GB, e extraídos dobrariam o espaço.
 """
 
 from __future__ import annotations
@@ -18,8 +21,9 @@ from pathlib import Path
 # servem, porque só leem locutor, arquivo, ataque e chave.
 from .asvspoof2021 import escrever_protocolo, linha_de_protocolo, subamostrar
 
-__all__ = ["Enunciado", "ProtocoloInvalido", "conferir_tamanho", "escrever_protocolo",
-           "ler_protocolo", "linha_de_protocolo", "recorte", "resumo", "subamostrar"]
+__all__ = ["Enunciado", "ProtocoloInvalido", "conferir_arquivo", "conferir_tamanho",
+           "cortar_trecho", "escrever_protocolo", "ler_protocolo", "ler_tar",
+           "linha_de_protocolo", "recorte", "resumo", "subamostrar"]
 
 CHAVES = ("bonafide", "spoof")
 GENEROS = ("F", "M")
@@ -30,6 +34,20 @@ LINHAS_OFICIAIS = {
     "ASVspoof5.train.tsv": 182_357,
     "ASVspoof5.dev.track_1.tsv": 140_950,
     "ASVspoof5.eval.track_1.tsv": 680_774,
+}
+
+#: Tamanho em bytes e MD5 de cada arquivo, da API do Zenodo (registro 14498691),
+#: conferidos contra a página do registro em 15/10/2026.
+ARQUIVOS_OFICIAIS = {
+    "ASVspoof5_protocols.tar.gz": (20_669_392, "865d0e894ea9f686f0f37e5ae3ae3616"),
+    "flac_T_aa.tar": (7_522_498_560, "b0cc86b14826a7701b52aad4f53daf9c"),
+    "flac_T_ab.tar": (7_489_587_200, "d05be3f4be7a343fdbdd0ed29fdff2e1"),
+    "flac_T_ac.tar": (7_497_256_960, "70d1ba4ad75a20aef3dae541fbd321e3"),
+    "flac_T_ad.tar": (7_509_688_320, "c9bb56af2cc410d98338d74babcb95c9"),
+    "flac_T_ae.tar": (7_482_521_600, "a3969816982f3e52300d6147ad796df7"),
+    "flac_D_aa.tar": (6_647_265_280, "df0be44957623991028cce59792beb17"),
+    "flac_D_ab.tar": (6_641_459_200, "1e8cd685d89b64502692f1bcf1a13db3"),
+    "flac_D_ac.tar": (6_771_660_800, "5e0031f08c30e4bdbf0c59f91b2d662b"),
 }
 
 _ATAQUE = re.compile(r"A\d{2}$")
@@ -149,3 +167,71 @@ def recorte(enunciados: list[Enunciado], falsos_por_ataque: int,
         indices = por_ataque[ataque]
         escolhidos.update(rng.sample(indices, min(falsos_por_ataque, len(indices))))
     return [enunciados[i] for i in sorted(escolhidos)]
+
+
+def conferir_arquivo(caminho: str | Path, md5: bool = False) -> str | None:
+    """Problema com um arquivo baixado, ou None. O tamanho é conferido sempre (é
+    instantâneo e pega download incompleto); o MD5 só com `md5=True` (lê o
+    arquivo inteiro). Arquivos fora da tabela oficial passam sem conferência."""
+    caminho = Path(caminho)
+    oficial = ARQUIVOS_OFICIAIS.get(caminho.name)
+    if oficial is None:
+        return None
+    tamanho, esperado = oficial
+    if caminho.stat().st_size != tamanho:
+        return (f"{caminho.name}: {caminho.stat().st_size} bytes, o Zenodo diz {tamanho}. "
+                "O download não terminou; retome com curl -C -.")
+    if md5:
+        import hashlib
+
+        h = hashlib.md5()
+        with open(caminho, "rb") as fh:
+            for bloco in iter(lambda: fh.read(1 << 24), b""):
+                h.update(bloco)
+        if h.hexdigest() != esperado:
+            return f"{caminho.name}: MD5 {h.hexdigest()}, o Zenodo diz {esperado}. Baixe de novo."
+    return None
+
+
+def ler_tar(caminho, ids: set[str] | None = None):
+    """Gera (id, áudio float32, taxa) dos FLAC de um `.tar`, na ordem em que estão
+    gravados, sem extrair nada. `ids` restringe aos arquivos pedidos.
+
+    Lê em fluxo ("r|"): serve também para um `.tar` chegando pela rede.
+    """
+    import io
+    import tarfile
+
+    import soundfile as sf
+
+    abrir = (tarfile.open(fileobj=caminho, mode="r|*") if hasattr(caminho, "read")
+             else tarfile.open(caminho, mode="r|*"))
+    with abrir as tar:
+        for membro in tar:
+            if not membro.isfile() or not membro.name.endswith(".flac"):
+                continue
+            nome = Path(membro.name).stem
+            if ids is not None and nome not in ids:
+                continue
+            dados = tar.extractfile(membro).read()
+            wav, taxa = sf.read(io.BytesIO(dados), dtype="float32")
+            yield nome, wav, int(taxa)
+
+
+def cortar_trecho(wav, taxa: int, segundos: float = 6.0, margem: float = 0.5,
+                  top_db: float = 30.0):
+    """No máximo `segundos` de áudio, começando `margem` s antes da primeira fala.
+
+    A margem de silêncio fica de propósito: a degradação de canal do treino
+    também age nas pausas, e ruído nas pausas desloca o score (RESUMO_TCC
+    §10.2.1). Fala que começa tarde puxa a janela para trás, até o fim do áudio.
+    """
+    import librosa
+
+    n = int(round(segundos * taxa))
+    if len(wav) <= n:
+        return wav
+    trechos = librosa.effects.split(wav, top_db=top_db)
+    inicio = int(trechos[0][0]) - int(round(margem * taxa)) if len(trechos) else 0
+    inicio = min(max(inicio, 0), len(wav) - n)
+    return wav[inicio:inicio + n]

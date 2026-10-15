@@ -69,7 +69,8 @@ primeiro: nenhuma gravação começa antes deles.
 
 **Dados**
 - Baixar treino e dev da ASVspoof 5 (57,5 GB) e montar o recorte: 19 mil
-  humanos, cerca de 5 mil falsos por ataque, trechos de 6 s em int16.
+  humanos, cerca de 5 mil falsos por ataque, trechos de 6 s em int16
+  (`scripts/montar_recorte_asvspoof5.py`, lê os `.tar` sem extrair).
 - Avaliação estratificada da ASVspoof 5 (10 mil) lendo os `.tar` em fluxo, sem
   baixar os 94 GB.
 - `src/data/asvspoof5.py` para o protocolo da trilha 1 (10 campos separados

@@ -1950,6 +1950,14 @@ Licença Open Data Commons Attribution (ODC-By); o áudio bonafide, CC BY 4.0.
 Leitura em `src/data/asvspoof5.py`, que confere cada linha pelo conteúdo e
 o total contra o README.
 
+**Recorte** (`scripts/montar_recorte_asvspoof5.py`): lê os FLAC direto dos
+`.tar`, sem extrair (extraídos, os 57,5 GB dobrariam), e confere o tamanho e
+o MD5 de cada `.tar` contra o Zenodo. Seleção com semente fixa: todos os
+bonafide e até N spoof por ataque. Cada áudio vira um FLAC de 16 bits com no
+máximo 6 s, começando cerca de 0,5 s antes da primeira fala: a margem de
+silêncio fica de propósito, para a degradação de canal do treino agir também
+nas pausas (10.2.1). A seleção inteira é versionada em `data/recortes/`.
+
 **Por que é melhor que o CFAD para este trabalho:** é em **inglês**, como a base
 atual. Não há confundidor de idioma — a diferença de desempenho é atribuível a
 condição de aquisição e a ataque, não a língua. É a comparação limpa que o CFAD
