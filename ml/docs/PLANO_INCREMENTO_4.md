@@ -72,7 +72,8 @@ primeiro: nenhuma gravação começa antes deles.
   humanos, cerca de 5 mil falsos por ataque, trechos de 6 s em int16.
 - Avaliação estratificada da ASVspoof 5 (10 mil) lendo os `.tar` em fluxo, sem
   baixar os 94 GB.
-- `src/data/asvspoof5.py` para o protocolo TSV de 9 colunas.
+- `src/data/asvspoof5.py` para o protocolo da trilha 1 (10 campos separados
+  por espaço, apesar do `.tsv`; README do Zenodo). Feito em 14/10/2026.
 - Subir o recorte como dataset privado no Kaggle.
 - Gravar o grupo e os voluntários com a aba Gravar.
 - Gerar os falsos com 2 ou 3 ferramentas de clonagem, deixando uma fora do treino.

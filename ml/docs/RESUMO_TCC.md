@@ -1938,6 +1938,18 @@ aparecem pela primeira vez na série.
 | dev | 785 | 140.950 | 31.334 |
 | eval (track 1) | 737 | **680.774** | 138.688 |
 
+**Formato e licença** (README do Zenodo, registro 14498691). Áudio em FLAC a
+16 kHz: treino em `flac_T_aa.tar` a `flac_T_ae.tar`, dev em `flac_D_aa.tar` a
+`flac_D_ac.tar`, eval em `flac_E_aa.tar` a `flac_E_aj.tar`; protocolos em
+`ASVspoof5_protocols.tar.gz`. Os protocolos da trilha 1 têm 10 campos
+separados por espaço, apesar do `.tsv` (o README diz "cinco colunas" e
+lista dez): locutor, arquivo, gênero, codec, qualidade do codec, original do
+codec, condição de adaptação do atacante, ataque, chave e um reservado.
+Linhas: 182.357 (train), 140.950 (dev), 680.774 (eval), as mesmas da tabela.
+Licença Open Data Commons Attribution (ODC-By); o áudio bonafide, CC BY 4.0.
+Leitura em `src/data/asvspoof5.py`, que confere cada linha pelo conteúdo e
+o total contra o README.
+
 **Por que é melhor que o CFAD para este trabalho:** é em **inglês**, como a base
 atual. Não há confundidor de idioma — a diferença de desempenho é atribuível a
 condição de aquisição e a ataque, não a língua. É a comparação limpa que o CFAD
