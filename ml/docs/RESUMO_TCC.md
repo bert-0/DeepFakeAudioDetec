@@ -1977,6 +1977,14 @@ versionada (`data/recortes/asvspoof5_train_5000_s42.txt`). 58.614 com 6 s
 exatos, mediana 6,00 s, mínimo 3,58 s (só 1 abaixo de 4 s); 98,0 h de áudio em
 6,07 GB (o plano estimava 11 GB contando int16 sem compressão).
 
+**Recorte do dev montado** (22/10/2026; MD5 dos 3 `.tar` conferido): amostra
+estratificada de 9.999 áudios (2.223 bonafide, 972 de cada ataque A09–A16, 712
+locutores), 15,8 h em 1,12 GB, todos legíveis; seleção em
+`data/recortes/asvspoof5_dev_amostra10000_s42.txt`. Treino e dev não têm
+arquivo nem locutor em comum. 10 áudios do dev têm menos de 1 s (o mais curto,
+0,09 s), e os 5 mais curtos são spoof (A11 e A13); no treino o mais curto tem
+3,58 s. Duração curta só em spoof pode virar atalho: conferir no eval.
+
 - **Treino e dev não têm codec.** No modelo treinado no recorte, a robustez a
   codec vem só do aumento de dados (RawBoost, codecs, ida e volta 16/48/16), e
   o eval mede codecs que o treino nunca viu.
