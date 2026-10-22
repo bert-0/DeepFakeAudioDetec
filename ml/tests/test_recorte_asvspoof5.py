@@ -141,3 +141,15 @@ def test_le_o_tar_em_fluxo_so_os_pedidos(base):
         lidos = list(asv5.ler_tar(fluxo, {"T_0000000001"}))
     assert [(n, t) for n, _, t in lidos] == [("T_0000000001", SR)]
     np.testing.assert_allclose(lidos[0][1], AUDIOS["T_0000000001"], atol=1 / 32768)
+
+
+def test_amostra_estratificada_para_o_dev(base, capsys):
+    rc = main(["--protocolo", str(base / "proto.tsv"), "--tars", str(base / "t*.tar"),
+               "--saida", str(base / "dev"), "--amostra", "3",
+               "--lista", str(base / "lista_dev.txt")])
+    assert rc == 0
+    protocolo = parse_protocol_with_systems(base / "dev" / "protocolo.txt")
+    # um de cada estrato (bonafide, A01, A02), na ordem do protocolo
+    assert sorted(r[2] for r in protocolo) == ["-", "A01", "A02"]
+    assert [r[0] for r in protocolo] == sorted(r[0] for r in protocolo)
+    assert len(list((base / "dev" / "flac").glob("*.flac"))) == 3

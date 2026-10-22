@@ -1,14 +1,15 @@
 """Monta o recorte da ASVspoof 5 lendo os FLAC direto dos `.tar`, sem extrair.
 
 Seleção (`src.data.asvspoof5.recorte`): todos os bonafide e até N spoof por
-ataque, com semente fixa. Cada áudio vira um FLAC de 16 bits com no máximo 6 s,
+ataque, com semente fixa; com `--amostra`, uma amostra estratificada por (chave,
+ataque), como as outras réguas (usada no dev). Cada áudio vira um FLAC de 16 bits com no máximo 6 s,
 começando 0,5 s antes da primeira fala. Saídas:
 
 - `<saida>/flac/<id>.flac` e `<saida>/protocolo.txt`, só com os áudios que já
   estão na pasta, no formato de 2019: entram no config do treino como
   `protocols.<partição>` e `audio_dir.<partição>`;
-- `data/recortes/asvspoof5_<partição>_<N>_s<semente>.txt`: a seleção inteira, no
-  mesmo formato, para versionar.
+- `data/recortes/asvspoof5_<partição>_<N ou amostraN>_s<semente>.txt`: a seleção
+  inteira, no mesmo formato, para versionar.
 
 Pode ser interrompido e retomado: o que já foi escrito é pulado. Com só parte dos
 `.tar` baixados, rode com eles e depois de novo com os outros.
@@ -18,6 +19,10 @@ Uso (de dentro de ml/):
         --protocolo data/ASVspoof5/ASVspoof5.train.tsv \\
         --tars "data/ASVspoof5/flac_T_a*.tar" \\
         --saida <pasta no NVMe>/ASVspoof5_recorte/train --md5
+    python scripts/montar_recorte_asvspoof5.py \\
+        --protocolo data/ASVspoof5/ASVspoof5.dev.track_1.tsv \\
+        --tars "data/ASVspoof5/flac_D_a*.tar" --amostra 10000 \\
+        --saida data/ASVspoof5_recorte/dev --md5
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ from src.data.asvspoof5 import (  # noqa: E402
     ler_tar,
     recorte,
     resumo,
+    subamostrar,
 )
 
 TAXA = 16000
@@ -55,6 +61,9 @@ def parse_args(argv=None) -> argparse.Namespace:
                    help="os .tar da partição; aceita padrões como \"flac_T_a*.tar\"")
     p.add_argument("--saida", required=True, help="pasta do recorte (de preferência no NVMe)")
     p.add_argument("--falsos-por-ataque", type=int, default=FALSOS_POR_ATAQUE)
+    p.add_argument("--amostra", type=int, default=None,
+                   help="amostra estratificada de N áudios no lugar de todos os humanos "
+                        "e N falsos por ataque (o dev de validação usa 10000)")
     p.add_argument("--segundos", type=float, default=6.0)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--md5", action="store_true",
@@ -93,14 +102,20 @@ def main(argv=None) -> int:
         print(f"[ERRO] {aviso}")
         return 1
 
-    selecao = recorte(enunciados, args.falsos_por_ataque, args.seed)
+    if args.amostra:
+        ordem = {e.arquivo: i for i, e in enumerate(enunciados)}
+        selecao = sorted(subamostrar(enunciados, args.amostra, args.seed),
+                         key=lambda e: ordem[e.arquivo])
+        rotulo = f"amostra{args.amostra}"
+    else:
+        selecao = recorte(enunciados, args.falsos_por_ataque, args.seed)
+        rotulo = str(args.falsos_por_ataque)
     particao = selecao[0].particao
     contagem = resumo(selecao)
     print(f"Seleção ({particao}): {len(selecao)} áudios — {contagem['chave']}")
     print("  por ataque: " + ", ".join(f"{a} {n}" for a, n in contagem["ataque"].items()))
 
-    lista = Path(args.lista or f"data/recortes/asvspoof5_{particao}_"
-                               f"{args.falsos_por_ataque}_s{args.seed}.txt")
+    lista = Path(args.lista or f"data/recortes/asvspoof5_{particao}_{rotulo}_s{args.seed}.txt")
     escrever_protocolo(selecao, lista)
 
     pasta = Path(args.saida) / "flac"
