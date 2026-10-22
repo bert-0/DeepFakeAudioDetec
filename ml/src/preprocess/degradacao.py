@@ -14,11 +14,13 @@ Config (`audio.degradacao`)::
         - {tipo: opus, prob: 0.3, faixa: [0.3, 0.9]}
         - {tipo: band, prob: 0.1, opcoes: [8000, 11025]}
         - {tipo: ruido, prob: 0.3, faixa: [10, 30]}
+        - {tipo: rawboost, prob: 0.7, opcoes: [lnl+isd, ssi]}
 
 `nivel` fixa o parâmetro, `faixa` sorteia um valor entre dois por amostra e
 `opcoes` sorteia um da lista. O parâmetro é o do `ChannelDegradation` (opus:
 compression_level; band: taxa intermediária; captura e captura_fir: taxa do
-dispositivo) ou, no ruído, a SNR em dB.
+dispositivo), no ruído a SNR em dB e no RawBoost o nome da variante
+(`src/preprocess/rawboost.py`), cujos padrões `parametros:` pode trocar.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ import numpy as np
 from .augment import add_noise
 from .channel import ChannelDegradation
 
-TIPOS = ("opus", "band", "captura", "captura_fir", "ruido")
+TIPOS = ("opus", "band", "captura", "captura_fir", "ruido", "rawboost")
 _FORMAS = ("nivel", "faixa", "opcoes")
 
 
@@ -48,20 +50,34 @@ class _Etapa:
             raise ValueError(f"{self.tipo}: faixa precisa de dois valores, não {self.valor}")
         if self.forma == "opcoes" and not self.valor:
             raise ValueError(f"{self.tipo}: opcoes vazia")
+        if self.tipo == "rawboost":
+            from . import rawboost
+
+            if self.forma == "faixa":
+                raise ValueError("rawboost: use nivel ou opcoes com o nome da variante, não faixa")
+            for nome in ([self.valor] if self.forma == "nivel" else self.valor):
+                rawboost.variante(nome)
+            self.parametros_rawboost = rawboost.parametros(cfg.get("parametros"))
+        elif "parametros" in cfg:
+            raise ValueError(f"{self.tipo}: 'parametros' só vale para rawboost")
         self.sample_rate = int(sample_rate)
 
-    def parametro(self, rng: np.random.Generator) -> float:
-        if self.forma == "nivel":
-            return float(self.valor)
+    def parametro(self, rng: np.random.Generator):
         if self.forma == "faixa":
             lo, hi = self.valor
             return float(rng.uniform(lo, hi))
-        return float(self.valor[int(rng.integers(len(self.valor)))])
+        valor = (self.valor if self.forma == "nivel"
+                 else self.valor[int(rng.integers(len(self.valor)))])
+        return valor if self.tipo == "rawboost" else float(valor)
 
     def __call__(self, wav: np.ndarray, rng: np.random.Generator) -> np.ndarray:
         p = self.parametro(rng)
         if self.tipo == "ruido":
             return add_noise(wav, p, rng)
+        if self.tipo == "rawboost":
+            from . import rawboost
+
+            return rawboost.aplicar(wav, p, rng, self.parametros_rawboost, self.sample_rate)
         return ChannelDegradation(self.tipo, p, self.sample_rate)(wav)
 
     def __str__(self) -> str:

@@ -1985,6 +1985,12 @@ arquivo nem locutor em comum. 10 áudios do dev têm menos de 1 s (o mais curto,
 0,09 s), e os 5 mais curtos são spoof (A11 e A13); no treino o mais curto tem
 3,58 s. Duração curta só em spoof pode virar atalho: conferir no eval.
 
+**Custo do RawBoost** (`src/preprocess/rawboost.py`, 22/10/2026, CPU, um
+áudio de 6 s do recorte, média de 5): lnl 43 ms, isd 4 ms, ssi 10 ms,
+lnl+isd 44 ms, lnl+isd+ssi 55 ms. Com a degradação ligada o cache do treino
+se desliga, e esse custo entra em toda amostra de toda época, dividido pelos
+workers do DataLoader.
+
 - **Treino e dev não têm codec.** No modelo treinado no recorte, a robustez a
   codec vem só do aumento de dados (RawBoost, codecs, ida e volta 16/48/16), e
   o eval mede codecs que o treino nunca viu.

@@ -56,7 +56,8 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   normaliza pelo pico, janela de 4 s), `reamostragem.py` (FIR polifásico; o
   `soxr` apagava 7,6–8 kHz e não deve voltar ao caminho do modelo),
   `degradacao.py` (aumento no áudio bruto, antes do pré-processamento,
-  `audio.degradacao`; o `Augmenter` antigo entra depois dele).
+  `audio.degradacao`; o `Augmenter` antigo entra depois dele), `rawboost.py`
+  (LnL, ISD e SSI de Tak et al. 2022, com o `rng` da amostra).
 - `src/features/`, `src/models/`: LFCC, log-mel, CNN, LCNN, fusão e atenção.
 - `src/capture/`: fontes de áudio (arquivo, loopback, microfone por WASAPI
   exclusivo com `sounddevice`, ou `soundcard` sem ele), analisador em janelas
