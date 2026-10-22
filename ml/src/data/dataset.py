@@ -20,6 +20,12 @@ from .cache import FeatureCache, legacy_pt_files
 LABEL_MAP = {"bonafide": 0, "spoof": 1}
 
 
+def _rng_degradacao(seed: int, epoch: torch.Tensor, idx: int) -> np.random.Generator:
+    """Fluxo próprio da degradação: ligá-la não muda o recorte aleatório nem o
+    Augmenter, que usam (semente, época, índice)."""
+    return np.random.default_rng((seed, int(epoch[0]), idx, 1))
+
+
 def _shared_epoch() -> torch.Tensor:
     """Contador de época em memória compartilhada entre processos.
 
@@ -90,6 +96,7 @@ class ASVspoofDataset(Dataset):
         random_crop: bool = False,
         seed: int = 0,
         partition: str = "train",
+        degradacao=None,
     ):
         records = parse_protocol_with_systems(protocol_path)
         self.items = [(name, label) for name, label, _ in records]
@@ -102,11 +109,12 @@ class ASVspoofDataset(Dataset):
         self.file_ext = file_ext
         self.augmenter = augmenter
         self.random_crop = random_crop
+        self.degradacao = degradacao
         self.seed = seed
         self.partition = partition
         self._epoch = _shared_epoch()
         # O cache guarda uma versão só; não combina com aleatoriedade por época.
-        stochastic = augmenter is not None or random_crop
+        stochastic = augmenter is not None or random_crop or degradacao is not None
         self.cache_dir = None
         self.cache = None
         if cache_dir and not stochastic and self.items:
@@ -168,6 +176,8 @@ class ASVspoofDataset(Dataset):
         rng = self._sample_rng(idx) if (self.random_crop or self.augmenter) else None
         wav = load_audio(self.audio_dir / f"{file_name}{self.file_ext}",
                          self.audio_cfg["sample_rate"])
+        if self.degradacao is not None:
+            wav = self.degradacao(wav, _rng_degradacao(self.seed, self._epoch, idx))
         wav = preprocess_waveform(wav, self.audio_cfg,
                                   rng=rng if self.random_crop else None)
         if self.augmenter is not None:
@@ -185,13 +195,15 @@ class SmokeDataset(Dataset):
     """
 
     def __init__(self, n: int, audio_cfg: dict, extractor: FeatureExtractor,
-                 seed: int = 0, augmenter=None, random_crop: bool = False):
+                 seed: int = 0, augmenter=None, random_crop: bool = False,
+                 degradacao=None):
         self.n = n
         self.audio_cfg = audio_cfg
         self.extractor = extractor
         self.seed = seed
         self.augmenter = augmenter
         self.random_crop = random_crop
+        self.degradacao = degradacao
         self._epoch = _shared_epoch()
         self.sr = audio_cfg["sample_rate"]
         self.n_samples = int(self.sr * audio_cfg["duration"])
@@ -215,6 +227,8 @@ class SmokeDataset(Dataset):
                           n_samples=int(self.n_samples * 1.5) if self.random_crop
                           else self.n_samples)
         aug_rng = np.random.default_rng((self.seed, int(self._epoch[0]), idx))
+        if self.degradacao is not None:
+            wav = self.degradacao(wav, _rng_degradacao(self.seed, self._epoch, idx))
         wav = preprocess_waveform(wav, self.audio_cfg,
                                   rng=aug_rng if self.random_crop else None)
         if self.augmenter is not None:
@@ -247,10 +261,12 @@ def build_dataset(
     smoke: bool,
     augmenter=None,
     random_crop: bool = False,
+    degradacao=None,
 ) -> Dataset:
     """Constrói o dataset de uma partição ('train' | 'dev' | 'eval').
 
     `augmenter` é um `wav -> wav` aplicado após o pré-processamento;
+    `degradacao`, um `(wav, rng) -> wav` aplicado antes dele, no áudio bruto;
     `random_crop` só deve ser usado no treino.
     """
     if smoke:
@@ -258,7 +274,8 @@ def build_dataset(
         n = smoke_cfg[f"n_{partition}"]
         seed = {"train": 1, "dev": 2, "eval": 3}[partition]
         return SmokeDataset(n, config["audio"], extractor, seed=seed,
-                            augmenter=augmenter, random_crop=random_crop)
+                            augmenter=augmenter, random_crop=random_crop,
+                            degradacao=degradacao)
 
     cache_dir = None
     if config["train"].get("cache_features", False):
@@ -276,11 +293,12 @@ def build_dataset(
         random_crop=random_crop,
         seed=config["experiment"]["seed"],
         partition=partition,
+        degradacao=degradacao,
     )
 
 
 # Só controlam aleatoriedade por época, que já desliga o cache; fora do fingerprint.
-_NAO_AFETAM_CACHE = ("augment", "random_crop")
+_NAO_AFETAM_CACHE = ("augment", "random_crop", "degradacao")
 
 
 def _config_fingerprint(audio_cfg: dict, extractor: FeatureExtractor) -> str:

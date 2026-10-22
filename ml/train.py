@@ -46,6 +46,7 @@ from src.metrics import (
 )
 from src.models import build_model
 from src.preprocess.augment import Augmenter
+from src.preprocess.degradacao import construir as construir_degradacao
 
 CHECKPOINT_DIR = Path("checkpoints")
 OUTPUT_DIR = Path("outputs")
@@ -161,7 +162,7 @@ def print_time_report(history: list[dict], num_workers: int) -> None:
         print(f"  - suba train.num_workers (está em {num_workers}); um bom ponto "
               "de partida é o nº de núcleos físicos da CPU")
         print("  - ative train.cache_features se estiver desligado")
-        print("  - se `audio.augment` e `audio.random_crop` estão ligados, o cache "
+        print("  - se `audio.augment`, `audio.degradacao` ou `audio.random_crop` estão ligados, o cache "
               "do treino é desativado de propósito e as features são recalculadas "
               "toda época: esse é o preço da aumentação")
     else:
@@ -274,12 +275,18 @@ def main() -> None:
     augmenter = Augmenter(aug_cfg, seed=seed) if aug_cfg.get("enabled", False) else None
     if augmenter is not None:
         print("Aumentação de treino: ATIVADA")
+    degradacao = construir_degradacao(config["audio"].get("degradacao"),
+                                      config["audio"]["sample_rate"])
+    if degradacao is not None:
+        print(f"Degradação de canal antes do pré-processamento: ATIVADA "
+              f"({degradacao.descricao()})")
     random_crop = bool(config["audio"].get("random_crop", False))
     if random_crop:
         print("Recorte aleatório no treino: ATIVADO")
     calibrate = bool(train_cfg.get("calibrate_threshold", False))
     train_ds = build_dataset(config, "train", extractor, args.smoke,
-                             augmenter=augmenter, random_crop=random_crop)
+                             augmenter=augmenter, random_crop=random_crop,
+                             degradacao=degradacao)
     dev_ds = build_dataset(config, "dev", extractor, args.smoke)
 
     num_workers = 0 if args.smoke else train_cfg["num_workers"]

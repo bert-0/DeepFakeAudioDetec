@@ -84,7 +84,9 @@ primeiro: nenhuma gravação começa antes deles.
 
 **Modelos e treino**
 - Gancho de degradação logo depois do `load_audio`, antes do
-  `preprocess_waveform`.
+  `preprocess_waveform`. Feito em 21/10/2026 (`src/preprocess/degradacao.py`,
+  `audio.degradacao` no config): Opus, banda estreita, ida e volta da captura
+  e ruído no áudio bruto; o RawBoost entra como mais um tipo.
 - RawBoost, codecs e ida e volta 16, 48 e 16 kHz no treino.
 - LFCC com `f_min` e `f_max` no config; experimento com CMN.
 - Tipo de característica `waveform` e modelo `fusion_ssl` (XLS-R com soma
