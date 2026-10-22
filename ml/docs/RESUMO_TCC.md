@@ -1815,7 +1815,30 @@ opções do plano. Abaixo de 2 pp nos dois, a correção não entra e isso é
 registrado. Os cortes em 7, 6 e 4 kHz só descrevem até onde a dependência vai;
 o de 4 kHz não mede o custo de um LFCC de 0 a 4 kHz, que exigiria treinar.
 
-Resultado: pendente.
+**Resultado** (22/10/2026, 10.002 áudios do eval, EER pelos log-odds):
+
+| corte (zera acima de) | baseline_v2 | fusion_v4 |
+|---|---|---|
+| nenhum (`clean`) | 19,02% | 20,25% |
+| **7,6 kHz** | **25,29% (+6,27 pp)** | **31,12% (+10,87 pp)** |
+| 7 kHz | 34,20% (+15,18 pp) | 27,73% (+7,48 pp) |
+| 6 kHz | 39,33% (+20,31 pp) | 24,37% (+4,12 pp) |
+| 4 kHz | 38,76% (+19,74 pp) | 25,38% (+5,13 pp) |
+
+- **Critério atingido nos dois modelos** (+6,27 e +10,87 pp, contra 2 pp): a
+  correção entra no treino do Incremento 4, e um treino curto compara as duas
+  opções do plano.
+- **No fusion_v4, tirar só 7,6–8 kHz satura os humanos:** 1.032 de 1.032 em
+  probabilidade 1,0 (EER pela probabilidade 50,00%). A saturação da captura com
+  soxr (10.2.8) vinha disso, a faixa sumir, e não do conversor em si.
+- **A curva do fusion_v4 não é monótona:** cortar em 6 ou 4 kHz custa menos
+  que cortar em 7,6 kHz. O que ele aprendeu parece ser a borda do espectro
+  perto de 7,6 kHz, não a falta de banda alta em geral. O baseline_v2 piora sem
+  parar até 6 kHz.
+- **O limiar colapsa:** baseline_v2 em 7 kHz e fusion_v4 em 7,6 e 7 kHz ficam
+  com recall 1,0 e precisão 0,8968, o classificador trivial (8.1).
+- **Hipótese, não medida:** no Opus real, 97% dos humanos também foram a 1,0
+  (5.3); se aquele canal corta o topo da banda, o mecanismo pode ser o mesmo.
 
 ### 10.3 Bases públicas que já trazem canal
 

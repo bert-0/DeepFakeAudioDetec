@@ -110,7 +110,8 @@ primeiro: nenhuma gravação começa antes deles.
 - Controle pareado com locutores fora do treino, nos caminhos arquivo e microfone.
 - Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
   `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
-  (22/10/2026); falta rodar.
+  (22/10/2026). Medido no mesmo dia: tirar 7,6–8 kHz custa +6,27 pp no
+  baseline_v2 e +10,87 pp no fusion_v4; a correção entra no treino.
 - Fusão ao vivo dos dois modelos (média das probabilidades, como no monitor) na
   captura FIR, com o limiar da fusão escolhido no dev
   (`scripts/fusao_ao_vivo.py`). Acrescentado em 02/10/2026, depois que o

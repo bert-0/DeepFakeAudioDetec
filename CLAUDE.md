@@ -125,6 +125,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   não separa real de falso. Com um fone com microfone conectado, o driver
   Realtek troca o microfone embutido ("Grupo de microfones") pelo do fone sem
   mudar o nome; os testes de 02/10 (RESUMO_TCC §10.2.10) mediram o do fone.
+- Oclusão de 7,6–8 kHz no eval (10 mil): baseline_v2 19,02% → 25,29%,
+  fusion_v4 20,25% → 31,12% com todos os humanos em 1,0. A dependência passa
+  do critério de 2 pp: a correção entra no treino (RESUMO_TCC §10.2.11).
 - Voz própria com copy-synthesis (Griffin-Lim, WORLD): versões sintéticas abaixo
   do original em 18 de 20; o modelo reage às condições de gravação, não ao
   vocoder. É o diagnóstico que motiva o Incremento 4.
