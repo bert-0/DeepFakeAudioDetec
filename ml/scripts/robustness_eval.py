@@ -75,6 +75,13 @@ CHANNEL_CONDITIONS = [
     # inflou todos os scores no teste ao vivo (Seção 10.2.1 do resumo).
     ("captura_48k", [("captura", 48000)]),            # soxr (o de antes)
     ("captura_48k_fir", [("captura_fir", 48000)]),    # FIR longo (o atual)
+    # Oclusão da banda alta (plano do Incremento 4): quanto o modelo depende do
+    # que fica acima do corte. 7,6 kHz é a faixa que a conversão de taxa apaga;
+    # 4 kHz é o que sobraria num LFCC de 0 a 4 kHz.
+    ("oclusao_7600", [("oclusao", 7600)]),
+    ("oclusao_7000", [("oclusao", 7000)]),
+    ("oclusao_6000", [("oclusao", 6000)]),
+    ("oclusao_4000", [("oclusao", 4000)]),
 ]
 
 

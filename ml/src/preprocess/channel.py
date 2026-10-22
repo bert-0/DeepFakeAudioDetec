@@ -67,6 +67,18 @@ def ida_e_volta_captura(wav: np.ndarray, sample_rate: int,
                          taxa_dispositivo, sample_rate).astype(np.float32)
 
 
+def ocluir_banda_alta(wav: np.ndarray, sample_rate: int, corte_hz: float) -> np.ndarray:
+    """Zera o espectro a partir de `corte_hz` (fase zero, sem transição).
+
+    Mede quanto o modelo depende da banda que some, sem os outros efeitos de um
+    conversor de taxa (o soxr também atenua 7,6-7,8 kHz e tira a fase do lugar).
+    """
+    x = np.asarray(wav, dtype=np.float64)
+    espectro = np.fft.rfft(x)
+    espectro[np.fft.rfftfreq(x.size, 1.0 / sample_rate) >= corte_hz] = 0
+    return np.fft.irfft(espectro, n=x.size).astype(np.float32)
+
+
 def _ajustar_comprimento(saida: np.ndarray, n: int) -> np.ndarray:
     """Corta ou completa com zeros até `n` amostras, sem mudar o shape das features.
 
@@ -84,11 +96,12 @@ class ChannelDegradation:
 
     Classe, e não lambda, pelo mesmo motivo do `Perturbation`; `rng` é ignorado.
     `kind`: 'opus' (level = compression_level em [0, 1]), 'band' (taxa
-    intermediária em Hz) ou 'captura' (taxa do dispositivo em Hz).
+    intermediária em Hz), 'captura' e 'captura_fir' (taxa do dispositivo em Hz)
+    ou 'oclusao' (frequência a partir da qual o espectro é zerado, em Hz).
     """
 
     def __init__(self, kind: str, level: float, sample_rate: int):
-        if kind not in ("opus", "band", "captura", "captura_fir"):
+        if kind not in ("opus", "band", "captura", "captura_fir", "oclusao"):
             raise ValueError(f"degradação de canal desconhecida: {kind!r}")
         self.kind = kind
         self.level = level
@@ -105,6 +118,8 @@ class ChannelDegradation:
             from .reamostragem import ida_e_volta
 
             saida = ida_e_volta(wav, self.sample_rate, int(self.level))
+        elif self.kind == "oclusao":
+            saida = ocluir_banda_alta(wav, self.sample_rate, float(self.level))
         else:
             saida = limitar_banda(wav, self.sample_rate, int(self.level))
         return _ajustar_comprimento(saida, n)

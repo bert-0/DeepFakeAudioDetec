@@ -1793,6 +1793,30 @@ A fonte de microfone passou a aceitar 96 kHz (razão 6 para 16 kHz, o mesmo
 FIR: a 96 kHz os 2047 coeficientes dão −0,1 dB em 7,8 kHz e −103 dB em
 8,1 kHz).
 
+### 10.2.11 Oclusão da banda alta: quanto os modelos dependem de 7,6–8 kHz
+
+Item do plano do Incremento 4 ("oclusão da banda alta, só com avaliação"). O
+plano tira a dependência de 7,6–8 kHz do treino (LFCC de 0 a 4 kHz ou descarte
+aleatório da banda alta); este teste diz se vale a pena e quanto. Indício
+anterior: com o soxr, que atenua 7,6–7,8 kHz e quase apaga o resto até 8 kHz,
+a captura custou +5,68 pp no baseline_v2 (19,02% → 24,70%, 10.2.1) e +4,73 pp
+no fusion_v4 (20,25% → 24,98%, 10.2.8). O soxr, porém, mexe também na fase e
+no restante da banda; a oclusão só zera o espectro acima do corte.
+
+Condições novas do `robustness_eval.py`: `oclusao_7600`, `oclusao_7000`,
+`oclusao_6000` e `oclusao_4000` (zera tudo a partir do corte, fase zero), na
+amostra de 10.002 áudios do eval 2019, com os checkpoints originais.
+
+**Critério, definido em 22/10/2026, antes da medição.** Se tirar 7,6–8 kHz
+(`oclusao_7600`) subir o EER em **2 pp ou mais** em algum dos dois modelos
+(acima do IC 95% de cerca de ±1,3 pp de cada medida), a dependência pesa: os
+modelos do Incremento 4 recebem a correção, e um treino curto compara as duas
+opções do plano. Abaixo de 2 pp nos dois, a correção não entra e isso é
+registrado. Os cortes em 7, 6 e 4 kHz só descrevem até onde a dependência vai;
+o de 4 kHz não mede o custo de um LFCC de 0 a 4 kHz, que exigiria treinar.
+
+Resultado: pendente.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
@@ -1990,6 +2014,17 @@ arquivo nem locutor em comum. 10 áudios do dev têm menos de 1 s (o mais curto,
 lnl+isd 44 ms, lnl+isd+ssi 55 ms. Com a degradação ligada o cache do treino
 se desliga, e esse custo entra em toda amostra de toda época, dividido pelos
 workers do DataLoader.
+
+**Codecs do aumento de dados** (`src/preprocess/codecs.py`, 22/10/2026): os
+que o libsndfile já traz, em memória. Medidos num áudio de 6 s do recorte, a
+16 kHz, por nível de compressão de 0 a 0,99: MP3 77 a 21 kbps (~20 ms; o nível
+1,0 dá erro), Vorbis 77 a 30 kbps (~35 ms), Opus 260 a 9 kbps (40 a 115 ms;
+0,9 a 0,99 dá 30 a 9 kbps, a faixa de voz). A 8 kHz: G.711 µ-law e A-law
+64 kbps e GSM 06.10 13 kbps (1 a 11 ms). Nenhum desloca o sinal no tempo.
+Do eval da ASVspoof 5 (`ASVspoof5.codec.config.csv`), o treino vê o tipo de
+C1 e C8 (Opus) e C5 (MP3); AMR (C2, C9), Speex (C3, C10), Encodec (C4), AAC
+(C6), MP3 com Encodec (C7) e os aparelhos de C11 ficam como não vistos. No
+eval, reportar as duas partes separadas.
 
 - **Treino e dev não têm codec.** No modelo treinado no recorte, a robustez a
   codec vem só do aumento de dados (RawBoost, codecs, ida e volta 16/48/16), e

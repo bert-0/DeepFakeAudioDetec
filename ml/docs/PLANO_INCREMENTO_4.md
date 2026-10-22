@@ -90,7 +90,9 @@ primeiro: nenhuma gravação começa antes deles.
   e ruído no áudio bruto; o RawBoost entra como mais um tipo.
 - RawBoost, codecs e ida e volta 16, 48 e 16 kHz no treino. RawBoost feito em
   22/10/2026 (`src/preprocess/rawboost.py`, tipo `rawboost` do gancho); a ida
-  e volta já existe (`captura_fir`); dos codecs, só o Opus.
+  e volta já existe (`captura_fir`). Codecs em 22/10/2026 (`src/preprocess/
+  codecs.py`, tipo `codec`): MP3, Vorbis, Opus, G.711 e GSM pelo libsndfile;
+  AMR, Speex, AAC e Encodec ficam como não vistos no treino (RESUMO_TCC §10.7).
 - LFCC com `f_min` e `f_max` no config; experimento com CMN.
 - Tipo de característica `waveform` e modelo `fusion_ssl` (XLS-R com soma
   ponderada das camadas, ramo LFCC, fusão tardia).
@@ -106,7 +108,9 @@ primeiro: nenhuma gravação começa antes deles.
 - Os quatro modelos do 2x2 nas quatro réguas, com EER e min t-DCF.
 - Cruzamento entre bases: treinado na 2019 e testado na ASVspoof 5, e o contrário.
 - Controle pareado com locutores fora do treino, nos caminhos arquivo e microfone.
-- Ablação de ramos e oclusão da banda alta, só com avaliação.
+- Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
+  `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
+  (22/10/2026); falta rodar.
 - Fusão ao vivo dos dois modelos (média das probabilidades, como no monitor) na
   captura FIR, com o limiar da fusão escolhido no dev
   (`scripts/fusao_ao_vivo.py`). Acrescentado em 02/10/2026, depois que o
