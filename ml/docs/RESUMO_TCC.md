@@ -1971,6 +1971,12 @@ da trilha 2 é recusado. Os 8 `.tar` de treino e dev têm o tamanho do Zenodo.
 Recorte de treino com 5.000 spoof por ataque: 58.797 áudios (18.797 bonafide,
 40.000 spoof).
 
+**Recorte de treino montado** (21/10/2026; MD5 dos 5 `.tar` conferido): 58.797
+FLAC de 16 kHz e 16 bits, todos legíveis, protocolo idêntico à seleção
+versionada (`data/recortes/asvspoof5_train_5000_s42.txt`). 58.614 com 6 s
+exatos, mediana 6,00 s, mínimo 3,58 s (só 1 abaixo de 4 s); 98,0 h de áudio em
+6,07 GB (o plano estimava 11 GB contando int16 sem compressão).
+
 - **Treino e dev não têm codec.** No modelo treinado no recorte, a robustez a
   codec vem só do aumento de dados (RawBoost, codecs, ida e volta 16/48/16), e
   o eval mede codecs que o treino nunca viu.
