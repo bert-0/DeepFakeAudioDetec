@@ -19,6 +19,9 @@ ml/data/LA/
 ml/data/ASVspoof2021_LA/
 # ASVspoof 5: os protocolos (.tsv, vários MB) são texto e entrariam num `git add -A`.
 ml/data/ASVspoof5/
+# Recorte montado (FLAC e o protocolo.txt da pasta); a seleção versionada fica
+# em ml/data/recortes/.
+ml/data/ASVspoof5_recorte/
 
 # Amostras de voluntarios — voz e dado biometrico sensivel (LGPD): NUNCA versionar
 ml/data/volunteers/

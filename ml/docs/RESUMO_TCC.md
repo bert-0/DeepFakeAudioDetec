@@ -1958,6 +1958,26 @@ máximo 6 s, começando cerca de 0,5 s antes da primeira fala: a margem de
 silêncio fica de propósito, para a degradação de canal do treino agir também
 nas pausas (10.2.1). A seleção inteira é versionada em `data/recortes/`.
 
+**Conferido nos protocolos reais** (21/10/2026): 10 campos por linha, nenhuma
+ignorada, total igual ao do README nas três partições; o protocolo de trials
+da trilha 2 é recusado. Os 8 `.tar` de treino e dev têm o tamanho do Zenodo.
+
+| partição | enunciados | bonafide | locutores | ataques (spoof por ataque) | codec |
+|---|---|---|---|---|---|
+| train | 182.357 | 18.797 | 400 | A01–A08 (20.445 cada) | nenhum |
+| dev | 140.950 | 31.334 | 785 | A09–A16 (13.702 cada) | nenhum |
+| eval | 680.774 | 138.688 | 737 | A17–A32 (30.860 a 34.414) | C01–C11 em 509.172; 171.602 sem |
+
+Recorte de treino com 5.000 spoof por ataque: 58.797 áudios (18.797 bonafide,
+40.000 spoof).
+
+- **Treino e dev não têm codec.** No modelo treinado no recorte, a robustez a
+  codec vem só do aumento de dados (RawBoost, codecs, ida e volta 16/48/16), e
+  o eval mede codecs que o treino nunca viu.
+- **Espelho:** o Hugging Face (`jungjee/asvspoof5`, público) tem os mesmos
+  `.tar`, com tamanhos idênticos em bytes; lá o protocolo vem como `.tar` sem
+  compressão.
+
 **Por que é melhor que o CFAD para este trabalho:** é em **inglês**, como a base
 atual. Não há confundidor de idioma — a diferença de desempenho é atribuível a
 condição de aquisição e a ataque, não a língua. É a comparação limpa que o CFAD
