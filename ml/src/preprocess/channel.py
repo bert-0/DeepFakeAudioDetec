@@ -73,10 +73,17 @@ def ocluir_banda_alta(wav: np.ndarray, sample_rate: int, corte_hz: float) -> np.
     Mede quanto o modelo depende da banda que some, sem os outros efeitos de um
     conversor de taxa (o soxr também atenua 7,6-7,8 kHz e tira a fase do lugar).
     """
+    from scipy.fft import next_fast_len
+
     x = np.asarray(wav, dtype=np.float64)
-    espectro = np.fft.rfft(x)
-    espectro[np.fft.rfftfreq(x.size, 1.0 / sample_rate) >= corte_hz] = 0
-    return np.fft.irfft(espectro, n=x.size).astype(np.float32)
+    # Comprimento com fatores ruins deixa a FFT ~13x mais lenta (96.001 amostras:
+    # 42 ms contra 3 ms) e dobrou o tempo do treino com descarte. Completar com
+    # zeros até um comprimento rápido vaza ~1e-6 da energia acima do corte; as
+    # janelas de 4 s da avaliação (64.000) já são rápidas e não mudam.
+    m = next_fast_len(x.size, real=True)
+    espectro = np.fft.rfft(x, n=m)
+    espectro[np.fft.rfftfreq(m, 1.0 / sample_rate) >= corte_hz] = 0
+    return np.fft.irfft(espectro, n=m)[: x.size].astype(np.float32)
 
 
 def _ajustar_comprimento(saida: np.ndarray, n: int) -> np.ndarray:

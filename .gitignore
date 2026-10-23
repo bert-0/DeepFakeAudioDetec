@@ -10,6 +10,7 @@ venv/
 ml/checkpoints/
 ml/outputs/
 ml/data/cache/
+ml/data/cache_asvspoof5/
 
 # Base ASVspoof (grande demais para versionar — baixar localmente)
 ml/data/LA/
