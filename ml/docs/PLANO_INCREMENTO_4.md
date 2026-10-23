@@ -33,7 +33,7 @@ modelo reage às condições de gravação.
 | Treino no recorte da ASVspoof 5 (cerca de 59 mil áudios, 11 GB); validação no dev, com ataques inéditos (A09 a A16) | a validação passa a medir generalização, e não o 0,03% que escolheu os checkpoints |
 | Avaliação em: 2019 sem silêncio; Opus real da 2021 LA (10 mil); ASVspoof 5 estratificada (10 mil); controle pareado com vozes reais | mesmas réguas para os quatro modelos do 2x2 |
 | Degradação de canal (codec, RawBoost, conversão de taxa, resposta ao impulso) aplicada antes do pré-processamento | hoje ela atinge o trecho já sem silêncio e normalizado |
-| Sem dependência de 7,6 a 8 kHz: LFCC de 0 a 4 kHz ou descarte aleatório da banda alta no treino | essa faixa some em qualquer áudio gravado a 44,1 ou 48 kHz |
+| Sem dependência de 7,6 a 8 kHz: descarte aleatório da banda alta no treino (corte entre 4 e 7,9 kHz em metade das amostras), escolhido pelo grupo em 23/10/2026 | a faixa some nos codecs e na telefonia (com o soxr, sumia também na captura); no teste, o LFCC de 0 a 4 kHz custou 5,20 pp no limpo e o descarte 2,40 pp, com −2,99 pp no corte (RESUMO_TCC §10.2.11) |
 | Toda condição de captura aparece nas duas classes, no treino e na demonstração | evita um detector de microfone em vez de um detector de síntese |
 | Microfone por WASAPI exclusivo (sounddevice), 48 kHz e o FIR do projeto; loopback só para chamada; arquivos analisados sem captura | contorna os aprimoramentos do driver e a conversão de taxa do Windows |
 | Aba Gravar na interface, com espectrograma e energia por faixa | coleta e demonstração pelo mesmo caminho; cobre a visualização ao operador (RF10) |
@@ -98,7 +98,8 @@ primeiro: nenhuma gravação começa antes deles.
   ponderada das camadas, ramo LFCC, fusão tardia).
 - Retomada do treino a partir do último checkpoint (`--resume`).
 - Medir uma época de fine-tuning no Kaggle antes de fechar o cronograma.
-- fusion_v4 no recorte da ASVspoof 5, na GTX 1650.
+- fusion_v4 no recorte da ASVspoof 5, na GTX 1650. Config pronto em 23/10/2026
+  (`configs/fusion_v4_asv5.yaml`).
 - XLS-R na 2019 LA e no recorte da ASVspoof 5, no Kaggle.
 - Três sementes nos modelos finalistas.
 - Latência na CPU com o `bench_latencia.py`; truncar camadas do XLS-R se não
@@ -166,8 +167,3 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   da webcam, informado em 02/10/2026), e se há uma interface USB com
   ASIO disponível.
 - Quais ferramentas de clonagem usar, e qual fica fora do treino.
-- Correção da dependência de 7,6–8 kHz: nenhuma das duas opções passou no
-  critério do treino completo (RESUMO_TCC §10.2.11). O LFCC de 0 a 4 kHz custa
-  5,20 pp no limpo; o descarte aleatório tira 2,99 pp no corte e custa 2,40 pp
-  no limpo (0,40 pp acima da tolerância) e dobra o tempo de treino. Escolher
-  entre adotar o descarte, não corrigir ou testar um descarte mais leve.

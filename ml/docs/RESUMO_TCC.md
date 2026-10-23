@@ -1923,6 +1923,13 @@ controle):
   FIR a captura a preserva (10.2.5). Ela ainda some nos codecs e na telefonia
   (eval da ASVspoof 5, chamadas reais).
 
+**Decisão do grupo** (23/10/2026): adotar o descarte aleatório nos modelos do
+Incremento 4, sabendo que ele ficou 0,40 pp acima da tolerância no limpo. O
+texto registra isso. Depois do treino, o descarte da 2019 tinha o custo da FFT
+em comprimento ruim (96.001 amostras: 42 ms contra 3 ms); a oclusão passou a
+completar com zeros até um comprimento rápido, o que vaza ~1e-6 da energia
+acima do corte e não muda as janelas de 4 s da avaliação.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
