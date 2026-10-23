@@ -1859,6 +1859,19 @@ resultado é registrado e a escolha volta para o grupo. No fusion_v4, a opção
 do LFCC também precisaria limitar o ramo de espectrograma, que este teste não
 cobre.
 
+**10 épocas, e quando refazer com o treino completo** (combinado em
+22/10/2026, antes de treinar). O baseline_v2 original rodou 34 épocas e teve a
+melhor na 27 (EER do dev 9,35%, contra 12,17% na época 10): com 10 épocas os
+modelos ainda estão aprendendo, e o controle não deve reproduzir os 19,02% do
+original; ele é a régua só das outras duas versões de 10 épocas (cerca de 30 a
+40 min cada na GTX 1650). O resultado de 10 épocas vale se a decisão pelo
+critério sair com folga: só uma correção funciona, ou as duas funcionam e a
+vencedora fica pelo menos 2 pp à frente em `oclusao_7600`. Se nenhuma
+funcionar (o descarte pode só aprender mais devagar) ou se as duas ficarem a
+menos de 2 pp uma da outra, os três treinos são refeitos completos (até 50
+épocas com parada antecipada, como o original), em configs com outro nome, e
+o mesmo critério decide.
+
 Resultado: pendente.
 
 ### 10.3 Bases públicas que já trazem canal
