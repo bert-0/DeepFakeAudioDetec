@@ -166,3 +166,8 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   da webcam, informado em 02/10/2026), e se há uma interface USB com
   ASIO disponível.
 - Quais ferramentas de clonagem usar, e qual fica fora do treino.
+- Correção da dependência de 7,6–8 kHz: nenhuma das duas opções passou no
+  critério do treino completo (RESUMO_TCC §10.2.11). O LFCC de 0 a 4 kHz custa
+  5,20 pp no limpo; o descarte aleatório tira 2,99 pp no corte e custa 2,40 pp
+  no limpo (0,40 pp acima da tolerância) e dobra o tempo de treino. Escolher
+  entre adotar o descarte, não corrigir ou testar um descarte mais leve.

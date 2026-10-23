@@ -1894,7 +1894,34 @@ parênteses, a diferença para o controle):
   19,02% do baseline_v2 completo, e as duas correções ainda melhoravam no dev
   na época 10.
 
-Resultado com treino completo: pendente.
+**Resultado com treino completo** (23/10/2026, até 50 épocas com parada
+antecipada, mesmos 10.002 áudios; entre parênteses, a diferença para o
+controle):
+
+| treino | épocas (melhor, dev) | tempo | limpo | corte em 7,6 kHz | corte em 4 kHz |
+|---|---|---|---|---|---|
+| `banda_controle_completo` | 49 (42, 10,08%) | 1h28m | 18,14% | 24,33% | 38,55% |
+| `banda_lfcc4k_completo` | 50 (50, 8,78%) | 1h29m | 23,34% (+5,20) | 23,34% (−0,99) | 23,46% (−15,09) |
+| `banda_descarte_completo` | 50 (48, 9,74%) | 2h57m | 20,54% (+2,40) | 21,34% (−2,99) | 28,50% (−10,05) |
+
+- **O controle reproduz o baseline_v2 original** dentro do IC (18,14% contra
+  19,02% no limpo, 24,33% contra 25,29% no corte, 38,55% contra 38,76% em
+  4 kHz): o teste vale.
+- **Pelo critério, nenhuma correção passou.** O LFCC de 0 a 4 kHz falha nas
+  duas condições: custa 5,20 pp no limpo e só tira 0,99 pp no corte (a faixa de
+  4 a 8 kHz carrega informação que o modelo completo usa). O descarte tira
+  2,99 pp no corte, mas custa 2,40 pp no limpo, 0,40 pp acima da tolerância de
+  2 pp, dentro do IC de cada medida. Pela regra combinada antes, o resultado é
+  registrado assim e a escolha volta para o grupo (plano, decisões pendentes).
+- **A validação de novo não prevê a avaliação:** o LFCC de 0 a 4 kHz tem o
+  melhor dev (8,78%) e o pior eval limpo (23,34%); ele chegou às 50 épocas
+  ainda melhorando no dev.
+- **O descarte dobra o tempo de treino:** 2h57m contra 1h28m, com o
+  carregamento de dados passando de 49 s para 169 s por época.
+- **O motivo original da correção mudou em parte:** o plano dizia que a faixa
+  some em qualquer áudio gravado a 44,1 ou 48 kHz, mas isso era do soxr; com o
+  FIR a captura a preserva (10.2.5). Ela ainda some nos codecs e na telefonia
+  (eval da ASVspoof 5, chamadas reais).
 
 ### 10.3 Bases públicas que já trazem canal
 

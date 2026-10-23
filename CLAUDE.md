@@ -128,6 +128,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 - Oclusão de 7,6–8 kHz no eval (10 mil): baseline_v2 19,02% → 25,29%,
   fusion_v4 20,25% → 31,12% com todos os humanos em 1,0. A dependência passa
   do critério de 2 pp: a correção entra no treino (RESUMO_TCC §10.2.11).
+  Treino completo do baseline_v2 (controle 18,14% limpo, 24,33% no corte):
+  LFCC de 0 a 4 kHz 23,34% e 23,34%; descarte aleatório 20,54% e 21,34%.
+  Nenhuma passou no critério; a escolha está nas decisões pendentes do plano.
 - Voz própria com copy-synthesis (Griffin-Lim, WORLD): versões sintéticas abaixo
   do original em 18 de 20; o modelo reage às condições de gravação, não ao
   vocoder. É o diagnóstico que motiva o Incremento 4.
