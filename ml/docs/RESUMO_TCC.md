@@ -1840,6 +1840,27 @@ o de 4 kHz não mede o custo de um LFCC de 0 a 4 kHz, que exigiria treinar.
 - **Hipótese, não medida:** no Opus real, 97% dos humanos também foram a 1,0
   (5.3); se aquele canal corta o topo da banda, o mecanismo pode ser o mesmo.
 
+**Treino curto das duas correções** (desenho e critério definidos em
+22/10/2026, antes de treinar). Três treinos do baseline_v2 na 2019 LA, iguais
+exceto pela correção (`tests/test_configs_banda.py` confere), 10 épocas e a
+mesma semente:
+
+- `banda_controle`: sem correção;
+- `banda_lfcc4k`: LFCC de 0 a 4 kHz (`features.lfcc.f_max: 4000`);
+- `banda_descarte`: metade das amostras de treino perde o espectro acima de um
+  corte sorteado entre 4 e 7,9 kHz, no áudio bruto (`audio.degradacao`).
+
+Cada um avaliado nos mesmos 10.002 áudios em `clean`, `oclusao_7600` e
+`oclusao_4000`. Uma correção funciona se o EER em `oclusao_7600` ficar pelo
+menos 2 pp abaixo do controle e o EER `clean` no máximo 2 pp acima dele. Se as
+duas funcionarem, fica a de menor EER em `oclusao_7600`; se a diferença entre
+elas for menor que 2 pp, a de menor EER `clean`. Se nenhuma funcionar, o
+resultado é registrado e a escolha volta para o grupo. No fusion_v4, a opção
+do LFCC também precisaria limitar o ramo de espectrograma, que este teste não
+cobre.
+
+Resultado: pendente.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

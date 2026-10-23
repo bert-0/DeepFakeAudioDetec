@@ -16,11 +16,13 @@ Config (`audio.degradacao`)::
         - {tipo: ruido, prob: 0.3, faixa: [10, 30]}
         - {tipo: rawboost, prob: 0.7, opcoes: [lnl+isd, ssi]}
         - {tipo: codec, prob: 0.3, opcoes: [mp3, vorbis, opus, ulaw, gsm]}
+        - {tipo: oclusao, prob: 0.5, faixa: [4000, 7900]}
 
 `nivel` fixa o parâmetro, `faixa` sorteia um valor entre dois por amostra e
 `opcoes` sorteia um da lista. O parâmetro é o do `ChannelDegradation` (opus:
 compression_level; band: taxa intermediária; captura e captura_fir: taxa do
-dispositivo), no ruído a SNR em dB, no RawBoost o nome da variante
+dispositivo; oclusao: frequência a partir da qual o espectro é zerado, o
+descarte aleatório da banda alta), no ruído a SNR em dB, no RawBoost o nome da variante
 (`src/preprocess/rawboost.py`), cujos padrões `parametros:` pode trocar, e no
 codec o nome dele (`src/preprocess/codecs.py`), com o nível de compressão
 sorteado na faixa padrão de cada um ou na de `qualidade: {mp3: [0.3, 0.9]}`.
@@ -33,7 +35,7 @@ import numpy as np
 from .augment import add_noise
 from .channel import ChannelDegradation
 
-TIPOS = ("opus", "band", "captura", "captura_fir", "ruido", "rawboost", "codec")
+TIPOS = ("opus", "band", "captura", "captura_fir", "oclusao", "ruido", "rawboost", "codec")
 #: Tipos cujo parâmetro é um nome, e não um número.
 _NOMINAIS = ("rawboost", "codec")
 _FORMAS = ("nivel", "faixa", "opcoes")
