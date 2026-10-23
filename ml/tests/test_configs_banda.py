@@ -85,15 +85,16 @@ VARIANTES = {
 }
 
 
-@pytest.mark.parametrize("nome", sorted(VARIANTES))
-def test_config_difere_do_baseline_v2_so_no_que_testa(nome):
+@pytest.mark.parametrize("nome, epocas", [(n, 10) for n in sorted(VARIANTES)]
+                         + [(n.replace(".yaml", "_completo.yaml"), 50) for n in sorted(VARIANTES)])
+def test_config_difere_do_baseline_v2_so_no_que_testa(nome, epocas):
     base = copy.deepcopy(_carrega("baseline_v2.yaml"))
     cfg = _carrega(nome)
     assert cfg["experiment"]["name"] == nome.removesuffix(".yaml") + "_v2"
-    assert cfg["train"]["epochs"] == 10
+    assert cfg["train"]["epochs"] == epocas
     base["experiment"]["name"] = cfg["experiment"]["name"]
-    base["train"]["epochs"] = 10
-    for caminho, valor in VARIANTES[nome].items():
+    base["train"]["epochs"] = epocas
+    for caminho, valor in VARIANTES[nome.replace("_completo", "")].items():
         alvo = base
         for chave in caminho[:-1]:
             alvo = alvo[chave]

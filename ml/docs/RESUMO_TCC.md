@@ -1872,7 +1872,29 @@ menos de 2 pp uma da outra, os três treinos são refeitos completos (até 50
 épocas com parada antecipada, como o original), em configs com outro nome, e
 o mesmo critério decide.
 
-Resultado: pendente.
+**Resultado com 10 épocas** (22/10/2026, mesmos 10.002 áudios; entre
+parênteses, a diferença para o controle):
+
+| treino | melhor época (dev) | limpo | corte em 7,6 kHz | corte em 4 kHz |
+|---|---|---|---|---|
+| `banda_controle` | 7 (12,52%) | 24,43% | 29,18% | 40,51% |
+| `banda_lfcc4k` | 10 (14,37%) | 25,19% (+0,76) | **25,22% (−3,96)** | 25,30% |
+| `banda_descarte` | 10 (14,25%) | 25,11% (+0,68) | **26,38% (−2,80)** | 33,89% |
+
+- **As duas correções funcionam:** no corte em 7,6 kHz caem mais de 2 pp em
+  relação ao controle, e no limpo nenhuma sobe mais de 2 pp.
+- **Mas empatam:** o LFCC de 0 a 4 kHz fica 1,16 pp à frente no corte, menos
+  que os 2 pp de folga. Pela regra combinada antes, os três treinos são refeitos
+  completos (`banda_*_completo.yaml`, até 50 épocas).
+- **O LFCC de 0 a 4 kHz não depende de nada acima de 4 kHz** (25,19%, 25,22% e
+  25,30% nas três condições), o que vale também para telefonia e codecs de banda
+  estreita. O descarte reduz a dependência de 7,6–8 kHz (o corte passa a custar
+  1,27 pp, contra 4,75 pp no controle), mas o corte em 4 kHz ainda custa 8,78 pp.
+- **Os três estão subtreinados:** o controle fica em 24,43% no limpo, contra
+  19,02% do baseline_v2 completo, e as duas correções ainda melhoravam no dev
+  na época 10.
+
+Resultado com treino completo: pendente.
 
 ### 10.3 Bases públicas que já trazem canal
 
