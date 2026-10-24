@@ -73,8 +73,9 @@ primeiro: nenhuma gravação começa antes deles.
   (`scripts/montar_recorte_asvspoof5.py`, lê os `.tar` sem extrair). Recorte de
   treino montado em 21/10/2026 (58.797 áudios, 6,07 GB); dev em 22/10/2026
   (amostra estratificada de 9.999).
-- Avaliação estratificada da ASVspoof 5 (10 mil) lendo os `.tar` em fluxo, sem
-  baixar os 94 GB.
+- Avaliação estratificada da ASVspoof 5 (10 mil). Decidido em 23/10/2026: um
+  `.tar` do eval por vez no SATA, tirar a amostra e apagar (ler em fluxo também
+  baixaria os 85 GB, numa conexão instável); estratificada também por codec.
 - `src/data/asvspoof5.py` para o protocolo da trilha 1 (10 campos separados
   por espaço, apesar do `.tsv`; README do Zenodo). Feito em 14/10/2026.
 - Subir o recorte como dataset privado no Kaggle.

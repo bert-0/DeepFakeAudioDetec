@@ -153,3 +153,37 @@ def test_amostra_estratificada_para_o_dev(base, capsys):
     assert sorted(r[2] for r in protocolo) == ["-", "A01", "A02"]
     assert [r[0] for r in protocolo] == sorted(r[0] for r in protocolo)
     assert len(list((base / "dev" / "flac").glob("*.flac"))) == 3
+
+
+def test_amostra_padrao_e_a_do_dev_ja_montado():
+    """Com (chave, ataque), a função nova dá a mesma seleção da subamostrar do 2021."""
+    base = [asv5.Enunciado(f"T_{i % 7}", f"T_{i:010d}", "F", ["-", "C01", "C02"][i % 3], "-", "-",
+                           "-" if i % 5 == 0 else "AC1", "-" if i % 5 == 0 else f"A{1 + i % 4:02d}",
+                           "bonafide" if i % 5 == 0 else "spoof") for i in range(300)]
+    assert asv5.amostra_estratificada(base, 60, 42) == asv5.subamostrar(base, 60, 42)
+    por_codec = asv5.amostra_estratificada(base, 30, 42, ("chave", "ataque", "codec"))
+    estratos = {(e.chave, e.ataque, e.codec) for e in base}
+    assert {(e.chave, e.ataque, e.codec) for e in por_codec} == estratos   # nenhum estrato perdido
+
+
+def test_formato_original_volta_igual_e_guarda_o_codec(tmp_path):
+    e = [asv5.Enunciado("E_0001", "E_0000000004", "M", "C05", "2", "E_0000000009", "AC3", "A20", "spoof"),
+         asv5.Enunciado("E_0002", "E_0000000005", "F", "-", "-", "-", "-", "-", "bonafide")]
+    destino = tmp_path / "sel.tsv"
+    assert asv5.escrever_original(e, destino) == 2
+    assert asv5.ler_protocolo(destino) == e
+
+
+def test_eval_sem_corte_e_estratificado_por_codec(base, capsys):
+    rc = main(["--protocolo", str(base / "proto.tsv"), "--tars", str(base / "t*.tar"),
+               "--saida", str(base / "eval"), "--amostra", "3", "--segundos", "0",
+               "--estratos", "chave,ataque,codec", "--lista", str(base / "lista_eval.txt")])
+    assert rc == 0
+    for nome, _, _ in parse_protocol_with_systems(base / "eval" / "protocolo.txt"):
+        assert sf.info(base / "eval" / "flac" / f"{nome}.flac").frames == len(AUDIOS[nome])
+    assert (base / "lista_eval.tsv").is_file()                   # a seleção com o codec
+
+
+def test_tar_do_eval_e_conferido():
+    assert asv5.ARQUIVOS_OFICIAIS["flac_E_aj.tar"][0] == 8_623_206_400
+    assert sum(1 for n in asv5.ARQUIVOS_OFICIAIS if n.startswith("flac_E_")) == 10

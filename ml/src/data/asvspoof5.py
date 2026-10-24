@@ -21,9 +21,10 @@ from pathlib import Path
 # servem, porque só leem locutor, arquivo, ataque e chave.
 from .asvspoof2021 import escrever_protocolo, linha_de_protocolo, subamostrar
 
-__all__ = ["Enunciado", "ProtocoloInvalido", "conferir_arquivo", "conferir_tamanho",
-           "cortar_trecho", "escrever_protocolo", "ler_protocolo", "ler_tar",
-           "linha_de_protocolo", "recorte", "resumo", "subamostrar"]
+__all__ = ["Enunciado", "ProtocoloInvalido", "amostra_estratificada", "conferir_arquivo",
+           "conferir_tamanho", "cortar_trecho", "escrever_original", "escrever_protocolo",
+           "ler_protocolo", "ler_tar", "linha_de_protocolo", "linha_original", "recorte",
+           "resumo", "subamostrar"]
 
 CHAVES = ("bonafide", "spoof")
 GENEROS = ("F", "M")
@@ -48,6 +49,16 @@ ARQUIVOS_OFICIAIS = {
     "flac_D_aa.tar": (6_647_265_280, "df0be44957623991028cce59792beb17"),
     "flac_D_ab.tar": (6_641_459_200, "1e8cd685d89b64502692f1bcf1a13db3"),
     "flac_D_ac.tar": (6_771_660_800, "5e0031f08c30e4bdbf0c59f91b2d662b"),
+    "flac_E_aa.tar": (8_449_781_760, "a8c800766f3d4ef87971e2b4f29663e2"),
+    "flac_E_ab.tar": (8_459_868_160, "c35064188f54f07c87aba58de22534a0"),
+    "flac_E_ac.tar": (8_461_475_840, "ed7cbcd1b2847998b72472ddf6b445e3"),
+    "flac_E_ad.tar": (8_467_200_000, "626a080e994b05df49c577d7b3dede8d"),
+    "flac_E_ae.tar": (8_456_785_920, "05f19a5e64fa556714ae1b38eb2ea70b"),
+    "flac_E_af.tar": (8_457_410_560, "2ca2f52a3bbf827f7ec155ecb47e85d6"),
+    "flac_E_ag.tar": (8_461_946_880, "671200b5de2fc1e74a563b07b057af8f"),
+    "flac_E_ah.tar": (8_455_321_600, "eaf885b1299a61eb07f71e82e96dba37"),
+    "flac_E_ai.tar": (8_464_230_400, "b2625683bf440abae2af901a45542ad9"),
+    "flac_E_aj.tar": (8_623_206_400, "c50281c8233af6f3b0899604d21ade44"),
 }
 
 _ATAQUE = re.compile(r"A\d{2}$")
@@ -145,6 +156,47 @@ def resumo(enunciados: list[Enunciado]) -> dict:
         "genero": dict(Counter(e.genero for e in enunciados)),
         "locutores": locutores,
     }
+
+
+def amostra_estratificada(enunciados: list[Enunciado], n: int, seed: int = 42,
+                          por: tuple[str, ...] = ("chave", "ataque")) -> list[Enunciado]:
+    """Amostra de `n` com a proporção de cada estrato, sem perder estrato raro.
+
+    Com o padrão (chave, ataque) dá exatamente a `subamostrar` do 2021, que montou
+    o dev; no eval, ("chave", "ataque", "codec") garante áudio de cada condição
+    de codec, para separar os codecs que o treino viu dos que não viu.
+    """
+    import random
+
+    if n <= 0 or n >= len(enunciados):
+        return list(enunciados)
+    estratos: dict[tuple, list[Enunciado]] = {}
+    for e in enunciados:
+        estratos.setdefault(tuple(getattr(e, campo) for campo in por), []).append(e)
+    rng = random.Random(seed)
+    fracao = n / len(enunciados)
+    escolhidos: list[Enunciado] = []
+    for chave in sorted(estratos):
+        grupo = estratos[chave]
+        k = max(1, round(len(grupo) * fracao))
+        escolhidos.extend(rng.sample(grupo, min(k, len(grupo))))
+    rng.shuffle(escolhidos)
+    return escolhidos
+
+
+def linha_original(e: Enunciado) -> str:
+    """De volta ao formato da ASVspoof 5 (10 campos), que guarda o codec; o de
+    2019 o perde."""
+    rotulo = "bonafide" if e.chave == "bonafide" else e.ataque
+    return " ".join([e.locutor, e.arquivo, e.genero, e.codec, e.codec_q, e.codec_origem,
+                     e.adaptacao, rotulo, e.chave, "-"])
+
+
+def escrever_original(enunciados: list[Enunciado], destino: str | Path) -> int:
+    destino = Path(destino)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text("".join(linha_original(e) + "\n" for e in enunciados), encoding="utf-8")
+    return len(enunciados)
 
 
 def recorte(enunciados: list[Enunciado], falsos_por_ataque: int,

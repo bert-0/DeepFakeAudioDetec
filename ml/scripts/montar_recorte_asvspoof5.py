@@ -2,14 +2,17 @@
 
 Seleção (`src.data.asvspoof5.recorte`): todos os bonafide e até N spoof por
 ataque, com semente fixa; com `--amostra`, uma amostra estratificada por (chave,
-ataque), como as outras réguas (usada no dev). Cada áudio vira um FLAC de 16 bits com no máximo 6 s,
+ataque), como as outras réguas (usada no dev), ou pelos campos de `--estratos`
+(no eval, também o codec). `--segundos 0` guarda o áudio inteiro (o eval tem de
+ser o original). Cada áudio vira um FLAC de 16 bits com no máximo 6 s,
 começando 0,5 s antes da primeira fala. Saídas:
 
 - `<saida>/flac/<id>.flac` e `<saida>/protocolo.txt`, só com os áudios que já
   estão na pasta, no formato de 2019: entram no config do treino como
   `protocols.<partição>` e `audio_dir.<partição>`;
 - `data/recortes/asvspoof5_<partição>_<N ou amostraN>_s<semente>.txt`: a seleção
-  inteira, no mesmo formato, para versionar.
+  inteira, no mesmo formato, para versionar, e a mesma seleção em `.tsv`, no
+  formato da ASVspoof 5, que guarda o codec.
 
 Pode ser interrompido e retomado: o que já foi escrito é pulado. Com só parte dos
 `.tar` baixados, rode com eles e depois de novo com os outros.
@@ -40,13 +43,14 @@ from src.data.asvspoof5 import (  # noqa: E402
     ProtocoloInvalido,
     conferir_arquivo,
     conferir_tamanho,
+    amostra_estratificada,
     cortar_trecho,
+    escrever_original,
     escrever_protocolo,
     ler_protocolo,
     ler_tar,
     recorte,
     resumo,
-    subamostrar,
 )
 
 TAXA = 16000
@@ -64,7 +68,10 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--amostra", type=int, default=None,
                    help="amostra estratificada de N áudios no lugar de todos os humanos "
                         "e N falsos por ataque (o dev de validação usa 10000)")
-    p.add_argument("--segundos", type=float, default=6.0)
+    p.add_argument("--segundos", type=float, default=6.0,
+                   help="duração máxima de cada áudio; 0 guarda o áudio inteiro (eval)")
+    p.add_argument("--estratos", default="chave,ataque",
+                   help="campos da amostra estratificada (no eval: chave,ataque,codec)")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--md5", action="store_true",
                    help="confere o MD5 de cada .tar antes de ler (lê o arquivo inteiro)")
@@ -102,11 +109,13 @@ def main(argv=None) -> int:
         print(f"[ERRO] {aviso}")
         return 1
 
+    estratos = tuple(c.strip() for c in args.estratos.split(",") if c.strip())
     if args.amostra:
         ordem = {e.arquivo: i for i, e in enumerate(enunciados)}
-        selecao = sorted(subamostrar(enunciados, args.amostra, args.seed),
+        selecao = sorted(amostra_estratificada(enunciados, args.amostra, args.seed, estratos),
                          key=lambda e: ordem[e.arquivo])
-        rotulo = f"amostra{args.amostra}"
+        rotulo = f"amostra{args.amostra}" + "".join(
+            f"_{c}" for c in estratos if c not in ("chave", "ataque"))
     else:
         selecao = recorte(enunciados, args.falsos_por_ataque, args.seed)
         rotulo = str(args.falsos_por_ataque)
@@ -117,6 +126,7 @@ def main(argv=None) -> int:
 
     lista = Path(args.lista or f"data/recortes/asvspoof5_{particao}_{rotulo}_s{args.seed}.txt")
     escrever_protocolo(selecao, lista)
+    escrever_original(selecao, lista.with_suffix(".tsv"))
 
     pasta = Path(args.saida) / "flac"
     pasta.mkdir(parents=True, exist_ok=True)
@@ -139,7 +149,8 @@ def main(argv=None) -> int:
                 from src.preprocess.reamostragem import para_taxa
 
                 wav = para_taxa(wav, taxa, TAXA)
-            _gravar(pasta / f"{nome}.flac", cortar_trecho(wav, TAXA, args.segundos))
+            trecho = cortar_trecho(wav, TAXA, args.segundos) if args.segundos > 0 else wav
+            _gravar(pasta / f"{nome}.flac", trecho)
             faltam.discard(nome)
             escritos += 1
             if escritos % 2000 == 0:

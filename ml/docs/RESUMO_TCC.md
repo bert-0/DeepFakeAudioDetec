@@ -2122,6 +2122,16 @@ arquivo nem locutor em comum. 10 áudios do dev têm menos de 1 s (o mais curto,
 0,09 s), e os 5 mais curtos são spoof (A11 e A13); no treino o mais curto tem
 3,58 s. Duração curta só em spoof pode virar atalho: conferir no eval.
 
+**Amostra do eval** (planejada em 23/10/2026; monta depois do treino do
+fusion_v4, para não disputar CPU): baixando um `.tar` do eval por vez para o
+SATA, tirando a amostra e apagando. Estratificada por (chave, ataque, codec),
+com o áudio inteiro, sem corte. Pelo protocolo: 9.979 áudios (2.036
+bonafide), os 16 ataques A17–A32 e 600 a 700 áudios por condição de codec
+(132 a 143 bonafide cada). Com tão poucos bonafide por codec, o EER de um
+codec isolado tem IC largo; comparar em grupos: codecs que o treino vê (C01,
+C05, C08), não vistos (C02–C04, C06, C07, C09, C10) e aparelhos (C11). A
+seleção vai também em `.tsv`, no formato da ASVspoof 5, que guarda o codec.
+
 **Custo do RawBoost** (`src/preprocess/rawboost.py`, 22/10/2026, CPU, um
 áudio de 6 s do recorte, média de 5): lnl 43 ms, isd 4 ms, ssi 10 ms,
 lnl+isd 44 ms, lnl+isd+ssi 55 ms. Com a degradação ligada o cache do treino
