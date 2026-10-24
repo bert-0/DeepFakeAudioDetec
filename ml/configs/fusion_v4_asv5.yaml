@@ -6,9 +6,9 @@
 # grupo em 23/10/2026 (RESUMO_TCC §10.2.11). tests/test_config_fusion_v4_asv5.py
 # confere.
 #
-# Incremento 2 (v4) — Fusao de caracteristicas com LCNN.
-# Dois ramos LCNN: LFCC e espectrograma, concatenados apos o pooling.
-# Compare com baseline_v4.yaml (um ramo) para isolar o ganho da fusao.
+# Incremento 2 (v4) — Fusão de características com LCNN.
+# Dois ramos LCNN: LFCC e espectrograma, concatenados após o pooling.
+# Compare com baseline_v4.yaml (um ramo) para isolar o ganho da fusão.
 
 experiment:
   name: fusion_lcnn_v4_asv5

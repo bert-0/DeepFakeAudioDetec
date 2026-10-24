@@ -1,6 +1,6 @@
-# Incremento 3 (v4) — Fusao + atencao com LCNN.
+# Incremento 3 (v4) — Fusão + atenção com LCNN.
 # Igual ao fusion_v4, mas o pooling de cada ramo passa a ser ponderado
-# por atencao (Attentive Statistics Pooling).
+# por atenção (Attentive Statistics Pooling).
 
 experiment:
   name: attention_lcnn_v4

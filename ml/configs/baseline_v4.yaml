@@ -1,9 +1,9 @@
 # Incremento 1 (v4) — LFCC + LCNN (Light CNN com Max-Feature-Map).
 #
-# Duas mudancas em relacao ao v3a:
-#  - encoder: lcnn   -> arquitetura de referencia da literatura para LFCC
-#  - pooling: freq_stats -> preserva a estrutura em frequencia, que os
-#    poolings anteriores descartavam ao tirar a media sobre o eixo espectral
+# Duas mudanças em relação ao v3a:
+#  - encoder: lcnn   -> arquitetura de referência da literatura para LFCC
+#  - pooling: freq_stats -> preserva a estrutura em frequência, que os
+#    poolings anteriores descartavam ao tirar a média sobre o eixo espectral
 
 experiment:
   name: baseline_lcnn_v4

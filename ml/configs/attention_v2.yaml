@@ -1,5 +1,5 @@
-# Incremento 3 (v2) — Fusao + atencao com as melhorias anti-overfitting ligadas.
-# Com pooling 'stats' a atencao vira Attentive Statistics Pooling.
+# Incremento 3 (v2) — Fusão + atenção com as melhorias anti-overfitting ligadas.
+# Com pooling 'stats' a atenção vira Attentive Statistics Pooling.
 
 experiment:
   name: attention_fusion_v2

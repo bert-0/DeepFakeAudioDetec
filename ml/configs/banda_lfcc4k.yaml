@@ -2,7 +2,7 @@
 # Igual ao baseline_v2.yaml exceto experiment.name, train.epochs e features.lfcc.f_max
 # (tests/test_configs_banda.py confere).
 # Incremento 1 (v2) — Baseline com as melhorias anti-overfitting ligadas.
-# Compare com configs/baseline.yaml (versao original) para o 'antes x depois'.
+# Compare com configs/baseline.yaml (versão original) para o 'antes x depois'.
 
 experiment:
   name: banda_lfcc4k_v2
