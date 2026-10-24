@@ -112,3 +112,15 @@ def test_pasta_de_clones_sem_audio(monkeypatch, tmp_path, capsys):
     assert main(["pelo-ar", "--clones", str(tmp_path), "--saida", str(tmp_path / "x"),
                  "--sem-pausa"]) == 1
     assert "nenhum áudio" in capsys.readouterr().out
+
+
+def test_padrao_de_12_s_e_piso_minimo_do_teste(monkeypatch, tmp_path, capsys):
+    """Fala a ~34 dB do ruído: falha no padrão de 35 dB e passa com o piso do teste."""
+    _sounddevice_falso(monkeypatch, _cena(12.0))
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "a"),
+                 "--sem-pausa"]) == 0
+    assert sf.info(tmp_path / "a" / "f01.wav").frames == 12 * SR
+    assert "REGRAVAR piso de ruído" in capsys.readouterr().out
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "b"),
+                 "--sem-pausa", "--piso-minimo", "15"]) == 0
+    assert "ok       piso de ruído" in capsys.readouterr().out

@@ -1962,6 +1962,19 @@ qualquer gravação; os números entram aqui depois, como saírem.
   útil conta como erro. Regravar só durante a gravação, pelas checagens
   (saturação, fala, banda, piso de ruído), sem ver score; depois disso toda
   gravação conta.
+- **Ruído do microfone embutido (decidido em 24/10/2026, antes de gravar):** em
+  dois ensaios de nível, com as 10 frases lidas na distância normal de fala, o
+  ruído ficou 16 a 20 dB abaixo da fala com o carregador ligado e 17 a 21 dB sem
+  ele. Sem o carregador sumiu o zumbido de 240 Hz, mas não o ronco grave (85% da
+  energia do ruído abaixo de 500 Hz); um passa-altas de 150 Hz só levaria a 22 a
+  24 dB. Chegar aos 35 dB da checagem exigiria falar a uns 10 cm do microfone,
+  diferente da banca. Regra do teste: piso de ruído de pelo menos 15 dB
+  (`--piso-minimo 15`); no caminho microfone, o real e o clone passam pelo
+  mesmo ruído. A checagem de fala passou a contar só o que fica pelo menos 10 dB
+  acima do ruído (com o corte de 30 dB do pico, a gravação inteira contava como
+  fala), e a gravação passou de 10 para 12 s: as frases levaram cerca de 7,5 s e
+  terminavam coladas no fim. Os ensaios de nível passaram só pelas checagens,
+  sem o modelo.
 - **Só descritivo:** o score de cada modelo, a comparação por frase (clone acima
   do real da mesma frase) e as checagens.
 - **Leitura combinada antes:** o caminho arquivo sozinho pode ser acertado por

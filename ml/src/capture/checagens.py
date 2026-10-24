@@ -28,6 +28,9 @@ BORDA_S = 0.5
 #: chega ao modelo, e ruído nas pausas desloca o score (RESUMO_TCC §10.2.1).
 TOP_DB = 30.0
 MARGEM_RUIDO_DB = 5.0
+#: Medido nas frases do microfone embutido (24/10/2026): a +6 dB o ruído já entra
+#: como fala; a +10 dB a fala começa depois do aviso e dura 5 a 7 s.
+FALA_ACIMA_DO_PISO_DB = 10.0
 
 FAIXAS_HZ = ((0, 4000), (4000, 7600), (7600, 8000))
 
@@ -51,8 +54,14 @@ def _db(x: float) -> float:
     return float(20 * np.log10(max(x, 1e-12)))
 
 
-def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB) -> list[Checagem]:
-    """As quatro checagens do protocolo: saturação, fala, banda e piso de ruído."""
+def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
+           piso_minimo: float | None = None) -> list[Checagem]:
+    """As quatro checagens do protocolo: saturação, fala, banda e piso de ruído.
+
+    `piso_minimo`: distância mínima entre fala e ruído, em dB (padrão: o corte de
+    silêncio mais a margem, 35 dB). O teste com a voz própria usa 15, a margem do
+    microfone embutido na sala (RESUMO_TCC §10.2.12).
+    """
     import librosa
 
     wav = np.asarray(wav, dtype=np.float32).reshape(-1)
@@ -70,7 +79,18 @@ def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB) -> list[Ch
                         Checagem("banda", False, "—", "nenhum som gravado"),
                         Checagem("piso de ruído", False, "—", "nenhum som gravado")]
 
-    trechos = librosa.effects.split(wav, top_db=top_db)
+    # Fala pelos quadros mais fortes, ruído pelos mais fracos: não depende de
+    # achar as pausas, que somem quando o ruído passa do corte de silêncio.
+    rms = librosa.feature.rms(y=wav)[0]
+    distancia = _db(np.percentile(rms, 95)) - _db(np.percentile(rms, 10))
+
+    # Fala é o que fica a menos de `top_db` do pico e pelo menos FALA_ACIMA_DO_PISO_DB
+    # acima do ruído: com o ruído a menos de 30 dB da fala (microfone embutido,
+    # 16–21 dB), o corte só pelo pico marcaria a gravação inteira como fala.
+    limite = max(float(rms.max()) * 10 ** (-top_db / 20),
+                 float(np.percentile(rms, 10)) * 10 ** (FALA_ACIMA_DO_PISO_DB / 20))
+    corte_fala = max(1.0, _db(float(rms.max())) - _db(limite))
+    trechos = librosa.effects.split(wav, top_db=corte_fala)
     fala_s = float(sum(f - i for i, f in trechos)) / sample_rate
     borda = int(BORDA_S * sample_rate)
     cortada = len(trechos) > 0 and (trechos[0][0] < borda or trechos[-1][1] > len(wav) - borda)
@@ -87,15 +107,12 @@ def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB) -> list[Ch
                           None if alta >= FRACAO_MINIMA else
                           "nada acima de 4 kHz: o caminho perdeu a banda alta"))
 
-    # Fala pelos quadros mais fortes, ruído pelos mais fracos: não depende de
-    # achar as pausas, que somem quando o ruído passa do corte de silêncio.
-    rms = librosa.feature.rms(y=wav)[0]
-    distancia = _db(np.percentile(rms, 95)) - _db(np.percentile(rms, 10))
-    minimo = top_db + MARGEM_RUIDO_DB
+    minimo = top_db + MARGEM_RUIDO_DB if piso_minimo is None else float(piso_minimo)
+    motivo = f"ruído a menos de {minimo:.0f} dB da fala"
+    if minimo > top_db:
+        motivo += ": o corte de silêncio do modelo não o remove"
     saida.append(Checagem("piso de ruído", distancia >= minimo, f"{distancia:.0f} dB abaixo da fala",
-                          None if distancia >= minimo else
-                          f"ruído a menos de {minimo:.0f} dB da fala: o corte de silêncio "
-                          "do modelo não o remove"))
+                          None if distancia >= minimo else motivo))
     return saida
 
 

@@ -11,13 +11,15 @@ Modos:
 Arquivos que já existem na saída são pulados (dá para parar e continuar).
 A saída deve ficar em ml/data/vozes/, fora do Git: é voz de uma pessoa.
 
-Uso (de dentro de ml/), sem fone com microfone conectado:
+Uso (de dentro de ml/), sem fone com microfone conectado. O teste com a voz
+própria aceita ruído a 15 dB da fala (`--piso-minimo 15`), a margem do microfone
+embutido na sala (RESUMO_TCC §10.2.12):
     python scripts/gravar_frases.py voz --frases docs/etica/frases_teste_voz_propria.txt \\
-        --saida data/vozes/teste_proprio/real
+        --piso-minimo 15 --saida data/vozes/teste_proprio/real
     python scripts/gravar_frases.py voz --frases docs/etica/texto_referencia_clonagem.txt \\
-        --segundos 90 --saida data/vozes/teste_proprio/referencia
+        --segundos 90 --piso-minimo 15 --saida data/vozes/teste_proprio/referencia
     python scripts/gravar_frases.py pelo-ar --clones data/vozes/teste_proprio/clone \\
-        --saida data/vozes/teste_proprio/clone_ar
+        --piso-minimo 15 --saida data/vozes/teste_proprio/clone_ar
 """
 
 from __future__ import annotations
@@ -80,8 +82,8 @@ def salvar(destino: Path, wav: np.ndarray, taxa: int) -> None:
     sf.write(destino, wav, taxa, subtype="PCM_24")
 
 
-def relatar_checagens(wav: np.ndarray, taxa: int) -> bool:
-    resultado = checar(wav, taxa)
+def relatar_checagens(wav: np.ndarray, taxa: int, piso_minimo: float | None = None) -> bool:
+    resultado = checar(wav, taxa, piso_minimo=piso_minimo)
     for c in resultado:
         print(f"    {'ok' if c.ok else 'REGRAVAR':8s} {c.nome:14s} {c.valor}"
               + (f" — {c.motivo}" if c.motivo else ""))
@@ -96,7 +98,7 @@ def _seguir(sem_pausa: bool) -> bool:
 
 
 def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str | None,
-             sem_pausa: bool) -> int:
+             sem_pausa: bool, piso_minimo: float | None = None) -> int:
     for i, frase in enumerate(frases, start=1):
         destino = saida / f"f{i:02d}.wav"
         if destino.exists():
@@ -109,14 +111,15 @@ def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str |
             wav, taxa, modo, nome = gravar(segundos, dispositivo, (
                 (MARGEM_S, "leia agora"), (segundos - MARGEM_S, "silêncio até o fim")))
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
-            relatar_checagens(wav, taxa)
+            relatar_checagens(wav, taxa, piso_minimo)
             if _seguir(sem_pausa):
                 salvar(destino, wav, taxa)
                 break
     return 0
 
 
-def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: bool) -> int:
+def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: bool,
+                 piso_minimo: float | None = None) -> int:
     import librosa
     import sounddevice as sd
 
@@ -137,7 +140,7 @@ def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: 
                 (MARGEM_S, lambda: sd.play(clone, taxa_clone)),))
             sd.stop()
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
-            relatar_checagens(wav, taxa)
+            relatar_checagens(wav, taxa, piso_minimo)
             if _seguir(sem_pausa):
                 salvar(destino, wav, taxa)
                 break
@@ -150,8 +153,13 @@ def main(argv=None) -> int:
     p.add_argument("--frases", help="arquivo com uma frase por linha (modo voz)")
     p.add_argument("--clones", help="pasta com os clones a tocar (modo pelo-ar)")
     p.add_argument("--saida", required=True)
-    p.add_argument("--segundos", type=float, default=10.0,
-                   help="duração de cada gravação no modo voz (frases de 5 a 8 s cabem em 10)")
+    # 12 s: as frases do teste levaram ~7,5 s, começando ~1 s depois do aviso; em
+    # 10 s a fala terminava colada no fim (24/10/2026).
+    p.add_argument("--segundos", type=float, default=12.0,
+                   help="duração de cada gravação no modo voz")
+    p.add_argument("--piso-minimo", type=float, default=None, metavar="DB",
+                   help="distância mínima entre fala e ruído (padrão 35 dB; o teste com "
+                        "a voz própria usa 15, RESUMO_TCC §10.2.12)")
     p.add_argument("--dispositivo", default=None, help="parte do nome do microfone")
     p.add_argument("--sem-pausa", action="store_true", help="não espera Enter (testes)")
     args = p.parse_args(argv)
@@ -162,10 +170,11 @@ def main(argv=None) -> int:
             if not args.frases:
                 p.error("o modo voz precisa de --frases")
             return modo_voz(ler_frases(args.frases), saida, args.segundos, args.dispositivo,
-                            args.sem_pausa)
+                            args.sem_pausa, args.piso_minimo)
         if not args.clones:
             p.error("o modo pelo-ar precisa de --clones")
-        return modo_pelo_ar(Path(args.clones), saida, args.dispositivo, args.sem_pausa)
+        return modo_pelo_ar(Path(args.clones), saida, args.dispositivo, args.sem_pausa,
+                            args.piso_minimo)
     except CaptureError as erro:
         print(f"[ERRO] {erro}")
         return 1

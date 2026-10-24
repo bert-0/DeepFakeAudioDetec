@@ -43,6 +43,8 @@ EXTENSOES = {".wav", ".flac", ".mp3", ".ogg", ".m4a", ".opus"}
 CLASSES = {"real": "humano", "clone": "sintético", "clone_ar": "sintético"}
 CAMINHOS = {"arquivo": ("real", "clone"), "microfone": ("real", "clone_ar")}
 META = 0.8
+#: Margem do microfone embutido na sala, aceita antes de gravar (RESUMO_TCC §10.2.12).
+PISO_MINIMO_DB = 15.0
 
 
 @dataclass
@@ -104,7 +106,7 @@ def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], de
         por_modelo = [float(v) for v in np.average(matriz, axis=0, weights=pesos)]
     # Checagens na taxa em que o arquivo foi gravado, como logo depois de gravar.
     wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
-    falhas = [c.nome for c in checar(wav, taxa) if not c.ok]
+    falhas = [c.nome for c in checar(wav, taxa, piso_minimo=PISO_MINIMO_DB) if not c.ok]
     resumo = agregador.resumo()
     return Analise(pasta=pasta, frase=caminho.stem, score=resumo["score_medio"],
                    por_modelo=por_modelo, janelas_uteis=len(uteis),
