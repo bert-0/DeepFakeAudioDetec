@@ -103,3 +103,50 @@ def escolher_limiar(lims: Limiares, taxa_modelo: int, taxa_arquivo: int | None =
     return Escolha(lims.original, f"original — {motivo}",
                    "não há limiar recalibrado com o conversor atual (FIR) para este "
                    "modelo; usando o original. Rode scripts/calibrar_captura.py.")
+
+
+@dataclass(frozen=True)
+class LimiarFusao:
+    """Limiar de uma fusão de modelos, escolhido nos devs por `scripts/limiar_fusao.py`."""
+    config: str
+    checkpoints: tuple[str, ...]
+    regra: str
+    limiar: float        # na escala da regra (log-odds ou probabilidade)
+    alvo: float
+    condicao: str
+
+    @property
+    def probabilidade(self) -> float:
+        """O limiar na escala do score das leituras, em [0, 1]."""
+        if self.regra == "logodds":
+            import math
+
+            return 0.5 * (1.0 + math.tanh(0.5 * self.limiar))
+        return self.limiar
+
+    def descricao(self) -> str:
+        regra = "média dos log-odds" if self.regra == "logodds" else "média das probabilidades"
+        return (f"fusão ({regra}), {self.alvo * 100:.0f}% de alarme falso nos devs, "
+                f"{self.condicao}")
+
+
+def ler_limiar_fusao(caminho: str | Path) -> LimiarFusao:
+    """Lê o JSON e confere se os checkpoints ainda têm os pesos da escolha."""
+    import json
+
+    import torch
+
+    from src.scores import checkpoint_fingerprint
+
+    r = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    for m in r["modelos"]:
+        dados = torch.load(m["checkpoint"], map_location="cpu", weights_only=False)
+        if checkpoint_fingerprint(dados["model_state"]) != m["impressao"]:
+            raise ValueError(f"{m['checkpoint']} mudou desde a escolha do limiar: "
+                             "rode o limiar_fusao.py de novo")
+    # JSON anterior à opção de regra: a média das probabilidades.
+    return LimiarFusao(config=r["modelos"][0]["config"],
+                       checkpoints=tuple(m["checkpoint"] for m in r["modelos"]),
+                       regra=r.get("regra", "probabilidade"), limiar=float(r["limiar"]),
+                       alvo=float(r.get("alvo", float("nan"))),
+                       condicao=r.get("condicao", "?"))

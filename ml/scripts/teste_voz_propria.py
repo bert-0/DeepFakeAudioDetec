@@ -7,8 +7,9 @@ Lê as três pastas que o `gravar_frases.py` e a ferramenta de clonagem deixam:
 
 Cada arquivo passa pelo caminho da interface web (`AnalisadorContinuo` sobre
 `FileSource`, média das janelas ponderada pela fala), com os dois modelos
-fundidos pela média e o limiar escolhido nos devs pelo `limiar_fusao.py`.
-Score igual ou acima do limiar é sintético.
+fundidos pela regra e com o limiar que o `limiar_fusao.py` escolheu nos devs
+(média dos log-odds desde 24/10/2026). Score igual ou acima do limiar é
+sintético.
 
 Placar, com o critério combinado antes (RESUMO_TCC §10.2.12):
 - caminho arquivo: `real/` contra `clone/`;
@@ -48,12 +49,13 @@ META = 0.8
 class Analise:
     pasta: str
     frase: str
-    score: float | None
-    por_modelo: list[float | None]
+    score: float | None                # fusão, em [0, 1]
+    por_modelo: list[float | None]     # cada modelo, na escala da regra
     janelas_uteis: int
     taxa_nativa: int | None
     duracao_s: float
     checagens_falhas: list[str] = field(default_factory=list)
+    logodds: float | None = None
 
     def sintetico(self, limiar: float) -> bool | None:
         return None if self.score is None else self.score >= limiar
@@ -72,7 +74,8 @@ def listar(pasta: Path) -> list[Path]:
     return sorted(p for p in pasta.iterdir() if p.suffix.lower() in EXTENSOES)
 
 
-def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], device) -> Analise:
+def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], device,
+             regra: str = "probabilidade") -> Analise:
     """O caminho da interface web, com os dois modelos (web/analise.py)."""
     import librosa
 
@@ -81,9 +84,9 @@ def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], de
     from src.capture.checagens import checar
     from src.limiares import taxa_nativa
 
-    analisador = AnalisadorContinuo(config, checkpoints, device)
+    analisador = AnalisadorContinuo(config, checkpoints, device, regra=regra)
     agregador = Agregador(janela_s=analisador.janela.tamanho / analisador.sample_rate,
-                          passo_s=analisador.janela.passo / analisador.sample_rate)
+                          passo_s=analisador.janela.passo / analisador.sample_rate, regra=regra)
     with FileSource(caminho, analisador.sample_rate) as fonte:
         for bloco in fonte.blocos():
             for leitura in analisador.processar(bloco):
@@ -96,15 +99,17 @@ def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], de
     pesos = np.array([x.peso for x in uteis], dtype=float)
     por_modelo: list[float | None] = [None] * analisador.n_modelos
     if uteis and pesos.sum() > 0:
-        matriz = np.array([x.por_modelo for x in uteis], dtype=float)
+        matriz = np.array([x.logodds_por_modelo if regra == "logodds" else x.por_modelo
+                           for x in uteis], dtype=float)
         por_modelo = [float(v) for v in np.average(matriz, axis=0, weights=pesos)]
     # Checagens na taxa em que o arquivo foi gravado, como logo depois de gravar.
     wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
     falhas = [c.nome for c in checar(wav, taxa) if not c.ok]
-    return Analise(pasta=pasta, frase=caminho.stem, score=agregador.resumo()["score_medio"],
+    resumo = agregador.resumo()
+    return Analise(pasta=pasta, frase=caminho.stem, score=resumo["score_medio"],
                    por_modelo=por_modelo, janelas_uteis=len(uteis),
                    taxa_nativa=taxa_nativa(caminho), duracao_s=duracao,
-                   checagens_falhas=falhas)
+                   checagens_falhas=falhas, logodds=resumo["logodds_medio"])
 
 
 def minimo_de_acertos(n: int) -> int:
@@ -141,38 +146,37 @@ def frases_sem_par(analises: list[Analise]) -> dict[str, list[str]]:
     return {p: sorted(todas - f) for p, f in frases.items() if f and todas - f}
 
 
-def carregar_limiar(caminho: Path) -> dict:
-    """O limiar e os checkpoints do `limiar_fusao.py`, conferindo os pesos."""
-    import torch
+def carregar_limiar(caminho: Path):
+    """O limiar, a regra e os checkpoints do `limiar_fusao.py`, conferindo os pesos."""
+    from src.limiares import ler_limiar_fusao
 
-    from src.scores import checkpoint_fingerprint
-
-    r = json.loads(caminho.read_text(encoding="utf-8"))
-    for m in r["modelos"]:
-        dados = torch.load(m["checkpoint"], map_location="cpu", weights_only=False)
-        if checkpoint_fingerprint(dados["model_state"]) != m["impressao"]:
-            raise SystemExit(f"[ERRO] {m['checkpoint']} mudou desde a escolha do limiar: "
-                             "rode o limiar_fusao.py de novo")
-    return r
+    try:
+        return ler_limiar_fusao(caminho)
+    except ValueError as erro:
+        raise SystemExit(f"[ERRO] {erro}") from erro
 
 
-def _f(x: float | None) -> str:
-    return "  —  " if x is None else f"{x:.3f}"
+def _f(x: float | None, formato: str = ".4f") -> str:
+    return "—" if x is None else format(x, formato)
 
 
-def relatar(analises: list[Analise], limiar: float, nomes: list[str], r: dict) -> None:
-    print(f"{'arquivo':16s} {'kHz':>5s} {'fusão':>6s} " + " ".join(f"{n[:22]:>22s}" for n in nomes)
-          + "  resultado")
+def relatar(analises: list[Analise], limiar: float, nomes: list[str], r: dict,
+            regra: str = "probabilidade", descricao: str = "") -> None:
+    """`limiar` na escala do score, em [0, 1]; cada modelo aparece na escala da regra."""
+    escala = "log-odds" if regra == "logodds" else "prob."
+    formato = "+.2f" if regra == "logodds" else ".4f"
+    print(f"{'arquivo':16s} {'kHz':>5s} {'fusão':>7s} "
+          + " ".join(f"{(n[:15] + ' ' + escala):>24s}" for n in nomes) + "  resultado")
     for a in analises:
         veredito = a.sintetico(limiar)
         texto = "sem fala" if veredito is None else ("sintético" if veredito else "humano")
         marca = "certo" if a.acertou(limiar) else "ERRO"
         taxa = f"{a.taxa_nativa / 1000:g}" if a.taxa_nativa else "?"
         aviso = f"  (checagens: {', '.join(a.checagens_falhas)})" if a.checagens_falhas else ""
-        print(f"{a.pasta + '/' + a.frase:16s} {taxa:>5s} {_f(a.score):>6s} "
-              + " ".join(f"{_f(s):>22s}" for s in a.por_modelo)
+        print(f"{a.pasta + '/' + a.frase:16s} {taxa:>5s} {_f(a.score):>7s} "
+              + " ".join(f"{_f(s, formato):>24s}" for s in a.por_modelo)
               + f"  {texto:9s} {marca}{aviso}")
-    print(f"\nLimiar da fusão: {limiar:.4f}")
+    print(f"\nLimiar da fusão: {limiar:.4f}" + (f" — {descricao}" if descricao else ""))
     for caminho, (humanos, falsos) in CAMINHOS.items():
         c = r[caminho]
         h, f = c[humanos], c[falsos]
@@ -202,20 +206,23 @@ def main(argv=None) -> int:
         print(f"[ERRO] faltam gravações em {pasta}: precisa de real/ e de clone/ ou clone_ar/")
         return 1
     escolha = carregar_limiar(Path(args.limiar))
-    checkpoints = [m["checkpoint"] for m in escolha["modelos"]]
-    config = load_config(escolha["modelos"][0]["config"])
+    checkpoints = list(escolha.checkpoints)
+    config = load_config(escolha.config)
     device = resolve_device(args.device)
+    limiar = escolha.probabilidade
 
-    analises = [analisar(arq, nome, config, checkpoints, device)
+    analises = [analisar(arq, nome, config, checkpoints, device, escolha.regra)
                 for nome, lista in arquivos.items() for arq in lista]
-    r = placar(analises, escolha["limiar"])
-    relatar(analises, escolha["limiar"], [Path(c).stem for c in checkpoints], r)
+    r = placar(analises, limiar)
+    relatar(analises, limiar, [Path(c).stem for c in checkpoints], r, escolha.regra,
+            escolha.descricao())
     for nome, faltam in frases_sem_par(analises).items():
         print(f"[AVISO] {nome}/ não tem: {', '.join(faltam)}")
 
     Path(args.json).parent.mkdir(parents=True, exist_ok=True)
     Path(args.json).write_text(json.dumps(
-        {"limiar": escolha["limiar"], "limiar_origem": str(args.limiar),
+        {"regra": escolha.regra, "limiar": escolha.limiar, "limiar_score": limiar,
+         "limiar_origem": str(args.limiar),
          "checkpoints": checkpoints, "placar": r, "arquivos": [asdict(a) for a in analises]},
         indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nResultado: {args.json}")

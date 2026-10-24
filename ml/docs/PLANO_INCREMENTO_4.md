@@ -125,7 +125,9 @@ primeiro: nenhuma gravação começa antes deles.
   captura FIR, com o limiar da fusão escolhido no dev
   (`scripts/fusao_ao_vivo.py`). Acrescentado em 02/10/2026, depois que o
   fusion_v4 deixou de saturar com o FIR (RESUMO_TCC §10.2.8). Medido no
-  mesmo dia (§10.2.9); falta o monitor usar o limiar da fusão.
+  mesmo dia (§10.2.9). Em 24/10/2026, para os dois fusion_v4 com degradação, a
+  regra passou à média dos log-odds e o monitor usa o limiar da fusão com
+  `--limiar-fusao` (RESUMO_TCC §10.2.12).
 - Limiar calibrado no caminho da demonstração, com o `calibrar_captura.py`.
 
 **Texto do TCC**

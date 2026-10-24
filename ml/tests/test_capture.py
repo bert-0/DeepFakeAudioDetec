@@ -373,6 +373,16 @@ def test_score_é_probabilidade_de_spoof_e_nao_de_bonafide(tmp_path):
 
     assert LABEL_MAP == {"bonafide": 0, "spoof": 1}
 
-    fonte = Path("src/capture/analyzer.py").read_text(encoding="utf-8")
-    assert "torch.softmax(self.rede(feats), dim=1)[0, 1]" in fonte, \
+    import torch
+
+    from src.capture.analyzer import _Modelo
+
+    # Rede falsa que dá logit de spoof maior que o de bonafide.
+    m = object.__new__(_Modelo)
+    m.device = torch.device("cpu")
+    m.extractor = lambda x: {"lfcc": torch.zeros(1, 2)}
+    m.rede = lambda feats: torch.tensor([[0.0, 2.0]])
+    prob, logodds = m.avaliar(np.zeros(16000, np.float32))
+    assert prob == pytest.approx(float(torch.sigmoid(torch.tensor(2.0)))), \
         "o índice do softmax mudou; o score deixaria de ser P(síntese)"
+    assert logodds == pytest.approx(2.0), "log-odds = logit[spoof] - logit[bonafide]"

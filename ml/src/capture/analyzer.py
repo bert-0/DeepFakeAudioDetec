@@ -1,7 +1,8 @@
 """Analisador contínuo: aplica os modelos treinados às janelas da captura.
 
 Mesmo caminho de inferência do `infer.py`, mas o waveform vem da janela
-deslizante. Com vários checkpoints, os scores são fundidos pela média.
+deslizante. Com vários checkpoints, os scores são fundidos pela média: das
+probabilidades ou dos log-odds (`REGRAS`).
 """
 
 from __future__ import annotations
@@ -20,6 +21,15 @@ from .stream import JanelaDeslizante
 
 #: Abaixo disto é silêncio; o modelo nunca viu silêncio rotulado, o score não vale.
 SILENCIO_RMS = 1e-3
+#: Regras de fusão. Nos log-odds, um modelo de probabilidades minúsculas (o do
+#: recorte da ASVspoof 5, limiar 0,00017) ainda pesa; na média das
+#: probabilidades ele só conta quando tem quase certeza (RESUMO_TCC §10.2.12).
+REGRAS = ("probabilidade", "logodds")
+
+
+def sigmoide(x: float) -> float:
+    # Pela tangente: sem estouro de exp() com log-odds grandes.
+    return float(0.5 * (1.0 + np.tanh(0.5 * x)))
 
 
 @dataclass
@@ -31,6 +41,8 @@ class Leitura:
     rms: float                # energia do trecho; separa silêncio de fala
     qualidade: Qualidade | None = None   # medição de canal desta janela
     por_modelo: tuple[float, ...] = ()   # score de cada modelo, antes da fusão
+    logodds: float | None = None         # média dos log-odds dos modelos
+    logodds_por_modelo: tuple[float, ...] = ()
     canal: str = EstadoDoCanal.INDETERMINADO   # veredito da SESSÃO neste instante
     fracao_fala: float = 1.0   # quanto da janela sobrou após remover o silêncio
 
@@ -71,6 +83,8 @@ class Agregador:
     janela_s: float = 4.0
     passo_s: float = 2.0
     leituras: list[Leitura] = field(default_factory=list)
+    #: Com "logodds", as médias são feitas nos log-odds e voltam para [0, 1].
+    regra: str = "probabilidade"
 
     def adicionar(self, leitura: Leitura) -> None:
         self.leituras.append(leitura)
@@ -87,21 +101,26 @@ class Agregador:
         coberto = (n_janelas - 1) * self.passo_s + self.janela_s
         return coberto / self.janela_s
 
-    def media_movel(self) -> float | None:
-        """Média das últimas janelas confiáveis, ponderada por `Leitura.peso`."""
-        recentes = self.uteis[-self.janela_media:]
-        if not recentes:
+    def _media(self, leituras: list[Leitura], ponderada: bool = True) -> float | None:
+        if not leituras:
             return None
-        pesos = np.array([x.peso for x in recentes], dtype=float)
-        scores = np.array([x.score for x in recentes], dtype=float)
+        pesos = np.array([x.peso if ponderada else 1.0 for x in leituras], dtype=float)
         if pesos.sum() <= 0:
             return None
-        return float(np.average(scores, weights=pesos))
+        if self.regra == "logodds":
+            valores = np.array([x.logodds for x in leituras], dtype=float)
+            return sigmoide(float(np.average(valores, weights=pesos)))
+        return float(np.average([x.score for x in leituras], weights=pesos))
+
+    def media_movel(self) -> float | None:
+        """Média das últimas janelas confiáveis, ponderada por `Leitura.peso`."""
+        return self._media(self.uteis[-self.janela_media:])
 
     def resumo(self) -> dict:
         uteis = self.uteis
         scores = [x.score for x in uteis]
         pesos = [x.peso for x in uteis]
+        logodds = [x.logodds for x in uteis if x.logodds is not None]
         silencio = sum(1 for x in self.leituras if x.silencio)
         descartadas = len(self.leituras) - len(uteis) - silencio
         return {
@@ -110,9 +129,11 @@ class Agregador:
             "janelas_silencio": silencio,
             "janelas_canal_ruim": descartadas,
             "janelas_independentes": round(self.efetivas(len(uteis)), 1),
-            "score_medio": (float(np.average(scores, weights=pesos))
-                            if scores and sum(pesos) > 0 else None),
-            "score_medio_simples": float(np.mean(scores)) if scores else None,
+            "score_medio": self._media(uteis),
+            "score_medio_simples": self._media(uteis, ponderada=False),
+            "logodds_medio": (float(np.average(logodds, weights=pesos))
+                              if uteis and len(logodds) == len(uteis) and sum(pesos) > 0
+                              else None),
             "score_mediano": float(np.median(scores)) if scores else None,
             "score_maximo": float(np.max(scores)) if scores else None,
             "peso_medio": float(np.mean(pesos)) if pesos else None,
@@ -140,23 +161,30 @@ class _Modelo:
         self.rede.eval()
 
     @torch.no_grad()
-    def score(self, pronto: np.ndarray) -> float:
+    def avaliar(self, pronto: np.ndarray) -> tuple[float, float]:
+        """(P(spoof), log-odds), como o `probabilidade_e_logodds` do offline."""
         feats = {k: v.unsqueeze(0).to(self.device)
                  for k, v in self.extractor(pronto).items()}
-        return float(torch.softmax(self.rede(feats), dim=1)[0, 1])
+        logits = self.rede(feats).float()[0]
+        return float(torch.softmax(logits, dim=0)[1]), float(logits[1] - logits[0])
 
 
 class AnalisadorContinuo:
     """Carrega os checkpoints uma vez e classifica janela a janela.
 
-    `checkpoint` aceita um caminho ou uma lista; com mais de um, faz a média dos scores.
+    `checkpoint` aceita um caminho ou uma lista; com mais de um, faz a média dos
+    scores pela `regra`. O score de cada leitura fica em [0, 1] nas duas regras.
     """
 
     def __init__(self, config: dict, checkpoint: str | list[str],
-                 device: torch.device, hop_s: float | None = None):
+                 device: torch.device, hop_s: float | None = None,
+                 regra: str = "probabilidade"):
         caminhos = [checkpoint] if isinstance(checkpoint, (str, bytes)) else list(checkpoint)
         if not caminhos:
             raise ValueError("é preciso ao menos um checkpoint")
+        if regra not in REGRAS:
+            raise ValueError(f"regra de fusão desconhecida: {regra} (use {', '.join(REGRAS)})")
+        self.regra = regra
         self.modelos = [_Modelo(c, device, config) for c in caminhos]
 
         # A janela vem do primeiro modelo; os demais precisam usar a mesma.
@@ -185,18 +213,20 @@ class AnalisadorContinuo:
     def n_modelos(self) -> int:
         return len(self.modelos)
 
-    def _classificar(self, wav: np.ndarray) -> tuple[float, tuple[float, ...]]:
-        """Devolve (score fundido, score de cada modelo)."""
+    def _classificar(self, wav: np.ndarray) -> tuple[float, tuple[float, ...], tuple[float, ...]]:
+        """Devolve (score fundido, probabilidade e log-odds de cada modelo)."""
         # Sem `rng`: recorte aleatório é só de treino.
         pronto = preprocess_waveform(wav, self.config["audio"])
-        individuais = tuple(m.score(pronto) for m in self.modelos)
-        return float(np.mean(individuais)), individuais
+        probs, logodds = zip(*(m.avaliar(pronto) for m in self.modelos), strict=True)
+        if self.regra == "logodds":
+            return sigmoide(float(np.mean(logodds))), probs, logodds
+        return float(np.mean(probs)), probs, logodds
 
     def _ler(self, wav: np.ndarray) -> Leitura:
         """Transforma uma janela (completa ou final) numa leitura."""
         rms = float(np.sqrt(np.mean(wav.astype(np.float64) ** 2)))
         if rms < SILENCIO_RMS:
-            score, individuais, qualidade, fracao_fala = 0.0, (), None, 0.0
+            score, individuais, logodds, qualidade, fracao_fala = 0.0, (), (), None, 0.0
         else:
             qualidade = avaliar(wav, self.sample_rate)
             self.canal.observar(qualidade)
@@ -204,7 +234,7 @@ class AnalisadorContinuo:
             # mais curta e o restante é preenchido por repetição.
             limpo = trim_silence(wav, self.config["audio"].get("top_db", 30))
             fracao_fala = len(limpo) / max(self.janela.tamanho, 1)
-            score, individuais = self._classificar(wav)
+            score, individuais, logodds = self._classificar(wav)
         leitura = Leitura(
             indice=self._n,
             instante=self.janela.inicio_da_ultima / self.sample_rate,
@@ -212,6 +242,8 @@ class AnalisadorContinuo:
             rms=rms,
             qualidade=qualidade,
             por_modelo=individuais,
+            logodds=float(np.mean(logodds)) if logodds else None,
+            logodds_por_modelo=logodds,
             canal=self.canal.veredito,
             fracao_fala=fracao_fala,
         )

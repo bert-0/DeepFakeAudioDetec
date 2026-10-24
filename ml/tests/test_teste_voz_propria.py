@@ -103,6 +103,24 @@ def test_caminho_completo_com_dois_modelos(tmp_path, capsys):
     assert "Caminho arquivo" in texto and "Caminho microfone" in texto
 
 
+def test_caminho_completo_nos_logodds(tmp_path):
+    modelos = [_checkpoint(tmp_path / "a.pt", 0), _checkpoint(tmp_path / "b.pt", 1)]
+    limiar = tmp_path / "limiar.json"
+    limiar.write_text(json.dumps({"regra": "logodds", "limiar": 0.0, "modelos": modelos}),
+                      encoding="utf-8")
+    _gravacoes(tmp_path / "vozes")
+    saida = tmp_path / "r.json"
+
+    assert main(["--pasta", str(tmp_path / "vozes"), "--limiar", str(limiar),
+                 "--json", str(saida)]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert r["regra"] == "logodds" and r["limiar_score"] == 0.5
+    for a in r["arquivos"]:
+        assert a["logodds"] == pytest.approx(np.mean(a["por_modelo"]), abs=1e-6), \
+            "cada modelo aparece nos log-odds; a fusão é a média deles"
+        assert a["score"] == pytest.approx(1 / (1 + np.exp(-a["logodds"])), abs=1e-6)
+
+
 def test_recusa_limiar_de_outros_pesos(tmp_path):
     m = _checkpoint(tmp_path / "a.pt", 0)
     m["impressao"] = "0" * 16

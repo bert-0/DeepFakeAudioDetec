@@ -13,6 +13,9 @@ tipo de áudio (src/limiares.py); o score é indício, não veredito.
         --checkpoint checkpoints/fusion_lcnn_v4.pt \\
         --checkpoint checkpoints/baseline_lfcc_cnn_v2.pt
 
+    # a fusão do teste com voz real: modelos, regra e limiar escolhidos nos devs
+    python monitor.py --limiar-fusao outputs/limiar_fusao/limiar.json --fonte microfone
+
     # ao vivo, gravando o que ouviu (é assim que se mede o canal real)
     python monitor.py --config ... --checkpoint ... --gravar chamada.wav
 
@@ -39,16 +42,25 @@ from src.capture import CaptureError, FileSource, WasapiLoopbackSource, abrir_mi
 from src.capture.analyzer import AnalisadorContinuo, Agregador
 from src.config import load_config, resolve_device
 from src.data.dataset import buscar_rotulo
-from src.limiares import escolher_limiar, limiares_do_checkpoint, taxa_nativa
+from src.limiares import (
+    Escolha,
+    escolher_limiar,
+    ler_limiar_fusao,
+    limiares_do_checkpoint,
+    taxa_nativa,
+)
 
 OUTPUT_DIR = Path("outputs")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Monitor de chamada ao vivo")
     p.add_argument("--config", help="YAML de configuração")
     p.add_argument("--checkpoint", action="append",
                    help="checkpoint treinado; repita a opção para fundir modelos")
+    p.add_argument("--limiar-fusao", default=None, metavar="JSON",
+                   help="modelos, regra e limiar do scripts/limiar_fusao.py "
+                        "(no lugar de --checkpoint)")
     p.add_argument("--arquivo", help="analisa um .wav em vez do áudio ao vivo")
     p.add_argument("--gravar", help="salva o áudio capturado neste .wav")
     p.add_argument("--fonte", choices=("sistema", "microfone"), default="sistema",
@@ -67,7 +79,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--parar-com", default=None, metavar="ARQUIVO",
                    help="encerra como um Ctrl+C quando este arquivo aparecer (usado "
                         "pela interface web, que não consegue mandar Ctrl+C no Windows)")
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 def listar_dispositivos() -> int:
@@ -98,33 +110,51 @@ def barra(score: float, limiar: float | None = None, largura: int = 28) -> str:
     return "".join(celulas)
 
 
-def main() -> int:
-    args = parse_args()
+def main(argv=None) -> int:
+    args = parse_args(argv)
     if args.listar_dispositivos:
         return listar_dispositivos()
+    fusao = None
+    if args.limiar_fusao:
+        if args.checkpoint:
+            print("[ERRO] use --limiar-fusao ou --checkpoint, não os dois")
+            return 1
+        try:
+            fusao = ler_limiar_fusao(args.limiar_fusao)
+        except (OSError, ValueError, KeyError) as erro:
+            print(f"[ERRO] limiar da fusão: {erro}")
+            return 1
+        args.config = args.config or fusao.config
+        args.checkpoint = list(fusao.checkpoints)
     if not args.config or not args.checkpoint:
         print("[ERRO] --config e --checkpoint são obrigatórios "
-              "(ou use --listar-dispositivos)")
+              "(ou use --limiar-fusao ou --listar-dispositivos)")
         return 1
 
     config = load_config(args.config)
     device = resolve_device(args.device or config["train"]["device"])
-    analisador = AnalisadorContinuo(config, args.checkpoint, device, hop_s=args.hop)
-    # Ao vivo e arquivos acima de 16 kHz usam o limiar recalibrado para a
-    # conversão de taxa; nativos de 16 kHz, o original (src/limiares.py).
-    import torch
-
-    primeiro = args.checkpoint[0]
-    lims = limiares_do_checkpoint(
-        primeiro, torch.load(primeiro, map_location="cpu", weights_only=False))
-    escolha = escolher_limiar(lims, analisador.sample_rate,
-                              taxa_nativa(args.arquivo) if args.arquivo else None,
-                              ao_vivo=not args.arquivo)
-    if analisador.threshold is not None:
+    analisador = AnalisadorContinuo(config, args.checkpoint, device, hop_s=args.hop,
+                                    regra=fusao.regra if fusao else "probabilidade")
+    if fusao:
+        # Escolhido nos devs na captura FIR; vale para o ao vivo e para arquivos.
+        escolha = Escolha(fusao.probabilidade, fusao.descricao())
         analisador.threshold = escolha.limiar
+    else:
+        # Ao vivo e arquivos acima de 16 kHz usam o limiar recalibrado para a
+        # conversão de taxa; nativos de 16 kHz, o original (src/limiares.py).
+        import torch
+
+        primeiro = args.checkpoint[0]
+        lims = limiares_do_checkpoint(
+            primeiro, torch.load(primeiro, map_location="cpu", weights_only=False))
+        escolha = escolher_limiar(lims, analisador.sample_rate,
+                                  taxa_nativa(args.arquivo) if args.arquivo else None,
+                                  ao_vivo=not args.arquivo)
+        if analisador.threshold is not None:
+            analisador.threshold = escolha.limiar
     agregador = Agregador(
         janela_s=analisador.janela.tamanho / analisador.sample_rate,
-        passo_s=analisador.janela.passo / analisador.sample_rate)
+        passo_s=analisador.janela.passo / analisador.sample_rate, regra=analisador.regra)
 
     # Arquivo do dataset: mostra o rótulo verdadeiro ao lado do score.
     verdade = None
@@ -152,7 +182,8 @@ def main() -> int:
         nome = getattr(fonte, "nome", None) or args.dispositivo_audio or "padrão"
         origem += f" — {nome} (WASAPI {fonte.modo})"
     if analisador.n_modelos > 1:
-        print(f"Modelos: {analisador.n_modelos} em fusão (média) | dispositivo: {device}")
+        regra = "dos log-odds" if analisador.regra == "logodds" else "das probabilidades"
+        print(f"Modelos: {analisador.n_modelos} em fusão (média {regra}) | dispositivo: {device}")
     else:
         print(f"Modelo: {analisador.config['model']['name']} | dispositivo: {device}")
     print(f"Fonte:  {origem}")

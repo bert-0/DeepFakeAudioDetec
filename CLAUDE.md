@@ -120,8 +120,12 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 - Fusão ao vivo (média) dos dois na captura FIR: EER 14,2%. Limiar escolhido no
   dev com o alarme falso do v2 (0,3473): 10,6% de humanos acima e 16,5% de
   sintéticos passando, contra 10,7% e 28,8% do v2. Limiares acima de 0,5 exigem
-  que os dois concordem e deixam passar 42–49%; o monitor ainda aplica o limiar
-  do primeiro checkpoint (RESUMO_TCC §10.2.9).
+  que os dois concordem e deixam passar 42–49% (RESUMO_TCC §10.2.9). Sem
+  `--limiar-fusao`, o monitor aplica à fusão o limiar do primeiro checkpoint.
+- Fusão dos dois fusion_v4 com degradação (RESUMO_TCC §10.2.12): na média das
+  probabilidades o modelo do recorte quase não pesa (limiar dele 0,00017); na
+  média dos log-odds, dev da ASVspoof 5 com EER 11,87% (21,48% nas
+  probabilidades). Limiar −4,437 (score 0,0117), 10% de alarme falso nos devs.
 - Ao vivo: aprimoramentos de áudio do Windows (saída e microfone) precisam estar
   desligados; o VLC altera o áudio; reprodução pelo ar (celular → microfone)
   não separa real de falso. Com um fone com microfone conectado, o driver

@@ -4,6 +4,10 @@ O limiar sai só dos humanos dos devs, na captura FIR, com uma taxa-alvo de
 alarme falso: o lado humano se mantém do dev para o eval, o dos ataques não
 (RESUMO_TCC §10.2.9). Os áudios do teste com voz real nunca entram aqui.
 
+A regra padrão é a média dos log-odds, escolhida nos devs em 24/10/2026: na
+média das probabilidades o modelo do recorte quase não pesa (RESUMO_TCC
+§10.2.12). `--regra probabilidade` refaz a escolha com a regra antiga.
+
 Dois passos:
 - `preparar`: para cada modelo e cada dev dos modelos (o da 2019 e o do recorte
   da ASVspoof 5), escreve um config derivado que avalia o modelo naquele dev e
@@ -33,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.fusao_ao_vivo import alinhar, limiar_por_alarme_falso, ponto_de_operacao  # noqa: E402
 from scripts.score_fusion import combine  # noqa: E402
 from src.config import config_derivado, load_config, salvar_config  # noqa: E402
+from src.limiares import LimiarFusao  # noqa: E402
 from src.metrics import compute_eer  # noqa: E402
 
 MODELOS_PADRAO = (
@@ -45,6 +50,7 @@ CONDICAO = "captura_48k_fir"
 AMOSTRA = 10000
 #: Perto do que a fusão ao vivo anterior deu no eval (10,6%, §10.2.9).
 ALVO_PADRAO = 0.10
+REGRA_PADRAO = "logodds"
 
 
 def rotulo_do_dev(protocolo: str) -> str:
@@ -98,14 +104,19 @@ def _carregar(caminho: str | Path) -> dict:
         return {k: d[k] for k in d.files}
 
 
-def escolher(pares: dict[str, tuple[dict, dict]], alvo: float) -> dict:
-    """Funde cada par pela média e escolhe o limiar com os humanos de todos os devs."""
+def escolher(pares: dict[str, tuple[dict, dict]], alvo: float,
+             regra: str = REGRA_PADRAO) -> dict:
+    """Funde cada par pela média e escolhe o limiar com os humanos de todos os devs.
+
+    O limiar fica na escala da regra; `limiar_probabilidade` é o mesmo ponto na
+    escala do score das leituras ao vivo, em [0, 1]."""
+    chave = {"logodds": "logodds", "probabilidade": "scores"}[regra]
     fundidos = {}
     for rotulo, (a, b) in pares.items():
         a, b = alinhar(a, b)
         if not (a["labels"] == b["labels"]).all():
             raise ValueError(f"{rotulo}: rótulos diferentes para os mesmos áudios")
-        fundidos[rotulo] = (a, b, combine([a["scores"], b["scores"]], "mean"))
+        fundidos[rotulo] = (a, b, combine([a[chave], b[chave]], "mean"))
     labels = np.concatenate([a["labels"] for a, _, _ in fundidos.values()])
     media = np.concatenate([m for _, _, m in fundidos.values()])
     limiar = limiar_por_alarme_falso(labels, media, alvo)
@@ -117,7 +128,9 @@ def escolher(pares: dict[str, tuple[dict, dict]], alvo: float) -> dict:
                                         compute_eer(b["labels"], b["logodds"])],
                         "eer_fusao": compute_eer(a["labels"], m),
                         **ponto_de_operacao(a["labels"], m, limiar)}
-    return {"limiar": limiar, "alvo": alvo, "humanos": int((labels == 0).sum()),
+    return {"regra": regra, "limiar": limiar,
+            "limiar_probabilidade": LimiarFusao("", (), regra, limiar, alvo, "").probabilidade,
+            "alvo": alvo, "humanos": int((labels == 0).sum()),
             "humanos_acima": float((media[labels == 0] >= limiar).mean()), "devs": devs}
 
 
@@ -137,8 +150,11 @@ def _pct(x: float) -> str:
 
 def relatar(r: dict, modelos: list[dict]) -> None:
     nomes = [Path(m["checkpoint"]).stem for m in modelos]
-    print(f"Limiar da fusão: {r['limiar']:.4f} (alvo de {_pct(r['alvo'])} de alarme falso, "
-          f"{r['humanos']} humanos dos devs; acima dele: {_pct(r['humanos_acima'])})\n")
+    regra = "média dos log-odds" if r["regra"] == "logodds" else "média das probabilidades"
+    print(f"Fusão: {regra}")
+    print(f"Limiar da fusão: {r['limiar']:.4f} (score ao vivo {r['limiar_probabilidade']:.4f}; "
+          f"alvo de {_pct(r['alvo'])} de alarme falso, {r['humanos']} humanos dos devs; "
+          f"acima dele: {_pct(r['humanos_acima'])})\n")
     for rotulo, d in r["devs"].items():
         print(f"{rotulo}: {d['n']} áudios, {d['humanos']} humanos")
         for nome, eer in zip(nomes, d["eer_modelos"], strict=True):
@@ -146,8 +162,9 @@ def relatar(r: dict, modelos: list[dict]) -> None:
         print(f"  EER da fusão: {_pct(d['eer_fusao'])}")
         print(f"  no limiar: humanos acima {_pct(d['humanos_acima'])}, "
               f"sintéticos passam {_pct(d['sinteticos_passam'])}")
-    print("\nOs ataques do dev são os do treino de pelo menos um modelo: o lado dos "
-          "sintéticos não se mantém fora dele.")
+    print("\nO limiar sai só dos humanos; os sintéticos são referência. No dev da 2019 os "
+          "ataques são os do treino;\nno da ASVspoof 5 (A09 a A16), nenhum dos dois modelos "
+          "os viu.")
 
 
 def main(argv=None) -> int:
@@ -159,6 +176,7 @@ def main(argv=None) -> int:
     pe = sub.add_parser("escolher", help="escolhe o limiar com os scores já salvos")
     pe.add_argument("--alarme-falso", type=float, default=ALVO_PADRAO,
                     help="fração-alvo de humanos dos devs acima do limiar")
+    pe.add_argument("--regra", choices=("logodds", "probabilidade"), default=REGRA_PADRAO)
     pe.add_argument("--saida", default=str(PASTA / "limiar.json"))
     for s in (pp, pe):
         s.add_argument("--pasta", default=str(PASTA))
@@ -186,7 +204,7 @@ def main(argv=None) -> int:
         return 1
     pares = {rotulo: tuple(_carregar(e["scores"]) for e in d["execucoes"])
              for rotulo, d in preparo["devs"].items()}
-    r = escolher(pares, args.alarme_falso)
+    r = escolher(pares, args.alarme_falso, args.regra)
     r.update(condicao=preparo["condicao"], amostra=preparo["amostra"], data=date.today().isoformat(),
              modelos=[{**m, "impressao": i} for m, i in
                       zip(preparo["modelos"], impressoes(preparo["modelos"]), strict=True)])

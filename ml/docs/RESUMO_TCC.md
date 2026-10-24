@@ -1936,9 +1936,11 @@ Ensaio da meta do plano com um locutor fora do treino (um integrante do grupo),
 antes da coleta com o orientador. Preparado e registrado em 24/10/2026, antes de
 qualquer gravação; os números entram aqui depois, como saírem.
 
-- **Modelos:** fusão pela média de `fusion_lcnn_v4_2019_degr` e
+- **Modelos:** fusão pela média dos log-odds de `fusion_lcnn_v4_2019_degr` e
   `fusion_lcnn_v4_asv5` (10.9), no caminho da interface web: janelas de 4 s com
-  passo de 2 s, média ponderada pela fração de fala.
+  passo de 2 s, média ponderada pela fração de fala, também nos log-odds. A
+  regra registrada primeiro era a média das probabilidades; mudou no mesmo dia,
+  antes de qualquer gravação, pela calibração abaixo.
 - **Limiar:** escolhido antes, só com os humanos dos devs, na captura FIR
   (`captura_48k_fir`): 10% de alarme falso nos humanos da amostra de 10 mil do
   dev da 2019 e do dev do recorte da ASVspoof 5, juntos
@@ -1970,6 +1972,33 @@ qualquer gravação; os números entram aqui depois, como saírem.
 - **Limitações:** um locutor, que não é o orientador; uma ferramenta; 10
   frases; uma sala. A gravação e o clone ficam em `data/vozes/teste_proprio/`
   (fora do Git), com termo assinado, e o clone é apagado depois da banca.
+
+**Calibração nos devs** (24/10/2026; 1.026 humanos no dev da 2019 e 2.223 no da
+ASVspoof 5, 3.249 juntos). Os dois devs escolheram os checkpoints (parada
+antecipada), então os números deles são otimistas; o lado dos sintéticos é só
+referência, porque o limiar sai dos humanos. No dev da 2019 os ataques são os do
+treino; no da ASVspoof 5 (A09 a A16), nenhum dos dois modelos os viu.
+
+| regra | limiar | dev | EER da fusão | humanos acima | sintéticos passam |
+|---|---|---|---|---|---|
+| média das probabilidades | 0,4351 | 2019 | 2,32% | 6,3% | 1,0% |
+| | | ASVspoof 5 | 21,48% | 11,7% | 33,0% |
+| média dos log-odds | −4,437 (score 0,0117) | 2019 | 4,67% | 7,8% | 3,1% |
+| | | ASVspoof 5 | 11,87% | 11,0% | 12,4% |
+
+Cada modelo sozinho: `fusion_lcnn_v4_2019_degr` 2,09% no dev da 2019 e 37,80% no
+da ASVspoof 5; `fusion_lcnn_v4_asv5` 40,35% e 20,59%.
+
+- **Na média das probabilidades a fusão não ganha do melhor modelo em nenhum
+  dev,** porque o modelo do recorte dá probabilidades minúsculas: o limiar dele
+  é 0,00017, e os humanos ficam perto de 0. Ele só pesa quando tem quase
+  certeza; no dev da ASVspoof 5, 258 dos 259 humanos acima do limiar foram
+  marcados só pelo modelo da 2019.
+- **Nos log-odds ele pesa,** e a fusão fica bem abaixo do melhor modelo no dev
+  da ASVspoof 5 (11,87% contra 20,59%), a 2,58 pp dele no da 2019. Com o mesmo
+  alvo de humanos, os sintéticos que passam no dev da ASVspoof 5 caem de 33,0%
+  para 12,4%. Decidido em 24/10/2026: a média dos log-odds, no teste e no
+  monitor (`--limiar-fusao`).
 
 ### 10.3 Bases públicas que já trazem canal
 

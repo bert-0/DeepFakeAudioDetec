@@ -76,6 +76,21 @@ def test_limiar_com_os_humanos_dos_dois_devs():
     assert set(r["devs"]["calib_2019"]) >= {"eer_modelos", "eer_fusao", "sinteticos_passam"}
 
 
+def test_logodds_usam_o_modelo_de_probabilidades_minusculas():
+    """O caso do modelo do recorte: separa bem, mas na escala de 1e-5 a 1e-2."""
+    rng = np.random.default_rng(1)
+    labels = np.r_[np.zeros(400, int), np.ones(400, int)]
+    a = _dados(rng.uniform(0.01, 0.6, 800), labels)                     # não separa
+    b = _dados(np.r_[10 ** rng.uniform(-6, -5, 400), 10 ** rng.uniform(-3, -2, 400)], labels)
+    prob = escolher({"calib_2019": (a, b)}, 0.10, "probabilidade")
+    lo = escolher({"calib_2019": (a, b)}, 0.10, "logodds")
+    assert prob["devs"]["calib_2019"]["eer_fusao"] > 0.3
+    assert lo["devs"]["calib_2019"]["eer_fusao"] < 0.15
+    assert lo["regra"] == "logodds" and lo["limiar"] < 0
+    assert lo["limiar_probabilidade"] == pytest.approx(1 / (1 + np.exp(-lo["limiar"])))
+    assert prob["limiar_probabilidade"] == prob["limiar"]
+
+
 def test_recusa_rotulos_diferentes():
     a = _dados([0.1, 0.9], [0, 1])
     b = _dados([0.1, 0.9], [1, 0])
@@ -113,10 +128,18 @@ def test_escolher_grava_o_limiar_com_a_impressao_dos_pesos(tmp_path, capsys):
     r = json.loads(saida.read_text(encoding="utf-8"))
     assert [m["impressao"] for m in r["modelos"]] == impressoes
     assert r["alvo"] == 0.10 and r["humanos_acima"] == 0.10 and r["condicao"] == "captura_48k_fir"
+    assert r["regra"] == "logodds", "a regra escolhida nos devs em 24/10/2026"
     assert "Limiar da fusão" in capsys.readouterr().out
 
 
 def test_escolher_sem_os_scores_diz_quais_faltam(tmp_path, capsys):
-    preparar(MODELOS_PADRAO, tmp_path)
-    assert main(["escolher", "--pasta", str(tmp_path)]) == 1
+    # Os scores apontam para tmp_path: os de outputs/ podem existir (calibração real).
+    preparo = preparar(MODELOS_PADRAO, tmp_path)
+    for d in preparo["devs"].values():
+        for e in d["execucoes"]:
+            e["scores"] = str(tmp_path / Path(e["scores"]).name)
+    (tmp_path / "preparo.json").write_text(json.dumps(preparo), encoding="utf-8")
+    saida = tmp_path / "limiar.json"
+    assert main(["escolher", "--pasta", str(tmp_path), "--saida", str(saida)]) == 1
     assert capsys.readouterr().out.count("_scores.npz") == 4
+    assert not saida.exists()
