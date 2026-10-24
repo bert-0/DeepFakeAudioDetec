@@ -42,6 +42,7 @@
   </div>
 
   <div class="faixa-aviso amarelo oculto" id="erro"></div>
+  <div class="faixa-aviso amarelo oculto" id="falha" role="alert"></div>
   <div class="nota oculto" id="salvo"></div>
 
   <div class="acoes">
@@ -143,8 +144,12 @@
     botao.disabled = true;
     var opcoes = {method: "POST"};
     if (corpo) opcoes = {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)};
+    // Aviso na própria página: o navegador embutido do app não mostra diálogos.
+    ocultar("falha", true);
     return fetch(url, opcoes).then(function (r) {
-      if (!r.ok) return r.json().then(function (e) { alert(e.detail || "Falhou."); });
+      if (!r.ok) return r.json().then(function (e) {
+        $("falha").textContent = e.detail || "Não foi possível concluir."; ocultar("falha", false);
+      });
     }).finally(function () { botao.disabled = false; atualizar(); });
   }
   $("iniciar").addEventListener("click", function () {

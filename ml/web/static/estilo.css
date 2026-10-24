@@ -136,6 +136,8 @@ input[type=checkbox] { accent-color: var(--azul); }
 .acoes .verde { color: #fff; background: #17663f; border-color: #0f4d2f; font-weight: bold; }
 .acoes .vermelho { color: #fff; background: #9b1c1f; border-color: #6f1416; font-weight: bold; }
 .acoes [disabled] { opacity: 0.5; cursor: default; filter: none; }
+/* Confirmação dentro da faixa de aviso: os botões sem a faixa própria. */
+.faixa-aviso .acoes { padding: 8px 0 2px; border-top: 0; background: none; }
 /* Interruptor do tema: sol de dia, lua e estrelas à noite. Único elemento
    arredondado da página, de propósito. */
 .interruptor { position: relative; flex: 0 0 auto; align-self: center; width: 52px; height: 26px;

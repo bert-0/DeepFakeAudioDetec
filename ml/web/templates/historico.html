@@ -24,11 +24,20 @@
       {% endfor %}
     </table>
   </form>
-  <div class="acoes">
+  <div class="acoes" id="acoes">
     <button type="submit" form="form-excluir" id="excluir" disabled>Excluir selecionados</button>
     <form action="/historico/limpar" method="post" id="form-limpar">
       <button type="submit">Limpar todo o histórico</button>
     </form>
+  </div>
+  {# Confirmação na página: o navegador embutido do app não mostra confirm() e
+     responde "cancelar" sem perguntar. #}
+  <div class="faixa-aviso vermelho oculto" id="confirmacao" role="alertdialog">
+    <span id="pergunta"></span>
+    <div class="acoes">
+      <button type="button" class="vermelho" id="confirmar">Excluir</button>
+      <button type="button" id="cancelar">Cancelar</button>
+    </div>
   </div>
   <p class="nota">Excluir uma sessão ao vivo apaga também a gravação dela.</p>
   {% endif %}
@@ -49,12 +58,33 @@
     caixas.forEach(function (c) { c.checked = todos.checked; }); atualizar();
   });
   caixas.forEach(function (c) { c.addEventListener("change", atualizar); });
+
+  var confirmacao = document.getElementById("confirmacao"), acoes = document.getElementById("acoes"),
+      pendente = null;
+  function perguntar(form, texto) {
+    pendente = form;
+    document.getElementById("pergunta").textContent = texto;
+    confirmacao.classList.remove("oculto"); acoes.classList.add("oculto");
+    document.getElementById("cancelar").focus();
+  }
+  document.getElementById("cancelar").addEventListener("click", function () {
+    pendente = null; confirmacao.classList.add("oculto"); acoes.classList.remove("oculto");
+  });
+  // form.submit() não dispara o evento submit: não volta a perguntar.
+  document.getElementById("confirmar").addEventListener("click", function () {
+    if (pendente) { this.disabled = true; pendente.submit(); }
+  });
   document.getElementById("form-excluir").addEventListener("submit", function (e) {
+    e.preventDefault();
     var n = Array.prototype.filter.call(caixas, function (c) { return c.checked; }).length;
-    if (!confirm("Excluir " + n + " registro(s)? As gravações das sessões ao vivo também são apagadas. Não dá para desfazer.")) e.preventDefault();
+    perguntar(this, "Excluir " + n + (n === 1 ? " registro" : " registros") +
+      "? As gravações das sessões ao vivo também são apagadas. Não dá para desfazer.");
   });
   document.getElementById("form-limpar").addEventListener("submit", function (e) {
-    if (!confirm("Apagar todo o histórico (" + caixas.length + " registros) e todas as gravações ao vivo? Não dá para desfazer.")) e.preventDefault();
+    e.preventDefault();
+    var n = caixas.length;
+    perguntar(this, "Apagar todo o histórico (" + n + (n === 1 ? " registro" : " registros") +
+      ") e todas as gravações ao vivo? Não dá para desfazer.");
   });
   atualizar();
 })();

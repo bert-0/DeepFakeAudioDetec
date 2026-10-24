@@ -418,3 +418,15 @@ def test_ao_vivo_roda_a_fusao_quando_configurada(cliente, tmp_path, monkeypatch)
     assert cmd[cmd.index("--limiar-fusao") + 1] == str(caminho)
     assert "--checkpoint" not in cmd and "--config" not in cmd
     assert modulo._modelo_ao_vivo() == "fusão: a + b"
+
+
+def test_paginas_nao_dependem_de_dialogos_do_navegador(cliente, tmp_path):
+    """O navegador embutido do app responde "cancelar" a confirm() sem mostrar nada:
+    excluir e limpar o histórico não faziam nada (24/10/2026)."""
+    with open(_wav(tmp_path), "rb") as fh:
+        cliente.post("/analisar", files={"arquivo": ("voz.wav", fh, "audio/wav")})
+    for rota in ("/historico", "/ao-vivo", "/", "/resultado"):
+        texto = cliente.get(rota).text
+        assert "confirm(" not in texto and "alert(" not in texto, rota
+    historico = cliente.get("/historico").text
+    assert 'id="confirmacao"' in historico and ".submit()" in historico
