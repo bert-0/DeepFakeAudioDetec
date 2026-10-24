@@ -134,7 +134,7 @@ def combine(all_scores: list[np.ndarray], rule: str,
 def eer_per_attack(labels, scores, systems) -> dict[str, float]:
     bona = labels == 0
     out = {}
-    for atk in sorted({s for s, lab in zip(systems, labels) if lab == 1}):
+    for atk in sorted({s for s, lab in zip(systems, labels, strict=True) if lab == 1}):
         subset = bona | ((labels == 1) & (systems == atk))
         out[atk] = compute_eer(labels[subset], scores[subset])
     return out

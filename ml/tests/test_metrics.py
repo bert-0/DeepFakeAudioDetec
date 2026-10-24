@@ -144,3 +144,15 @@ def test_logodds_from_saved_probabilities_are_finite():
     lo = logodds_de_probabilidade(np.array([0.0, 0.3, 1.0]))
     assert np.isfinite(lo).all()
     assert lo[0] < lo[1] < lo[2]
+
+
+def test_arquivo_de_scores_recusa_tamanhos_diferentes(tmp_path):
+    """Um vetor menor que os outros cortaria o arquivo em silêncio, e o t-DCF
+    sairia de um subconjunto sem ninguém notar."""
+    import pytest
+
+    save_score_file(["a", "b"], [0, 1], [0.1, 0.9], tmp_path / "ok.txt")
+    assert (tmp_path / "ok.txt").read_text(encoding="utf-8").splitlines() == [
+        "a bonafide 0.100000", "b spoof 0.900000"]
+    with pytest.raises(ValueError):
+        save_score_file(["a", "b", "c"], [0, 1], [0.1, 0.9], tmp_path / "ruim.txt")

@@ -151,7 +151,7 @@ def score_bonafide(score_spoof: np.ndarray) -> np.ndarray:
 
 def exportar_formato_oficial(caminho, ids, systems, labels, score_bona) -> None:
     with open(caminho, "w", encoding="utf-8") as fh:
-        for uid, sis, lab, s in zip(ids, systems, labels, score_bona):
+        for uid, sis, lab, s in zip(ids, systems, labels, score_bona, strict=True):
             chave = "spoof" if lab == 1 else "bonafide"
             fh.write(f"{uid} {sis} {chave} {s:.10f}\n")
 

@@ -63,7 +63,7 @@ def eer_per_attack(
     """EER de cada ataque, avaliado contra todos os bonafide."""
     bona = labels == 0
     results: dict[str, dict] = {}
-    for attack in sorted({s for s, lab in zip(systems, labels) if lab == 1}):
+    for attack in sorted({s for s, lab in zip(systems, labels, strict=True) if lab == 1}):
         subset = bona | ((labels == 1) & (systems == attack))
         results[attack] = {
             "eer": compute_eer(labels[subset], scores[subset]),
@@ -90,7 +90,7 @@ def plot_per_attack(results: dict[str, dict], global_eer: float, out_path: Path)
     ax.set_xlabel("Algoritmo de síntese")
     ax.set_title("EER por tipo de ataque")
     ax.legend()
-    for bar, eer in zip(bars, eers):
+    for bar, eer in zip(bars, eers, strict=True):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
                 f"{eer:.1f}", ha="center", va="bottom", fontsize=8)
     fig.tight_layout()

@@ -113,7 +113,7 @@ def parse_args() -> argparse.Namespace:
 def indices_estratificados(labels, systems, n: int, seed: int) -> list[int]:
     """N índices com a mesma proporção de cada (rótulo, ataque), sem perder ataque raro."""
     grupos: dict[tuple, list[int]] = {}
-    for i, chave in enumerate(zip(labels, systems)):
+    for i, chave in enumerate(zip(labels, systems, strict=True)):
         grupos.setdefault(chave, []).append(i)
     total = len(labels)
     if n >= total:
@@ -157,7 +157,7 @@ def plot_robustness(results: dict, out_path: Path) -> None:
     ax.set_ylabel("EER (%)")
     ax.set_title("Robustez: EER por condição")
     ax.tick_params(axis="x", rotation=30)
-    for bar, eer in zip(bars, eers):
+    for bar, eer in zip(bars, eers, strict=True):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
                 f"{eer:.1f}", ha="center", va="bottom", fontsize=8)
     fig.tight_layout()

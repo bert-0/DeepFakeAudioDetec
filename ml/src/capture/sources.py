@@ -286,7 +286,7 @@ class MicrofoneWasapiSource(AudioSource):
                     dados = fila.get(timeout=0.5)
                 except queue.Empty:
                     if not fluxo.active:
-                        raise CaptureError(f"a captura do microfone '{self.nome}' parou")
+                        raise CaptureError(f"a captura do microfone '{self.nome}' parou") from None
                     continue
                 mono = dados.mean(axis=1) if dados.ndim > 1 else dados
                 yield conversor(np.ascontiguousarray(mono, dtype=np.float32))

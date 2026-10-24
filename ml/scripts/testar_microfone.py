@@ -225,7 +225,7 @@ def main(argv=None) -> int:
         import soundfile as sf
 
         medidas = {}
-        for modo, caminho in zip(("exclusivo", "compartilhado"), args.analisar):
+        for modo, caminho in zip(("exclusivo", "compartilhado"), args.analisar, strict=True):
             wav, sr = sf.read(caminho, dtype="float32", always_2d=True)
             medidas[modo] = medir(wav.mean(axis=1), sr)
         relatar(medidas, comparar(medidas["exclusivo"], medidas["compartilhado"]))

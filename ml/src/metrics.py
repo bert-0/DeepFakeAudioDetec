@@ -145,7 +145,7 @@ def save_score_file(ids, labels, scores, out_path: str | Path) -> None:
     inv = {0: "bonafide", 1: "spoof"}
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as fh:
-        for uid, lab, score in zip(ids, labels, scores):
+        for uid, lab, score in zip(ids, labels, scores, strict=True):
             fh.write(f"{uid} {inv.get(int(lab), '-')} {float(score):.6f}\n")
 
 

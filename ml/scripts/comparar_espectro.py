@@ -74,7 +74,7 @@ def main(argv=None) -> int:
         return 1
     print(f"{len(ids)} áudios em comum. Diferença {args.b} − {args.a}, em dB "
           "(mediana entre os áudios; 0 = igual):\n")
-    for (lo, hi), col in zip(FAIXAS, dif.T):
+    for (lo, hi), col in zip(FAIXAS, dif.T, strict=True):
         barra = "#" * min(40, int(abs(np.median(col)) * 2))
         print(f"  {lo:5d}-{hi:<5d} Hz  {np.median(col):+7.1f} dB  {barra}")
     print(f"\nPiso de ruído (10% de quadros mais baixos, dB do pico): "
