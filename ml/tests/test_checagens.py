@@ -104,3 +104,17 @@ def test_fala_que_vai_ate_o_fim_da_gravacao_com_ruido():
     wav[int(1.5 * SR):] += (rng.standard_normal(SR * 8 - int(1.5 * SR)) * 0.1).astype(np.float32)
     r = _por_nome(checar(wav, SR, piso_minimo=15))
     assert not r["fala"].ok and "encosta" in r["fala"].motivo
+
+
+def test_pancada_do_teclado_na_borda_nao_e_fala():
+    """A referência gravada em 24/10/2026: Enter e mão no notebook viram pancadas
+    graves e curtas (~150 ms, metade da energia abaixo de 150 Hz) no microfone
+    embutido, e a checagem acusava fala encostada no início sem ninguém falar."""
+    wav = _gravacao(fala_s=6.0, silencio_s=1.5, ruido=0.01)
+    t = np.arange(int(0.15 * SR)) / SR
+    pancada = (0.08 * np.sin(2 * np.pi * 60 * t) * np.hanning(t.size)).astype(np.float32)
+    wav[int(0.2 * SR):int(0.2 * SR) + t.size] += pancada
+    wav[-int(0.4 * SR):-int(0.4 * SR) + t.size] += pancada
+    r = _por_nome(checar(wav, SR, piso_minimo=15))
+    assert r["fala"].ok, r["fala"].motivo
+    assert abs(float(r["fala"].valor.split()[0]) - 6.0) < 0.3

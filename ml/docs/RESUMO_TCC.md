@@ -1973,8 +1973,12 @@ qualquer gravação; os números entram aqui depois, como saírem.
   mesmo ruído. A checagem de fala passou a contar só o que fica pelo menos 10 dB
   acima do ruído (com o corte de 30 dB do pico, a gravação inteira contava como
   fala), e a gravação passou de 10 para 12 s: as frases levaram cerca de 7,5 s e
-  terminavam coladas no fim. Os ensaios de nível passaram só pelas checagens,
-  sem o modelo.
+  terminavam coladas no fim. Na gravação da referência, a tecla e a mão no
+  notebook chegaram ao microfone como pancadas graves (~150 ms, metade da
+  energia abaixo de 150 Hz) e a checagem acusava fala nas bordas sem ninguém
+  falar; a detecção de fala passou a usar um passa-altas de 150 Hz e a ignorar
+  trechos de menos de 0,25 s. Os ensaios de nível e a referência passaram só
+  pelas checagens, sem o modelo.
 - **Só descritivo:** o score de cada modelo, a comparação por frase (clone acima
   do real da mesma frase) e as checagens.
 - **Leitura combinada antes:** o caminho arquivo sozinho pode ser acertado por

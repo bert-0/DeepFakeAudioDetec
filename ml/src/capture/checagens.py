@@ -31,6 +31,11 @@ MARGEM_RUIDO_DB = 5.0
 #: Medido nas frases do microfone embutido (24/10/2026): a +6 dB o ruído já entra
 #: como fala; a +10 dB a fala começa depois do aviso e dura 5 a 7 s.
 FALA_ACIMA_DO_PISO_DB = 10.0
+#: Tecla e mão no notebook chegam ao microfone embutido pela carcaça: pancadas de
+#: ~150 ms com metade da energia abaixo de 150 Hz, que a checagem tomava por fala
+#: nas bordas. A voz fica quase toda acima disso (24/10/2026).
+FALA_PASSA_ALTAS_HZ = 150.0
+TRECHO_MINIMO_S = 0.25
 
 FAIXAS_HZ = ((0, 4000), (4000, 7600), (7600, 8000))
 
@@ -52,6 +57,16 @@ def _maior_sequencia(mascara: np.ndarray) -> int:
 
 def _db(x: float) -> float:
     return float(20 * np.log10(max(x, 1e-12)))
+
+
+def _sem_graves(wav: np.ndarray, sample_rate: int) -> np.ndarray:
+    """Passa-altas só para achar a fala; as outras checagens usam o sinal inteiro."""
+    from scipy.signal import butter, sosfiltfilt
+
+    sos = butter(4, FALA_PASSA_ALTAS_HZ, btype="highpass", fs=sample_rate, output="sos")
+    if wav.size <= 3 * (2 * len(sos) + 1):
+        return wav
+    return sosfiltfilt(sos, wav).astype(np.float32)
 
 
 def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
@@ -87,10 +102,13 @@ def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
     # Fala é o que fica a menos de `top_db` do pico e pelo menos FALA_ACIMA_DO_PISO_DB
     # acima do ruído: com o ruído a menos de 30 dB da fala (microfone embutido,
     # 16–21 dB), o corte só pelo pico marcaria a gravação inteira como fala.
-    limite = max(float(rms.max()) * 10 ** (-top_db / 20),
-                 float(np.percentile(rms, 10)) * 10 ** (FALA_ACIMA_DO_PISO_DB / 20))
-    corte_fala = max(1.0, _db(float(rms.max())) - _db(limite))
-    trechos = librosa.effects.split(wav, top_db=corte_fala)
+    voz = _sem_graves(wav, sample_rate)
+    rms_voz = librosa.feature.rms(y=voz)[0]
+    limite = max(float(rms_voz.max()) * 10 ** (-top_db / 20),
+                 float(np.percentile(rms_voz, 10)) * 10 ** (FALA_ACIMA_DO_PISO_DB / 20))
+    corte_fala = max(1.0, _db(float(rms_voz.max())) - _db(limite))
+    trechos = [(i, f) for i, f in librosa.effects.split(voz, top_db=corte_fala)
+               if f - i >= TRECHO_MINIMO_S * sample_rate]
     fala_s = float(sum(f - i for i, f in trechos)) / sample_rate
     borda = int(BORDA_S * sample_rate)
     cortada = len(trechos) > 0 and (trechos[0][0] < borda or trechos[-1][1] > len(wav) - borda)
