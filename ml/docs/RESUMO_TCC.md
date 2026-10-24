@@ -2135,6 +2135,35 @@ do Incremento 4, com vozes reais. Leitura combinada antes das réguas:
 diferença entre modelos só conta acima de 2 pp nas amostras de 10 mil (IC de
 cerca de ±1,3 pp por medida).
 
+**Réguas da 2019 e da 2021 para o fusion_v4 do recorte** (24/10/2026, as
+mesmas amostras dos outros modelos; EER):
+
+| régua | fusion_v4 (2019) | fusion_v4 (recorte da ASVspoof 5) |
+|---|---|---|
+| eval 2019 completo | 20,18% | 37,76% |
+| amostra de 10 mil, limpo | 20,25% | 37,71% |
+| ruído 5 dB | 27,89% | 42,70% |
+| Opus 25 kbps simulado | 22,40% | 38,17% |
+| banda estreita | 25,67% | 37,42% |
+| captura com soxr | 24,98% | 37,68% |
+| corte em 7,6 kHz | 31,12% | 37,61% |
+| 2021, referência sem codec | 19,51% | 36,77% |
+| 2021, Opus real | 32,62% | 37,44% |
+
+- **Pior em todas as réguas da 2019 e da 2021,** por 4,82 a 17,58 pp, acima
+  dos 2 pp combinados: treinado na ASVspoof 5, o modelo reconhece mal os
+  ataques da 2019 (A07–A19) mesmo no áudio limpo. É o cruzamento entre bases do
+  plano, no sentido ASVspoof 5 → 2019, e o resultado é negativo.
+- **Mas quase não muda com o canal:** o Opus real custa +0,67 pp sobre a
+  referência (fusion_v4: +13,11), o corte em 7,6 kHz −0,10 pp (+10,87), a
+  captura com soxr −0,03 pp (+4,73) e a banda estreita −0,29 pp (+5,42). O
+  ruído a 5 dB ainda custa +4,99 pp (+7,64).
+- **O resultado mistura duas mudanças:** a base de treino e a degradação nova.
+  Separar as duas pede a outra célula do 2x2, o fusion_v4 treinado na 2019 com
+  a mesma degradação.
+- **A régua do próprio domínio, o eval da ASVspoof 5, ainda falta.** O dev do
+  recorte, com ataques inéditos, ficou em 20,56%.
+
 **Amostra do eval** (planejada em 23/10/2026; monta depois do treino do
 fusion_v4, para não disputar CPU): baixando um `.tar` do eval por vez para o
 SATA, tirando a amostra e apagando. Estratificada por (chave, ataque, codec),

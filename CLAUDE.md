@@ -131,6 +131,10 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   Treino completo do baseline_v2 (controle 18,14% limpo, 24,33% no corte):
   LFCC de 0 a 4 kHz 23,34% e 23,34%; descarte aleatório 20,54% e 21,34%.
   Nenhuma passou no critério; o grupo adotou o descarte (23/10/2026).
+- fusion_v4 treinado no recorte da ASVspoof 5 com a degradação nova: dev
+  20,56%; eval 2019 37,76% (fusion_v4 da 2019: 20,18%), Opus real da 2021
+  37,44% (32,62%). Pior em todas as réguas da 2019/2021, mas quase invariante ao
+  canal (Opus real +0,67 pp sobre a referência, contra +13,11) (RESUMO_TCC §10.7).
 - Voz própria com copy-synthesis (Griffin-Lim, WORLD): versões sintéticas abaixo
   do original em 18 de 20; o modelo reage às condições de gravação, não ao
   vocoder. É o diagnóstico que motiva o Incremento 4.
