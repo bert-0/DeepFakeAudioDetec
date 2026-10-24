@@ -3,7 +3,7 @@
 Modos:
 - `voz`: mostra cada linha de --frases, grava pelo microfone em WASAPI
   exclusivo, na taxa do dispositivo e em 24 bits, e roda as checagens; Enter
-  segue para a próxima, r regrava. Com o texto de referência e `--segundos 75`,
+  segue para a próxima, r regrava. Com o texto de referência e `--segundos 90`,
   grava a amostra para a ferramenta de clonagem.
 - `pelo-ar`: toca cada arquivo de --clones pelo alto-falante padrão e grava pelo
   microfone ao mesmo tempo: o clone "pelo microfone" da demonstração.
@@ -15,7 +15,7 @@ Uso (de dentro de ml/), sem fone com microfone conectado:
     python scripts/gravar_frases.py voz --frases docs/etica/frases_teste_voz_propria.txt \\
         --saida data/vozes/teste_proprio/real
     python scripts/gravar_frases.py voz --frases docs/etica/texto_referencia_clonagem.txt \\
-        --segundos 75 --saida data/vozes/teste_proprio/referencia
+        --segundos 90 --saida data/vozes/teste_proprio/referencia
     python scripts/gravar_frases.py pelo-ar --clones data/vozes/teste_proprio/clone \\
         --saida data/vozes/teste_proprio/clone_ar
 """
