@@ -108,8 +108,11 @@ primeiro: nenhuma gravação começa antes deles.
   couber em tempo real.
 
 **Avaliação**
-- Os quatro modelos do 2x2 nas quatro réguas, com EER e min t-DCF.
+- Os quatro modelos do 2x2 nas quatro réguas, com EER e min t-DCF. Linha do
+  fusion_v4 medida em 24/10/2026 (RESUMO_TCC §10.9), sem o min t-DCF; falta o
+  XLS-R.
 - Cruzamento entre bases: treinado na 2019 e testado na ASVspoof 5, e o contrário.
+  Feito para o fusion_v4 (RESUMO_TCC §10.9).
 - Controle pareado com locutores fora do treino, nos caminhos arquivo e microfone.
 - Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
   `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11

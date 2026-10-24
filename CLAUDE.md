@@ -135,6 +135,10 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   20,56%; eval 2019 37,76% (fusion_v4 da 2019: 20,18%), Opus real da 2021
   37,44% (32,62%). Pior em todas as réguas da 2019/2021, mas quase invariante ao
   canal (Opus real +0,67 pp sobre a referência, contra +13,11) (RESUMO_TCC §10.7).
+- 2x2 do fusion_v4 (RESUMO_TCC §10.9): a degradação nova na 2019 custa 3,56 pp no
+  limpo e ganha 8,57 pp no Opus real (24,05%); a base ASVspoof 5 piora todas as
+  réguas, mas erra em ataques diferentes. A fusão pela média dos dois dá 18,16%
+  no Opus real e 26,7% no eval da ASVspoof 5 (exploratória, sem critério antes).
 - Voz própria com copy-synthesis (Griffin-Lim, WORLD): versões sintéticas abaixo
   do original em 18 de 20; o modelo reage às condições de gravação, não ao
   vocoder. É o diagnóstico que motiva o Incremento 4.

@@ -2261,6 +2261,58 @@ um está estruturalmente em desvantagem no outro.
 
 ---
 
+### 10.9 Incremento 4: as duas células do fusion_v4 e a fusão entre elas
+
+Três fusion_v4 nas mesmas réguas (24/10/2026): o original (2019, aumento antigo),
+o da 2019 com a degradação nova (`configs/fusion_v4_2019_degr.yaml`: 50 épocas, o
+teto, melhor na 47 com dev 1,96%, 4h39m) e o do recorte da ASVspoof 5 com a mesma
+degradação (10.7). Os dois últimos só diferem na base de treino e de validação.
+EER; amostras de 10 mil da 2019 e da 2021 e a amostra de 9.979 do eval da
+ASVspoof 5, estratificada por codec.
+
+| régua | original (2019) | 2019 + degradação | ASVspoof 5 + degradação | fusão média dos dois últimos |
+|---|---|---|---|---|
+| eval 2019 completo | 20,18% | 23,74% | 37,76% | — |
+| 2019, 10 mil, limpo | 20,25% | 23,84% | 37,71% | 16,8% |
+| 2019, 10 mil, corte em 7,6 kHz | 31,12% | 23,84% | 37,61% | 16,8% |
+| 2019, 10 mil, ruído 5 dB | 27,89% | 27,14% | 42,70% | 24,2% |
+| 2021, referência sem codec | 19,51% | 23,70% | 36,77% | 18,06% |
+| 2021, Opus real | 32,62% | 24,05% | 37,44% | 18,16% |
+| eval da ASVspoof 5 | 34,78% | 34,63% | 38,32% | 26,7% |
+
+Eval da ASVspoof 5 por grupo de codec (bonafide do grupo entre parênteses):
+
+| grupo | original (2019) | 2019 + degradação | ASVspoof 5 + degradação |
+|---|---|---|---|
+| sem codec (516) | 27,41% | 34,46% | 37,31% |
+| codecs que o treino vê: C01, C05, C08 (414) | 42,58% | 33,68% | 37,18% |
+| não vistos: C02–C04, C06, C07, C09, C10 (974) | 36,06% | 34,99% | 39,44% |
+| aparelhos, C11 (132) | 35,52% | 32,56% | 40,15% |
+
+- **A degradação nova (2019 + degradação contra o original) troca um pouco do
+  limpo por canal.** Custa 3,56 pp no eval 2019 completo e 4,19 pp na referência
+  da 2021, mas ganha 8,57 pp no Opus real (32,62% → 24,05%): o canal real deixa
+  de custar (+0,35 pp sobre a referência, contra +13,11). No eval da ASVspoof 5
+  empata no total, mas fica plano entre os grupos de codec (32,6% a 35,0%), onde
+  o original vai de 27,41% sem codec a 42,58% nos codecs que o aumento simula.
+- **A base (ASVspoof 5 contra 2019, mesma degradação) piora tudo,** inclusive o
+  próprio eval da ASVspoof 5 (38,32% contra 34,63%). Treinar no recorte, como
+  foi montado, não ajudou nem no domínio dele.
+- **Mas os dois erram em ataques diferentes.** Por ataque no eval da ASVspoof 5,
+  o do recorte acerta A17, A21, A22, A24 e A29 (2,82% a 10,65%), onde os da 2019
+  ficam entre 36,19% e 55,73%; e erra A18, A19, A20, A27, A30 e A32 (52,67% a
+  75,12%, invertidos), onde o da 2019 com degradação fica entre 4,80% e 27,20%.
+- **Fusão pela média (exploratória, sem critério combinado antes).** A média das
+  probabilidades dos dois, a regra do monitor, dá 16,8% na amostra da 2019 (contra
+  23,84% do melhor sozinho), 18,16% no Opus real e 26,7% no eval da ASVspoof 5.
+  Os 18,16% são o melhor resultado do projeto no canal real (antes: 24,94% pela
+  fusão por postos do v2 e do fusion_v4, que não roda ao vivo, 5.3). Pelos postos:
+  18,8%, 18,06% e 25,1%. O controle repete a Seção 4: os dois fusion_v4 da 2019,
+  parecidos, fundidos dão só 33,1% no eval da ASVspoof 5 (melhor sozinho 34,63%).
+- **Para virar a escolha da demonstração** falta combinar o critério antes,
+  calibrar o limiar da fusão e medir com vozes reais (plano). Rodar dois modelos
+  ao vivo já foi medido como viável (9.4).
+
 ## 11. Limitações e pendências
 
 **Baselines oficiais — resolvido.** Confirmados em Todisco et al. (2019),
