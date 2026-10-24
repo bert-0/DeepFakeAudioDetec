@@ -100,7 +100,8 @@ primeiro: nenhuma gravação começa antes deles.
 - Retomada do treino a partir do último checkpoint (`--resume`).
 - Medir uma época de fine-tuning no Kaggle antes de fechar o cronograma.
 - fusion_v4 no recorte da ASVspoof 5, na GTX 1650. Config pronto em 23/10/2026
-  (`configs/fusion_v4_asv5.yaml`).
+  (`configs/fusion_v4_asv5.yaml`); treinado em 24/10/2026 (31 épocas, dev
+  20,56%, RESUMO_TCC §10.7).
 - XLS-R na 2019 LA e no recorte da ASVspoof 5, no Kaggle.
 - Três sementes nos modelos finalistas.
 - Latência na CPU com o `bench_latencia.py`; truncar camadas do XLS-R se não

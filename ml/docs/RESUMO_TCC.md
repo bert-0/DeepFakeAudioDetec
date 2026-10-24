@@ -2122,6 +2122,19 @@ arquivo nem locutor em comum. 10 áudios do dev têm menos de 1 s (o mais curto,
 0,09 s), e os 5 mais curtos são spoof (A11 e A13); no treino o mais curto tem
 3,58 s. Duração curta só em spoof pode virar atalho: conferir no eval.
 
+**Treino do fusion_v4 no recorte** (`configs/fusion_v4_asv5.yaml`, 23 a
+24/10/2026, GTX 1650): 31 épocas, parada antecipada (paciência 12) depois da
+melhor, a 19, com EER do dev de **20,56%**; 8h07m, cerca de 15 min por época
+(45% esperando dados). A perda de treino cai de 0,225 a 0,018 enquanto o dev
+fica entre 20,6% e 22% desde a época 3: o dev tem ataques que o treino não
+tem (A09–A16), e a distância entre os dois é a generalização que o dev novo
+foi escolhido para medir. O limiar calibrado no dev saiu **0,0002**: os
+spoof inéditos recebem probabilidade quase zero, então qualquer limiar que
+separe esse dev fica no extremo. Vale para EER; o limiar da demonstração sai
+do Incremento 4, com vozes reais. Leitura combinada antes das réguas:
+diferença entre modelos só conta acima de 2 pp nas amostras de 10 mil (IC de
+cerca de ±1,3 pp por medida).
+
 **Amostra do eval** (planejada em 23/10/2026; monta depois do treino do
 fusion_v4, para não disputar CPU): baixando um `.tar` do eval por vez para o
 SATA, tirando a amostra e apagando. Estratificada por (chave, ataque, codec),
