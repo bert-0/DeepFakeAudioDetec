@@ -280,10 +280,13 @@ def build_dataset(
     cache_dir = None
     if config["train"].get("cache_features", False):
         # Base comum; o dataset cria uma subpasta por fingerprint e partição.
-        # Outra base precisa de `data.cache_dir` próprio: o dev da ASVspoof 5 e o
-        # da 2019 cairiam na mesma pasta e um apagaria o outro.
-        cache_dir = Path(config["data"].get("cache_dir")
-                         or Path(config["data"]["root"]).parent / "cache")
+        # `data.cache_dir` (um caminho, ou um por partição) separa outra base: o
+        # dev da ASVspoof 5 e o da 2019 cairiam na mesma pasta e um apagaria o
+        # outro. Por partição, o eval da 2019 continua no cache já montado.
+        proprio = config["data"].get("cache_dir")
+        if isinstance(proprio, dict):
+            proprio = proprio.get(partition)
+        cache_dir = Path(proprio or Path(config["data"]["root"]).parent / "cache")
     return ASVspoofDataset(
         protocol_path=config["data"]["protocols"][partition],
         audio_dir=config["data"]["audio_dir"][partition],

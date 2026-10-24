@@ -40,7 +40,7 @@ def test_treino_e_dev_no_recorte_eval_na_2019_e_cache_proprio():
     assert d["protocols"]["train"] == "data/ASVspoof5_recorte/train/protocolo.txt"
     assert d["audio_dir"]["dev"] == "data/ASVspoof5_recorte/dev/flac"
     assert d["protocols"]["eval"] == _carrega("fusion_v4.yaml")["data"]["protocols"]["eval"]
-    assert d["cache_dir"] == "data/cache_asvspoof5"
+    assert d["cache_dir"] == {"dev": "data/cache_asvspoof5"}
 
 
 def test_degradacao_com_as_etapas_do_plano():
@@ -67,6 +67,11 @@ def test_cache_dir_do_config_e_usado(monkeypatch, tmp_path):
     cfg = _carrega("fusion_v4_asv5.yaml")
     dataset.build_dataset(cfg, "dev", extractor=None, smoke=False)
     assert vistos["cache_dir"] == Path("data/cache_asvspoof5")
+    dataset.build_dataset(cfg, "eval", extractor=None, smoke=False)
+    assert vistos["cache_dir"] == Path("data/cache")              # eval da 2019, cache já montado
+    cfg["data"]["cache_dir"] = "outro/lugar"                       # um caminho só vale para todas
+    dataset.build_dataset(cfg, "eval", extractor=None, smoke=False)
+    assert vistos["cache_dir"] == Path("outro/lugar")
     sem = _carrega("fusion_v4.yaml")
     dataset.build_dataset(sem, "dev", extractor=None, smoke=False)
     assert vistos["cache_dir"] == Path("data/cache")              # o de antes

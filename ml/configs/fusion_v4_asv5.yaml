@@ -104,8 +104,10 @@ smoke:
   batch_size: 16
 data:
   root: data/ASVspoof5_recorte
-  # Cache próprio: o dev daqui e o da 2019 têm o mesmo nome de partição.
-  cache_dir: data/cache_asvspoof5
+  # Cache próprio só no dev: o daqui e o da 2019 têm o mesmo nome de partição.
+  # O eval é o da 2019 e reusa o cache já montado (15 GB).
+  cache_dir:
+    dev: data/cache_asvspoof5
   protocols:
     train: data/ASVspoof5_recorte/train/protocolo.txt
     dev: data/ASVspoof5_recorte/dev/protocolo.txt
