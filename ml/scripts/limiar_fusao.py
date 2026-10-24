@@ -1,0 +1,201 @@
+"""Limiar da fusão pela média de dois modelos, escolhido nos devs.
+
+O limiar sai só dos humanos dos devs, na captura FIR, com uma taxa-alvo de
+alarme falso: o lado humano se mantém do dev para o eval, o dos ataques não
+(RESUMO_TCC §10.2.9). Os áudios do teste com voz real nunca entram aqui.
+
+Dois passos:
+- `preparar`: para cada modelo e cada dev dos modelos (o da 2019 e o do recorte
+  da ASVspoof 5), escreve um config derivado que avalia o modelo naquele dev e
+  mostra os comandos do `robustness_eval.py` (quem roda é o usuário).
+- `escolher`: lê os scores que eles salvaram, funde pela média, escolhe o limiar
+  com os humanos dos dois devs juntos e grava o resultado, com a impressão dos
+  pesos de cada checkpoint (o `teste_voz_propria.py` confere).
+
+Uso (de dentro de ml/):
+    python scripts/limiar_fusao.py preparar
+    (os quatro comandos que ele mostrar)
+    python scripts/limiar_fusao.py escolher
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import date
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from scripts.fusao_ao_vivo import alinhar, limiar_por_alarme_falso, ponto_de_operacao  # noqa: E402
+from scripts.score_fusion import combine  # noqa: E402
+from src.config import config_derivado, load_config, salvar_config  # noqa: E402
+from src.metrics import compute_eer  # noqa: E402
+
+MODELOS_PADRAO = (
+    ("configs/fusion_v4_2019_degr.yaml", "checkpoints/fusion_lcnn_v4_2019_degr.pt"),
+    ("configs/fusion_v4_asv5.yaml", "checkpoints/fusion_lcnn_v4_asv5.pt"),
+)
+PASTA = Path("outputs/limiar_fusao")
+CONDICAO = "captura_48k_fir"
+#: 10 mil, como as outras réguas; o dev do recorte (9.999) entra inteiro.
+AMOSTRA = 10000
+#: Perto do que a fusão ao vivo anterior deu no eval (10,6%, §10.2.9).
+ALVO_PADRAO = 0.10
+
+
+def rotulo_do_dev(protocolo: str) -> str:
+    # Sem "_dev" no rótulo: o `carregar` do fusao_ao_vivo corta o nome ali.
+    if "ASVspoof5" in protocolo:
+        return "calib_asv5"
+    if "2019" in protocolo:
+        return "calib_2019"
+    return "calib_" + "".join(c if c.isalnum() else "-" for c in Path(protocolo).stem)
+
+
+def caminho_scores(nome: str, amostra: int, condicao: str) -> Path:
+    """O .npz que o robustness_eval.py grava com --partition eval, --amostra e --so."""
+    return Path("outputs") / f"{nome}_amostra{amostra}_{condicao}_eval_{condicao}_scores.npz"
+
+
+def preparar(modelos, pasta: Path = PASTA, amostra: int = AMOSTRA,
+             condicao: str = CONDICAO) -> dict:
+    configs = [(load_config(c), c, k) for c, k in modelos]
+    devs: dict[str, tuple[str, str]] = {}
+    for cfg, _, _ in configs:
+        proto = cfg["data"]["protocols"]["dev"]
+        devs.setdefault(rotulo_do_dev(proto), (proto, cfg["data"]["audio_dir"]["dev"]))
+
+    preparo = {"amostra": amostra, "condicao": condicao, "modelos": [], "devs": {}}
+    for rotulo, (proto, audio) in devs.items():
+        preparo["devs"][rotulo] = {"protocolo": proto, "audio": audio, "execucoes": []}
+        for cfg, caminho, checkpoint in configs:
+            derivado = config_derivado(cfg, rotulo, proto, audio)
+            destino = salvar_config(derivado, pasta / f"{derivado['experiment']['name']}.yaml")
+            preparo["devs"][rotulo]["execucoes"].append({
+                "config": destino.as_posix(), "checkpoint": checkpoint,
+                "scores": caminho_scores(derivado["experiment"]["name"], amostra,
+                                         condicao).as_posix()})
+    preparo["modelos"] = [{"config": c, "checkpoint": k} for _, c, k in configs]
+    pasta.mkdir(parents=True, exist_ok=True)
+    (pasta / "preparo.json").write_text(json.dumps(preparo, indent=2, ensure_ascii=False),
+                                        encoding="utf-8")
+    return preparo
+
+
+def comandos(preparo: dict) -> list[str]:
+    return [f"python scripts\\robustness_eval.py --config {Path(e['config'])} "
+            f"--checkpoint {Path(e['checkpoint'])} --amostra {preparo['amostra']} "
+            f"--so {preparo['condicao']}"
+            for d in preparo["devs"].values() for e in d["execucoes"]]
+
+
+def _carregar(caminho: str | Path) -> dict:
+    with np.load(caminho, allow_pickle=False) as d:
+        return {k: d[k] for k in d.files}
+
+
+def escolher(pares: dict[str, tuple[dict, dict]], alvo: float) -> dict:
+    """Funde cada par pela média e escolhe o limiar com os humanos de todos os devs."""
+    fundidos = {}
+    for rotulo, (a, b) in pares.items():
+        a, b = alinhar(a, b)
+        if not (a["labels"] == b["labels"]).all():
+            raise ValueError(f"{rotulo}: rótulos diferentes para os mesmos áudios")
+        fundidos[rotulo] = (a, b, combine([a["scores"], b["scores"]], "mean"))
+    labels = np.concatenate([a["labels"] for a, _, _ in fundidos.values()])
+    media = np.concatenate([m for _, _, m in fundidos.values()])
+    limiar = limiar_por_alarme_falso(labels, media, alvo)
+
+    devs = {}
+    for rotulo, (a, b, m) in fundidos.items():
+        devs[rotulo] = {"n": int(len(m)), "humanos": int((a["labels"] == 0).sum()),
+                        "eer_modelos": [compute_eer(a["labels"], a["logodds"]),
+                                        compute_eer(b["labels"], b["logodds"])],
+                        "eer_fusao": compute_eer(a["labels"], m),
+                        **ponto_de_operacao(a["labels"], m, limiar)}
+    return {"limiar": limiar, "alvo": alvo, "humanos": int((labels == 0).sum()),
+            "humanos_acima": float((media[labels == 0] >= limiar).mean()), "devs": devs}
+
+
+def impressoes(modelos: list[dict]) -> list[str]:
+    import torch
+
+    from src.scores import checkpoint_fingerprint
+
+    return [checkpoint_fingerprint(torch.load(m["checkpoint"], map_location="cpu",
+                                              weights_only=False)["model_state"])
+            for m in modelos]
+
+
+def _pct(x: float) -> str:
+    return f"{x * 100:.1f}%"
+
+
+def relatar(r: dict, modelos: list[dict]) -> None:
+    nomes = [Path(m["checkpoint"]).stem for m in modelos]
+    print(f"Limiar da fusão: {r['limiar']:.4f} (alvo de {_pct(r['alvo'])} de alarme falso, "
+          f"{r['humanos']} humanos dos devs; acima dele: {_pct(r['humanos_acima'])})\n")
+    for rotulo, d in r["devs"].items():
+        print(f"{rotulo}: {d['n']} áudios, {d['humanos']} humanos")
+        for nome, eer in zip(nomes, d["eer_modelos"], strict=True):
+            print(f"  EER de {nome}: {_pct(eer)}")
+        print(f"  EER da fusão: {_pct(d['eer_fusao'])}")
+        print(f"  no limiar: humanos acima {_pct(d['humanos_acima'])}, "
+              f"sintéticos passam {_pct(d['sinteticos_passam'])}")
+    print("\nOs ataques do dev são os do treino de pelo menos um modelo: o lado dos "
+          "sintéticos não se mantém fora dele.")
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(description="Limiar da fusão pela média, escolhido nos devs")
+    sub = p.add_subparsers(dest="passo", required=True)
+    pp = sub.add_parser("preparar", help="configs derivados e comandos de avaliação")
+    pp.add_argument("--modelo", nargs=2, action="append", metavar=("CONFIG", "CHECKPOINT"),
+                    help="repita para os dois modelos (padrão: os dois fusion_v4 com degradação)")
+    pe = sub.add_parser("escolher", help="escolhe o limiar com os scores já salvos")
+    pe.add_argument("--alarme-falso", type=float, default=ALVO_PADRAO,
+                    help="fração-alvo de humanos dos devs acima do limiar")
+    pe.add_argument("--saida", default=str(PASTA / "limiar.json"))
+    for s in (pp, pe):
+        s.add_argument("--pasta", default=str(PASTA))
+    args = p.parse_args(argv)
+    pasta = Path(args.pasta)
+
+    if args.passo == "preparar":
+        modelos = [tuple(m) for m in args.modelo] if args.modelo else list(MODELOS_PADRAO)
+        if len(modelos) != 2:
+            p.error("a fusão é de dois modelos: passe --modelo duas vezes")
+        preparo = preparar(modelos, pasta)
+        print(f"Configs em {pasta}. Rode, de dentro de ml/ (um por vez ou encadeados):\n")
+        for c in comandos(preparo):
+            print(c)
+        print("\nDepois: python scripts\\limiar_fusao.py escolher")
+        return 0
+
+    preparo = json.loads((pasta / "preparo.json").read_text(encoding="utf-8"))
+    faltam = [e for d in preparo["devs"].values() for e in d["execucoes"]
+              if not Path(e["scores"]).is_file()]
+    if faltam:
+        print("[ERRO] faltam os scores destas avaliações:")
+        for e in faltam:
+            print(f"  {e['scores']}")
+        return 1
+    pares = {rotulo: tuple(_carregar(e["scores"]) for e in d["execucoes"])
+             for rotulo, d in preparo["devs"].items()}
+    r = escolher(pares, args.alarme_falso)
+    r.update(condicao=preparo["condicao"], amostra=preparo["amostra"], data=date.today().isoformat(),
+             modelos=[{**m, "impressao": i} for m, i in
+                      zip(preparo["modelos"], impressoes(preparo["modelos"]), strict=True)])
+    relatar(r, preparo["modelos"])
+    Path(args.saida).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.saida).write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"\nResultado: {args.saida}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

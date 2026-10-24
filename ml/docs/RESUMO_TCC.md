@@ -1930,6 +1930,47 @@ em comprimento ruim (96.001 amostras: 42 ms contra 3 ms); a oclusão passou a
 completar com zeros até um comprimento rápido, o que vaza ~1e-6 da energia
 acima do corte e não muda as janelas de 4 s da avaliação.
 
+### 10.2.12 Teste com a voz própria: real contra clone (critério combinado antes)
+
+Ensaio da meta do plano com um locutor fora do treino (um integrante do grupo),
+antes da coleta com o orientador. Preparado e registrado em 24/10/2026, antes de
+qualquer gravação; os números entram aqui depois, como saírem.
+
+- **Modelos:** fusão pela média de `fusion_lcnn_v4_2019_degr` e
+  `fusion_lcnn_v4_asv5` (10.9), no caminho da interface web: janelas de 4 s com
+  passo de 2 s, média ponderada pela fração de fala.
+- **Limiar:** escolhido antes, só com os humanos dos devs, na captura FIR
+  (`captura_48k_fir`): 10% de alarme falso nos humanos da amostra de 10 mil do
+  dev da 2019 e do dev do recorte da ASVspoof 5, juntos
+  (`scripts/limiar_fusao.py`). Nenhum áudio do teste entra na escolha. Score
+  igual ou acima do limiar é sintético.
+- **Material:** 10 frases (`docs/etica/frases_teste_voz_propria.txt`) lidas no
+  microfone embutido do notebook, sem fone conectado, em WASAPI exclusivo, na
+  taxa do dispositivo e em 24 bits, com os aprimoramentos do Windows desligados
+  (`scripts/gravar_frases.py`). O clone sai de uma gravação de cerca de 1 minuto
+  de outro texto (`docs/etica/texto_referencia_clonagem.txt`), para a
+  ferramenta não ver as frases do teste. Uma ferramenta de clonagem; quais
+  entram no treino segue pendente no plano.
+- **Caminhos:** arquivo, as gravações reais contra os clones como a ferramenta
+  os entregou; microfone, as mesmas gravações reais contra os clones tocados
+  pelo alto-falante do notebook e gravados pelo mesmo microfone
+  (`gravar_frases.py pelo-ar`). Placar pelo `scripts/teste_voz_propria.py`.
+- **Critério (a meta do plano):** em cada caminho, pelo menos 8 de 10 reais
+  julgados humanos e 8 de 10 clones julgados sintéticos. Arquivo sem janela
+  útil conta como erro. Regravar só durante a gravação, pelas checagens
+  (saturação, fala, banda, piso de ruído), sem ver score; depois disso toda
+  gravação conta.
+- **Só descritivo:** o score de cada modelo, a comparação por frase (clone acima
+  do real da mesma frase) e as checagens.
+- **Leitura combinada antes:** o caminho arquivo sozinho pode ser acertado por
+  um detector de microfone (o real passa pelo microfone, o clone não); o
+  caminho microfone põe o mesmo canal nas duas classes e é o que vale para a
+  demonstração. Se a meta falhar, o resultado entra como saiu, com a limitação
+  em 5.7.
+- **Limitações:** um locutor, que não é o orientador; uma ferramenta; 10
+  frases; uma sala. A gravação e o clone ficam em `data/vozes/teste_proprio/`
+  (fora do Git), com termo assinado, e o clone é apagado depois da banca.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

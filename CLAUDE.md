@@ -75,7 +75,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   Histórico. O ao vivo roda o `monitor.py` como subprocesso, parado por arquivo
   (`--parar-com`).
 - `scripts/`: avaliação, robustez, calibração, canal real, demonstração
-  (`montar_demo.py`), voz própria (`gerar_sintetico.py`, `avaliar_arquivos.py`).
+  (`montar_demo.py`), voz própria (`gerar_sintetico.py`, `avaliar_arquivos.py`;
+  o teste real contra clone: `gravar_frases.py`, `limiar_fusao.py`,
+  `teste_voz_propria.py`, critério em RESUMO_TCC §10.2.12).
 - `docs/RESUMO_TCC.md`: registro de todos os experimentos e números.
   `docs/TC2_REDACAO.md`: texto do relatório, com a fonte de cada número num
   comentário `<!-- RESUMO_TCC §x -->`.
