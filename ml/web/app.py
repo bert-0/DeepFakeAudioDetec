@@ -29,6 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from src.capture import CaptureError
+from src.limiares import centrado
 from web.analise import Detector
 from web.banco import Banco
 
@@ -84,6 +85,8 @@ templates.env.filters["br"] = _br
 templates.env.filters["mmss"] = _mmss
 templates.env.filters["data"] = _data
 templates.env.filters["frase"] = _frase
+# Escala da tela: o limiar fica no meio da barra (src/limiares.py).
+templates.env.filters["centrado"] = centrado
 
 _estado: dict = {}
 
@@ -270,9 +273,14 @@ def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path
     import subprocess
     import sys
 
-    d = detector()
-    cmd = [sys.executable, str(RAIZ_ML / "monitor.py"), "--config", d.config_path,
-           "--checkpoint", d.checkpoint, "--json", str(json_path),
+    fusao = os.environ.get("DETECTOR_LIMIAR_FUSAO")
+    if fusao:
+        # A fusão do teste com voz real: modelos, regra e limiar escolhidos nos devs.
+        modelo = ["--limiar-fusao", fusao]
+    else:
+        d = detector()
+        modelo = ["--config", d.config_path, "--checkpoint", d.checkpoint]
+    cmd = [sys.executable, str(RAIZ_ML / "monitor.py"), *modelo, "--json", str(json_path),
            "--gravar", str(wav_path), "--parar-com", str(parar_path), "--fonte", fonte]
     if dispositivo:
         cmd += ["--dispositivo-audio", dispositivo]
@@ -344,7 +352,19 @@ def _salvar_sessao_no_historico(sessao: dict) -> int | None:
         janelas=[{"t": round(x["instante"], 2), "score": round(x["score"], 4),
                   "util": x.get("util", not x.get("silencio")), "peso": x.get("peso", 1.0)}
                  for x in leituras])
-    return banco().salvar(r, detector().modelo, gravacao=str(Path(sessao["wav"]).resolve()))
+    return banco().salvar(r, _modelo_ao_vivo(), gravacao=str(Path(sessao["wav"]).resolve()))
+
+
+def _modelo_ao_vivo() -> str:
+    fusao = os.environ.get("DETECTOR_LIMIAR_FUSAO")
+    if not fusao:
+        return detector().modelo
+    try:
+        nomes = [Path(m["checkpoint"]).stem for m in
+                 json.loads(Path(fusao).read_text(encoding="utf-8"))["modelos"]]
+    except (OSError, ValueError, KeyError):
+        return "fusão"
+    return "fusão: " + " + ".join(nomes)
 
 
 @app.post("/api/ao-vivo/parar")
@@ -382,8 +402,11 @@ def api_ao_vivo(ultimas: int = 40):
             except OSError:
                 erro = "o monitor encerrou sem registrar nada"
         return {**base, "existe": False, "erro": erro}
+    limiar, resumo = dados.get("limiar"), dados.get("resumo", {})
     return {**base, "existe": True,
-            "limiar": dados.get("limiar"),
+            "limiar": limiar,
             "origem_limiar": dados.get("origem_limiar", ""),
-            "resumo": dados.get("resumo", {}),
-            "leituras": dados.get("leituras", [])[-ultimas:]}
+            "resumo": resumo,
+            "centrado_medio": centrado(resumo.get("score_medio"), limiar),
+            "leituras": [{**x, "centrado": centrado(x.get("score"), limiar)}
+                         for x in dados.get("leituras", [])[-ultimas:]]}

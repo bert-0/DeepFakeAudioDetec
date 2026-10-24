@@ -87,28 +87,31 @@
     .then(function (d) { dispositivos = d; mostrarFonte(); }).catch(function () {});
 
   function desenharSessao(d) {
+    // A decisão usa o score do modelo; a tela, a escala centrada (limiar em 0,50).
     var media = d.resumo.score_medio, limiar = d.limiar;
+    var naTela = d.centrado_medio != null ? d.centrado_medio : media;
     var uteis = d.leituras.filter(function (x) { return x.util; });
     var acima = media != null && limiar != null && media >= limiar;
-    $("score").textContent = fmt(media, 2);
+    $("score").textContent = fmt(naTela, 2);
     $("score").className = "score " + (media == null ? "amarelo" : (acima ? "vermelho" : "verde"));
     $("veredito").textContent = media == null ? "Aguardando fala…" : (acima ? "Indício de voz sintética" : "Sem indício de voz sintética");
-    $("legenda").textContent = "média ponderada pela fala" + (limiar != null ? " · limiar " + fmt(limiar, 2) : "");
+    $("legenda").textContent = limiar != null ? "0 = voz humana · 0,50 = limiar · 1 = voz sintética" : "média ponderada pela fala";
     ocultar("alerta", !acima);
 
     var barras = $("barras"); barras.innerHTML = "";
     if (limiar != null) {
       var linha = document.createElement("div"); linha.className = "linha-limiar";
-      linha.style.bottom = (limiar * 100) + "%"; barras.appendChild(linha);
+      linha.style.bottom = "50%"; barras.appendChild(linha);
     }
     var nAcima = 0;
     d.leituras.forEach(function (x) {
       var b = document.createElement("div"), sobre = limiar != null && x.score >= limiar;
       var parcial = x.util && (x.peso == null ? 1 : x.peso) < 0.5;
+      var altura = x.centrado != null ? x.centrado : x.score;
       if (x.util && sobre) nAcima++;
       b.className = "barra " + (!x.util ? "silencio" : (sobre ? "acima" : "abaixo")) + (parcial ? " parcial" : "");
-      b.style.height = (x.util ? Math.max(x.score * 100, 3) : 3) + "%";
-      b.title = fmt(x.instante, 1) + " s — " + (x.util ? "score " + fmt(x.score, 3) + (parcial ? " (janela parcial)" : "") : "silêncio");
+      b.style.height = (x.util ? Math.max(altura * 100, 3) : 3) + "%";
+      b.title = fmt(x.instante, 1) + " s — " + (x.util ? fmt(altura, 2) + (parcial ? " (janela parcial)" : "") : "silêncio");
       barras.appendChild(b);
     });
     $("contagem").textContent = nAcima + " de " + uteis.length + (uteis.length === 1 ? " janela" : " janelas") + " acima do limiar";

@@ -12,14 +12,14 @@
   </div>
 
   <div class="centro">
-    <div class="score {{ cor }}">{{ a.score_medio | br(2) }}</div>
+    <div class="score {{ cor }}">{{ a.score_medio | centrado(a.limiar) | br(2) }}</div>
     <div class="veredito">
       {% if pouca_fala %}Inconclusivo — não há fala para analisar
       {% elif acima %}Indício de voz sintética
       {% else %}Sem indício de voz sintética{% endif %}
     </div>
-    <div class="legenda">score médio · 0 = voz humana, 1 = voz sintética
-      {% if a.limiar is not none %}· limiar {{ a.limiar | br(2) }}{% endif %}</div>
+    <div class="legenda">{% if a.limiar is not none %}0 = voz humana · 0,50 = limiar · 1 = voz sintética
+      {% else %}score médio · 0 = voz humana, 1 = voz sintética{% endif %}</div>
   </div>
 
   {% set janelas = a.janelas %}{% set limiar = a.limiar %}
@@ -42,6 +42,7 @@
     <table>
       <tr><th>Analisado em</th><td>{{ a.criado_em | data }}</td></tr>
       {% if a.taxa_nativa %}<tr><th>Taxa do arquivo</th><td>{{ '%g' % (a.taxa_nativa / 1000) }} kHz</td></tr>{% endif %}
+      <tr><th>Score médio do modelo</th><td>{{ a.score_medio | br(4) }}</td></tr>
       <tr><th>Score máximo numa janela</th><td>{{ a.score_maximo | br(3) }}</td></tr>
       <tr><th>Limiar</th><td>{{ a.limiar | br(4) }} — {{ a.origem_limiar }}</td></tr>
       <tr><th>Janelas com fala</th><td>{{ a.janelas_uteis }} (≈ {{ a.janelas_independentes | br(1) }} independentes)</td></tr>

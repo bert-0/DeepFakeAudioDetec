@@ -155,6 +155,7 @@ def test_monitor_usa_modelos_regra_e_limiar_do_json(tmp_path, capsys):
     saida = capsys.readouterr().out
     assert "2 em fusão (média dos log-odds)" in saida
     assert f"Limiar: {sigmoide(-4.0):.4f}" in saida
+    assert "0,50 = limiar" in saida and "Na escala da tela" in saida
     assert json.loads(historico.read_text(encoding="utf-8"))["limiar"] == pytest.approx(
         sigmoide(-4.0))
 

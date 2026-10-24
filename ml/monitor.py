@@ -44,6 +44,7 @@ from src.config import load_config, resolve_device
 from src.data.dataset import buscar_rotulo
 from src.limiares import (
     Escolha,
+    centrado,
     escolher_limiar,
     ler_limiar_fusao,
     limiares_do_checkpoint,
@@ -209,10 +210,14 @@ def main(argv=None) -> int:
 
     gravado: list[np.ndarray] = []
     limite = args.segundos
+    limiar = analisador.threshold
     print(f"{'t':>8s}  {'score':>6s}  {'média':>6s}  {'canal':>6s}  {'peso':>5s}  sinal")
-    print("          score = P(síntese): 0,00 = voz humana | 1,00 = sintético"
-          + (f"   ('|' marca o limiar {analisador.threshold:.3f})"
-             if analisador.threshold is not None else ""))
+    if limiar is not None:
+        # Escala da tela: limiar no meio, em qualquer modelo ou fusão (src/limiares.py).
+        print("          escala centrada no limiar: 0,00 = voz humana | 0,50 = limiar ('|') | "
+              "1,00 = sintético")
+    else:
+        print("          score = P(síntese): 0,00 = voz humana | 1,00 = sintético")
     print("-" * 78)
     def _mostrar(leitura) -> None:
         """Imprime uma leitura (do fluxo ou da janela final)."""
@@ -229,11 +234,13 @@ def main(argv=None) -> int:
             print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
                   f"{banda:>6s}  {'—':>5s}  {analisador.canal.descricao()}")
             return
-        media = agregador.media_movel()
+        score = centrado(leitura.score, limiar)
+        media = centrado(agregador.media_movel(), limiar)
         marca = "" if leitura.peso >= 0.95 else "  (janela parcial)"
-        print(f"{leitura.instante:7.1f}s  {leitura.score:6.3f}  "
-              f"{media:6.3f}  {banda:>6s}  {leitura.peso:5.2f}  "
-              f"{barra(leitura.score, analisador.threshold)}{marca}")
+        texto_media = "—" if media is None else f"{media:6.3f}"
+        print(f"{leitura.instante:7.1f}s  {score:6.3f}  "
+              f"{texto_media:>6s}  {banda:>6s}  {leitura.peso:5.2f}  "
+              f"{barra(score, None if limiar is None else 0.5)}{marca}")
 
     try:
         with fonte:
@@ -352,6 +359,8 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
                 else "ACIMA do limiar (indício de síntese)")
         print(f"Média ponderada {resumo['score_medio']:.3f} {lado} "
               f"— limiar {limiar:.3f}")
+        print(f"Na escala da tela: {centrado(resumo['score_medio'], limiar):.2f} "
+              "(0,50 = limiar)")
         if verdade:
             decidiu = "spoof" if resumo["score_medio"] >= limiar else "bonafide"
             veredito = "COERENTE" if decidiu == verdade else "DIVERGENTE"

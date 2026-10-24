@@ -1,6 +1,7 @@
 """Interface web (web/app.py): envio, resultado, histórico e API."""
 
 import importlib
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -14,6 +15,7 @@ pytest.importorskip("multipart")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from src.config import load_config  # noqa: E402
+from src.limiares import centrado  # noqa: E402
 from src.models import build_model  # noqa: E402
 
 
@@ -358,3 +360,61 @@ def test_post_de_outro_site_e_recusado(cliente):
     assert cliente.post("/api/ao-vivo/iniciar", headers=outro).status_code == 403
     mesma = {"origin": "http://testserver"}
     assert cliente.post("/historico/excluir", data={}, headers=mesma).status_code == 200
+
+
+# --------------------------------------------------------------------------- #
+# Escala centrada no limiar (src/limiares.py): a tela muda, a decisão não
+# --------------------------------------------------------------------------- #
+def _sessao(cliente, tmp_path, monkeypatch, limiar, scores):
+    import web.app as modulo
+    from monitor import gravar_json
+    from src.capture.analyzer import Agregador, Leitura
+
+    monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(tmp_path / "ao_vivo"))
+    monkeypatch.setattr(modulo, "_iniciar_monitor", lambda j, w, parar, log, **kw: _ProcFalso(parar))
+    assert cliente.post("/api/ao-vivo/iniciar").json() == {"ok": True}
+    ag = Agregador(janela_s=4.0, passo_s=2.0)
+    for i, s in enumerate(scores):
+        ag.adicionar(Leitura(indice=i, instante=2.0 * i, score=s, rms=0.1))
+    gravar_json(ag, modulo._estado["sessao"]["json"], limiar=limiar, origem_limiar="fusão",
+                ativo=True)
+    return modulo
+
+
+def test_api_ao_vivo_manda_o_score_centrado(cliente, tmp_path, monkeypatch):
+    _sessao(cliente, tmp_path, monkeypatch, 0.0117, [0.0003, 0.0117, 0.05])
+    d = cliente.get("/api/ao-vivo").json()
+    assert [round(x["centrado"], 2) for x in d["leituras"]] == [0.02, 0.5, 0.82]
+    assert d["centrado_medio"] == pytest.approx(centrado(d["resumo"]["score_medio"], 0.0117))
+    assert "0,50 = limiar" in cliente.get("/ao-vivo").text
+
+
+def test_resultado_da_sessao_desenha_o_limiar_no_meio(cliente, tmp_path, monkeypatch):
+    _sessao(cliente, tmp_path, monkeypatch, 0.0117, [0.0003, 0.05, 0.05])
+    analise = cliente.post("/api/ao-vivo/parar").json()["analise_id"]
+    pagina = cliente.get(f"/analises/{analise}").text
+    assert 'class="linha-limiar" style="bottom: 50%"' in pagina
+    assert "0 = voz humana · 0,50 = limiar · 1 = voz sintética" in pagina
+    altura = round(centrado(0.05, 0.0117) * 100, 1)
+    assert altura > 80 and f"height: {altura}%" in pagina, \
+        "0,05 com limiar 0,0117 fica bem acima do meio"
+
+
+def test_ao_vivo_roda_a_fusao_quando_configurada(cliente, tmp_path, monkeypatch):
+    import subprocess
+
+    import web.app as modulo
+
+    caminho = tmp_path / "limiar.json"
+    caminho.write_text(json.dumps({"modelos": [{"checkpoint": "checkpoints/a.pt"},
+                                               {"checkpoint": "checkpoints/b.pt"}]}),
+                       encoding="utf-8")
+    monkeypatch.setenv("DETECTOR_LIMIAR_FUSAO", str(caminho))
+    capturado = {}
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: capturado.setdefault("cmd", cmd))
+    modulo._iniciar_monitor(tmp_path / "s.json", tmp_path / "s.wav", tmp_path / "s.parar",
+                            tmp_path / "s.log", fonte="microfone")
+    cmd = capturado["cmd"]
+    assert cmd[cmd.index("--limiar-fusao") + 1] == str(caminho)
+    assert "--checkpoint" not in cmd and "--config" not in cmd
+    assert modulo._modelo_ao_vivo() == "fusão: a + b"

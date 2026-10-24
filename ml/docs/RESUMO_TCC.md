@@ -1999,6 +1999,9 @@ da ASVspoof 5; `fusion_lcnn_v4_asv5` 40,35% e 20,59%.
   alvo de humanos, os sintéticos que passam no dev da ASVspoof 5 caem de 33,0%
   para 12,4%. Decidido em 24/10/2026: a média dos log-odds, no teste e no
   monitor (`--limiar-fusao`).
+- **Na tela,** o limiar de 0,0117 deixava a decisão no primeiro 1% da barra. O
+  monitor e a interface passaram a mostrar sigmoide(logit(score) −
+  logit(limiar)), com o limiar sempre em 0,50; a ordem e a decisão não mudam.
 
 ### 10.3 Bases públicas que já trazem canal
 

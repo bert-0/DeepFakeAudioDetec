@@ -150,3 +150,27 @@ def ler_limiar_fusao(caminho: str | Path) -> LimiarFusao:
                        regra=r.get("regra", "probabilidade"), limiar=float(r["limiar"]),
                        alvo=float(r.get("alvo", float("nan"))),
                        condicao=r.get("condicao", "?"))
+
+
+#: Limite do logit: score 0 ou 1 exato não vira infinito.
+_EPS = 1e-12
+
+
+def centrado(score: float | None, limiar: float | None) -> float | None:
+    """Score na escala da tela, com o limiar sempre em 0,5.
+
+    sigmoide(logit(score) - logit(limiar)): a ordem e a decisão não mudam (acima
+    de 0,5 é acima do limiar). Com a fusão nos log-odds o limiar fica em 0,0117,
+    e na escala de 0 a 1 a decisão caía no primeiro 1% da barra (RESUMO_TCC
+    §10.2.12). Sem limiar, devolve o score como está.
+    """
+    import math
+
+    if score is None or limiar is None:
+        return score
+
+    def logit(p: float) -> float:
+        p = min(max(float(p), _EPS), 1.0 - _EPS)
+        return math.log(p) - math.log1p(-p)
+
+    return 0.5 * (1.0 + math.tanh(0.5 * (logit(score) - logit(limiar))))
