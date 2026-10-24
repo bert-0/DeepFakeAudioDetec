@@ -125,7 +125,8 @@ def test_cria_o_diretorio_se_faltar(tmp_path):
 # --------------------------------------------------------------------------- #
 def test_configs_v4_cabem_em_16gb():
     """Os dois configs que serão treinados precisam caber na máquina real."""
-    for nome in ("fusion_v4.yaml", "attention_v4.yaml", "fusion_v4_asv5.yaml"):
+    for nome in ("fusion_v4.yaml", "attention_v4.yaml", "fusion_v4_asv5.yaml",
+                 "fusion_v4_2019_degr.yaml"):
         cfg = yaml.safe_load((CONFIGS / nome).read_text(encoding="utf-8"))["train"]
         pico = estimativa_ram_gb(cfg["num_workers"], cfg.get("dev_num_workers", 0))["pico"]
         assert pico <= 16.0 - 2.0, f"{nome}: pico de {pico:.1f} GB não deixa folga"

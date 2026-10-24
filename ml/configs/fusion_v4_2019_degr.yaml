@@ -1,0 +1,110 @@
+# Incremento 4 — fusion_v4 treinado na 2019 LA com a degradação nova (a outra
+# célula do 2x2). Igual ao fusion_v4.yaml exceto experiment.name,
+# train.num_workers e audio.degradacao, que é a mesma do fusion_v4_asv5.yaml:
+# comparado com ele, separa o efeito da base de treino do efeito da degradação
+# (RESUMO_TCC §10.7). tests/test_config_fusion_v4_2019_degr.py confere.
+#
+# Incremento 2 (v4) — Fusão de características com LCNN.
+# Dois ramos LCNN: LFCC e espectrograma, concatenados após o pooling.
+# Compare com baseline_v4.yaml (um ramo) para isolar o ganho da fusão.
+
+experiment:
+  name: fusion_lcnn_v4_2019_degr
+  seed: 42
+audio:
+  sample_rate: 16000
+  duration: 4.0
+  trim_silence: true
+  top_db: 30
+  peak_normalize: true
+  random_crop: true
+  # A mesma do fusion_v4_asv5.yaml, no áudio bruto, antes do pré-processamento.
+  degradacao:
+    enabled: true
+    etapas:
+    - {tipo: rawboost, prob: 0.5, opcoes: [lnl+isd, ssi]}
+    - {tipo: captura_fir, prob: 0.3, nivel: 48000}
+    - {tipo: codec, prob: 0.3, opcoes: [mp3, vorbis, opus, ulaw, alaw, gsm]}
+    - {tipo: oclusao, prob: 0.5, faixa: [4000, 7900]}
+  augment:
+    enabled: true
+    noise:
+      prob: 0.5
+      snr_db:
+      - 10
+      - 30
+    gain:
+      prob: 0.5
+      gain_db:
+      - -6
+      - 6
+    shift:
+      prob: 0.5
+      max_fraction: 0.1
+features:
+  types:
+  - lfcc
+  - spectrogram
+  lfcc:
+    n_lfcc: 20
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_filter: 70
+    deltas: true
+  spectrogram:
+    n_fft: 512
+    win_length: 400
+    hop_length: 160
+    n_mels: 80
+model:
+  name: fusion
+  pooling: freq_stats
+  n_classes: 2
+  dropout: 0.3
+  encoder: lcnn
+  freq_bins: 4
+train:
+  epochs: 50
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  # 6, como no fusion_v4_asv5: a degradação custa ~35 ms por amostra.
+  num_workers: 6
+  # Medido: o loader de treino entrega 226 amostras/s com 4 workers e 173 com 2,
+  # contra 113/s que a GPU consome. Os 2 ainda dariam conta AQUI, mas o log real
+  # do usuário mostrava `dados 32,9s` — ou seja, na máquina dele o loader já não
+  # acompanhava. Cortar workers de treino economizaria 1 GB e arriscaria o dobro
+  # do tempo de época; não compensa.
+  dev_num_workers: 0
+  # Este é o corte que vale: 2 GB, e o dev fica MAIS RÁPIDO. Depois da 1ª época
+  # o dev é leitura de memmap pura, e o custo de serializar tensores de 219 KiB
+  # entre processos domina. Medido: 5.927 amostras/s com 0 workers contra 1.686
+  # com 2 — a partição inteira em 4,2s em vez de 14,7s.
+  device: cuda
+  cache_features: true
+  class_weights: sqrt
+  calibrate_threshold: true
+  amp: false
+  early_stopping_patience: 12
+  scheduler:
+    enabled: true
+    factor: 0.5
+    patience: 3
+  grad_clip: 5.0
+smoke:
+  n_train: 240
+  n_dev: 80
+  n_eval: 80
+  epochs: 3
+  batch_size: 16
+data:
+  root: data/LA
+  protocols:
+    train: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.train.trn.txt
+    dev: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.dev.trl.txt
+    eval: data/LA/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.eval.trl.txt
+  audio_dir:
+    train: data/LA/ASVspoof2019_LA_train/flac
+    dev: data/LA/ASVspoof2019_LA_dev/flac
+    eval: data/LA/ASVspoof2019_LA_eval/flac
