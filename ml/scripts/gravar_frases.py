@@ -123,9 +123,11 @@ def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: 
     import librosa
     import sounddevice as sd
 
-    arquivos = sorted(p for p in clones.iterdir() if p.suffix.lower() in EXTENSOES)
+    arquivos = (sorted(p for p in clones.iterdir() if p.suffix.lower() in EXTENSOES)
+                if clones.is_dir() else [])
     if not arquivos:
-        print(f"[ERRO] nenhum áudio em {clones}")
+        print(f"[ERRO] nenhum áudio em {clones}. Gere os clones antes, na ferramenta de "
+              "clonagem, e salve um arquivo por frase: f01, f02, ... f10.")
         return 1
     for arq in arquivos:
         destino = saida / f"{arq.stem}.wav"

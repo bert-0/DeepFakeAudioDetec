@@ -114,6 +114,14 @@ def test_pasta_de_clones_sem_audio(monkeypatch, tmp_path, capsys):
     assert "nenhum áudio" in capsys.readouterr().out
 
 
+def test_pasta_de_clones_que_ainda_nao_existe(monkeypatch, tmp_path, capsys):
+    """24/10/2026: rodado antes de gerar os clones, parava com FileNotFoundError."""
+    _sounddevice_falso(monkeypatch)
+    assert main(["pelo-ar", "--clones", str(tmp_path / "clone"), "--saida", str(tmp_path / "x"),
+                 "--sem-pausa"]) == 1
+    assert "Gere os clones antes" in capsys.readouterr().out
+
+
 def test_padrao_de_12_s_e_piso_minimo_do_teste(monkeypatch, tmp_path, capsys):
     """Fala a ~34 dB do ruído: falha no padrão de 35 dB e passa com o piso do teste."""
     _sounddevice_falso(monkeypatch, _cena(12.0))
