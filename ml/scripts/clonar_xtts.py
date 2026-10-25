@@ -7,7 +7,7 @@ isso este script não importa nada do projeto.
 Três jeitos de dizer o que o clone fala:
 - `--frases arquivo.txt`: cada linha vira `fNN.wav` (os ensaios);
 - `--texto "..."` (repita a opção): cada frase vira `frase_NN.wav`;
-- `--interativo`: carrega o modelo uma vez e pede frases até uma linha vazia;
+- `--interativo`: carrega o modelo uma vez e pede frases até `sair`;
   `r` refaz a última com outra semente (o XTTS às vezes corta o fim). É o modo
   da demonstração: a banca escolhe a frase e o clone sai em ~10 s.
 Arquivos que já existem não são sobrescritos. Em --saida fica `clonagem.json`:
@@ -39,8 +39,11 @@ def ler_frases(caminho: str | Path) -> list[str]:
 
 
 def carregar(dispositivo: str):
-    from TTS.api import TTS
-
+    try:
+        from TTS.api import TTS
+    except ImportError:
+        raise SystemExit("[ERRO] o XTTS não está instalado neste ambiente: rode "
+                         "`conda activate xtts` e o comando de novo.") from None
     return TTS(MODELO).to(dispositivo)
 
 
@@ -99,16 +102,26 @@ def falar(tts, frase: str, referencia: Path, saida: Path, idioma: str, semente: 
 
 def interativo(tts, referencia: Path, saida: Path, idioma: str, semente: int,
                ler=None) -> list[dict]:
-    """Pede frases até uma linha vazia; `r` refaz a última com a semente seguinte."""
+    """Pede frases até `sair`; `r` refaz a última com outra semente.
+
+    Linha vazia não encerra: um Enter sem querer na frente da banca custaria
+    recarregar o modelo (~48 s)."""
     ler = ler or input
+    print("\nDigite a frase que o clone vai dizer e tecle Enter. "
+          "r: refazer a última com outra semente | sair: encerrar")
     registro, ultima, extra = [], None, 0
     while True:
-        texto = ler("\nFrase (r: refazer a última; Enter vazio: sair) > ").strip()
+        try:
+            texto = ler("\nFrase > ").strip()
+        except EOFError:
+            return registro
         if not texto:
+            continue
+        if texto.lower() == "sair":
             return registro
         if texto.lower() == "r":
             if ultima is None:
-                print("    nada para refazer ainda")
+                print("    digite uma frase primeiro; r refaz a última gerada")
                 continue
             extra += 1000
             texto = ultima

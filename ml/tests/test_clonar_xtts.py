@@ -110,7 +110,7 @@ def test_interativo_refaz_a_ultima_com_outra_semente(monkeypatch, tmp_path):
     _instalar_falso(monkeypatch)
     ref, _ = _entradas(tmp_path)
     frase = "A banca escolheu esta frase para o clone dizer agora mesmo."
-    respostas = iter([frase, "r", ""])
+    respostas = iter(["r", "", frase, "", "r", "sair"])
     monkeypatch.setattr("builtins.input", lambda *_: next(respostas))
     saida = tmp_path / "demo"
     assert main(["--referencia", str(ref), "--saida", str(saida), "--dispositivo", "cpu",
@@ -120,3 +120,32 @@ def test_interativo_refaz_a_ultima_com_outra_semente(monkeypatch, tmp_path):
     sementes = [f["semente"] for f in reg["frases"]]
     assert len(set(sementes)) == 2, "refazer com a mesma semente daria o mesmo áudio"
     assert [f["arquivo"] for f in reg["frases"]] == ["frase_01.wav", "frase_02.wav"]
+
+
+def test_interativo_mostra_como_usar_e_ignora_enter_vazio(monkeypatch, tmp_path, capsys):
+    """24/10/2026: `r` antes de qualquer frase e um Enter vazio encerravam sem gerar nada."""
+    _instalar_falso(monkeypatch)
+    ref, _ = _entradas(tmp_path)
+    respostas = iter(["r", "", ""])
+    def ler(*_):
+        try:
+            return next(respostas)
+        except StopIteration:
+            raise EOFError from None
+    monkeypatch.setattr("builtins.input", ler)
+    assert main(["--referencia", str(ref), "--saida", str(tmp_path / "d"), "--dispositivo", "cpu",
+                 "--interativo"]) == 0
+    saida = capsys.readouterr().out
+    assert "Digite a frase que o clone vai dizer" in saida
+    assert "digite uma frase primeiro" in saida and _TTSFalso.pedidos == []
+
+
+def test_fora_do_ambiente_do_xtts_diz_o_que_fazer(monkeypatch, tmp_path):
+    import pytest
+
+    monkeypatch.setitem(sys.modules, "TTS", None)
+    monkeypatch.setitem(sys.modules, "TTS.api", None)
+    ref, frases = _entradas(tmp_path)
+    with pytest.raises(SystemExit, match="conda activate xtts"):
+        main(["--referencia", str(ref), "--frases", str(frases), "--saida", str(tmp_path / "c"),
+              "--dispositivo", "cpu"])
