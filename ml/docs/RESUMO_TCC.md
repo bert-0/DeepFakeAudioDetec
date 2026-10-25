@@ -2095,7 +2095,31 @@ da meta ainda passa pelo orientador). Reserva, se o ensaio 2 falhar: o XLS-R.
   passariam dele; no limiar do treino do modelo (−8,67, ponto de EER no dev do
   recorte), 8 de 10. As gravações reais ficam entre −18,41 e −11,66, bem abaixo
   dos humanos dos devs: o microfone da sala parece mais humano ao modelo que a
-  base. O critério do ensaio 2 ainda não foi fixado.
+  base.
+
+**Critério do ensaio 2 (fixado em 24/10/2026, antes de gravar):**
+- **Modelo e limiar:** `fusion_lcnn_v4_asv5` sozinho, no limiar do treino dele,
+  −8,671 nos log-odds (`outputs/limiar_fusao/limiar_asv5_treino.json`, de
+  `limiar_fusao.py treino`); média das janelas ponderada pela fala, nos
+  log-odds. Escolha do grupo, com risco declarado: foi nesse limiar que o
+  padrão apareceu nos dados do ensaio 1. Não há vozes reais para calibrar no
+  microfone; recalibrar por outra via (como a degradação de codecs) fica para
+  depois, e só vale com dados novos.
+- **Material:** 10 frases novas (`docs/etica/frases_ensaio2.txt`), lidas pelo
+  mesmo locutor do ensaio 1, no mesmo microfone e sala, com as mesmas regras de
+  gravação (`--piso-minimo 15`, 12 s). Clones do XTTS v2 com a mesma referência
+  e a mesma configuração (`clonar_xtts.py`, sementes 1 a 10). Clone que não
+  disser a frase inteira e certa é gerado de novo com outra semente, antes de
+  qualquer score, e fica registrado.
+- **Caminho:** só o arquivo (gravação real × clone como o XTTS entregou), com os
+  dois levados a 48 kHz antes da conversão para 16 kHz (`--taxa-comum 48000`).
+  O caminho pelo ar não é medido.
+- **Meta:** pelo menos 8 de 10 reais julgados humanos e 8 de 10 clones julgados
+  sintéticos. Arquivo sem janela útil conta como erro.
+- **Limitações declaradas antes:** um locutor, cuja voz e scores já foram vistos
+  no ensaio 1, e que é o mesmo da referência do clone; uma ferramenta; uma sala.
+  Mesmo que passe, o resultado é otimista para uma voz desconhecida, como a da
+  banca.
 
 ### 10.3 Bases públicas que já trazem canal
 

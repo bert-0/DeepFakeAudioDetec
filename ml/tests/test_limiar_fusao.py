@@ -176,3 +176,20 @@ def test_escolher_so_um_modelo_do_preparo(tmp_path):
     assert [m["impressao"] for m in r["modelos"]] == impressoes[1:]
     with pytest.raises(SystemExit):
         main(["escolher", "--pasta", str(tmp_path), "--saida", str(saida), "--so", "nenhum"])
+
+
+def test_limiar_do_treino_em_logodds(tmp_path, capsys):
+    """Ensaio 2 (RESUMO_TCC §10.2.13): o limiar gravado no checkpoint, lido de volta
+    pelo mesmo leitor do teste e do monitor."""
+    from src.limiares import ler_limiar_fusao
+
+    impressao = _checkpoint(tmp_path / "m.pt", 0)   # threshold 0.5 no checkpoint
+    saida = tmp_path / "treino.json"
+    assert main(["treino", "--modelo", "configs/baseline.yaml", str(tmp_path / "m.pt"),
+                 "--saida", str(saida)]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert r["limiar"] == pytest.approx(0.0) and r["modelos"][0]["impressao"] == impressao
+    lf = ler_limiar_fusao(saida)
+    assert lf.regra == "logodds" and lf.probabilidade == pytest.approx(0.5)
+    assert lf.descricao().startswith("limiar do treino de m")
+    assert "nos log-odds" in capsys.readouterr().out

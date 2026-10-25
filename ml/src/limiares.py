@@ -107,13 +107,15 @@ def escolher_limiar(lims: Limiares, taxa_modelo: int, taxa_arquivo: int | None =
 
 @dataclass(frozen=True)
 class LimiarFusao:
-    """Limiar de uma fusão de modelos, escolhido nos devs por `scripts/limiar_fusao.py`."""
+    """Limiar de uma fusão de modelos (ou de um modelo só), de `scripts/limiar_fusao.py`."""
     config: str
     checkpoints: tuple[str, ...]
     regra: str
     limiar: float        # na escala da regra (log-odds ou probabilidade)
     alvo: float
     condicao: str
+    #: De onde veio, quando não é o alarme falso nos devs (ex.: o limiar do treino).
+    origem: str | None = None
 
     @property
     def probabilidade(self) -> float:
@@ -125,6 +127,8 @@ class LimiarFusao:
         return self.limiar
 
     def descricao(self) -> str:
+        if self.origem:
+            return self.origem
         regra = "média dos log-odds" if self.regra == "logodds" else "média das probabilidades"
         return (f"fusão ({regra}), {self.alvo * 100:.0f}% de alarme falso nos devs, "
                 f"{self.condicao}")
@@ -145,11 +149,12 @@ def ler_limiar_fusao(caminho: str | Path) -> LimiarFusao:
             raise ValueError(f"{m['checkpoint']} mudou desde a escolha do limiar: "
                              "rode o limiar_fusao.py de novo")
     # JSON anterior à opção de regra: a média das probabilidades.
+    alvo = r.get("alvo")
     return LimiarFusao(config=r["modelos"][0]["config"],
                        checkpoints=tuple(m["checkpoint"] for m in r["modelos"]),
                        regra=r.get("regra", "probabilidade"), limiar=float(r["limiar"]),
-                       alvo=float(r.get("alvo", float("nan"))),
-                       condicao=r.get("condicao", "?"))
+                       alvo=float("nan") if alvo is None else float(alvo),
+                       condicao=r.get("condicao", "?"), origem=r.get("origem"))
 
 
 #: Limite do logit: score 0 ou 1 exato não vira infinito.

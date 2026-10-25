@@ -172,10 +172,17 @@ orientador é a primeira tarefa.
 Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
 
 - Como a demonstração vai acontecer: orientador ao vivo no microfone, arquivos
-  gravados antes ou clone tocando numa chamada?
+  gravados antes ou clone tocando numa chamada? Proposta do grupo (24/10/2026):
+  voz real ao vivo no microfone; clone gerado na hora pelo XTTS e analisado como
+  arquivo; clone tocado pelo alto-falante como limitação medida (RESUMO_TCC
+  §10.2.12 e §10.2.13). Clonar a voz de alguém da banca só com termo assinado
+  antes. A mudança da meta ainda passa pelo orientador.
 - Datas de entrega do texto e da banca, e a data de congelamento.
 - Quem cuida de cada frente.
 - Qual microfone será usado na coleta (na banca, o embutido do notebook, junto
   da webcam, informado em 02/10/2026), e se há uma interface USB com
   ASIO disponível.
-- Quais ferramentas de clonagem usar, e qual fica fora do treino.
+- Quais ferramentas de clonagem usar, e qual fica fora do treino. Para a
+  demonstração e os ensaios: XTTS v2 no próprio computador (24/10/2026), sem
+  internet e sem a voz sair da máquina. Se ele entra no treino segue aberto; se o
+  ensaio 2 falhar, a reserva é o XLS-R.

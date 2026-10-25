@@ -138,6 +138,25 @@ def escolher(pares: dict[str, tuple[dict, ...]], alvo: float,
             "humanos_acima": float((media[labels == 0] >= limiar).mean()), "devs": devs}
 
 
+def do_treino(config: str, checkpoint: str) -> dict:
+    """O limiar que o treino gravou no checkpoint (ponto de EER no dev), em log-odds.
+
+    O ensaio 2 usa este (RESUMO_TCC §10.2.13): no microfone da sala as vozes reais
+    ficam bem abaixo dos humanos dos devs, e o limiar do alarme falso nos devs
+    deixava passar quase todos os clones."""
+    import math
+
+    import torch
+
+    p = float(torch.load(checkpoint, map_location="cpu", weights_only=False)["threshold"])
+    return {"regra": "logodds", "limiar": math.log(p) - math.log1p(-p),
+            "limiar_probabilidade": p, "alvo": None, "condicao": "dev do treino, sem canal",
+            "origem": f"limiar do treino de {Path(checkpoint).stem} (ponto de EER no dev)",
+            "data": date.today().isoformat(),
+            "modelos": [{"config": config, "checkpoint": checkpoint,
+                         "impressao": impressoes([{"checkpoint": checkpoint}])[0]}]}
+
+
 def impressoes(modelos: list[dict]) -> list[str]:
     import torch
 
@@ -185,10 +204,21 @@ def main(argv=None) -> int:
                     help="usa só este modelo (parte do nome do checkpoint), com os mesmos "
                          "scores dos devs")
     pe.add_argument("--saida", default=str(PASTA / "limiar.json"))
-    for s in (pp, pe):
+    pt = sub.add_parser("treino", help="grava o limiar que veio do treino de um modelo")
+    pt.add_argument("--modelo", nargs=2, required=True, metavar=("CONFIG", "CHECKPOINT"))
+    pt.add_argument("--saida", required=True)
+    for s in (pp, pe, pt):
         s.add_argument("--pasta", default=str(PASTA))
     args = p.parse_args(argv)
     pasta = Path(args.pasta)
+
+    if args.passo == "treino":
+        r = do_treino(*args.modelo)
+        Path(args.saida).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.saida).write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"{r['origem']}: {r['limiar']:.4f} nos log-odds (score {r['limiar_probabilidade']:.6f})")
+        print(f"Resultado: {args.saida}")
+        return 0
 
     if args.passo == "preparar":
         modelos = [tuple(m) for m in args.modelo] if args.modelo else list(MODELOS_PADRAO)
