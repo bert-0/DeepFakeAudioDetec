@@ -81,7 +81,8 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 - `scripts/`: avaliação, robustez, calibração, canal real, demonstração
   (`montar_demo.py`), voz própria (`gerar_sintetico.py`, `avaliar_arquivos.py`;
   o teste real contra clone: `gravar_frases.py`, `limiar_fusao.py`,
-  `teste_voz_propria.py`, critério em RESUMO_TCC §10.2.12).
+  `teste_voz_propria.py`, critério em RESUMO_TCC §10.2.12; clonagem local:
+  `preparar_referencia.py` e `clonar_xtts.py`, este no ambiente conda `xtts`).
 - `docs/RESUMO_TCC.md`: registro de todos os experimentos e números.
   `docs/TC2_REDACAO.md`: texto do relatório, com a fonte de cada número num
   comentário `<!-- RESUMO_TCC §x -->`.

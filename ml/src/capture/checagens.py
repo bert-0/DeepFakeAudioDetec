@@ -69,6 +69,28 @@ def _sem_graves(wav: np.ndarray, sample_rate: int) -> np.ndarray:
     return sosfiltfilt(sos, wav).astype(np.float32)
 
 
+def trechos_de_fala(wav: np.ndarray, sample_rate: int,
+                    top_db: float = TOP_DB) -> list[tuple[int, int]]:
+    """Trechos com fala, em amostras: a regra da checagem de fala.
+
+    Fala é o que fica a menos de `top_db` do pico e pelo menos
+    FALA_ACIMA_DO_PISO_DB acima do ruído: com o ruído a menos de 30 dB da fala
+    (microfone embutido, 16–21 dB), o corte só pelo pico marcaria a gravação
+    inteira como fala. Sem graves e sem trechos curtos: pancadas de teclado.
+    """
+    import librosa
+
+    voz = _sem_graves(np.asarray(wav, dtype=np.float32).reshape(-1), sample_rate)
+    rms_voz = librosa.feature.rms(y=voz)[0]
+    if rms_voz.size == 0 or rms_voz.max() <= 0:
+        return []
+    limite = max(float(rms_voz.max()) * 10 ** (-top_db / 20),
+                 float(np.percentile(rms_voz, 10)) * 10 ** (FALA_ACIMA_DO_PISO_DB / 20))
+    corte_fala = max(1.0, _db(float(rms_voz.max())) - _db(limite))
+    return [(int(i), int(f)) for i, f in librosa.effects.split(voz, top_db=corte_fala)
+            if f - i >= TRECHO_MINIMO_S * sample_rate]
+
+
 def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
            piso_minimo: float | None = None) -> list[Checagem]:
     """As quatro checagens do protocolo: saturação, fala, banda e piso de ruído.
@@ -99,16 +121,7 @@ def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
     rms = librosa.feature.rms(y=wav)[0]
     distancia = _db(np.percentile(rms, 95)) - _db(np.percentile(rms, 10))
 
-    # Fala é o que fica a menos de `top_db` do pico e pelo menos FALA_ACIMA_DO_PISO_DB
-    # acima do ruído: com o ruído a menos de 30 dB da fala (microfone embutido,
-    # 16–21 dB), o corte só pelo pico marcaria a gravação inteira como fala.
-    voz = _sem_graves(wav, sample_rate)
-    rms_voz = librosa.feature.rms(y=voz)[0]
-    limite = max(float(rms_voz.max()) * 10 ** (-top_db / 20),
-                 float(np.percentile(rms_voz, 10)) * 10 ** (FALA_ACIMA_DO_PISO_DB / 20))
-    corte_fala = max(1.0, _db(float(rms_voz.max())) - _db(limite))
-    trechos = [(i, f) for i, f in librosa.effects.split(voz, top_db=corte_fala)
-               if f - i >= TRECHO_MINIMO_S * sample_rate]
+    trechos = trechos_de_fala(wav, sample_rate, top_db)
     fala_s = float(sum(f - i for i, f in trechos)) / sample_rate
     borda = int(BORDA_S * sample_rate)
     cortada = len(trechos) > 0 and (trechos[0][0] < borda or trechos[-1][1] > len(wav) - borda)
