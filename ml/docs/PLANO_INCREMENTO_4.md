@@ -116,7 +116,9 @@ primeiro: nenhuma gravação começa antes deles.
 - Controle pareado com locutores fora do treino, nos caminhos arquivo e microfone.
   Ensaio com a voz de um integrante preparado em 24/10/2026: gravador
   (`gravar_frases.py`), limiar da fusão nos devs (`limiar_fusao.py`) e placar
-  (`teste_voz_propria.py`), com o critério em RESUMO_TCC §10.2.12.
+  (`teste_voz_propria.py`), com o critério em RESUMO_TCC §10.2.12. Rodado no
+  mesmo dia com clones do XTTS v2 local: reais 10 de 10 nos dois caminhos,
+  clones 0 de 10 no arquivo e 2 de 10 pelo microfone; meta não atingida.
 - Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
   `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
   (22/10/2026). Medido no mesmo dia: tirar 7,6–8 kHz custa +6,27 pp no

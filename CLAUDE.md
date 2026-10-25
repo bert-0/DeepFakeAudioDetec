@@ -150,3 +150,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 - Voz própria com copy-synthesis (Griffin-Lim, WORLD): versões sintéticas abaixo
   do original em 18 de 20; o modelo reage às condições de gravação, não ao
   vocoder. É o diagnóstico que motiva o Incremento 4.
+- Teste com a voz própria contra clones do XTTS v2 local (RESUMO_TCC §10.2.12,
+  critério combinado antes): reais 10 de 10 nos dois caminhos; clones 0 de 10 no
+  arquivo e 2 de 10 pelo microfone. Meta não atingida. O modelo da 2019 inverte
+  (voz real do microfone acima do clone limpo); o do recorte separa o arquivo
+  (100% dos pares), mas pelo ar nenhum separa. Clones tocaram ~8 dB mais baixo.
+- Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
+  o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
+  pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).

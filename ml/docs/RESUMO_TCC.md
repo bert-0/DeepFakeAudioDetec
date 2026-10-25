@@ -2030,6 +2030,51 @@ da ASVspoof 5; `fusion_lcnn_v4_asv5` 40,35% e 20,59%.
   monitor e a interface passaram a mostrar sigmoide(logit(score) −
   logit(limiar)), com o limiar sempre em 0,50; a ordem e a decisão não mudam.
 
+**Resultado (24/10/2026; `outputs/teste_voz_propria.json`).** Limiar −4,437 nos
+log-odds (score 0,0117). Nenhum clone foi gerado de novo.
+
+| caminho | reais julgados humanos | clones julgados sintéticos | meta |
+|---|---|---|---|
+| arquivo (real × clone do XTTS) | 10 de 10 | **0 de 10** | não atingida |
+| microfone (real × clone tocado pelo alto-falante) | 10 de 10 | **2 de 10** | não atingida |
+
+**A meta não foi atingida em nenhum caminho.** O lado humano passou nos dois; os
+clones passaram quase todos como voz humana.
+
+Descritivo (não é o critério), em log-odds de cada modelo; "pares" é a fração dos
+100 pares (clone, real) em que o clone fica acima:
+
+| modelo | real | clone | clone pelo ar | pares clone | pares pelo ar |
+|---|---|---|---|---|---|
+| `fusion_lcnn_v4_2019_degr` | +1,19 a +6,54 | −7,65 a −1,22 | +1,59 a +5,85 | 0% | 65% |
+| `fusion_lcnn_v4_asv5` | −18,41 a −11,66 | −10,30 a −5,14 | −17,82 a −11,25 | 100% | 66% |
+| fusão (média) | −8,61 a −4,88 | −6,99 a −5,00 | −7,00 a −3,10 | 45% | 62% |
+
+- **O modelo da 2019 inverte no caminho arquivo:** a voz real gravada no
+  microfone fica do lado sintético (log-odds positivo em 10 de 10) e o clone
+  limpo do XTTS do lado humano, sem exceção (0% dos pares). É a mesma resposta às
+  condições de gravação da Seção 10.2.6.
+- **O modelo do recorte separa o caminho arquivo:** todos os clones acima de
+  todas as gravações reais (100% dos pares); no limiar próprio dele (−8,67, do
+  dev da ASVspoof 5), 8 de 10 clones e 0 de 10 reais acima. Na média, o modelo da
+  2019 puxa os clones para o lado humano. Resultado exploratório, achado depois
+  de ver os dados: vale como hipótese para outro ensaio com critério combinado
+  antes, não como resultado do teste.
+- **Pelo ar, nenhum dos dois separa** (65% e 66% dos pares, com 10 de cada): o
+  caminho alto-falante → microfone apaga o que o modelo do recorte usava no
+  arquivo, e o da 2019 vê o clone tocado como vê a voz real. Repete a Seção 10.2.7
+  com um clonador atual.
+- **Limitação do caminho microfone:** os clones tocaram mais baixo que a voz
+  (pico de −37,2 a −30,8 dBFS, contra −28,8 a −21,4 dBFS nas gravações reais), e 9
+  das 10 gravações pelo ar não passaram na checagem de fala (menos de 4 s acima
+  do ruído); pela regra combinada, contam como foram aceitas na gravação. Não dá
+  para separar o efeito do nível do efeito do canal.
+- **Consequência:** com os modelos atuais, a demonstração planejada (clone pelo
+  microfone) não funciona. As correções que o plano prevê atacam exatamente o
+  que falhou: clones de ferramentas atuais no treino, nas duas classes e também
+  regravados pelo alto-falante, e o XLS-R. Se o XTTS entra no treino ou fica de
+  fora segue para o grupo.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
