@@ -4,16 +4,21 @@ A voz não sai da máquina. Roda num ambiente conda separado: o XTTS fixa versõ
 do PyTorch e de outras bibliotecas que podem quebrar o ambiente do detector. Por
 isso este script não importa nada do projeto.
 
-Cada linha de --frases vira `fNN.wav` em --saida (24 kHz, a taxa do XTTS).
-Arquivos que já existem são pulados. Em --saida fica também `clonagem.json`:
-modelo, idioma, semente, referência e o tempo de cada frase, que o registro do
-teste usa (RESUMO_TCC §10.2.12).
+Três jeitos de dizer o que o clone fala:
+- `--frases arquivo.txt`: cada linha vira `fNN.wav` (os ensaios);
+- `--texto "..."` (repita a opção): cada frase vira `frase_NN.wav`;
+- `--interativo`: carrega o modelo uma vez e pede frases até uma linha vazia;
+  `r` refaz a última com outra semente (o XTTS às vezes corta o fim). É o modo
+  da demonstração: a banca escolhe a frase e o clone sai em ~10 s.
+Arquivos que já existem não são sobrescritos. Em --saida fica `clonagem.json`:
+modelo, idioma, semente, referência e o tempo de cada frase (RESUMO_TCC §10.2.12).
 
 Uso (de dentro de ml/, no ambiente do XTTS):
     python scripts/clonar_xtts.py \\
         --referencia data/vozes/teste_proprio/referencia/referencia_envio.wav \\
         --frases docs/etica/frases_teste_voz_propria.txt \\
         --saida data/vozes/teste_proprio/clone
+    python scripts/clonar_xtts.py --referencia <gravação> --saida <pasta> --interativo
 """
 
 from __future__ import annotations
@@ -24,6 +29,8 @@ import time
 from pathlib import Path
 
 MODELO = "tts_models/multilingual/multi-dataset/xtts_v2"
+#: Uma janela do detector é de 4 s; frase mais curta é completada por repetição.
+PALAVRAS_MINIMAS = 8
 
 
 def ler_frases(caminho: str | Path) -> list[str]:
@@ -44,36 +51,79 @@ def duracao_s(caminho: Path) -> float:
     return info.frames / info.samplerate
 
 
-def clonar(tts, frases: list[str], referencia: Path, saida: Path, idioma: str = "pt",
-           semente: int = 0) -> list[dict]:
-    """Gera uma fala por frase com a voz da referência; devolve o registro de cada uma."""
+def gerar(tts, frase: str, referencia: Path, destino: Path, idioma: str, semente: int) -> dict:
+    """Uma fala com a voz da referência; devolve o registro dela."""
     import torch
 
-    saida.mkdir(parents=True, exist_ok=True)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    # O XTTS sorteia na geração: a semente deixa cada frase reproduzível.
+    torch.manual_seed(semente)
+    inicio = time.perf_counter()
+    tts.tts_to_file(text=frase, speaker_wav=str(referencia), language=idioma,
+                    file_path=str(destino))
+    gasto = time.perf_counter() - inicio
+    dur = duracao_s(destino)
+    print(f"[{destino.stem}] {dur:.1f} s de fala em {gasto:.1f} s "
+          f"({gasto / dur:.2f}x o tempo real), semente {semente}: {frase[:50]}")
+    return {"arquivo": destino.name, "frase": frase, "semente": semente,
+            "duracao_s": round(dur, 2), "tempo_s": round(gasto, 2)}
+
+
+def clonar(tts, frases: list[str], referencia: Path, saida: Path, idioma: str = "pt",
+           semente: int = 0) -> list[dict]:
+    """Uma fala por frase do arquivo (fNN.wav); pula as que já existem."""
     registro = []
     for i, frase in enumerate(frases, start=1):
         destino = saida / f"f{i:02d}.wav"
         if destino.exists():
             print(f"[{i:02d}] já existe, pulando: {destino.name}")
             continue
-        # O XTTS sorteia na geração: a semente por frase deixa cada uma reproduzível.
-        torch.manual_seed(semente + i)
-        inicio = time.perf_counter()
-        tts.tts_to_file(text=frase, speaker_wav=str(referencia), language=idioma,
-                        file_path=str(destino))
-        gasto = time.perf_counter() - inicio
-        dur = duracao_s(destino)
-        print(f"[{i:02d}] {dur:.1f} s de fala em {gasto:.1f} s "
-              f"({gasto / dur:.2f}x o tempo real): {frase[:50]}")
-        registro.append({"arquivo": destino.name, "frase": frase, "semente": semente + i,
-                         "duracao_s": round(dur, 2), "tempo_s": round(gasto, 2)})
+        registro.append(gerar(tts, frase, referencia, destino, idioma, semente + i))
     return registro
+
+
+def proximo_livre(saida: Path) -> int:
+    usados = [int(p.stem.split("_")[1]) for p in saida.glob("frase_*.wav")
+              if p.stem.split("_")[1].isdigit()]
+    return max(usados, default=0) + 1
+
+
+def falar(tts, frase: str, referencia: Path, saida: Path, idioma: str, semente: int) -> dict:
+    """Frase livre: vira frase_NN.wav, sem sobrescrever nenhuma anterior."""
+    if len(frase.split()) < PALAVRAS_MINIMAS:
+        print(f"    [AVISO] menos de {PALAVRAS_MINIMAS} palavras: a fala não deve encher "
+              "uma janela de 4 s do detector")
+    n = proximo_livre(saida)
+    return gerar(tts, frase, referencia, saida / f"frase_{n:02d}.wav", idioma, semente + n)
+
+
+def interativo(tts, referencia: Path, saida: Path, idioma: str, semente: int,
+               ler=None) -> list[dict]:
+    """Pede frases até uma linha vazia; `r` refaz a última com a semente seguinte."""
+    ler = ler or input
+    registro, ultima, extra = [], None, 0
+    while True:
+        texto = ler("\nFrase (r: refazer a última; Enter vazio: sair) > ").strip()
+        if not texto:
+            return registro
+        if texto.lower() == "r":
+            if ultima is None:
+                print("    nada para refazer ainda")
+                continue
+            extra += 1000
+            texto = ultima
+        ultima = texto
+        registro.append(falar(tts, texto, referencia, saida, idioma, semente + extra))
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Clona uma voz com o XTTS v2, no próprio computador")
     p.add_argument("--referencia", required=True, help="gravação da voz a clonar")
-    p.add_argument("--frases", required=True, help="arquivo com uma frase por linha")
+    modo = p.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--frases", help="arquivo com uma frase por linha (vira fNN.wav)")
+    modo.add_argument("--texto", action="append", help="uma frase livre (repita a opção)")
+    modo.add_argument("--interativo", action="store_true",
+                      help="pede frases uma a uma, com o modelo já carregado")
     p.add_argument("--saida", required=True)
     p.add_argument("--idioma", default="pt")
     p.add_argument("--semente", type=int, default=0)
@@ -93,7 +143,15 @@ def main(argv=None) -> int:
     print(f"Carregado em {time.perf_counter() - inicio:.1f} s")
 
     saida = Path(args.saida)
-    registro = clonar(tts, ler_frases(args.frases), referencia, saida, args.idioma, args.semente)
+    saida.mkdir(parents=True, exist_ok=True)
+    if args.frases:
+        registro = clonar(tts, ler_frases(args.frases), referencia, saida, args.idioma,
+                          args.semente)
+    elif args.texto:
+        registro = [falar(tts, t, referencia, saida, args.idioma, args.semente)
+                    for t in args.texto]
+    else:
+        registro = interativo(tts, referencia, saida, args.idioma, args.semente)
 
     manifesto = saida / "clonagem.json"
     anterior = (json.loads(manifesto.read_text(encoding="utf-8"))

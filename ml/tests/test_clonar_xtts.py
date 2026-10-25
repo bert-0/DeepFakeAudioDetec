@@ -84,3 +84,39 @@ def test_referencia_inexistente(monkeypatch, tmp_path, capsys):
 
 def test_frases_do_teste_viram_dez_arquivos():
     assert len(ler_frases("docs/etica/frases_teste_voz_propria.txt")) == 10
+
+
+def test_frase_livre_vira_frase_nn_sem_sobrescrever(monkeypatch, tmp_path, capsys):
+    import pytest
+
+    _instalar_falso(monkeypatch)
+    ref, _ = _entradas(tmp_path)
+    saida = tmp_path / "demo"
+    saida.mkdir()
+    sf.write(saida / "frase_01.wav", np.zeros(2400, np.float32), 24000)
+    assert main(["--referencia", str(ref), "--saida", str(saida), "--dispositivo", "cpu",
+                 "--texto", "Bom dia a todos da banca, obrigado por estarem aqui hoje.",
+                 "--texto", "Oi."]) == 0
+    assert sorted(p.name for p in saida.glob("frase_*.wav")) == [
+        "frase_01.wav", "frase_02.wav", "frase_03.wav"]
+    reg = json.loads((saida / "clonagem.json").read_text(encoding="utf-8"))
+    assert [f["semente"] for f in reg["frases"]] == [2, 3]
+    assert "menos de 8 palavras" in capsys.readouterr().out, "frase curta não enche a janela"
+    with pytest.raises(SystemExit):
+        main(["--referencia", str(ref), "--saida", str(saida)])
+
+
+def test_interativo_refaz_a_ultima_com_outra_semente(monkeypatch, tmp_path):
+    _instalar_falso(monkeypatch)
+    ref, _ = _entradas(tmp_path)
+    frase = "A banca escolheu esta frase para o clone dizer agora mesmo."
+    respostas = iter([frase, "r", ""])
+    monkeypatch.setattr("builtins.input", lambda *_: next(respostas))
+    saida = tmp_path / "demo"
+    assert main(["--referencia", str(ref), "--saida", str(saida), "--dispositivo", "cpu",
+                 "--interativo"]) == 0
+    assert [p[0] for p in _TTSFalso.pedidos] == [frase, frase]
+    reg = json.loads((saida / "clonagem.json").read_text(encoding="utf-8"))
+    sementes = [f["semente"] for f in reg["frases"]]
+    assert len(set(sementes)) == 2, "refazer com a mesma semente daria o mesmo áudio"
+    assert [f["arquivo"] for f in reg["frases"]] == ["frase_01.wav", "frase_02.wav"]

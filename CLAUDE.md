@@ -73,7 +73,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   kHz e ao vivo: o de captura, só se calibrado com o FIR e com os mesmos pesos).
 - `web/`: FastAPI + Jinja2 + SQLite. Abas Enviar arquivo, Resultado, Ao vivo e
   Histórico. O ao vivo roda o `monitor.py` como subprocesso, parado por arquivo
-  (`--parar-com`); com `DETECTOR_LIMIAR_FUSAO`, roda a fusão. Na tela, o score
+  (`--parar-com`). Com `DETECTOR_LIMIAR_FUSAO` (JSON do `limiar_fusao.py`), as
+  duas abas usam os modelos, a regra e o limiar dele; Enviar arquivo usa também a
+  taxa comum de 48 kHz, como o ensaio 2. Na tela, o score
   aparece na escala centrada no limiar (`centrado` em `src/limiares.py`): o
   limiar fica em 0,50; a decisão continua no score do modelo.
 - `scripts/`: avaliação, robustez, calibração, canal real, demonstração

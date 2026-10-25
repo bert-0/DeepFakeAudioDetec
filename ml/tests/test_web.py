@@ -430,3 +430,79 @@ def test_paginas_nao_dependem_de_dialogos_do_navegador(cliente, tmp_path):
         assert "confirm(" not in texto and "alert(" not in texto, rota
     historico = cliente.get("/historico").text
     assert 'id="confirmacao"' in historico and ".submit()" in historico
+
+
+# --------------------------------------------------------------------------- #
+# Enviar arquivo com o modelo, a regra e o limiar do ensaio 2 (DETECTOR_LIMIAR_FUSAO)
+# --------------------------------------------------------------------------- #
+@pytest.fixture()
+def cliente_ensaio(tmp_path, monkeypatch):
+    from src.scores import checkpoint_fingerprint
+
+    config = load_config("configs/baseline.yaml")
+    torch.manual_seed(0)
+    estado = build_model(config["model"]).state_dict()
+    ckpt = tmp_path / "modelo_teste.pt"
+    torch.save({"model_state": estado, "config": config, "threshold": 0.5}, ckpt)
+    limiar = tmp_path / "limiar.json"
+    limiar.write_text(json.dumps({
+        "regra": "logodds", "limiar": -8.0, "origem": "limiar do treino de modelo_teste",
+        "modelos": [{"config": "configs/baseline.yaml", "checkpoint": str(ckpt),
+                     "impressao": checkpoint_fingerprint(estado)}]}), encoding="utf-8")
+    monkeypatch.setenv("DETECTOR_LIMIAR_FUSAO", str(limiar))
+    monkeypatch.setenv("DETECTOR_BANCO", str(tmp_path / "h.db"))
+    import web.app as modulo
+
+    importlib.reload(modulo)
+    return TestClient(modulo.app)
+
+
+def test_enviar_arquivo_usa_o_limiar_do_ensaio(cliente_ensaio, tmp_path):
+    from src.capture.analyzer import sigmoide
+
+    with open(_wav(tmp_path, taxa=24000), "rb") as fh:
+        dados = cliente_ensaio.post("/api/analisar",
+                                    files={"arquivo": ("clone.wav", fh, "audio/wav")}).json()
+    assert dados["limiar"] == pytest.approx(sigmoide(-8.0))
+    assert dados["origem_limiar"] == "limiar do treino de modelo_teste"
+    pagina = cliente_ensaio.get(f"/analises/{dados['id']}").text
+    assert "modelo_teste" in pagina and "0,50 = limiar" in pagina
+    sobre = cliente_ensaio.get("/sobre").text
+    assert "Modelos em uso" in sobre and "relatório do TCC" in sobre
+    assert "18,99%" not in sobre, "os números do baseline_v2 não valem para outro modelo"
+
+
+def test_ensaio_usa_a_taxa_comum_e_a_media_nos_logodds(tmp_path, monkeypatch):
+    import web.analise as analise
+
+    vistos = {}
+    original = analise.FileSource
+
+    class _Fonte(original):
+        def __init__(self, caminho, sample_rate, bloco=1600, taxa_comum=None):
+            vistos["taxa_comum"] = taxa_comum
+            super().__init__(caminho, sample_rate, bloco, taxa_comum)
+
+    monkeypatch.setattr(analise, "FileSource", _Fonte)
+    from src.scores import checkpoint_fingerprint
+
+    config = load_config("configs/baseline.yaml")
+    estado = build_model(config["model"]).state_dict()
+    ckpt = tmp_path / "m.pt"
+    torch.save({"model_state": estado, "config": config, "threshold": 0.5}, ckpt)
+    limiar = tmp_path / "l.json"
+    limiar.write_text(json.dumps({"regra": "logodds", "limiar": 0.0, "modelos": [
+        {"config": "configs/baseline.yaml", "checkpoint": str(ckpt),
+         "impressao": checkpoint_fingerprint(estado)}]}), encoding="utf-8")
+    d = analise.Detector(limiar_fusao=str(limiar))
+    assert d.regra == "logodds" and d.modelo == "m"
+    d.analisar(_wav(tmp_path, taxa=24000))
+    assert vistos["taxa_comum"] == analise.TAXA_COMUM_FUSAO == 48000
+
+
+def test_scores_pequenos_mantem_o_lado_do_limiar():
+    """Com limiar de 0,00017, 4 casas decimais trocariam o lado de uma janela."""
+    from web.analise import significativos
+
+    assert significativos(0.000164321) == 0.000164321 and round(0.000164321, 4) == 0.0002
+    assert significativos(0.123456789) == 0.123457

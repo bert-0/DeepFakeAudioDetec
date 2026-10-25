@@ -30,7 +30,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.capture import CaptureError
 from src.limiares import centrado
-from web.analise import Detector
+from web.analise import Detector, nome_dos_modelos, significativos
 from web.banco import Banco
 
 AQUI = Path(__file__).resolve().parent
@@ -213,7 +213,12 @@ def historico_limpar():
 
 @app.get("/sobre", response_class=HTMLResponse)
 def sobre(request: Request):
-    return templates.TemplateResponse(request, "sobre.html", {"modelo": detector().modelo})
+    d = detector()
+    origem = d.fusao.descricao() if d.fusao else None
+    # O texto do ensaio 2 só vale para o modelo do recorte no limiar do treino.
+    ensaio2 = d.modelo == "fusion_lcnn_v4_asv5" and bool(origem) and "treino" in origem
+    return templates.TemplateResponse(request, "sobre.html",
+                                      {"modelo": d.modelo, "origem": origem, "ensaio2": ensaio2})
 
 
 @app.post("/api/analisar")
@@ -349,7 +354,7 @@ def _salvar_sessao_no_historico(sessao: dict) -> int | None:
         aviso_limiar=None,
         janelas_uteis=resumo.get("janelas_uteis", 0),
         janelas_independentes=resumo.get("janelas_independentes", 0.0),
-        janelas=[{"t": round(x["instante"], 2), "score": round(x["score"], 4),
+        janelas=[{"t": round(x["instante"], 2), "score": significativos(x["score"]),
                   "util": x.get("util", not x.get("silencio")), "peso": x.get("peso", 1.0)}
                  for x in leituras])
     return banco().salvar(r, _modelo_ao_vivo(), gravacao=str(Path(sessao["wav"]).resolve()))
@@ -360,11 +365,11 @@ def _modelo_ao_vivo() -> str:
     if not fusao:
         return detector().modelo
     try:
-        nomes = [Path(m["checkpoint"]).stem for m in
-                 json.loads(Path(fusao).read_text(encoding="utf-8"))["modelos"]]
+        checkpoints = [m["checkpoint"] for m in
+                       json.loads(Path(fusao).read_text(encoding="utf-8"))["modelos"]]
     except (OSError, ValueError, KeyError):
         return "fusão"
-    return "fusão: " + " + ".join(nomes)
+    return nome_dos_modelos(checkpoints)
 
 
 @app.post("/api/ao-vivo/parar")

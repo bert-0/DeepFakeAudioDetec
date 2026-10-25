@@ -18,7 +18,7 @@
         <td>{{ a.criado_em | data }}</td>
         <td><a href="/analises/{{ a.id }}">{{ a.arquivo }}</a></td>
         <td>{{ a.duracao_s | mmss }}</td>
-        <td class="{{ 'vermelho' if acima else 'verde' }}">{{ a.score_medio | br(2) }}</td>
+        <td class="{{ 'vermelho' if acima else 'verde' }}">{{ a.score_medio | centrado(a.limiar) | br(2) }}</td>
         <td>{% if a.score_medio is none %}sem fala{% elif acima %}indício de síntese{% else %}sem indício{% endif %}</td>
       </tr>
       {% endfor %}

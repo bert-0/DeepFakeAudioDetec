@@ -3,6 +3,10 @@
 Usa o mesmo caminho do monitor (`AnalisadorContinuo` sobre `FileSource`), que dá
 o score do `infer.py` (tests/test_monitor_consistencia.py). O limiar depende da
 taxa nativa do arquivo (`src/limiares.py`).
+
+Com `DETECTOR_LIMIAR_FUSAO` (o JSON do `scripts/limiar_fusao.py`), a análise usa
+os modelos, a regra e o limiar desse arquivo, com a taxa comum de 48 kHz: o mesmo
+caminho do ensaio 2 (RESUMO_TCC §10.2.13). A aba Ao vivo lê a mesma variável.
 """
 
 from __future__ import annotations
@@ -16,10 +20,18 @@ import torch
 from src.capture import FileSource
 from src.capture.analyzer import Agregador, AnalisadorContinuo
 from src.config import load_config, resolve_device
-from src.limiares import escolher_limiar, limiares_do_checkpoint, taxa_nativa
+from src.limiares import (
+    Escolha,
+    escolher_limiar,
+    ler_limiar_fusao,
+    limiares_do_checkpoint,
+    taxa_nativa,
+)
 
 CONFIG_PADRAO = "configs/baseline_v2.yaml"
 CHECKPOINT_PADRAO = "checkpoints/baseline_lfcc_cnn_v2.pt"
+#: A do ensaio 2: clone de 24 kHz e gravação de 48 kHz pela mesma conversão final.
+TAXA_COMUM_FUSAO = 48000
 
 
 @dataclass
@@ -43,26 +55,50 @@ class Resultado:
         return self.score_medio >= self.limiar
 
 
+def nome_dos_modelos(checkpoints: list[str] | tuple[str, ...]) -> str:
+    """Um modelo: o nome dele; dois: "fusão: a + b" (o mesmo da aba Ao vivo)."""
+    nomes = [Path(c).stem for c in checkpoints]
+    return nomes[0] if len(nomes) == 1 else "fusão: " + " + ".join(nomes)
+
+
 class Detector:
     """Carrega config e checkpoint uma vez; cada análise cria seu analisador,
     para o estado do canal não vazar de um arquivo para outro."""
 
     def __init__(self, config: str | None = None, checkpoint: str | None = None,
-                 device: str | None = None):
-        self.config_path = config or os.environ.get("DETECTOR_CONFIG", CONFIG_PADRAO)
-        self.checkpoint = checkpoint or os.environ.get("DETECTOR_CHECKPOINT", CHECKPOINT_PADRAO)
-        self.config = load_config(self.config_path)
+                 device: str | None = None, limiar_fusao: str | None = None):
         self.device = resolve_device(device or os.environ.get("DETECTOR_DEVICE", "cpu"))
-        dados = torch.load(self.checkpoint, map_location="cpu", weights_only=False)
-        self.limiares = limiares_do_checkpoint(self.checkpoint, dados)
-        self.modelo = self.config["model"]["name"]
+        caminho_fusao = limiar_fusao or os.environ.get("DETECTOR_LIMIAR_FUSAO")
+        self.fusao = ler_limiar_fusao(caminho_fusao) if caminho_fusao else None
+        if self.fusao:
+            self.config_path = self.fusao.config
+            self.checkpoints = list(self.fusao.checkpoints)
+            self.checkpoint = self.checkpoints[0]
+            self.limiares = None
+            self.modelo = nome_dos_modelos(self.checkpoints)
+        else:
+            self.config_path = config or os.environ.get("DETECTOR_CONFIG", CONFIG_PADRAO)
+            self.checkpoint = checkpoint or os.environ.get("DETECTOR_CHECKPOINT",
+                                                           CHECKPOINT_PADRAO)
+            self.checkpoints = [self.checkpoint]
+            dados = torch.load(self.checkpoint, map_location="cpu", weights_only=False)
+            self.limiares = limiares_do_checkpoint(self.checkpoint, dados)
+        self.config = load_config(self.config_path)
+        if not self.fusao:
+            self.modelo = self.config["model"]["name"]
+
+    @property
+    def regra(self) -> str:
+        return self.fusao.regra if self.fusao else "probabilidade"
 
     def analisar(self, caminho: str | Path, nome_original: str | None = None) -> Resultado:
-        analisador = AnalisadorContinuo(self.config, self.checkpoint, self.device)
+        analisador = AnalisadorContinuo(self.config, self.checkpoints, self.device,
+                                        regra=self.regra)
         agregador = Agregador(
             janela_s=analisador.janela.tamanho / analisador.sample_rate,
-            passo_s=analisador.janela.passo / analisador.sample_rate)
-        with FileSource(caminho, analisador.sample_rate) as fonte:
+            passo_s=analisador.janela.passo / analisador.sample_rate, regra=self.regra)
+        taxa_comum = TAXA_COMUM_FUSAO if self.fusao else None
+        with FileSource(caminho, analisador.sample_rate, taxa_comum=taxa_comum) as fonte:
             for bloco in fonte.blocos():
                 for leitura in analisador.processar(bloco):
                     agregador.adicionar(leitura)
@@ -70,7 +106,10 @@ class Detector:
             agregador.adicionar(leitura)
 
         taxa = taxa_nativa(caminho)
-        escolha = escolher_limiar(self.limiares, analisador.sample_rate, taxa)
+        if self.fusao:
+            escolha = Escolha(self.fusao.probabilidade, self.fusao.descricao())
+        else:
+            escolha = escolher_limiar(self.limiares, analisador.sample_rate, taxa)
         resumo = agregador.resumo()
         uteis = set(id(x) for x in agregador.uteis)
         return Resultado(
@@ -84,7 +123,13 @@ class Detector:
             aviso_limiar=escolha.aviso,
             janelas_uteis=resumo["janelas_uteis"],
             janelas_independentes=resumo["janelas_independentes"],
-            janelas=[{"t": round(x.instante, 2), "score": round(x.score, 4),
+            janelas=[{"t": round(x.instante, 2), "score": significativos(x.score),
                       "util": id(x) in uteis, "peso": round(x.peso, 3)}
                      for x in agregador.leituras],
         )
+
+
+def significativos(x: float, n: int = 6) -> float:
+    """Arredonda em algarismos significativos: com limiar de 0,00017 (modelo do
+    recorte), 4 casas decimais trocariam o lado do limiar de uma janela."""
+    return float(f"{x:.{n}g}")

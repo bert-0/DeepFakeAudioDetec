@@ -43,7 +43,10 @@ class FileSource(AudioSource):
     """
 
     def __init__(self, caminho: str | Path, sample_rate: int,
-                 bloco: int = 1600):
+                 bloco: int = 1600, taxa_comum: int | None = None):
+        """`taxa_comum`: passa o arquivo por ela antes da taxa do modelo, para
+        arquivos de taxas diferentes (clone de 24 kHz, gravação de 48 kHz) chegarem
+        ao modelo pela mesma conversão final (RESUMO_TCC §10.2.13)."""
         import librosa
 
         self.sample_rate = sample_rate
@@ -53,6 +56,8 @@ class FileSource(AudioSource):
             from ..preprocess.reamostragem import para_taxa
 
             wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
+            if taxa_comum and taxa != taxa_comum:
+                wav, taxa = para_taxa(wav, taxa, taxa_comum), taxa_comum
             self._wav = para_taxa(wav, taxa, sample_rate)
         except FileNotFoundError:
             raise

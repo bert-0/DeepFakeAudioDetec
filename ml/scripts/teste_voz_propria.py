@@ -78,17 +78,13 @@ def listar(pasta: Path) -> list[Path]:
 
 def ler_na_taxa_do_modelo(caminho: Path, taxa_modelo: int,
                           taxa_comum: int | None = None) -> np.ndarray:
-    """Como o `FileSource`. Com `taxa_comum`, o arquivo passa antes por ela: o clone
-    do XTTS (24 kHz) e a gravação (48 kHz) chegam ao modelo pela mesma conversão
-    final, e a taxa deixa de ser pista (RESUMO_TCC §10.2.13)."""
-    import librosa
+    """O `FileSource`, o mesmo da interface. Com `taxa_comum`, o clone do XTTS
+    (24 kHz) e a gravação (48 kHz) chegam ao modelo pela mesma conversão final,
+    e a taxa deixa de ser pista (RESUMO_TCC §10.2.13)."""
+    from src.capture import FileSource
 
-    from src.preprocess.reamostragem import para_taxa
-
-    wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
-    if taxa_comum and taxa != taxa_comum:
-        wav, taxa = para_taxa(wav, taxa, taxa_comum), taxa_comum
-    return para_taxa(wav, taxa, taxa_modelo).astype(np.float32)
+    with FileSource(caminho, taxa_modelo, taxa_comum=taxa_comum) as fonte:
+        return fonte._wav
 
 
 def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], device,

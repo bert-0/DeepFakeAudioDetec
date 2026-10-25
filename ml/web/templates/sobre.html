@@ -3,8 +3,15 @@
 {% block conteudo %}
 <div class="cartao texto">
   <h1>Sobre</h1>
+  {% if ensaio2 %}
+  <p>Modelo em uso: <code>{{ modelo }}</code>, treinado num recorte da base
+  ASVspoof 5, com o {{ origem }}.
+  {% elif origem %}
+  <p>Modelos em uso: <code>{{ modelo }}</code> ({{ origem }}).
+  {% else %}
   <p>Modelo em uso: <code>{{ modelo }}</code>, treinado na base ASVspoof 2019 LA
   (ataques A01–A06) e avaliado nos ataques A07–A19, que ele não viu no treino.
+  {% endif %}
   O áudio é dividido em janelas de 4 segundos, com passo de 2, e cada janela
   recebe um score entre 0 (voz humana) e 1 (voz sintética). Na tela, o score
   aparece numa escala com o limiar no meio: acima de 0,50, indício de síntese.
@@ -14,6 +21,15 @@
   resultado. Tudo roda neste computador.</p>
 
   <h2>O que foi medido</h2>
+  {% if ensaio2 %}
+  <ul>
+    <li>Voz real gravada neste microfone contra clones feitos com o XTTS v2, um
+        locutor, com o critério combinado antes: 10 de 10 gravações reais e 9 de
+        10 clones julgados certos, com o clone analisado como arquivo.</li>
+    <li>O clone tocado pelo alto-falante e captado pelo microfone não foi
+        separado da voz real.</li>
+  </ul>
+  {% elif not origem %}
   <ul>
     <li>EER de 18,99% no conjunto de avaliação completo (71.237 áudios).</li>
     <li>Na captura ao vivo (48 kHz → 16 kHz), o EER fica em 19,41% contra
@@ -22,15 +38,23 @@
     <li>Em transmissão real com Opus (ASVspoof 2021 LA, amostra de 10.000
         áudios), o EER vai de 18,15% a 29,43%.</li>
   </ul>
+  {% else %}
+  <p>Os números desta configuração estão no relatório do TCC.</p>
+  {% endif %}
 
   <h2>Limitações</h2>
   <ul>
+    {% if ensaio2 %}
+    <li>Testado com um locutor e uma ferramenta de clonagem. Uma voz nova pode
+        ficar mais perto do limiar.</li>
+    {% elif not origem %}
     <li>O modelo conhece técnicas de síntese de 2018–2019. Vozes de ferramentas
         atuais não foram reconhecidas nos testes.</li>
     <li>Ele reage à largura de banda do áudio: gravações sem a faixa acima de
         4 kHz tendem a receber score alto, mesmo sendo humanas.</li>
     <li>O limiar é escolhido pela taxa de amostragem do arquivo. Um arquivo que já
         foi convertido antes de chegar aqui pode receber o limiar errado.</li>
+    {% endif %}
     <li>Um trecho sintético mais curto que 4 segundos nunca ocupa uma janela inteira.</li>
     <li>Áudio tocado por um alto-falante e captado pelo microfone não é separado de
         forma confiável: o modelo foi treinado só com áudio digital.</li>
