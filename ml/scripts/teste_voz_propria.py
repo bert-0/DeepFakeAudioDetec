@@ -76,12 +76,26 @@ def listar(pasta: Path) -> list[Path]:
     return sorted(p for p in pasta.iterdir() if p.suffix.lower() in EXTENSOES)
 
 
-def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], device,
-             regra: str = "probabilidade") -> Analise:
-    """O caminho da interface web, com os dois modelos (web/analise.py)."""
+def ler_na_taxa_do_modelo(caminho: Path, taxa_modelo: int,
+                          taxa_comum: int | None = None) -> np.ndarray:
+    """Como o `FileSource`. Com `taxa_comum`, o arquivo passa antes por ela: o clone
+    do XTTS (24 kHz) e a gravação (48 kHz) chegam ao modelo pela mesma conversão
+    final, e a taxa deixa de ser pista (RESUMO_TCC §10.2.13)."""
     import librosa
 
-    from src.capture import FileSource
+    from src.preprocess.reamostragem import para_taxa
+
+    wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
+    if taxa_comum and taxa != taxa_comum:
+        wav, taxa = para_taxa(wav, taxa, taxa_comum), taxa_comum
+    return para_taxa(wav, taxa, taxa_modelo).astype(np.float32)
+
+
+def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], device,
+             regra: str = "probabilidade", taxa_comum: int | None = None) -> Analise:
+    """O caminho da interface web (web/analise.py), com um ou mais modelos."""
+    import librosa
+
     from src.capture.analyzer import Agregador, AnalisadorContinuo
     from src.capture.checagens import checar
     from src.limiares import taxa_nativa
@@ -89,11 +103,12 @@ def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], de
     analisador = AnalisadorContinuo(config, checkpoints, device, regra=regra)
     agregador = Agregador(janela_s=analisador.janela.tamanho / analisador.sample_rate,
                           passo_s=analisador.janela.passo / analisador.sample_rate, regra=regra)
-    with FileSource(caminho, analisador.sample_rate) as fonte:
-        for bloco in fonte.blocos():
-            for leitura in analisador.processar(bloco):
-                agregador.adicionar(leitura)
-        duracao = len(fonte._wav) / analisador.sample_rate
+    wav16 = ler_na_taxa_do_modelo(caminho, analisador.sample_rate, taxa_comum)
+    # Blocos do tamanho dos do FileSource: o mesmo fluxo do ao vivo.
+    for i in range(0, len(wav16), 1600):
+        for leitura in analisador.processar(wav16[i:i + 1600]):
+            agregador.adicionar(leitura)
+    duracao = len(wav16) / analisador.sample_rate
     for leitura in analisador.finalizar():
         agregador.adicionar(leitura)
 
@@ -136,7 +151,8 @@ def placar(analises: list[Analise], limiar: float) -> dict:
         pares = [(reais[a.frase], a.score) for a in por_pasta.get(falsos, [])
                  if a.score is not None and a.frase in reais]
         r["falso_acima_do_real"] = {"vezes": sum(f > h for h, f in pares), "pares": len(pares)}
-        r["meta"] = r[humanos]["meta"] and r[falsos]["meta"]
+        # Caminho sem gravações (ensaio só do arquivo): não medido, nem atingido nem não.
+        r["meta"] = (None if not r[falsos]["n"] else r[humanos]["meta"] and r[falsos]["meta"])
         saida[caminho] = r
     return saida
 
@@ -182,6 +198,9 @@ def relatar(analises: list[Analise], limiar: float, nomes: list[str], r: dict,
     for caminho, (humanos, falsos) in CAMINHOS.items():
         c = r[caminho]
         h, f = c[humanos], c[falsos]
+        if c["meta"] is None:
+            print(f"Caminho {caminho:9s}: não medido (sem gravações em {falsos}/)")
+            continue
         print(f"Caminho {caminho:9s}: reais julgados humanos {h['acertos']} de {h['n']}, "
               f"{falsos} julgados sintéticos {f['acertos']} de {f['n']} — meta "
               f"{'atingida' if c['meta'] else 'não atingida'}")
@@ -198,6 +217,9 @@ def main(argv=None) -> int:
     p.add_argument("--device", default="cpu")
     p.add_argument("--json", default="outputs/teste_voz_propria.json",
                    help="scores e placar (sem áudio)")
+    p.add_argument("--taxa-comum", type=int, default=None, metavar="HZ",
+                   help="leva todo arquivo a esta taxa antes da do modelo (o ensaio 2 usa "
+                        "48000: clone de 24 kHz e gravação de 48 kHz pela mesma conversão)")
     args = p.parse_args(argv)
 
     from src.config import load_config, resolve_device
@@ -213,7 +235,7 @@ def main(argv=None) -> int:
     device = resolve_device(args.device)
     limiar = escolha.probabilidade
 
-    analises = [analisar(arq, nome, config, checkpoints, device, escolha.regra)
+    analises = [analisar(arq, nome, config, checkpoints, device, escolha.regra, args.taxa_comum)
                 for nome, lista in arquivos.items() for arq in lista]
     r = placar(analises, limiar)
     relatar(analises, limiar, [Path(c).stem for c in checkpoints], r, escolha.regra,
@@ -224,7 +246,7 @@ def main(argv=None) -> int:
     Path(args.json).parent.mkdir(parents=True, exist_ok=True)
     Path(args.json).write_text(json.dumps(
         {"regra": escolha.regra, "limiar": escolha.limiar, "limiar_score": limiar,
-         "limiar_origem": str(args.limiar),
+         "limiar_origem": str(args.limiar), "taxa_comum": args.taxa_comum,
          "checkpoints": checkpoints, "placar": r, "arquivos": [asdict(a) for a in analises]},
         indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nResultado: {args.json}")

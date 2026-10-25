@@ -2075,6 +2075,28 @@ Descritivo (não é o critério), em log-odds de cada modelo; "pares" é a fraç
   regravados pelo alto-falante, e o XLS-R. Se o XTTS entra no treino ou fica de
   fora segue para o grupo.
 
+### 10.2.13 Ensaio 2: o caminho arquivo com o modelo do recorte (em preparação)
+
+**Decisão do grupo (24/10/2026):** confirmar, com dados novos, a hipótese que o
+descritivo do 10.2.12 levantou: o `fusion_lcnn_v4_asv5` sozinho separa a voz
+real gravada do clone do XTTS como arquivo. A demonstração passaria a ter o
+clone analisado como arquivo e o clone pelo ar como limitação medida (a mudança
+da meta ainda passa pelo orientador). Reserva, se o ensaio 2 falhar: o XLS-R.
+
+**Diagnóstico antes do ensaio (exploratório, nos dados do ensaio 1):**
+- **Taxa de amostragem não explica a separação.** O clone sai a 24 kHz e a
+  gravação a 48 kHz, e cada um chegava aos 16 kHz por uma conversão diferente.
+  Levando tudo antes a 48 kHz (`teste_voz_propria.py --taxa-comum 48000`), os
+  log-odds do modelo mudaram no máximo 0,015, e todos os clones seguem acima de
+  todas as gravações reais.
+- **O limiar é o problema.** Pela regra da fusão (10% de alarme falso nos
+  humanos dos devs, captura FIR), o limiar do modelo sozinho fica em −6,566
+  (`limiar_fusao.py escolher --so fusion_lcnn_v4_asv5`), e só 2 de 10 clones
+  passariam dele; no limiar do treino do modelo (−8,67, ponto de EER no dev do
+  recorte), 8 de 10. As gravações reais ficam entre −18,41 e −11,66, bem abaixo
+  dos humanos dos devs: o microfone da sala parece mais humano ao modelo que a
+  base. O critério do ensaio 2 ainda não foi fixado.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

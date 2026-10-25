@@ -143,3 +143,36 @@ def test_escolher_sem_os_scores_diz_quais_faltam(tmp_path, capsys):
     assert main(["escolher", "--pasta", str(tmp_path), "--saida", str(saida)]) == 1
     assert capsys.readouterr().out.count("_scores.npz") == 4
     assert not saida.exists()
+
+
+def test_limiar_de_um_modelo_so():
+    labels = np.r_[np.zeros(10, int), np.ones(10, int)]
+    a = _dados(np.r_[np.linspace(0.01, 0.3, 10), np.linspace(0.6, 0.99, 10)], labels)
+    r = escolher({"calib_2019": (a,), "calib_asv5": (a,)}, 0.10)
+    assert r["humanos_acima"] == 0.10 and len(r["devs"]["calib_2019"]["eer_modelos"]) == 1
+    assert r["devs"]["calib_2019"]["eer_fusao"] == r["devs"]["calib_2019"]["eer_modelos"][0]
+
+
+def test_escolher_so_um_modelo_do_preparo(tmp_path):
+    impressoes = [_checkpoint(tmp_path / "a.pt", 0), _checkpoint(tmp_path / "b_asv5.pt", 1)]
+    labels = [0] * 10 + [1, 1]
+    preparo = {"amostra": 10, "condicao": "captura_48k_fir",
+               "modelos": [{"config": "configs/baseline.yaml", "checkpoint": str(tmp_path / k)}
+                           for k in ("a.pt", "b_asv5.pt")], "devs": {}}
+    for rotulo in ("calib_2019", "calib_asv5"):
+        execucoes = []
+        for k, desloc in (("a", 0.0), ("b_asv5", 0.3)):
+            caminho = tmp_path / f"{k}_{rotulo}.npz"
+            np.savez(caminho, **_dados(np.r_[np.linspace(0.05, 0.5, 10), [0.9, 0.95]] * (1 - desloc),
+                                       labels))
+            execucoes.append({"config": "-", "checkpoint": str(tmp_path / f"{k}.pt"),
+                              "scores": str(caminho)})
+        preparo["devs"][rotulo] = {"execucoes": execucoes}
+    (tmp_path / "preparo.json").write_text(json.dumps(preparo), encoding="utf-8")
+    saida = tmp_path / "so.json"
+    assert main(["escolher", "--pasta", str(tmp_path), "--saida", str(saida), "--so", "asv5"]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert [m["checkpoint"] for m in r["modelos"]] == [str(tmp_path / "b_asv5.pt")]
+    assert [m["impressao"] for m in r["modelos"]] == impressoes[1:]
+    with pytest.raises(SystemExit):
+        main(["escolher", "--pasta", str(tmp_path), "--saida", str(saida), "--so", "nenhum"])

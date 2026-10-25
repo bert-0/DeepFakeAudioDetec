@@ -57,7 +57,8 @@ def test_comparacao_por_frase_e_so_descritiva():
     r = placar(reais + clones, LIMIAR)
     assert r["arquivo"]["falso_acima_do_real"] == {"vezes": 2, "pares": 3}
     assert r["arquivo"]["meta"] is False
-    assert r["microfone"]["clone_ar"]["n"] == 0 and r["microfone"]["meta"] is False
+    assert r["microfone"]["clone_ar"]["n"] == 0 and r["microfone"]["meta"] is None, \
+        "sem gravações o caminho não foi medido; não é meta não atingida"
 
 
 def test_avisa_frases_que_faltam_numa_pasta():
@@ -135,3 +136,49 @@ def test_recusa_limiar_de_outros_pesos(tmp_path):
 def test_sem_gravacoes(tmp_path, capsys):
     assert main(["--pasta", str(tmp_path), "--limiar", str(tmp_path / "x.json")]) == 1
     assert "faltam gravações" in capsys.readouterr().out
+
+
+def test_sem_taxa_comum_le_como_o_file_source(tmp_path):
+    from scripts.teste_voz_propria import ler_na_taxa_do_modelo
+    from src.capture import FileSource
+
+    arq = tmp_path / "x.wav"
+    sf.write(arq, (np.random.default_rng(2).standard_normal(48000 * 2) * 0.1).astype(np.float32), 48000)
+    with FileSource(arq, 16000) as fonte:
+        esperado = fonte._wav
+    np.testing.assert_array_equal(ler_na_taxa_do_modelo(arq, 16000), esperado)
+
+
+def test_taxa_comum_leva_o_clone_de_24_khz_pelo_caminho_da_gravacao(tmp_path):
+    """Ensaio 2 (RESUMO_TCC §10.2.13): 24 -> 48 kHz e depois a conversão de 48 kHz
+    que a gravação faz, em vez do 24 -> 32 -> 16 kHz direto."""
+    from scripts.teste_voz_propria import ler_na_taxa_do_modelo
+    from src.preprocess.reamostragem import para_taxa
+
+    x = (np.random.default_rng(3).standard_normal(24000 * 2) * 0.1).astype(np.float32)
+    arq = tmp_path / "clone.wav"
+    sf.write(arq, x, 24000, subtype="FLOAT")
+    comum = ler_na_taxa_do_modelo(arq, 16000, taxa_comum=48000)
+    np.testing.assert_allclose(comum, para_taxa(para_taxa(x, 24000, 48000), 48000, 16000),
+                               atol=1e-6)
+    direto = ler_na_taxa_do_modelo(arq, 16000)
+    assert len(comum) == len(direto) == 32000
+    assert not np.allclose(comum, direto, atol=1e-4), "as duas conversões não são a mesma"
+
+
+def test_ensaio_so_do_arquivo_com_um_modelo(tmp_path, capsys):
+    modelo = _checkpoint(tmp_path / "a.pt", 0)
+    limiar = tmp_path / "limiar.json"
+    limiar.write_text(json.dumps({"regra": "logodds", "limiar": 0.0, "modelos": [modelo]}),
+                      encoding="utf-8")
+    _gravacoes(tmp_path / "vozes")
+    import shutil
+
+    shutil.rmtree(tmp_path / "vozes" / "clone_ar")
+    saida = tmp_path / "r.json"
+    assert main(["--pasta", str(tmp_path / "vozes"), "--limiar", str(limiar),
+                 "--json", str(saida), "--taxa-comum", "48000"]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert r["taxa_comum"] == 48000 and r["placar"]["microfone"]["meta"] is None
+    assert all(len(a["por_modelo"]) == 1 for a in r["arquivos"])
+    assert "Caminho microfone: não medido" in capsys.readouterr().out

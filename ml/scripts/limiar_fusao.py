@@ -104,30 +104,34 @@ def _carregar(caminho: str | Path) -> dict:
         return {k: d[k] for k in d.files}
 
 
-def escolher(pares: dict[str, tuple[dict, dict]], alvo: float,
+def escolher(pares: dict[str, tuple[dict, ...]], alvo: float,
              regra: str = REGRA_PADRAO) -> dict:
-    """Funde cada par pela média e escolhe o limiar com os humanos de todos os devs.
+    """Funde os modelos de cada dev pela média e escolhe o limiar com os humanos de
+    todos os devs. Com um modelo só, a "fusão" é o próprio modelo.
 
     O limiar fica na escala da regra; `limiar_probabilidade` é o mesmo ponto na
     escala do score das leituras ao vivo, em [0, 1]."""
     chave = {"logodds": "logodds", "probabilidade": "scores"}[regra]
     fundidos = {}
-    for rotulo, (a, b) in pares.items():
-        a, b = alinhar(a, b)
-        if not (a["labels"] == b["labels"]).all():
-            raise ValueError(f"{rotulo}: rótulos diferentes para os mesmos áudios")
-        fundidos[rotulo] = (a, b, combine([a[chave], b[chave]], "mean"))
-    labels = np.concatenate([a["labels"] for a, _, _ in fundidos.values()])
-    media = np.concatenate([m for _, _, m in fundidos.values()])
+    for rotulo, modelos in pares.items():
+        if len(modelos) == 2:
+            modelos = alinhar(*modelos)
+            if not (modelos[0]["labels"] == modelos[1]["labels"]).all():
+                raise ValueError(f"{rotulo}: rótulos diferentes para os mesmos áudios")
+        elif len(modelos) != 1:
+            raise ValueError("a fusão é de um ou dois modelos")
+        fundidos[rotulo] = (modelos, combine([d[chave] for d in modelos], "mean"))
+    labels = np.concatenate([m[0]["labels"] for m, _ in fundidos.values()])
+    media = np.concatenate([f for _, f in fundidos.values()])
     limiar = limiar_por_alarme_falso(labels, media, alvo)
 
     devs = {}
-    for rotulo, (a, b, m) in fundidos.items():
-        devs[rotulo] = {"n": int(len(m)), "humanos": int((a["labels"] == 0).sum()),
-                        "eer_modelos": [compute_eer(a["labels"], a["logodds"]),
-                                        compute_eer(b["labels"], b["logodds"])],
-                        "eer_fusao": compute_eer(a["labels"], m),
-                        **ponto_de_operacao(a["labels"], m, limiar)}
+    for rotulo, (modelos, m) in fundidos.items():
+        rotulos = modelos[0]["labels"]
+        devs[rotulo] = {"n": int(len(m)), "humanos": int((rotulos == 0).sum()),
+                        "eer_modelos": [compute_eer(rotulos, d["logodds"]) for d in modelos],
+                        "eer_fusao": compute_eer(rotulos, m),
+                        **ponto_de_operacao(rotulos, m, limiar)}
     return {"regra": regra, "limiar": limiar,
             "limiar_probabilidade": LimiarFusao("", (), regra, limiar, alvo, "").probabilidade,
             "alvo": alvo, "humanos": int((labels == 0).sum()),
@@ -177,6 +181,9 @@ def main(argv=None) -> int:
     pe.add_argument("--alarme-falso", type=float, default=ALVO_PADRAO,
                     help="fração-alvo de humanos dos devs acima do limiar")
     pe.add_argument("--regra", choices=("logodds", "probabilidade"), default=REGRA_PADRAO)
+    pe.add_argument("--so", default=None, metavar="CHECKPOINT",
+                    help="usa só este modelo (parte do nome do checkpoint), com os mesmos "
+                         "scores dos devs")
     pe.add_argument("--saida", default=str(PASTA / "limiar.json"))
     for s in (pp, pe):
         s.add_argument("--pasta", default=str(PASTA))
@@ -202,13 +209,20 @@ def main(argv=None) -> int:
         for e in faltam:
             print(f"  {e['scores']}")
         return 1
-    pares = {rotulo: tuple(_carregar(e["scores"]) for e in d["execucoes"])
+    modelos = preparo["modelos"]
+    if args.so:
+        modelos = [m for m in modelos if args.so in Path(m["checkpoint"]).stem]
+        if len(modelos) != 1:
+            p.error(f"--so {args.so} precisa apontar para exatamente um dos checkpoints do preparo")
+    usados = {m["checkpoint"] for m in modelos}
+    pares = {rotulo: tuple(_carregar(e["scores"]) for e in d["execucoes"]
+                           if e["checkpoint"] in usados)
              for rotulo, d in preparo["devs"].items()}
     r = escolher(pares, args.alarme_falso, args.regra)
     r.update(condicao=preparo["condicao"], amostra=preparo["amostra"], data=date.today().isoformat(),
              modelos=[{**m, "impressao": i} for m, i in
-                      zip(preparo["modelos"], impressoes(preparo["modelos"]), strict=True)])
-    relatar(r, preparo["modelos"])
+                      zip(modelos, impressoes(modelos), strict=True)])
+    relatar(r, modelos)
     Path(args.saida).parent.mkdir(parents=True, exist_ok=True)
     Path(args.saida).write_text(json.dumps(r, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nResultado: {args.saida}")
