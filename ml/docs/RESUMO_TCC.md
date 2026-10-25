@@ -1953,6 +1953,16 @@ qualquer gravação; os números entram aqui depois, como saírem.
   de outro texto (`docs/etica/texto_referencia_clonagem.txt`), para a
   ferramenta não ver as frases do teste. Uma ferramenta de clonagem; quais
   entram no treino segue pendente no plano.
+- **Clonagem (24/10/2026):** XTTS v2 (Coqui), no próprio computador, na GTX 1650
+  (`scripts/clonar_xtts.py`, ambiente conda separado, semente fixa por frase),
+  escolhido porque a demonstração ao vivo não pode depender de internet nem
+  mandar a voz para fora. Referência: o trecho com fala da gravação de 90 s (1,8
+  a 73 s, 71,2 s), em 16 bits e com ganho até o pico de −3 dBFS (o original tinha
+  13 MB e pico de −26 dBFS). Cada frase levou de 8,7 a 13,4 s para gerar, 1,04 a
+  1,28 vez a duração da fala; o modelo levou 133,5 s para carregar na primeira
+  vez, com o download. Os clones saem a 24 kHz, com o pico normalizado, e
+  reproduzem o ruído da referência: 18 a 24 dB abaixo da fala, contra 21 a 25 dB
+  nas gravações reais.
 - **Caminhos:** arquivo, as gravações reais contra os clones como a ferramenta
   os entregou; microfone, as mesmas gravações reais contra os clones tocados
   pelo alto-falante do notebook e gravados pelo mesmo microfone
