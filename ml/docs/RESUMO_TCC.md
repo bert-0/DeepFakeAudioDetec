@@ -2121,6 +2121,18 @@ da meta ainda passa pelo orientador). Reserva, se o ensaio 2 falhar: o XLS-R.
   Mesmo que passe, o resultado é otimista para uma voz desconhecida, como a da
   banca.
 
+**O fim dos clones do XTTS (antes do placar do ensaio 2):** todo clone termina
+com o som caindo de uma vez para o silêncio digital, cerca de 0,57 s antes do fim
+do arquivo, seguido de 417 ms de zeros exatos (10.000 amostras a 24 kHz, que a
+biblioteca acrescenta depois de cada frase). Pela energia, a queda acontece no
+meio da fala, cortando a última sílaba, em 3 dos 10 clones do ensaio 1 e em 7 dos
+10 do ensaio 2; nos outros, corta só o ruído de fundo copiado da referência.
+Exploratório, nos clones do ensaio 1: sem essa cauda, os log-odds do modelo do
+recorte mudam no máximo 0,72 (nos dois sentidos) e todos seguem acima das
+gravações reais. A pista do fim abrupto não explica a separação. No ensaio 2
+vale a regra combinada: clone com a frase cortada é gerado de novo com outra
+semente, antes do placar.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
