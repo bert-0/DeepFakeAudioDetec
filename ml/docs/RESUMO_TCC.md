@@ -2165,6 +2165,38 @@ Gravações reais: as 10 frases passaram nas checagens.
   clone analisado como arquivo, não tocado. Para a banca, falta pelo menos uma
   voz que o sistema nunca viu.
 
+### 10.2.14 Ensaio 3: uma voz que o sistema nunca ouviu (em preparação)
+
+O ensaio 2 passou com a voz do L01, já vista no ensaio 1. O ensaio 3 repete o
+critério com o locutor L02, voluntário de fora do grupo, para ver se o resultado
+vale para uma voz nova, como a da banca.
+
+**Critério (fixado em 25/10/2026, antes de qualquer gravação do L02):**
+- **Modelo e limiar:** os do ensaio 2, sem nenhuma mudança: `fusion_lcnn_v4_asv5`
+  sozinho, −8,671 nos log-odds (`outputs/limiar_fusao/limiar_asv5_treino.json`),
+  média das janelas ponderada pela fala, nos log-odds.
+- **Material:** o L02 lê o texto de referência (`docs/etica/texto_referencia_clonagem.txt`,
+  90 s) e as 10 frases de `docs/etica/frases_ensaio3.txt`, novas para todos,
+  no mesmo microfone e sala, sem fone e sem carregador, com as regras dos
+  ensaios (`--piso-minimo 15`, 12 s, regravar só pelas checagens). A referência
+  é preparada por `scripts/preparar_referencia.py`, que reproduz o preparo
+  feito à mão na referência do L01 (trecho com fala, pico a −3 dBFS, 16 bits).
+- **Clones:** XTTS v2 local, mesma configuração (sementes 1 a 10). Clone que
+  travar ou não disser a frase inteira é gerado de novo com outra semente,
+  antes do placar, e fica registrado.
+- **Caminho:** só o arquivo, com `--taxa-comum 48000`.
+- **Meta:** pelo menos 8 de 10 reais julgados humanos e 8 de 10 clones julgados
+  sintéticos. Arquivo sem janela útil conta como erro.
+- **Sem espiar:** nenhum score da voz do L02 antes do placar, nem pela aba Ao
+  vivo nem pela Enviar arquivo.
+- **Leitura combinada antes:** se passar, há um resultado com uma voz que o
+  sistema nunca ouviu, ainda com uma ferramenta, uma sala e um locutor novo só.
+  Se falhar, entra como saiu, e o ensaio 2 fica valendo só para a voz do L01; a
+  reserva continua o XLS-R.
+- **Ética:** termo assinado pelo L02 antes de gravar, com o item de clonagem;
+  código no lugar do nome; gravações e clones em `data/vozes/L02/`, fora do Git,
+  e os clones apagados depois da banca.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
