@@ -119,6 +119,9 @@ primeiro: nenhuma gravação começa antes deles.
   (`teste_voz_propria.py`), com o critério em RESUMO_TCC §10.2.12. Rodado no
   mesmo dia com clones do XTTS v2 local: reais 10 de 10 nos dois caminhos,
   clones 0 de 10 no arquivo e 2 de 10 pelo microfone; meta não atingida.
+  Ensaio 2 (§10.2.13), só o arquivo, com o modelo do recorte sozinho no limiar
+  do treino: reais 10 de 10, clones 9 de 10, meta atingida nesse caminho, com um
+  locutor só. Falta uma voz que o sistema nunca viu.
 - Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
   `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
   (22/10/2026). Medido no mesmo dia: tirar 7,6–8 kHz custa +6,27 pp no

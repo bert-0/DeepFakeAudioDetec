@@ -2141,6 +2141,30 @@ as sementes 204, 205 e 210 ficaram certos. Conjunto final: sementes 101, 102,
 103, 204, 205, 106, 107, 108, 109 e 210 (`data/vozes/ensaio2/clone/clonagem.json`).
 Gravações reais: as 10 frases passaram nas checagens.
 
+**Resultado do ensaio 2 (24/10/2026; `outputs/ensaio2.json`):**
+
+| caminho | reais julgados humanos | clones julgados sintéticos | meta |
+|---|---|---|---|
+| arquivo (real × clone do XTTS, taxa comum de 48 kHz) | 10 de 10 | **9 de 10** | **atingida** |
+| microfone | — | — | não medido |
+
+- **Primeira vez que a meta é atingida num caminho, com critério combinado
+  antes.** O placar rodou no ambiente do XTTS e de novo no do projeto: os mesmos
+  log-odds (diferença 0).
+- **Descritivo:** reais de −14,59 a −12,35; clones de −11,62 a −4,53; todos os
+  clones acima de todas as gravações reais (100 de 100 pares). O clone que
+  passou como humano (f08, −11,62) ficou a 0,73 da gravação real mais alta, e
+  dois dos que foram pegos (f01, −8,50; f03, −8,26) ficaram a menos de 0,5 do
+  limiar: a ordem é estável entre os dois ensaios, o ponto de corte é frágil.
+- **Ensaio 1 e ensaio 2 juntos, no mesmo modelo e limiar:** reais de −18,41 a
+  −12,35 (20 de 20 humanos); clones de −11,62 a −4,53, com 17 de 20 acima do
+  limiar. Os dados do ensaio 1 não contam para o critério, porque o limiar foi
+  escolhido depois deles.
+- **O que o resultado não mostra:** é um locutor só, que é também a voz da
+  referência e cujos scores já tinham sido vistos; uma ferramenta; uma sala; o
+  clone analisado como arquivo, não tocado. Para a banca, falta pelo menos uma
+  voz que o sistema nunca viu.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

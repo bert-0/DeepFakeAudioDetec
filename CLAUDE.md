@@ -155,6 +155,10 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   arquivo e 2 de 10 pelo microfone. Meta não atingida. O modelo da 2019 inverte
   (voz real do microfone acima do clone limpo); o do recorte separa o arquivo
   (100% dos pares), mas pelo ar nenhum separa. Clones tocaram ~8 dB mais baixo.
+- Ensaio 2 (RESUMO_TCC §10.2.13, critério antes): `fusion_lcnn_v4_asv5` sozinho,
+  limiar do treino (−8,671 nos log-odds), caminho arquivo com `--taxa-comum
+  48000`, frases novas: reais 10 de 10, clones do XTTS 9 de 10, meta atingida.
+  Um locutor só (o mesmo do ensaio 1); a ordem é estável, o ponto de corte frágil.
 - Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
   o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
   pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).
