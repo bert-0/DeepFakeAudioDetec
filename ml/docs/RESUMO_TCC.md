@@ -2133,6 +2133,14 @@ gravações reais. A pista do fim abrupto não explica a separação. No ensaio 
 vale a regra combinada: clone com a frase cortada é gerado de novo com outra
 semente, antes do placar.
 
+**Clones do ensaio 2, antes do placar:** a primeira geração (sementes 1 a 10)
+foi refeita inteira, ao ouvir, com as sementes 101 a 110. Três ainda travavam
+palavras e terminavam antes da hora (f04, f05 e f10); gerados de novo com as
+mesmas sementes, saíram idênticos (o XTTS é determinístico pela semente), e com
+as sementes 204, 205 e 210 ficaram certos. Conjunto final: sementes 101, 102,
+103, 204, 205, 106, 107, 108, 109 e 210 (`data/vozes/ensaio2/clone/clonagem.json`).
+Gravações reais: as 10 frases passaram nas checagens.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
