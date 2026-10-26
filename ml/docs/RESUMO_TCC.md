@@ -3221,6 +3221,26 @@ de 2.036. A sonda do professor aplicada ao aluno dá AUC geral de 0,861.
    (0,901; MP3 + EnCodec, 0,881).
 5. **Ressalva:** o critério do piloto (dev e 2019) continua não atingido. O eval
    é uma régua extra, pedida pelo grupo, que não muda esse veredito.
+
+### 10.2.30 O aluno somado ao detector (critério combinado antes)
+
+**Pergunta, do grupo (27/10/2026):** o detector ainda ganha do aluno em alguns
+ataques do eval (A17, A21, A24, A25, A28). Somados, os dois ajudam mesmo?
+
+**Método (`scripts/combinar_detector_aluno.py`; `outputs/destilacao/combinacao.json`):**
+- **Scores, arquivo a arquivo:**
+  - do detector (`fusion_lcnn_v4_asv5`, caminho da avaliação);
+  - do aluno (sonda nova).
+- **Conjuntos:** o dev, a 2019, os ensaios e o eval da ASVspoof 5, os mesmos
+  arquivos de 10.2.29.
+- **Principal, fixado antes:** pesos iguais, cada score em z pelos humanos do dev.
+- **Secundário, exploratório:** uma regressão logística de dois pesos ajustada no
+  dev, medida só fora dele.
+- **Limiares:** ponto de EER do dev de cada score.
+
+**Critério (no commit antes de rodar):** a soma de pesos iguais ajuda se superar
+o melhor dos dois sozinhos em pelo menos 0,02 de AUC no eval da ASVspoof 5 e na
+2019 LA, sem perder mais de 0,02 nos ensaios.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.

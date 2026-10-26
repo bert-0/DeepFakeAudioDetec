@@ -326,7 +326,8 @@ def avaliar(aluno_caminho: Path, sondas: dict, treino: dict, dev: dict, avaliar_
         r["auc_media_dev"] = float(np.mean([c["auc"] for c in r["dev"]["classes"].values() if c["falso"]]))
         scores = {n: aplicar(sonda, emb[n].astype(np.float64)) for n in avaliar_}
         r["avaliar"] = {n: medir(scores[n], d["classe"], d["rotulo"], limiar) for n, d in avaliar_.items()}
-        r["scores"] = {n: s.tolist() for n, s in scores.items()}
+        r["scores"] = {"dev": s_dev.tolist(), **{n: s.tolist() for n, s in scores.items()}}
+        r["arquivos"] = {n: [str(a) for a in d["arquivo"]] for n, d in {"dev": dev, **avaliar_}.items()}
         saida["sondas"][nome_sonda] = r
 
     lfcc = sondas["representacoes"]["lfcc"]
