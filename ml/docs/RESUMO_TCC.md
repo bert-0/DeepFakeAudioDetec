@@ -3038,6 +3038,38 @@ Ressalva para esse teste: no ensaio 1, os clones pelo ar tocaram ~8 dB mais
 baixo, e menos sinal sobre o mesmo ruído também sobe a surpresa; o nível precisa
 ser igualado antes de gravar.
 
+### 10.2.28 A marca d'água Perth do Chatterbox (exploratório)
+
+**Por quê (27/10/2026):** o Chatterbox põe em todo áudio gerado a marca Perth
+(Resemble AI), verificável com o pacote `perth`. Duas perguntas:
+1. Ela está nos nossos clones?
+2. As linhas fixas atribuídas ao vocoder dele (6.550, 7.450 e 7.850 Hz, 10.2.19 e
+   10.2.20) poderiam ser a marca, e não o vocoder?
+
+**Método (`scripts/estudo_perth.py`, no ambiente `chatterbox`;
+`outputs/estudo_perth.json`).** A marca é detectada em todos os grupos. Depois,
+ela é aplicada aos reais e aos clones do XTTS (que não a têm), e as linhas são
+contadas antes e depois, com a regra da parte 3. Os áudios marcados ficam numa
+pasta temporária, apagada no fim.
+
+| grupo | com a marca | 6.550 Hz | 7.450 Hz | 7.850 Hz |
+|---|---|---|---|---|
+| real L01 / L02 | 0/10 / 0/10 | 0/10 / 1/10 | 2/10 / 0/10 | 1/10 / 1/10 |
+| real L01 / L02, com a marca aplicada | 10/10 / 10/10 | 0/10 / 1/10 | 2/10 / 0/10 | 1/10 / 1/10 |
+| XTTS L01 / L02 | 0/10 / 0/10 | 2/10 / 3/10 | 1/10 / 1/10 | 0/10 / 0/10 |
+| XTTS L01 / L02, com a marca aplicada | 10/10 / 10/10 | 2/10 / 3/10 | 1/10 / 1/10 | 0/10 / 0/10 |
+| Chatterbox L01 / L02 | **10/10 / 10/10** | 8/10 / 10/10 | 9/10 / 10/10 | 10/10 / 10/10 |
+
+**Leitura:**
+1. **A marca está em todos os 20 clones do Chatterbox e em nenhum dos 40
+   outros áudios.** Os clones que escapam do nosso detector (ensaio 4) carregam
+   um selo de origem verificável. Mas o Chatterbox é de código aberto (MIT), e
+   quem quiser enganar pode desligar a marca. Ela só pega quem não se esforça e
+   não serve como detector geral.
+2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
+   cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
+   vocoder (10.2.19, 10.2.20) se mantém.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
