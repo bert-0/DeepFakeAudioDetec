@@ -3149,6 +3149,11 @@ para fp32 (commit `8faee3a`).
 - **A perda ainda caía no fim** (1,0373 na época 20, 1,0354 na 29). Mais dados
   de destilação e um aluno maior são os próximos passos naturais; cada um seria
   um novo piloto, com critério próprio.
+
+**Expectativa para o eval da ASVspoof 5, registrada antes de ver os números
+(27/10/2026):** o aluno acima do nosso detector no geral e abaixo dele em parte
+dos codecs de banda estreita. A destilação usou só áudio limpo, sem as
+degradações de canal do treino. Chegar perto do professor é improvável.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
