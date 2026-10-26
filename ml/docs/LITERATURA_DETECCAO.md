@@ -104,9 +104,14 @@ redação, conferir no artigo.
   áudio com um conjunto de gravações reais da pessoa e, assim, não precisa de
   falsos no treino. Uma versão de 2024 sem treino nenhum usa modelos
   pré-treinados ([arXiv 2405.02179](https://arxiv.org/abs/2405.02179)).
-- **Ligação:** a meta do Incremento 4 é proteger uma pessoa específica (a voz do
-  orientador). Essa linha muda a pergunta de "isto é sintético?" para "isto é
-  mesmo esta pessoa?". O clone imita a voz, mas não perfeitamente.
+- **Ligação:** essa linha muda a pergunta de "isto é sintético?" para "isto é
+  mesmo esta pessoa?".
+- **Descartada pelo grupo (27/10/2026)**, por três motivos:
+  1. Só protege quem foi cadastrado antes, e o projeto busca um detector geral.
+  2. O reconhecedor de voz precisa ser treinado com milhares de locutores, ou
+     ser um modelo pronto (outra caixa-preta).
+  3. O golpista clona a partir de gravações reais da mesma pessoa; o clone é
+     feito para passar exatamente nessa comparação.
 
 ### 2.5 Marca d'água (abordagem proativa)
 - **AudioSeal** (Meta, ICML 2024,
