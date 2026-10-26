@@ -18,6 +18,7 @@ Subcomandos (de dentro de ml/, com HF_HOME apontando para o cache do modelo):
     sondar    sonda por representação; AUC e EER nos conjuntos de avaliação
     explicar  o que as medidas simples explicam do score da melhor camada
     faixas    retira uma faixa por vez e mede a sonda da melhor camada (como a parte 1)
+    tempo     reordena os quadros antes do transformer; decompõe o score por tipo de quadro
     detector  o nosso detector nos mesmos arquivos, pelo caminho da avaliação
 
 Exemplos:
@@ -77,15 +78,18 @@ def janelas(wav: np.ndarray) -> list[np.ndarray]:
 
 # --------------------------------------------------------------- representações
 
-def carregar_xlsr(dispositivo: str = "cuda", modelo: str = MODELO_HF):
-    """Função wav -> (cnn (512,), camadas (25, 1024)), médias no tempo, em fp32."""
+def carregar_rede(dispositivo: str = "cuda", modelo: str = MODELO_HF):
     import torch
     from transformers import Wav2Vec2Model
 
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
     dev = torch.device(dispositivo if torch.cuda.is_available() or dispositivo == "cpu" else "cpu")
-    rede = Wav2Vec2Model.from_pretrained(modelo).eval().to(dev)
-    return representar_com(rede, dev)
+    return Wav2Vec2Model.from_pretrained(modelo).eval().to(dev), dev
+
+
+def carregar_xlsr(dispositivo: str = "cuda", modelo: str = MODELO_HF):
+    """Função wav -> (cnn (512,), camadas (25, 1024)), médias no tempo, em fp32."""
+    return representar_com(*carregar_rede(dispositivo, modelo))
 
 
 def representar_com(rede, dev):
@@ -386,6 +390,109 @@ def faixas(resultado: dict, lista: list[tuple[Path, str, int]], representar) -> 
     return saida
 
 
+# --------------------------------------------------------------- tempo
+
+#: Quadros da convolução do XLS-R: 400 amostras (25 ms) a cada 320 (20 ms).
+QUADRO, SALTO = 400, 320
+VARIANTES = ("original", "embaralhado", "embaralhado_100ms", "invertido")
+BLOCO_QUADROS = 5  # 5 quadros de 20 ms = 100 ms
+
+
+def ordem(variante: str, t: int, rng: np.random.Generator) -> np.ndarray | None:
+    """Nova ordem dos t quadros da convolução, ou None para manter."""
+    if variante == "original":
+        return None
+    if variante == "invertido":
+        return np.arange(t)[::-1].copy()
+    if variante == "embaralhado":
+        return rng.permutation(t)
+    idx = np.arange(t)
+    for i in range(0, t, BLOCO_QUADROS):
+        idx[i:i + BLOCO_QUADROS] = rng.permutation(idx[i:i + BLOCO_QUADROS])
+    return idx
+
+
+def energia_dos_quadros(x: np.ndarray, t: int) -> np.ndarray:
+    """Energia em dB de cada quadro de 25 ms alinhado com a saída da convolução."""
+    e = np.array([np.sum(x[i * SALTO:i * SALTO + QUADRO] ** 2) for i in range(t)])
+    return 10 * np.log10(e + 1e-10)
+
+
+def tempo(resultado: dict, lista: list[tuple[Path, str, int, str]], rede, dev, semente: int = 0) -> list[dict]:
+    """Score da melhor camada com os quadros reordenados antes do transformer, e a
+    decomposição do score original por tipo de quadro (a sonda é linear: o score
+    da média é a média dos scores dos quadros)."""
+    import torch
+
+    rep = resultado["melhor"]
+    if rep == "cnn":
+        raise ValueError("a decomposição no tempo precisa de uma camada do transformer")
+    k = int(rep.split("_")[1])
+    sonda = {c: np.asarray(v) if isinstance(v, list) else v
+             for c, v in resultado["representacoes"][rep]["sonda"].items()}
+    rng = np.random.default_rng(semente)
+    atual = {"variante": "original"}
+
+    def gancho(_modulo, _entrada, saida):
+        p = ordem(atual["variante"], saida.shape[-1], rng)
+        return saida if p is None else saida[:, :, torch.as_tensor(p, device=saida.device)]
+
+    alca = rede.feature_extractor.register_forward_hook(gancho)
+    saida = []
+    try:
+        for arq, classe, rotulo, conjunto in lista:
+            wav, _ = preparar(arq)
+            r = {"arquivo": str(arq), "classe": classe, "rotulo": rotulo, "conjunto": conjunto,
+                 "scores": {}, "quadros": {"pausa": [], "meio": [], "fala": [], "transicao": []}}
+            for variante in VARIANTES:
+                atual["variante"] = variante
+                por_janela = []
+                for x in janelas(wav):
+                    x = (x - x.mean()) / np.sqrt(x.var() + 1e-7)
+                    with torch.inference_mode():
+                        s = rede(torch.from_numpy(x).float()[None].to(dev), output_hidden_states=True)
+                    h = s.hidden_states[k][0].float().cpu().numpy()
+                    q = ((h - sonda["media"]) / sonda["escala"]) @ sonda["coef"] + sonda["intercepto"]
+                    por_janela.append(float(q.mean()))
+                    if variante == "original":
+                        e = energia_dos_quadros(x, len(q))
+                        de = np.abs(np.diff(e, prepend=e[0]))
+                        grupos = {"pausa": e <= np.percentile(e, 20), "fala": e >= np.percentile(e, 60),
+                                  "transicao": de >= np.percentile(de, 80)}
+                        grupos["meio"] = ~(grupos["pausa"] | grupos["fala"])
+                        for nome, sel in grupos.items():
+                            if sel.any():
+                                r["quadros"][nome].append(float(q[sel].mean()))
+                r["scores"][variante] = float(np.mean(por_janela))
+            r["quadros"] = {n: (float(np.mean(v)) if v else None) for n, v in r["quadros"].items()}
+            saida.append(r)
+    finally:
+        alca.remove()
+        atual["variante"] = "original"
+    return saida
+
+
+def resumir_tempo(registros: list[dict]) -> dict:
+    """AUC de cada conjunto (falsos contra humanos do mesmo conjunto) por variante e
+    por tipo de quadro."""
+    from scripts.estudo_pente import auc
+
+    saida = {}
+    for conj in sorted({r["conjunto"] for r in registros}):
+        rs = [r for r in registros if r["conjunto"] == conj]
+        h = [r for r in rs if r["rotulo"] == 0]
+        f = [r for r in rs if r["rotulo"] == 1]
+        if not h or not f:
+            continue
+        linha = {v: auc([r["scores"][v] for r in f], [r["scores"][v] for r in h]) for v in VARIANTES}
+        for tipo in ("pausa", "meio", "fala", "transicao"):
+            a = [r["quadros"][tipo] for r in f if r["quadros"][tipo] is not None]
+            b = [r["quadros"][tipo] for r in h if r["quadros"][tipo] is not None]
+            linha[f"quadros_{tipo}"] = auc(a, b) if a and b else None
+        saida[conj] = linha
+    return saida
+
+
 # --------------------------------------------------------------- o nosso detector
 
 def pontuar_detector(arquivos: list[str], config_caminho: str, checkpoint: str,
@@ -479,6 +586,15 @@ def main(argv=None) -> int:
     f.add_argument("--modelo", default=MODELO_HF)
     f.add_argument("--json", default="outputs/ssl/faixas.json")
 
+    q = sub.add_parser("tempo")
+    q.add_argument("--sondas", default="outputs/ssl/sondas.json")
+    q.add_argument("--npz", action="append", required=True, help="arquivos já extraídos")
+    q.add_argument("--n-por-classe", type=int, default=30)
+    q.add_argument("--semente", type=int, default=42)
+    q.add_argument("--dispositivo", default="cuda")
+    q.add_argument("--modelo", default=MODELO_HF)
+    q.add_argument("--json", default="outputs/ssl/tempo.json")
+
     t = sub.add_parser("detector")
     t.add_argument("--config", default="configs/fusion_v4_asv5.yaml")
     t.add_argument("--checkpoint", default="checkpoints/fusion_lcnn_v4_asv5.pt")
@@ -531,6 +647,27 @@ def main(argv=None) -> int:
                     print(f"    {n:20s}{'':19s}" + " ".join(f"{c['efeitos'][k].get(n, float('nan')):+8.2f}" for k in classes))
         Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps(ex, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"\nResultado: {args.json}")
+    elif args.cmd == "tempo":
+        r = json.loads(Path(args.sondas).read_text(encoding="utf-8"))
+        rng = np.random.default_rng(args.semente)
+        lista = []
+        for caminho in args.npz:
+            d = ler_npz(Path(caminho))
+            for c in sorted(set(d["classe"].tolist())):
+                idx = np.where(d["classe"] == c)[0]
+                for i in rng.permutation(idx)[:args.n_por_classe]:
+                    lista.append((Path(str(d["arquivo"][i])), str(c), int(d["rotulo"][i]), Path(caminho).stem))
+        print(f"Tempo: {len(lista)} arquivos, representação {r['melhor']}", flush=True)
+        registros = tempo(r, lista, *carregar_rede(args.dispositivo, args.modelo), semente=args.semente)
+        resumo = resumir_tempo(registros)
+        colunas = list(next(iter(resumo.values())))
+        print(f"{'conjunto':12s} " + " ".join(f"{c:>18s}" for c in colunas))
+        for conj, linha in resumo.items():
+            print(f"{conj:12s} " + " ".join(f"{(v if v is not None else float('nan')):18.3f}" for v in linha.values()))
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(json.dumps({"representacao": r["melhor"], "resumo": resumo,
+                                               "registros": registros}, ensure_ascii=False), encoding="utf-8")
         print(f"\nResultado: {args.json}")
     elif args.cmd == "detector":
         conjuntos = {}

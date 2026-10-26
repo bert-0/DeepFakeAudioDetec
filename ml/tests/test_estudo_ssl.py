@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from scripts.estudo_ssl import (SR, eer, explicar, extrair, faixas, janelas, medidas_simples,
+from scripts.estudo_ssl import (SR, eer, explicar, extrair, faixas, janelas, medidas_simples, preparar,
                                 representar_com, selecionar_grupos, sondar)
 
 
@@ -103,7 +103,7 @@ def test_detector_nos_mesmos_arquivos(tmp_path):
 
 
 @pytest.fixture
-def rede_pequena():
+def rede_crua():
     torch = pytest.importorskip("torch")
     transformers = pytest.importorskip("transformers")
     torch.manual_seed(0)
@@ -111,7 +111,55 @@ def rede_pequena():
         hidden_size=16, num_hidden_layers=2, num_attention_heads=2, intermediate_size=32,
         conv_dim=(8, 8), conv_kernel=(10, 3), conv_stride=(5, 2), num_conv_pos_embeddings=8,
         num_conv_pos_embedding_groups=2, do_stable_layer_norm=True, feat_extract_norm="layer")
-    return representar_com(transformers.Wav2Vec2Model(cfg).eval(), torch.device("cpu"))
+    return transformers.Wav2Vec2Model(cfg).eval(), torch.device("cpu")
+
+
+@pytest.fixture
+def rede_pequena(rede_crua):
+    return representar_com(*rede_crua)
+
+
+def test_ordem_dos_quadros():
+    from scripts.estudo_ssl import BLOCO_QUADROS, ordem
+
+    rng = np.random.default_rng(0)
+    assert ordem("original", 12, rng) is None
+    assert list(ordem("invertido", 4, rng)) == [3, 2, 1, 0]
+    p = ordem("embaralhado", 50, rng)
+    assert sorted(p) == list(range(50)) and list(p) != list(range(50))
+    b = ordem("embaralhado_100ms", 23, rng)
+    for i in range(0, 23, BLOCO_QUADROS):  # cada quadro fica no próprio bloco de 100 ms
+        assert sorted(b[i:i + BLOCO_QUADROS]) == list(range(i, min(i + BLOCO_QUADROS, 23)))
+
+
+def test_resumir_tempo():
+    from scripts.estudo_ssl import VARIANTES, resumir_tempo
+
+    def reg(rotulo, s):
+        return {"conjunto": "dev", "rotulo": rotulo, "scores": {v: s for v in VARIANTES},
+                "quadros": {"pausa": s, "meio": s, "fala": None, "transicao": s}}
+    r = resumir_tempo([reg(0, -1.0), reg(0, -2.0), reg(1, 3.0)])["dev"]
+    assert r["original"] == 1.0 and r["quadros_pausa"] == 1.0 and r["quadros_fala"] is None
+
+
+def test_tempo_com_rede_pequena(tmp_path, rede_crua):
+    from scripts.estudo_ssl import aplicar, tempo
+
+    rede, dev = rede_crua
+    lista = [(a, c, r, "ensaios") for a, c, r in _wavs(tmp_path)]
+    rng = np.random.default_rng(1)
+    sonda = {"media": [0.0] * 16, "escala": [1.0] * 16, "coef": rng.standard_normal(16).tolist(),
+             "intercepto": 0.1, "C": 1.0}
+    r = {"melhor": "camada_01", "representacoes": {"camada_01": {"sonda": sonda}}}
+    regs = tempo(r, lista, rede, dev)
+    # Sonda linear: o score original é o da média das camadas, como na extração.
+    _, cam = representar_com(rede, dev)(preparar(lista[0][0])[0])
+    esperado = aplicar({k: np.asarray(v) if isinstance(v, list) else v for k, v in sonda.items()},
+                       cam[1][None])[0]
+    assert abs(regs[0]["scores"]["original"] - esperado) < 1e-4
+    assert regs[0]["scores"]["invertido"] != regs[0]["scores"]["original"]
+    assert set(regs[0]["quadros"]) == {"pausa", "meio", "fala", "transicao"}
+    assert not rede.feature_extractor._forward_hooks  # o gancho sai no fim
 
 
 def _wavs(tmp_path):
