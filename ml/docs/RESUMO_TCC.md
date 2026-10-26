@@ -3681,6 +3681,14 @@ tudo.
 - **Limitações declaradas antes:** um locutor, cuja voz e scores já foram
   vistos; uma sala; o limiar escolhido com o risco declarado em 10.2.13.
 
+**Durante a geração (26/10/2026, nenhum score visto):** o L01 ouviu os clones do
+Chatterbox com sotaque de Portugal. É o mesmo modelo do ensaio 4
+(`chatterbox-tts` 0.1.7, multilíngue t3 v2, idioma `pt`), que não tem escolha de
+variante; a Resemble publica ajustes separados para o português do Brasil e o
+de Portugal. Pelo critério, sotaque não é motivo para gerar de novo: os clones
+ficam, e o sotaque entra como limitação (um ouvinte brasileiro estranharia o
+clone; o detector não sabe de sotaque).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
