@@ -179,7 +179,8 @@ def estatisticas_alvo(dados, amostra: int = 500, semente: int = 0) -> tuple[np.n
 
 
 def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 16, lr: float = 5e-4,
-            semente: int = 42, dispositivo: str = "cuda", arquitetura: dict | None = None) -> dict:
+            semente: int = 42, dispositivo: str = "cuda", arquitetura: dict | None = None,
+            amp: bool = False) -> dict:
     import torch
 
     torch.manual_seed(semente)
@@ -192,7 +193,9 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
     aquecimento = min(500, max(1, passos // 10))
     agenda = torch.optim.lr_scheduler.LambdaLR(
         otim, lambda p: min(1.0, (p + 1) / aquecimento) * 0.5 * (1 + np.cos(np.pi * min(p, passos) / passos)))
-    usar_amp = dev_t.type == "cuda"
+    # Desligada por padrão: na GTX 1650 a convolução de passo 2 em fp16 dá NaN já
+    # no primeiro lote (medido em 27/10/2026); em fp32 a perda sai normal.
+    usar_amp = amp and dev_t.type == "cuda"
     escala = torch.amp.GradScaler("cuda", enabled=usar_amp)
     n_param = sum(p.numel() for p in aluno.parameters())
     print(f"Aluno: {n_param / 1e6:.2f} milhões de parâmetros; {len(treino['n_alvo'])} janelas de treino, "
@@ -338,6 +341,7 @@ def main(argv=None) -> int:
     t.add_argument("--dispositivo", default="cuda")
     t.add_argument("--dim", type=int, default=256)
     t.add_argument("--camadas", type=int, default=4)
+    t.add_argument("--amp", action="store_true", help="precisão mista (dá NaN na GTX 1650)")
     v = sub.add_parser("avaliar")
     v.add_argument("--aluno", required=True)
     v.add_argument("--sondas", default="outputs/ssl/sondas.json")
@@ -359,7 +363,7 @@ def main(argv=None) -> int:
     if args.cmd == "treinar":
         r = treinar(carregar_dados(Path(args.treino)), carregar_dados(Path(args.dev)), Path(args.saida),
                     args.epocas, args.lote, args.lr, args.semente, args.dispositivo,
-                    {"dim": args.dim, "camadas": args.camadas})
+                    {"dim": args.dim, "camadas": args.camadas}, amp=args.amp)
         Path(args.saida).with_suffix(".json").write_text(json.dumps(r, indent=1), encoding="utf-8")
         print(f"\nMelhor perda no dev: {r['melhor_perda_dev']:.4f}. Aluno: {args.saida}")
         return 0

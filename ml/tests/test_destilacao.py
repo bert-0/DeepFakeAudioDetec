@@ -91,7 +91,9 @@ def test_preparar_treinar_avaliar(tmp_path, professor, capsys):
     ck = tmp_path / "aluno.pt"
     assert main(["treinar", "--treino", str(pastas["treino"]), "--dev", str(pastas["dev"]), "--saida", str(ck),
                  "--epocas", "2", "--lote", "2", "--dispositivo", "cpu", "--dim", "32", "--camadas", "1"]) == 0
-    assert ck.is_file() and json.loads(ck.with_suffix(".json").read_text())["historico"]
+    hist = json.loads(ck.with_suffix(".json").read_text())["historico"]
+    assert ck.is_file() and hist
+    assert all(np.isfinite([h["perda_treino"], h["perda_dev"]]).all() for h in hist)
 
     sondas = {"representacoes": {
         "camada_01": {"sonda": {"media": [0.0] * 16, "escala": [1.0] * 16, "coef": [0.1] * 16,
