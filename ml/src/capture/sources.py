@@ -216,10 +216,9 @@ class MicrofoneWasapiSource(AudioSource):
     def __init__(self, sample_rate: int | None, nome_dispositivo: str | None = None,
                  bloco_ms: int | None = None, exclusivo: bool = True):
         self.nome_dispositivo = nome_dispositivo
-        # None: os pacotes no tamanho do driver. Blocos fixos de 100 ms faziam o
-        # PortAudio emendar pacotes de 528 amostras; o encaixe se repete a cada
-        # 1,1 s e deixava uma descontinuidade periódica nas gravações, que soavam
-        # travadas (RESUMO_TCC §10.2.16).
+        # None: os pacotes no tamanho do driver (480 no Realtek). Com blocos fixos de
+        # 100 ms, as gravações tinham uma emenda áspera a cada 1,1 s, de causa ainda
+        # não explicada (RESUMO_TCC §10.2.16).
         self._bloco_ms = None if bloco_ms is None else int(bloco_ms)
         #: Tamanho dos pacotes que o driver entregou (diagnóstico).
         self.quadros_por_pacote: int | None = None

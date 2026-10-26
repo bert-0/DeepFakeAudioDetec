@@ -2315,13 +2315,19 @@ previsão da amostra é anormal num instante regular: a cada 1,1 s da captura,
 outras emendas. Aparece em todas as gravações reais e referências dos ensaios 1 a
 3 (L01 e L02, dias diferentes).
 
-**Causa provável:** o gravador pedia blocos fixos de 4.800 amostras e o driver
-entrega pacotes próprios; o PortAudio emenda uns nos outros. Com pacotes de 528
-amostras (11 ms), o encaixe se repete a cada 52.800 amostras, os 1,1 s medidos.
-**Correção:** a fonte do microfone passa a receber os pacotes no tamanho do
-driver (`blocksize=0`); o FIR guarda a fase entre pacotes de qualquer tamanho
-(testado), e o gravador mostra o tamanho do pacote e avisa perdas de amostras.
-Falta confirmar com uma gravação nova que o defeito sumiu.
+**Causa ainda não explicada.** A primeira hipótese era o encaixe dos blocos
+fixos de 4.800 amostras com pacotes de 528 do driver (que se repetiria a cada
+52.800 amostras, os 1,1 s); não se confirmou: o driver entrega pacotes de 480
+amostras, que cabem exatamente em 4.800. **Mudança:** a fonte do microfone
+passa a receber os pacotes no tamanho do driver (`blocksize=0`); o FIR guarda a
+fase entre pacotes de qualquer tamanho (testado); o gravador mostra o pacote,
+avisa perdas e aceita `--bloco-ms 100` para repetir a captura antiga. Na
+primeira gravação assim (L01, uma frase), os pontos a cada 1,1 s não se
+destacam (mediana 1,5 vez o normal, contra 1,7 em pontos ao acaso; antes, 2,3).
+Mas ao ouvido ela soou "em câmera lenta", e a voz saiu 7% mais grave que a
+média do L01 no ensaio 2, o que cabe na variação de uma frase para outra. Um tom
+de 1.000 Hz tocado e gravado nas duas capturas decide se a velocidade está
+certa.
 
 **Efeito nos ensaios, declarado:** a classe real dos ensaios 1 a 3 e as
 referências dos clones têm essa emenda áspera. Os resultados ficam como saíram;

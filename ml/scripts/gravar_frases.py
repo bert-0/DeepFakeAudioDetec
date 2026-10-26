@@ -48,11 +48,12 @@ def ler_frases(caminho: str | Path) -> list[str]:
 
 
 def gravar(segundos: float, dispositivo: str | None = None,
-           avisos: tuple[tuple[float, object], ...] = ()) -> tuple[np.ndarray, int, str, str]:
+           avisos: tuple[tuple[float, object], ...] = (),
+           bloco_ms: int | None = None) -> tuple[np.ndarray, int, str, str]:
     """Grava `segundos` na taxa do dispositivo, sem conversão. Cada aviso é
     (instante em s, texto ou função): o texto é mostrado e a função chamada
     quando a gravação passa daquele instante."""
-    fonte = MicrofoneWasapiSource(None, dispositivo)
+    fonte = MicrofoneWasapiSource(None, dispositivo, bloco_ms=bloco_ms)
     taxa = fonte.taxa_dispositivo
     descarte, total = int(DESCARTE_S * taxa), int(segundos * taxa)
     pendentes = sorted(avisos, key=lambda a: a[0])
@@ -103,7 +104,8 @@ def _seguir(sem_pausa: bool) -> bool:
 
 
 def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str | None,
-             sem_pausa: bool, piso_minimo: float | None = None) -> int:
+             sem_pausa: bool, piso_minimo: float | None = None,
+             bloco_ms: int | None = None) -> int:
     for i, frase in enumerate(frases, start=1):
         destino = saida / f"f{i:02d}.wav"
         if destino.exists():
@@ -114,7 +116,8 @@ def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str |
             if not sem_pausa:
                 input("    Enter para gravar; espere o aviso para começar a ler...")
             wav, taxa, modo, nome = gravar(segundos, dispositivo, (
-                (MARGEM_S, "leia agora"), (segundos - MARGEM_S, "silêncio até o fim")))
+                (MARGEM_S, "leia agora"), (segundos - MARGEM_S, "silêncio até o fim")),
+                bloco_ms)
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
             relatar_checagens(wav, taxa, piso_minimo)
             if _seguir(sem_pausa):
@@ -124,7 +127,7 @@ def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str |
 
 
 def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: bool,
-                 piso_minimo: float | None = None) -> int:
+                 piso_minimo: float | None = None, bloco_ms: int | None = None) -> int:
     import librosa
     import sounddevice as sd
 
@@ -144,7 +147,7 @@ def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: 
         while True:
             print(f"\n[{arq.stem}] tocando {arq.name} ({duracao:.1f} s) pelo alto-falante")
             wav, taxa, modo, nome = gravar(duracao + 2 * MARGEM_S, dispositivo, (
-                (MARGEM_S, lambda: sd.play(clone, taxa_clone)),))
+                (MARGEM_S, lambda: sd.play(clone, taxa_clone)),), bloco_ms)
             sd.stop()
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
             relatar_checagens(wav, taxa, piso_minimo)
@@ -168,6 +171,9 @@ def main(argv=None) -> int:
                    help="distância mínima entre fala e ruído (padrão 35 dB; o teste com "
                         "a voz própria usa 15, RESUMO_TCC §10.2.12)")
     p.add_argument("--dispositivo", default=None, help="parte do nome do microfone")
+    p.add_argument("--bloco-ms", type=int, default=None,
+                   help="diagnóstico: blocos fixos, como antes de 25/10/2026 (padrão: os "
+                        "pacotes do driver)")
     p.add_argument("--sem-pausa", action="store_true", help="não espera Enter (testes)")
     args = p.parse_args(argv)
 
@@ -177,11 +183,11 @@ def main(argv=None) -> int:
             if not args.frases:
                 p.error("o modo voz precisa de --frases")
             return modo_voz(ler_frases(args.frases), saida, args.segundos, args.dispositivo,
-                            args.sem_pausa, args.piso_minimo)
+                            args.sem_pausa, args.piso_minimo, args.bloco_ms)
         if not args.clones:
             p.error("o modo pelo-ar precisa de --clones")
         return modo_pelo_ar(Path(args.clones), saida, args.dispositivo, args.sem_pausa,
-                            args.piso_minimo)
+                            args.piso_minimo, args.bloco_ms)
     except CaptureError as erro:
         print(f"[ERRO] {erro}")
         return 1

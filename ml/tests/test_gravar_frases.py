@@ -146,3 +146,15 @@ def test_padrao_de_12_s_e_piso_minimo_do_teste(monkeypatch, tmp_path, capsys):
     assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "b"),
                  "--sem-pausa", "--piso-minimo", "15"]) == 0
     assert "ok       piso de ruído" in capsys.readouterr().out
+
+
+def test_bloco_fixo_para_diagnostico(monkeypatch, tmp_path):
+    """--bloco-ms volta aos blocos fixos de antes, para comparar as duas capturas."""
+    sd = _sounddevice_falso(monkeypatch, _cena(3.0))
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "a"),
+                 "--segundos", "3", "--sem-pausa", "--bloco-ms", "100"]) == 0
+    assert sd.fluxos[0].pedido == 4800
+    sd = _sounddevice_falso(monkeypatch, _cena(3.0))
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "b"),
+                 "--segundos", "3", "--sem-pausa"]) == 0
+    assert sd.fluxos[0].pedido == 0
