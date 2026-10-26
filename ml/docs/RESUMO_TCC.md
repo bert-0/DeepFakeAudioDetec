@@ -2294,6 +2294,17 @@ se o resultado vale só para o XTTS. É a segunda ferramenta que o plano prevê.
 - **Limitações declaradas antes:** as gravações reais e os scores delas já
   foram vistos; dois locutores, uma sala, um microfone.
 
+**Clones do ensaio 4, antes do placar (25/10/2026):** `chatterbox-tts` 0.1.7,
+t3 v2, sementes 1 a 10 nos dois locutores, frase sem o ponto final, nenhum
+refeito; os 20 foram ouvidos e dizem a frase inteira. Saem a 24 kHz, com 4,9 a
+7,0 s de fala, perto do ritmo das leituras reais (o XTTS fala mais devagar: 6,9 a
+11,0 s nas frases do L01). Em 6 dos 10 clones do L01, o Chatterbox avisou
+repetição de um som e encerrou a frase à força; em dois deles (f01, f06) o áudio
+termina com energia de fala, mas ao ouvir não falta palavra. Na GTX 1650 o modelo
+ocupa quase os 4 GB: cada frase levou de 25 a 108 s, e uma, 366 s, com a memória
+transbordando para a do sistema. Inviável ao vivo nessa placa; a demonstração
+segue com o XTTS.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
