@@ -2226,6 +2226,11 @@ vale para uma voz nova, como a da banca.
    10 clones do L02. Contorno: mandar a frase sem o ponto final.
 4. **Ruído herdado:** o clone reproduz o ruído de fundo da referência (18 a 24
    dB abaixo da fala, contra 21 a 25 dB nas gravações reais do L01).
+5. **Começo sem silêncio:** o clone começa a falar logo no início do arquivo
+   (0,09 a 0,34 s em 9 dos 10 clones do L02), e a checagem de fala, feita para
+   gravações de microfone, acusa "fala encosta no início". Por isso os clones
+   aparecem com "checagens: fala" no placar, só como informação. O f10 do L02 é
+   a exceção: cerca de 2 s de ruído antes da fala, e a checagem passa.
 
 Todos aparecem ao ouvir o clone, sem olhar score; a regra dos ensaios é refazer
 com outra semente antes do placar. Na demonstração, ouvir o clone antes de
