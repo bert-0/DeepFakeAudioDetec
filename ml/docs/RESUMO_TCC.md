@@ -2856,6 +2856,47 @@ silêncio das pontas, e o analisador ao vivo pesa as janelas pela fração de fa
 as duas escolhas afastam o modelo justamente das partes onde a marca do gerador
 é mais forte. Testar o efeito exige outro treino e fica como proposta.
 
+### 10.2.24 Parte 8: a dinâmica da voz com medidas nossas (critério combinado antes)
+
+**Pergunta:** a pista temporal do XLS-R (parte 6) aparece em medidas de dinâmica
+que a gente calcula e entende, sem o XLS-R?
+
+**Método (`scripts/estudo_dinamica.py`; `outputs/dinamica/`).** São 38 medidas
+por arquivo:
+- **contorno da altura (pYIN, 10 ms):** desvio, variação quadro a quadro,
+  microvariação em 50 ms, suavidade, declínio;
+- **vozeação:** fração, trocas por segundo, duração dos trechos, incerteza;
+- **trajetórias de energia em 0–0,5, 0,5–1, 1–2 e 2–4 kHz:** fluxo, autocorrelação
+  a 10 e a 50 ms, modulação de 4 a 16 Hz;
+- **centroide da banda baixa;**
+- **acoplamento altura-energia;**
+- **H1−H2 no tempo.**
+
+Os arquivos, o classificador e as réguas são os da parte 6. Extração: 6.660
+arquivos, nenhum pulado.
+
+**Critério (no commit antes de rodar):** ganho de pelo menos 0,05 de AUC sobre a
+sonda no LFCC, no dev da ASVspoof 5 e na 2019 LA.
+
+| representação | EER dev | AUC dev | AUC ensaios | AUC 2019 LA | A12 (dev) |
+|---|---|---|---|---|---|
+| LFCC (controle) | 19,54% | 0,848 | 0,999 | 0,632 | 0,14 |
+| dinâmica | 39,25% | 0,630 | 0,521 | 0,589 | 0,27 |
+| LFCC + dinâmica | 20,00% | 0,837 | 0,998 | 0,655 | 0,13 |
+
+**Não passou:**
+- dinâmica: −0,218 no dev e −0,043 na 2019;
+- LFCC + dinâmica: −0,012 e +0,023.
+
+As medidas que mais pesam são as autocorrelações e os fluxos de energia em 0,5–4
+kHz, não as da altura da voz.
+
+**Leitura:** a pista do XLS-R não se reduz a resumos globais da altura, da
+vozeação ou da energia por faixa. Ela parece estar no encadeamento fino entre os
+quadros, que um modelo precisa aprender. Fica em aberto se estatísticas
+temporais dos quadros locais bastam ou se é preciso um modelo de sequência
+(parte 9).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
