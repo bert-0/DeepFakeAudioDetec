@@ -3301,6 +3301,58 @@ O que muda em relação ao piloto 1:
 precisa superar a sonda no LFCC (0,848 no dev, 0,632 na 2019) em pelo menos 0,05
 de AUC no dev e na 2019. A comparação com o aluno 1 no eval da ASVspoof 5 e nos
 ensaios é informação.
+
+**Execução (27/10/2026, pela sessão):**
+- **Preparo:** 20.000 arquivos e 22.924 janelas, das 13h05 às 14h24.
+- **Treino:** 20 épocas de cerca de 155 s. A perda no dev foi de 1,139 na época
+  1 a 0,978 na época 20, ainda caindo.
+- **Aluno:** 3,59 milhões de parâmetros; `checkpoints/aluno2_xlsr_l7.pt`.
+- **Avaliação:** `outputs/destilacao/avaliacao_piloto2.json`.
+
+| representação | EER dev | AUC dev | AUC 2019 LA | AUC eval ASVspoof 5 | AUC ensaios |
+|---|---|---|---|---|---|
+| sonda no LFCC | 19,54% | 0,848 | 0,632 | 0,724 | 0,999 |
+| nosso detector | 20,75% | 0,830 | 0,657 | 0,659 | 0,983 |
+| aluno 1 (10.2.29) | 18,46% | 0,872 | 0,800 | 0,828 | 0,955 |
+| **aluno 2, sonda nova** | **10,75%** | **0,961** | **0,819** | **0,879** | **0,506** |
+| aluno 2, sonda do professor | 7,54% | 0,977 | 0,854 | 0,926 | 0,371 |
+| professor, camada 7 | 0,21% | 1,000 | 0,998 | 0,971 | 0,950 |
+
+**Critério: passou.** Ganho sobre o LFCC de +0,112 no dev e de +0,187 na 2019.
+
+**Por ataque e por codec (aluno 2, sonda nova):**
+- **dev:** A09 0,99; A10 0,99; A11 1,00; **A12 0,92** (aluno 1: 0,36); A13
+  0,90; A14 0,99; A15 0,92; A16 0,98;
+- **2019:** A01 0,98; A02 0,99; A03 0,97; A04 0,65; A05 0,80; A06 0,52;
+  humanos abaixo do limiar: 324/400 (aluno 1: 222);
+- **eval, por codec:**
+  - sem codec 0,91;
+  - Opus banda larga 0,90; AMR banda larga 0,88; Speex banda larga 0,84;
+  - EnCodec 0,90; MP3 0,89; M4A 0,91; MP3 + EnCodec 0,87;
+  - Opus banda estreita 0,84; AMR banda estreita 0,82; Speex banda estreita 0,79;
+  - aparelhos 0,88.
+
+**Mas, nos ensaios, o aluno 2 não separa (AUC 0,506).** Pelo limiar do dev:
+
+| locutor | reais certos | XTTS pegos | Chatterbox pegos |
+|---|---|---|---|
+| L01 | 4/10 | 1/10 | 2/10 |
+| L02 | 9/10 | 7/10 | 2/10 |
+
+Os scores de reais e clones ficam no mesmo lugar: as medianas vão de −3,04 a
+−1,81, todas do lado humano.
+
+**Leitura:**
+1. **Mais dados e o canal no treino resolvem a generalização entre bases,
+   ataques e codecs.** O aluno 2 passa no critério, pega o A12 e fica acima do
+   aluno 1 em todos os codecs do eval.
+2. **O aluno 2 aprendeu a ignorar o canal, e nos ensaios isso tira a separação.**
+   Ali, real e clone diferem sobretudo no canal (microfone contra arquivo limpo).
+   Por isso o LFCC dava 0,999 e embaralhar os quadros não mudava a camada 7
+   (10.2.22). Separado do canal, o que sobra não distingue os nossos clones do
+   XTTS e do Chatterbox da nossa voz gravada.
+3. **O teste justo é real e clone pelo mesmo canal** (o clone pelo ar, ou o canal
+   igualado). Até lá, o resultado dos ensaios não mede a pista do sintético.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
