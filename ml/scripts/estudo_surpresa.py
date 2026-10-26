@@ -175,11 +175,163 @@ def scores_do_detector(caminho_json: Path, conjuntos: dict[str, Path]) -> dict[s
     return saida
 
 
+# --------------------------------------------------------------- canal
+#
+# Nos ensaios, a surpresa se inverte: o microfone surpreende mais que o clone.
+# Teste (critério combinado antes de rodar): aplica o MESMO canal às duas classes
+# do dev e da 2019. O problema dos ensaios é o descasamento de canal, e não a
+# medida, se a AUC da perda no dev cair no máximo 0,10 em relação ao limpo em
+# pelo menos 2 das 3 condições (RESUMO_TCC §10.2.27).
+
+CONDICOES = ("limpo", "ruido_branco_20db", "opus", "microfone_20db")
+SNR_DB = 20.0
+QUEDA_MAXIMA = 0.10
+
+
+def banco_de_ruido(arquivos: list[Path], quadro_s: float = 0.025, percentil: float = 20.0) -> np.ndarray:
+    """Só as pausas das gravações reais (sem fala): quadros até 6 dB acima do
+    percentil 20 de energia de cada arquivo (a fala fica 15-25 dB acima do ruído),
+    em trechos de pelo menos 100 ms, emendados."""
+    from src.preprocess.audio import load_audio
+
+    n = int(quadro_s * SR_16K)
+    partes = []
+    for arq in arquivos:
+        x = load_audio(arq, SR_16K)
+        q = x[: len(x) // n * n].reshape(-1, n)
+        e = (q ** 2).mean(axis=1)
+        baixo = e <= 4 * np.percentile(e, percentil)
+        inicio = None
+        for i, b in enumerate(np.append(baixo, False)):
+            if b and inicio is None:
+                inicio = i
+            elif not b and inicio is not None:
+                if i - inicio >= 4:
+                    partes.append(q[inicio:i].ravel())
+                inicio = None
+    if not partes:
+        raise ValueError("nenhuma pausa de pelo menos 100 ms nas gravações")
+    return np.concatenate(partes).astype(np.float32)
+
+
+SR_16K = 16000
+
+
+def aplicar_canal(wav: np.ndarray, condicao: str, rng: np.random.Generator,
+                  ruido_mic: np.ndarray | None = None) -> np.ndarray:
+    def somar(ruido):
+        p_s = np.mean(wav ** 2) + 1e-12
+        p_r = np.mean(ruido ** 2) + 1e-12
+        y = wav + ruido * np.sqrt(p_s / (p_r * 10 ** (SNR_DB / 10)))
+        return (y / (np.abs(y).max() + 1e-9)).astype(np.float32)
+
+    if condicao == "limpo":
+        return wav
+    if condicao == "ruido_branco_20db":
+        return somar(rng.standard_normal(len(wav)).astype(np.float32))
+    if condicao == "opus":
+        from src.preprocess.codecs import codificar
+
+        return codificar(wav, SR_16K, "opus", nivel=0.95)
+    if condicao == "microfone_20db":
+        if ruido_mic is None:
+            raise ValueError("microfone_20db precisa do banco de ruído")
+        inicio = int(rng.integers(len(ruido_mic)))
+        idx = (inicio + np.arange(len(wav))) % len(ruido_mic)
+        return somar(ruido_mic[idx])
+    raise ValueError(f"condição desconhecida: {condicao}")
+
+
+def estudo_canal(lista, rede, dev, ruido_mic, semente: int = 0, condicoes=CONDICOES) -> list[dict]:
+    from scripts.estudo_ssl import janelas, preparar
+
+    registros = []
+    for k, (arq, classe, rotulo, conj) in enumerate(lista):
+        wav, _ = preparar(arq)
+        r = {"arquivo": str(arq), "classe": classe, "rotulo": rotulo, "conjunto": conj}
+        for c in condicoes:
+            y = aplicar_canal(wav, c, np.random.default_rng([semente, k, CONDICOES.index(c)]), ruido_mic)
+            rng = np.random.default_rng([semente, k])  # mesmas máscaras em todas as condições
+            partes = [surpresa_janela(rede, dev, x, rng) for x in janelas(y)]
+            total = sum(p["quadros"] for p in partes)
+            r[c] = sum(p["perda"] * p["quadros"] for p in partes) / total
+        registros.append(r)
+        if (k + 1) % 100 == 0:
+            print(f"  {k + 1}/{len(lista)}", flush=True)
+    return registros
+
+
+def resumir_canal(registros: list[dict], condicoes=CONDICOES) -> dict:
+    from scripts.estudo_pente import auc
+
+    saida = {}
+    for conj in sorted({r["conjunto"] for r in registros}):
+        rs = [r for r in registros if r["conjunto"] == conj]
+        h = [r for r in rs if r["rotulo"] == 0]
+        saida[conj] = {c: {"auc": auc([r[c] for r in rs if r["rotulo"] == 1], [r[c] for r in h]),
+                           "humanos": float(np.median([r[c] for r in h])),
+                           "falsos": float(np.median([r[c] for r in rs if r["rotulo"] == 1]))}
+                       for c in condicoes}
+    return saida
+
+
+def criterio_canal(resumo: dict, dev: str = "asv5_dev") -> dict | None:
+    if dev not in resumo:
+        return None
+    base = resumo[dev]["limpo"]["auc"]
+    quedas = {c: base - resumo[dev][c]["auc"] for c in CONDICOES if c != "limpo"}
+    return {"quedas": quedas, "passa": sum(q <= QUEDA_MAXIMA for q in quedas.values()) >= 2}
+
+
+def main_canal(argv) -> int:
+    p = argparse.ArgumentParser(prog="estudo_surpresa.py canal",
+                                description="Surpresa com o mesmo canal nas duas classes")
+    p.add_argument("--npz", action="append", required=True)
+    p.add_argument("--ruido", action="append", required=True, metavar="PASTA",
+                   help="pastas com as gravações reais do microfone (só as pausas entram)")
+    p.add_argument("--n-por-classe", type=int, default=30)
+    p.add_argument("--semente", type=int, default=42)
+    p.add_argument("--dispositivo", default="cuda")
+    p.add_argument("--json", default="outputs/surpresa/canal.json")
+    args = p.parse_args(argv)
+
+    from scripts.estudo_ssl import ler_npz
+
+    rng = np.random.default_rng(args.semente)
+    lista = []
+    for caminho in args.npz:
+        d = ler_npz(Path(caminho))
+        for c in sorted(set(d["classe"].tolist())):
+            idx = np.where(d["classe"] == c)[0]
+            for i in rng.permutation(idx)[:args.n_por_classe]:
+                lista.append((Path(str(d["arquivo"][i])), str(c), int(d["rotulo"][i]), Path(caminho).stem))
+    ruido = banco_de_ruido([a for pasta in args.ruido for a in sorted(Path(pasta).glob("*.wav"))])
+    print(f"Canal: {len(lista)} arquivos; ruído do microfone: {len(ruido) / SR_16K:.1f} s de pausas", flush=True)
+    registros = estudo_canal(lista, *carregar(args.dispositivo), ruido, args.semente)
+    resumo = resumir_canal(registros)
+    for conj, linha in resumo.items():
+        print(f"\n{conj}:")
+        for c, x in linha.items():
+            print(f"  {c:18s} AUC {x['auc']:.3f} (perda mediana: humanos {x['humanos']:.2f}, falsos {x['falsos']:.2f})")
+    crit = criterio_canal(resumo)
+    if crit:
+        print(f"\nCritério (queda de no máximo {QUEDA_MAXIMA} no dev em 2 das 3 condições): "
+              + ", ".join(f"{c} {q:+.3f}" for c, q in crit["quedas"].items())
+              + f" -> {'passa' if crit['passa'] else 'não passa'}")
+    Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.json).write_text(json.dumps({"resumo": resumo, "criterio": crit, "registros": registros},
+                                          ensure_ascii=False), encoding="utf-8")
+    print(f"Resultado: {args.json}")
+    return 0
+
+
 def main(argv=None) -> int:
     if argv is None:
         argv = sys.argv[1:]
     if argv and argv[0] == "combinar":
         return main_combinar(argv[1:])
+    if argv and argv[0] == "canal":
+        return main_canal(argv[1:])
     p = argparse.ArgumentParser(description="Surpresa do modelo de fala natural (parte 10)")
     p.add_argument("--npz", action="append", required=True, help=".npz da parte 6 (lista de arquivos)")
     p.add_argument("--n-por-classe", type=int, default=80)
