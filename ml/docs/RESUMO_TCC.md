@@ -3066,6 +3066,38 @@ pasta temporária, apagada no fim.
    um selo de origem verificável. Mas o Chatterbox é de código aberto (MIT), e
    quem quiser enganar pode desligar a marca. Ela só pega quem não se esforça e
    não serve como detector geral.
+
+### 10.2.29 Piloto de destilação: um aluno pequeno imitando a camada 7 (critério combinado antes)
+
+**Por quê (27/10/2026):** a camada 7 do XLS-R separa ataques que ele nunca viu
+(10.2.22), mas o grupo não quer o XLS-R como detector, e as medidas feitas à mão
+não chegam lá (10.2.24 e 10.2.25). Na destilação, o modelo grande entra como
+professor, só no treino. O conhecimento das 436 mil horas chega embutido nas
+respostas dele sobre os nossos áudios, e o detector final é um aluno pequeno,
+nosso, que roda sem ele. Decidido pelo grupo em 27/10/2026 como piloto; o treino
+completo ainda passa pelo orientador.
+
+**Método (`scripts/destilacao.py`; dados em `outputs/destilacao/`):**
+- **Professor:** a camada 7 do XLS-R 300M congelado, quadro a quadro (20 ms),
+  nas mesmas janelas de 4 s e nos mesmos arquivos da parte 6:
+  - treino: 4.000 arquivos do recorte da ASVspoof 5;
+  - dev: 1.600;
+  - 2019 LA: 1.000;
+  - ensaios: 60.
+- **Aluno:** LFCC com deltas e log-mel (140 por quadro de 10 ms, normalizados na
+  janela); uma convolução de passo 2 (para 20 ms); um transformer de 4 camadas
+  (dimensão 256); uma saída de 1.024 dimensões.
+- **Perda:** L1 mais −log σ(cosseno) por quadro, como no DistilHuBERT, sobre os
+  alvos padronizados.
+- **Rótulos:** não são usados no treino do aluno.
+- **Escolha do checkpoint:** pela perda de destilação no dev, sem rótulo.
+- **Avaliação:** uma sonda linear treinada nas respostas do aluno (média no
+  tempo), com o mesmo treino e as mesmas réguas da parte 6. A sonda do professor
+  aplicada ao aluno sai só como informação.
+
+**Critério (no commit antes de rodar):** o piloto passa se a sonda no aluno
+superar a sonda no LFCC (0,848 no dev, 0,632 na 2019) em pelo menos 0,05 de AUC
+no dev (média dos ataques) e na 2019 LA.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.

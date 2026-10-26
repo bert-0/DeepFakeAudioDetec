@@ -218,6 +218,12 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   - **Alternativa mais curta:** um modelo de sequência (transformer) sobre os
     quadros das LCNN, no lugar do pooling de média e desvio, treinado
     supervisionado como hoje.
+  - **Descartada (27/10/2026):** a verificação da identidade da pessoa. Só
+    protege quem foi cadastrado, e o clone é feito para imitar essa identidade.
+  - **Piloto decidido pelo grupo (27/10/2026):** destilar a camada 7 do XLS-R
+    num aluno pequeno sobre LFCC e log-mel (RESUMO_TCC §10.2.29). O XLS-R entra
+    só como professor no treino; o detector final é o aluno. O treino do piloto é
+    rodado pelo grupo. O treino completo depende do resultado e do orientador.
 - Quais ferramentas de clonagem usar, e qual fica fora do treino. Para a
   demonstração e os ensaios: XTTS v2 no próprio computador (24/10/2026), sem
   internet e sem a voz sair da máquina. Se ele entra no treino segue aberto; se o
