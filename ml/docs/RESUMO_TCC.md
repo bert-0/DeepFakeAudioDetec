@@ -2210,6 +2210,10 @@ vale para uma voz nova, como a da banca.
   frase sem o ponto final, que passou a ser o padrão do `clonar_xtts.py`
   (`--com-ponto-final` repete os ensaios 1 e 2). Diferença em relação ao ensaio
   2, que mandou a frase com o ponto.
+- **Conjunto final dos clones:** sementes 1 a 10, sem o ponto final, nenhum
+  refeito; os 10 foram ouvidos e dizem a frase inteira e certa. Pela energia,
+  f01, f04 e f10 terminam com som de fala no ar, mas ao ouvir não falta palavra.
+  Ruído herdado da referência: 17 a 26 dB abaixo da fala.
 
 **Defeitos do XTTS v2 vistos até aqui** (para o texto e para a demonstração):
 1. **Fim abrupto:** todo clone cai de uma vez para o silêncio digital e termina
