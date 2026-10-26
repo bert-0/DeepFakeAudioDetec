@@ -2231,6 +2231,27 @@ Todos aparecem ao ouvir o clone, sem olhar score; a regra dos ensaios é refazer
 com outra semente antes do placar. Na demonstração, ouvir o clone antes de
 mostrá-lo e refazer (`r` no modo interativo) se precisar.
 
+**Resultado do ensaio 3 (25/10/2026; `outputs/ensaio3_L02.json`):**
+
+| caminho | reais julgados humanos | clones julgados sintéticos | meta |
+|---|---|---|---|
+| arquivo (real × clone do XTTS, taxa comum de 48 kHz) | 10 de 10 | **10 de 10** | **atingida** |
+| microfone | — | — | não medido |
+
+- **A meta passa com uma voz que o sistema nunca tinha ouvido.** Todos os clones
+  acima de todas as gravações reais (100 de 100 pares).
+- **Descritivo, em log-odds:** reais de −15,27 a −10,58; clones de −7,94 a −0,97;
+  limiar em −8,671. A gravação real mais perto do limiar (f07) ficou 1,91 abaixo
+  dele, e o clone mais perto (f05), 0,73 acima. Entre as duas classes sobrou um
+  intervalo de 2,64, maior que o do L01 no ensaio 2 (0,73).
+- **Ensaios 2 e 3 juntos** (mesmo modelo, limiar e caminho, critério combinado
+  antes nos dois): reais 20 de 20 humanos, clones 19 de 20 sintéticos.
+- **O que o resultado não mostra:** dois locutores, uma ferramenta (o XTTS v2,
+  que no ensaio 3 recebeu as frases sem o ponto final), uma sala, um microfone;
+  o clone analisado como arquivo, não tocado. A voz da banca, de outra pessoa
+  ou gravada em outro lugar, segue sem medida; o clone pelo ar segue sem
+  separação (10.2.12).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

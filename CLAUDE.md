@@ -162,6 +162,10 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   limiar do treino (−8,671 nos log-odds), caminho arquivo com `--taxa-comum
   48000`, frases novas: reais 10 de 10, clones do XTTS 9 de 10, meta atingida.
   Um locutor só (o mesmo do ensaio 1); a ordem é estável, o ponto de corte frágil.
+- Ensaio 3 (RESUMO_TCC §10.2.14): mesmo critério, voz nova (L02, de fora do
+  grupo), frases do conjunto 3, clones sem o ponto final: reais 10 de 10, clones
+  10 de 10. Ensaios 2 e 3 juntos: 20 de 20 e 19 de 20. O clone pelo ar segue sem
+  separação. O XTTS corta o fim, trava palavras e lê o ponto como "ponto".
 - Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
   o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
   pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).
