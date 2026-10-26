@@ -74,6 +74,8 @@ def main(argv=None) -> int:
     p.add_argument("--clone", action="append", required=True, metavar="NOME=PASTA")
     p.add_argument("--aluno", action="append", required=True, metavar="NOME=CHECKPOINT")
     p.add_argument("--snr", type=float, action="append", help="SNR em dB (padrão: 20; pode repetir)")
+    p.add_argument("--sem-ruido", action="store_true",
+                   help="clones como estão (para comparar vozes gravadas em outros microfones)")
     p.add_argument("--treino", default="outputs/destilacao/asv5_train")
     p.add_argument("--dev", default="outputs/destilacao/asv5_dev")
     p.add_argument("--sondas", default="outputs/ssl/sondas.json")
@@ -93,7 +95,10 @@ def main(argv=None) -> int:
         return saida
 
     reais, clones = grupos(args.real), grupos(args.clone)
-    ruido = banco_de_ruido([a for lista in reais.values() for a in lista])
+    vazios = [n for n, lista in {**reais, **clones}.items() if not lista]
+    if vazios:
+        p.error(f"pasta sem .wav: {', '.join(vazios)}")
+    ruido = None if args.sem_ruido else banco_de_ruido([a for lista in reais.values() for a in lista])
     sondas = json.loads(Path(args.sondas).read_text(encoding="utf-8"))
     treino, dev = carregar_dados(Path(args.treino)), carregar_dados(Path(args.dev))
     det_dev = np.asarray(json.loads(Path(args.detector).read_text(encoding="utf-8"))["scores"]["dev"])
@@ -101,10 +106,13 @@ def main(argv=None) -> int:
     resultado = {}
     pasta = Path(tempfile.mkdtemp(prefix="canal_igualado_"))
     try:
-        for snr in args.snr or [20.0]:
-            com_canal = clones_com_canal(clones, ruido, snr, pasta / f"snr{snr:g}")
+        for snr in ([None] if args.sem_ruido else (args.snr or [20.0])):
+            if snr is None:
+                com_canal, nome_conj = clones, "ensaios_sem_ruido"
+            else:
+                com_canal = clones_com_canal(clones, ruido, snr, pasta / f"snr{snr:g}")
+                nome_conj = f"ensaios_snr{snr:g}"
             origem = montar_origem(reais, com_canal)
-            nome_conj = f"ensaios_snr{snr:g}"
             preparar(origem, pasta / nome_conj, None, None)
             dados = carregar_dados(pasta / nome_conj)
             r = {}
@@ -116,15 +124,18 @@ def main(argv=None) -> int:
                                  "checkpoints/fusion_lcnn_v4_asv5.pt")
             cmp = comparar_detector({"dev": det_dev, "e": s}, {"dev": dev_npz, "e": origem})
             r["detector"] = cmp["conjuntos"]["e"]
-            resultado[f"{snr:g} dB"] = r
-            print(f"\nClones com o ruído do microfone a {snr:g} dB: AUC (certos pelo limiar do dev)")
+            rotulo = "sem ruído" if snr is None else f"{snr:g} dB"
+            resultado[rotulo] = r
+            print(f"\nClones {'como estão' if snr is None else f'com o ruído do microfone a {snr:g} dB'}: "
+                  f"AUC (certos pelo limiar do dev)")
             for nome, m in r.items():
                 print(f"  {nome:9s} AUC {m['auc']:.3f}; " + ", ".join(
                     f"{c} {v['certos']}/{v['n']}" for c, v in m["classes"].items()))
     finally:
         shutil.rmtree(pasta, ignore_errors=True)
     Path(args.json).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.json).write_text(json.dumps({"ruido_s": len(ruido) / SR, "resultado": resultado},
+    Path(args.json).write_text(json.dumps({"ruido_s": None if ruido is None else len(ruido) / SR,
+                                           "resultado": resultado},
                                           ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"\nResultado: {args.json} (áudios com ruído apagados)")
     return 0

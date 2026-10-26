@@ -21,6 +21,18 @@ def test_clone_recebe_o_ruido_na_snr_pedida(tmp_path):
     assert 17 < snr < 23
 
 
+def test_pasta_vazia_para_com_mensagem(tmp_path, capsys):
+    import pytest
+
+    from scripts.ensaio_canal_igualado import main
+
+    (tmp_path / "vazia").mkdir()
+    with pytest.raises(SystemExit):
+        main(["--real", f"r={tmp_path / 'vazia'}", "--clone", f"c={tmp_path / 'vazia'}",
+              "--aluno", "a=x.pt", "--sem-ruido"])
+    assert "pasta sem .wav" in capsys.readouterr().err
+
+
 def test_origem_com_rotulos():
     o = montar_origem({"L01_real": ["r1.wav", "r2.wav"]}, {"L01_xtts": ["c1.wav"]})
     assert list(o["rotulo"]) == [0, 0, 1] and list(o["classe"]) == ["L01_real", "L01_real", "L01_xtts"]
