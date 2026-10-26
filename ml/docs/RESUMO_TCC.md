@@ -2305,6 +2305,30 @@ ocupa quase os 4 GB: cada frase levou de 25 a 108 s, e uma, 366 s, com a memóri
 transbordando para a do sistema. Inviável ao vivo nessa placa; a demonstração
 segue com o XTTS.
 
+### 10.2.16 Defeito na captura do microfone: uma emenda áspera a cada 1,1 s
+
+**Achado (25/10/2026):** ouvidas no VLC e no reprodutor do Windows, as gravações
+reais "travavam". Não há buraco de silêncio nem salto grande no sinal, mas nas
+emendas entre os blocos de 100 ms que o gravador pedia ao driver o erro de
+previsão da amostra é anormal num instante regular: a cada 1,1 s da captura,
+11% a 20% dessas emendas ficam acima de 5 vezes o normal, contra menos de 1% nas
+outras emendas. Aparece em todas as gravações reais e referências dos ensaios 1 a
+3 (L01 e L02, dias diferentes).
+
+**Causa provável:** o gravador pedia blocos fixos de 4.800 amostras e o driver
+entrega pacotes próprios; o PortAudio emenda uns nos outros. Com pacotes de 528
+amostras (11 ms), o encaixe se repete a cada 52.800 amostras, os 1,1 s medidos.
+**Correção:** a fonte do microfone passa a receber os pacotes no tamanho do
+driver (`blocksize=0`); o FIR guarda a fase entre pacotes de qualquer tamanho
+(testado), e o gravador mostra o tamanho do pacote e avisa perdas de amostras.
+Falta confirmar com uma gravação nova que o defeito sumiu.
+
+**Efeito nos ensaios, declarado:** a classe real dos ensaios 1 a 3 e as
+referências dos clones têm essa emenda áspera. Os resultados ficam como saíram;
+o defeito é uma imperfeição da gravação real, que mesmo assim foi julgada humana
+em 30 de 30 arquivos. O ao vivo usa a mesma fonte, então os testes ao vivo pelo
+microfone (10.2.10 e os da aba Ao vivo) também tinham o defeito.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
