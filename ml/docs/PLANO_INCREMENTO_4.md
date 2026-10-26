@@ -190,6 +190,12 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
 - Qual microfone será usado na coleta (na banca, o embutido do notebook, junto
   da webcam, informado em 02/10/2026), e se há uma interface USB com
   ASIO disponível.
+- Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
+  desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
+  lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o
+  sintético, que marcas os geradores deixam (vocoder, ritmo dos quadros, fase,
+  ruído) e se elas valem para ferramentas que o treino não viu (RESUMO_TCC
+  §10.2.17 em diante).
 - Quais ferramentas de clonagem usar, e qual fica fora do treino. Para a
   demonstração e os ensaios: XTTS v2 no próprio computador (24/10/2026), sem
   internet e sem a voz sair da máquina. Se ele entra no treino segue aberto; se o
