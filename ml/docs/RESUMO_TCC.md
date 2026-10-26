@@ -3108,6 +3108,47 @@ no dev (média dos ataques) e na 2019 LA.
 - **Leituras:** o XLS-R camada por camada, o LFCC, o nosso detector e o aluno,
   por ataque e por codec. É a busca de um padrão que sobreviva aos ataques e
   codecs que nenhum dos modelos viu.
+
+**Treino (27/10/2026, rodado pela sessão a pedido do usuário, que estava longe
+da máquina).** A primeira tentativa, em precisão mista, deu NaN desde o primeiro
+lote. A convolução de passo 2 em fp16 gera NaN nesta GTX 1650; o treino passou
+para fp32 (commit `8faee3a`).
+- **Aluno:** 3,78 milhões de parâmetros, 30 épocas de cerca de 85 s.
+- **Perda no dev:** 1,2615 na primeira época e 1,0354 na melhor (época 29,
+  escolhida pela perda, sem rótulo).
+- **Arquivos:** `checkpoints/aluno_xlsr_l7.pt` e `.json`.
+
+**Resultado (`outputs/destilacao/avaliacao.json`):**
+
+| representação | EER dev | AUC dev | AUC 2019 LA | AUC ensaios |
+|---|---|---|---|---|
+| sonda no LFCC (a régua do critério) | 19,54% | 0,848 | 0,632 | 0,999 |
+| nosso detector, mesmos arquivos (10.2.22) | 20,75% | 0,830 | 0,657 | 0,983 |
+| **aluno, sonda nova** | 18,46% | **0,872** | **0,800** | 0,955 |
+| aluno, sonda do professor (informação) | 16,75% | 0,911 | 0,808 | 0,944 |
+| professor, camada 7 (10.2.22) | 0,21% | 1,000 | 0,998 | 0,950 |
+
+**Por ataque (aluno, sonda nova):**
+- dev: A09 0,999; A10 0,996; A11 0,987; **A12 0,361**; A13 0,727; A14 0,998;
+  A15 0,912; A16 0,996;
+- 2019: A01 0,99; A02 0,99; A03 0,98; A04 0,47; A05 0,88; A06 0,50;
+- ensaios, certos pelo limiar do dev:
+  - L01: reais 10/10, XTTS 0/10, Chatterbox 2/10;
+  - L02: reais 10/10, XTTS 10/10, Chatterbox 8/10.
+
+**Critério: não passou.** O ganho sobre o LFCC foi de +0,024 no dev, abaixo de
+0,05, e de +0,168 na 2019.
+
+**Leitura:**
+- **O aluno pegou parte do que o professor sabe.** Na 2019, uma base que ele
+  nunca viu, a AUC sobe de 0,632 para 0,800, e ele supera o nosso detector nas
+  duas réguas. O treino foi de só 4.523 janelas.
+- **O que falta é o principal:** o A12 (0,36 contra 1,00 do professor) e o A04 e
+  o A06 da 2019, perto do acaso. São os geradores que imitam o espectro médio, e
+  o aluno ainda não aprendeu o contexto que os denuncia.
+- **A perda ainda caía no fim** (1,0373 na época 20, 1,0354 na 29). Mais dados
+  de destilação e um aluno maior são os próximos passos naturais; cada um seria
+  um novo piloto, com critério próprio.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
