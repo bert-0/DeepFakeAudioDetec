@@ -2197,6 +2197,36 @@ vale para uma voz nova, como a da banca.
   código no lugar do nome; gravações e clones em `data/vozes/L02/`, fora do Git,
   e os clones apagados depois da banca.
 
+**Material do L02 e mudanças antes do placar (25/10/2026, sem nenhum score visto):**
+- **Referência:** 90 s, fala de 4,1 a 87,9 s (texto lido inteiro, mais devagar
+  que o L01: ~84 s contra ~70 s); preparada pelo `preparar_referencia.py` em
+  84,9 s.
+- **Frases reais:** as 10 passaram nas checagens (ruído de 15 a 22 dB abaixo da
+  fala). Em 12 s, o L02 ficou sem fôlego na f06 e quase na f10, pela avaliação
+  dele; as duas foram regravadas com 15 s (`--segundos 15`) e passaram (9,6 s de
+  fala cada). As outras 8 ficaram com 12 s.
+- **Clones sem o ponto final:** na primeira geração, 3 de 10 clones (f04, f06,
+  f09) terminaram falando "ponto". Os 10 foram apagados e gerados de novo com a
+  frase sem o ponto final, que passou a ser o padrão do `clonar_xtts.py`
+  (`--com-ponto-final` repete os ensaios 1 e 2). Diferença em relação ao ensaio
+  2, que mandou a frase com o ponto.
+
+**Defeitos do XTTS v2 vistos até aqui** (para o texto e para a demonstração):
+1. **Fim abrupto:** todo clone cai de uma vez para o silêncio digital e termina
+   com 417 ms de zeros; a última sílaba sai cortada em parte deles (3 de 10 no
+   ensaio 1, 7 de 10 no ensaio 2). Não explica a separação (10.2.13).
+2. **Palavras travadas e fim antes da hora:** 3 de 10 no ensaio 2 (f04, f05,
+   f10). Dependem da semente: com a mesma semente o áudio sai idêntico, com
+   outra o defeito some.
+3. **Pontuação lida em voz alta:** o ponto final virou a palavra "ponto" em 3 de
+   10 clones do L02. Contorno: mandar a frase sem o ponto final.
+4. **Ruído herdado:** o clone reproduz o ruído de fundo da referência (18 a 24
+   dB abaixo da fala, contra 21 a 25 dB nas gravações reais do L01).
+
+Todos aparecem ao ouvir o clone, sem olhar score; a regra dos ensaios é refazer
+com outra semente antes do placar. Na demonstração, ouvir o clone antes de
+mostrá-lo e refazer (`r` no modo interativo) se precisar.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

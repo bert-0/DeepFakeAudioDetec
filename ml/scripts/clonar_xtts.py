@@ -10,6 +10,8 @@ Três jeitos de dizer o que o clone fala:
 - `--interativo`: carrega o modelo uma vez e pede frases até `sair`;
   `r` refaz a última com outra semente (o XTTS às vezes corta o fim). É o modo
   da demonstração: a banca escolhe a frase e o clone sai em ~10 s.
+A frase vai sem o ponto final, que o XTTS às vezes lê como "ponto"
+(RESUMO_TCC §10.2.14); `--com-ponto-final` repete os ensaios 1 e 2.
 Arquivos que já existem não são sobrescritos. Em --saida fica `clonagem.json`:
 modelo, idioma, semente, referência e o tempo de cada frase (RESUMO_TCC §10.2.12).
 
@@ -64,7 +66,7 @@ def sem_ponto(frase: str) -> str:
 
 
 def gerar(tts, frase: str, referencia: Path, destino: Path, idioma: str, semente: int,
-          sem_ponto_final: bool = False) -> dict:
+          sem_ponto_final: bool = True) -> dict:
     """Uma fala com a voz da referência; devolve o registro dela."""
     import torch
 
@@ -85,7 +87,7 @@ def gerar(tts, frase: str, referencia: Path, destino: Path, idioma: str, semente
 
 
 def clonar(tts, frases: list[str], referencia: Path, saida: Path, idioma: str = "pt",
-           semente: int = 0, sem_ponto_final: bool = False) -> list[dict]:
+           semente: int = 0, sem_ponto_final: bool = True) -> list[dict]:
     """Uma fala por frase do arquivo (fNN.wav); pula as que já existem."""
     registro = []
     for i, frase in enumerate(frases, start=1):
@@ -105,7 +107,7 @@ def proximo_livre(saida: Path) -> int:
 
 
 def falar(tts, frase: str, referencia: Path, saida: Path, idioma: str, semente: int,
-          sem_ponto_final: bool = False) -> dict:
+          sem_ponto_final: bool = True) -> dict:
     """Frase livre: vira frase_NN.wav, sem sobrescrever nenhuma anterior."""
     if len(frase.split()) < PALAVRAS_MINIMAS:
         print(f"    [AVISO] menos de {PALAVRAS_MINIMAS} palavras: a fala não deve encher "
@@ -116,7 +118,7 @@ def falar(tts, frase: str, referencia: Path, saida: Path, idioma: str, semente: 
 
 
 def interativo(tts, referencia: Path, saida: Path, idioma: str, semente: int,
-               ler=None, sem_ponto_final: bool = False) -> list[dict]:
+               ler=None, sem_ponto_final: bool = True) -> list[dict]:
     """Pede frases até `sair`; `r` refaz a última com outra semente.
 
     Linha vazia não encerra: um Enter sem querer na frente da banca custaria
@@ -154,8 +156,9 @@ def main(argv=None) -> int:
     modo.add_argument("--interativo", action="store_true",
                       help="pede frases uma a uma, com o modelo já carregado")
     p.add_argument("--saida", required=True)
-    p.add_argument("--sem-ponto-final", action="store_true",
-                   help="manda a frase sem o ponto final (o XTTS às vezes fala \"ponto\")")
+    p.add_argument("--com-ponto-final", action="store_true",
+                   help="manda a frase com o ponto final, como nos ensaios 1 e 2 (o padrão "
+                        "tira o ponto: o XTTS às vezes o lê como a palavra \"ponto\")")
     p.add_argument("--idioma", default="pt")
     p.add_argument("--semente", type=int, default=0)
     p.add_argument("--dispositivo", default=None, help="cuda | cpu (padrão: cuda, se houver)")
@@ -177,20 +180,20 @@ def main(argv=None) -> int:
     saida.mkdir(parents=True, exist_ok=True)
     if args.frases:
         registro = clonar(tts, ler_frases(args.frases), referencia, saida, args.idioma,
-                          args.semente, args.sem_ponto_final)
+                          args.semente, not args.com_ponto_final)
     elif args.texto:
         registro = [falar(tts, t, referencia, saida, args.idioma, args.semente,
-                          args.sem_ponto_final)
+                          not args.com_ponto_final)
                     for t in args.texto]
     else:
         registro = interativo(tts, referencia, saida, args.idioma, args.semente,
-                              sem_ponto_final=args.sem_ponto_final)
+                              sem_ponto_final=not args.com_ponto_final)
 
     manifesto = saida / "clonagem.json"
     anterior = (json.loads(manifesto.read_text(encoding="utf-8"))
                 if manifesto.is_file() else {"frases": []})
     anterior.update(modelo=MODELO, idioma=args.idioma, referencia=referencia.as_posix(),
-                    dispositivo=dispositivo)
+                    dispositivo=dispositivo, sem_ponto_final=not args.com_ponto_final)
     anterior["frases"] += registro
     manifesto.write_text(json.dumps(anterior, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nRegistro: {manifesto}")
