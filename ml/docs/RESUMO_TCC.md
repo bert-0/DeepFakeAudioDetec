@@ -2666,6 +2666,140 @@ A mesma sonda treinada só nessas medidas mostra o quanto elas sozinhas
 explicam. Depois, a retirada de faixas (como na parte 1) mostra onde a melhor
 camada vê o sintético.
 
+**Extração (26/10/2026, 02:24–02:53):** 6.660 arquivos, nenhum pulado
+(`outputs/ssl/extracao.log`). Para comparar, o nosso detector (`fusion_lcnn_v4_asv5`)
+pontuou os mesmos arquivos pelo caminho da avaliação: 4 s desde o início e
+limiar no ponto de EER do mesmo dev (`estudo_ssl.py detector`,
+`outputs/ssl/detector.json`). O EER dele nesse dev foi de 20,75%, perto dos
+20,56% do dev inteiro (10.7).
+
+**Resultado das sondas (`outputs/ssl/sondas.json`).** AUC dev = média das AUCs
+dos 8 ataques do dev; nos ensaios e na 2019, a AUC de todos os falsos contra
+todos os humanos.
+
+| representação | EER dev | AUC dev | AUC ensaios | AUC 2019 LA |
+|---|---|---|---|---|
+| nosso detector (`fusion_lcnn_v4_asv5`) | 20,75% | 0,830 | 0,983 | 0,657 |
+| sonda no LFCC (controle) | 19,54% | 0,848 | 0,999 | 0,632 |
+| XLS-R, convolução de entrada | 42,25% | 0,597 | 0,877 | 0,610 |
+| camada 0 | 44,21% | 0,581 | 0,974 | 0,518 |
+| camada 2 | 34,71% | 0,701 | 0,998 | 0,609 |
+| camada 3 | 21,50% | 0,813 | 1,000 | 0,748 |
+| camada 4 | 12,96% | 0,943 | 1,000 | 0,885 |
+| camada 5 | 2,75% | 0,997 | 1,000 | 0,955 |
+| camada 6 | 0,21% | 1,000 | 1,000 | 0,993 |
+| **camada 7 (a melhor pela regra)** | **0,21%** | **1,000** | **0,950** | **0,998** |
+| camada 8 | 0,50% | 0,999 | 0,770 | 0,996 |
+| camada 11 | 0,46% | 1,000 | 0,264 | 0,992 |
+| camada 18 | 0,50% | 1,000 | 0,136 | 0,984 |
+| camada 24 | 0,50% | 1,000 | 0,785 | 0,992 |
+
+**Por ataque, no dev (AUC contra os humanos):**
+
+| ataque | nosso detector | sonda no LFCC | camada 7 |
+|---|---|---|---|
+| A09 | 0,995 | 0,885 | 1,000 |
+| A10 | 0,994 | 0,891 | 1,000 |
+| A11 | 0,999 | 0,989 | 1,000 |
+| **A12** | **0,113** | **0,138** | **1,000** |
+| A13 | 0,730 | 0,954 | 1,000 |
+| A14 | 0,999 | 0,999 | 1,000 |
+| A15 | 0,912 | 0,940 | 1,000 |
+| A16 | 0,898 | 0,990 | 1,000 |
+
+Pelo limiar escolhido no dev, a camada 7 acerta:
+- **dev:** os 150 arquivos de cada ataque (A11: 148) e 399 de 400 humanos;
+- **2019 LA, outra base:** 400 de 400 humanos e de 69 (A06) a 100 de 100 em cada
+  ataque;
+- **ensaios:**
+  - L01: reais 10/10, XTTS 10/10, Chatterbox 9/10;
+  - L02: reais 8/10, XTTS 10/10, Chatterbox 4/10.
+
+**Leitura das sondas:**
+1. **A informação que generaliza não está no espectro local.** A convolução de
+   entrada do XLS-R, que vê 25 ms de cada vez, separa menos que o LFCC. A
+   separação aparece da camada 3 à 6 do transformer, as que relacionam os quadros
+   no tempo. Nas camadas 6 e 7, o EER nos ataques não vistos cai para 0,21%,
+   contra 20,75% do nosso detector, com o mesmo tipo de classificador do controle
+   no LFCC.
+2. **A camada 7 pega o A12 (AUC 1,000),** que o nosso detector e o LFCC
+   invertem (0,113 e 0,138). Nas medidas simples, o A12 é quase igual aos humanos
+   (|d| ≤ 0,33 em todas; `outputs/ssl/explicar.json`).
+3. **As camadas profundas invertem nos ensaios** (camadas 10 a 18: AUC de 0,136 a
+   0,521). Elas aprendem o canal das bases e acham as gravações do nosso
+   microfone mais "falsas" que os clones. As do meio (5 a 7) não sofrem disso.
+4. **Ressalva sobre os ensaios:** ali, até a sonda no LFCC dá AUC 0,999, porque
+   real e clone diferem também no canal (microfone contra áudio limpo). Os
+   ensaios sozinhos não provam generalização; o dev e a 2019 provam mais.
+
+**Explicar (`outputs/ssl/explicar.json`):** as medidas simples explicam pouco do
+score da camada 7: R² de 0,25 no dev e na 2019. A sonda treinada só com elas
+separa pouco: AUC 0,666 no dev e 0,690 na 2019. Nos ensaios ela inverte (AUC
+0,000), porque o silêncio e a duração mudam com o canal (os clones do XTTS
+terminam com 417 ms de zeros; o microfone tem ruído de fundo). O que a camada 7
+usa não é energia por faixa, inclinação, planura, HNR, linhas, pente nem
+silêncio.
+
+**Retirada de faixas na camada 7 (`outputs/ssl/faixas.json`;** 30 arquivos por
+classe do dev e os 60 dos ensaios). Variação do score ao tirar a faixa, nos
+falsos menos nos humanos do mesmo conjunto:
+
+| faixa | A09 | A12 | A13 | A14 | A16 | XTTS L01 | XTTS L02 | Chatterbox L01 | Chatterbox L02 |
+|---|---|---|---|---|---|---|---|---|---|
+| 0–500 Hz | −3,65 | −1,63 | −1,51 | −3,01 | −3,61 | −1,86 | −2,38 | −2,34 | −1,41 |
+| 1–2 kHz | −1,15 | −0,78 | −1,05 | −2,01 | −1,70 | −0,31 | −0,24 | −0,13 | +0,10 |
+| 3–4 kHz | −0,17 | −0,06 | +0,01 | −0,46 | −0,27 | +0,21 | +0,13 | +0,37 | +0,26 |
+| 7–8 kHz | +0,19 | +0,03 | +0,00 | +0,01 | −0,02 | +0,10 | −0,04 | +0,20 | −0,10 |
+
+O comportamento é o oposto do nosso detector:
+- **Efeito de tirar faixas:** no nosso detector, faltar faixa deixa tudo "mais
+  falso", até os humanos (parte 1). Na camada 7, faltar faixa deixa os falsos
+  "mais humanos", e nos humanos o score quase não muda (de −0,38 a +0,82 no dev).
+- **Onde está a pista:** a da camada 7 está em **0–500 Hz**, onde ficam a altura
+  da voz (F0) e os primeiros harmônicos, e depois em 1–2 kHz; a do nosso detector
+  estava em 2–5 kHz.
+
+Hipótese, junto com a leitura das sondas: o XLS-R olha como a altura e a
+vozeação evoluem no tempo, algo que o espectro médio não mostra.
+
+**Teste do tempo (`estudo_ssl.py tempo`, `outputs/ssl/tempo.json`; 30 arquivos
+por classe do dev e da 2019, os 60 dos ensaios).** Os quadros de 20 ms da
+convolução são reordenados antes do transformer, e a mesma sonda da camada 7
+mede o resultado. Como a sonda é linear, o score do arquivo é a média dos scores
+dos quadros, o que permite decompô-lo por tipo de quadro:
+- pausa: energia abaixo do percentil 20 da janela;
+- fala: acima do percentil 60;
+- transição: os 20% de maior variação de energia.
+
+| conjunto | original | embaralhado | embaralhado em 100 ms | invertido | quadros de pausa | de fala | de transição |
+|---|---|---|---|---|---|---|---|
+| dev ASVspoof 5 | 1,000 | 0,389 | 0,797 | 0,804 | 0,982 | 1,000 | 0,999 |
+| 2019 LA | 0,997 | 0,542 | 0,883 | 0,835 | 0,951 | 0,999 | 0,987 |
+| ensaios | 0,950 | 0,855 | 1,000 | 0,999 | 0,924 | 0,831 | 0,781 |
+
+**Leitura:**
+1. **Nas bases, a pista da camada 7 está na ordem dos quadros no tempo.**
+   Embaralhar todos os quadros derruba a AUC para 0,389 e 0,542. Embaralhar só
+   dentro de blocos de 100 ms ou inverter o tempo também derruba (0,797 a 0,883).
+   Conta como cada trecho de 20 ms se encadeia com os vizinhos e com a frase toda.
+2. **Nos ensaios, a ordem quase não importa** (0,855 a 1,000). Isso confirma que
+   ali a separação vem do canal, não dessa pista.
+3. **Nas bases, a evidência está sobretudo nos quadros de fala** (1,000 e
+   0,999); um pouco menos nas pausas (0,982 e 0,951).
+
+Ressalva: embaralhar também tira a entrada do que o XLS-R viu no
+pré-treino, para as duas classes. A queda da AUC mostra que a ordem natural é
+necessária para separar, mas a sonda não foi retreinada com os quadros
+embaralhados.
+
+**Síntese da parte 6:**
+- O XLS-R separa ataques que nunca viu pela **dinâmica da voz no tempo**,
+  concentrada na banda baixa (altura e vozeação em 0–500 Hz, formantes em 1–2
+  kHz), e não pelo espectro de cada trecho.
+- O nosso detector faz o contrário: olha a "cor" do espectro em 2–5 kHz, em
+  pedaços de 25 ms, com pouca relação entre eles no tempo. Por isso cai em
+  geradores que imitam bem o espectro médio, como o A12.
+
 ### 10.2.23 Parte 7: a linha fixa acompanha a fala? (critério combinado antes)
 
 **Hipótese (escrita na parte 5, antes do teste):** a linha do gerador faz parte
