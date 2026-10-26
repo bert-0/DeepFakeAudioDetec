@@ -2383,6 +2383,189 @@ o artefato é uma imperfeição pequena da gravação real (o tom mostrou que n�
 há perda de amostras), que mesmo assim foi julgada humana em 30 de 30 arquivos. O ao vivo usa a mesma fonte, então os testes ao vivo pelo
 microfone (10.2.10 e os da aba Ao vivo) também tinham o defeito.
 
+### 10.2.17 Imperfeições dos sintéticos, parte 1: onde o detector vê o sintético (exploratório)
+
+**Por quê (26/10/2026):** no ensaio 4, o Chatterbox passou pelo detector (L01: 3
+de 10 clones acima do limiar). Mudar o limiar foge da proposta do trabalho, e o
+XLS-R pré-treinado seria uma caixa-preta (proposta no plano). O grupo passou a
+estudar as imperfeições dos próprios áudios sintéticos: onde o detector vê o
+sintético, que marcas os geradores deixam e se elas valem para ferramentas que
+o treino não viu. **Exploratório:** sem critério combinado antes e sem mudar
+nenhum placar. Serve para escolher hipóteses, que depois serão testadas com
+critério em dados que não serviram para escolhê-las.
+
+**Material das partes 1 a 4:** os arquivos dos ensaios 2 a 4. L01: 10 gravações
+reais, 10 clones do XTTS e 10 do Chatterbox; L02: o mesmo. Reais pelo microfone
+embutido, com os estalos de 10.2.16; clones a 24 kHz. Modelo e caminho do
+ensaio 2: `fusion_lcnn_v4_asv5`, limiar −8,671 nos log-odds, `--taxa-comum 48000`.
+
+**Método (`scripts/estudo_faixas.py`, `outputs/estudo_faixas.json`):** já a 16
+kHz, retira uma faixa por vez (Butterworth de ordem 8, ida e volta) e mede o
+log-odds médio do arquivo (janelas ponderadas pela fala, como no placar). Com o
+áudio inteiro, a média do log-odds e os clones acima do limiar repetem os
+placares: L01 reais −13,27 (0/10), XTTS −7,30 (9/10), Chatterbox −9,85 (3/10);
+L02 reais −12,86 (0/10), XTTS −5,85 (10/10), Chatterbox −7,51 (9/10).
+
+Variação do log-odds ao tirar a faixa, nos clones menos nos reais do mesmo
+locutor (negativo: a faixa pesa a favor de "sintético" nos clones):
+
+| faixa retirada | XTTS L01 | XTTS L02 | Chatterbox L01 | Chatterbox L02 |
+|---|---|---|---|---|
+| 0–500 Hz | −2,32 | +1,07 | −3,84 | −0,56 |
+| 500–1000 Hz | −1,31 | −1,22 | +0,98 | +0,56 |
+| 1–2 kHz | −2,22 | −0,90 | +1,13 | −0,91 |
+| 2–3 kHz | −1,42 | −1,19 | −0,60 | −0,20 |
+| 3–4 kHz | −1,75 | −1,94 | −1,30 | −1,05 |
+| 4–5 kHz | −1,00 | −1,68 | −0,30 | −0,33 |
+| 5–6 kHz | −0,72 | −0,83 | +0,00 | −1,24 |
+| 6–7 kHz | −0,61 | −0,37 | −0,02 | −0,55 |
+| 7–8 kHz | −0,25 | −0,31 | −0,16 | −0,10 |
+
+**Leitura:**
+- Tirar qualquer faixa sobe o log-odds de todos, reais inclusive. Sem 0–500 Hz,
+  os reais do L01 sobem 7,19 em média e os 10 passam do limiar. O modelo lê
+  "espectro incompleto" como sintético; a retirada sozinha não localiza a pista.
+- Em relação aos reais, as faixas de 2 a 5 kHz pesam contra os clones nos
+  quatro pares; 3–4 kHz é a maior e a mais estável (−1,05 a −1,94). Acima de 6
+  kHz o peso é pequeno (−0,02 a −0,61). Abaixo de 2 kHz o sinal muda de um par
+  para outro.
+- Nenhuma faixa sozinha esconde o XTTS: sem qualquer uma delas, 8 a 10 de 10
+  clones seguem acima do limiar. A pista está espalhada pela banda média.
+
+### 10.2.18 Parte 2: o relógio do gerador na modulação (exploratório)
+
+**Hipótese:** os geradores montam o som em passos fixos (tokens, quadros do
+vocoder). Um pico estreito no espectro de modulação (os ritmos em que a energia
+de cada faixa sobe e desce) marcaria o relógio do gerador.
+
+**Método (`scripts/estudo_relogio.py`, `outputs/estudo_relogio.json` e `.png`):**
+log-energia de 8 faixas a cada 2 ms, nos trechos de fala de pelo menos 1 s, a 16
+kHz; espectro de modulação até 250 Hz, com 1 Hz de resolução; pico = 3 dB acima
+do contorno. O pente regular é medido pela autocorrelação do excesso sobre o
+contorno, de 12 a 160 Hz.
+
+**Resultado:** nenhum pico em nenhum grupo. As gravações reais têm um pente
+regular: espaçamento de 9 Hz, autocorrelação +0,91 (L01) e +0,92 (L02),
+ondulação de 1,66 e 1,46 dB. Os clones não: autocorrelação de +0,13 a +0,22,
+ondulação de 0,12 a 0,49 dB. O espaçamento é o dos estalos do microfone a cada
+110 ms (10.2.16; 1/0,110 s = 9,09 Hz). **O relógio achado é o da captura, não o
+do gerador.** Alerta para as partes seguintes: as gravações reais dos ensaios
+têm uma marca do microfone, e uma característica nova precisa ser conferida em
+áudio real de outra origem, senão o detector aprende "tem estalo = humano".
+
+### 10.2.19 Parte 3: linhas fixas no espectro (exploratório)
+
+**Hipótese:** a altura da voz muda o tempo todo, então no espectro médio os
+harmônicos se espalham; um tom de frequência fixa (resto do vocoder, ruído do
+microfone) continua uma linha estreita. Vocoders neurais deixam tons ao
+reamostrar (Pons et al., ICASSP 2021, "Upsampling artifacts in neural audio
+synthesis").
+
+**Método (`scripts/estudo_linhas.py`, `outputs/estudo_linhas.json`):** espectro de
+Welch com 1 Hz de resolução, na taxa de cada arquivo, menos o contorno (mediana
+em 41 Hz). As linhas são escolhidas num grupo (mediana dos arquivos, acima de
+300 Hz) e contadas em todos; a linha está presente no arquivo se passa 3 dB do
+contorno a até 2 Hz. A réplica é escolher num locutor e conferir no outro.
+
+**Linhas que se repetem no outro locutor** (arquivos com a linha):
+
+| linha | escolhida em | real L01 | real L02 | XTTS L01 | XTTS L02 | Chatterbox L01 | Chatterbox L02 |
+|---|---|---|---|---|---|---|---|
+| 6.078 Hz | XTTS L01 | 0/10 | 3/10 | 9/10 | 9/10 | 1/10 | 0/10 |
+| 8.139 Hz | XTTS L02 | 3/10 | 4/10 | 10/10 | 9/10 | 0/10 | 1/10 |
+| 7.014 Hz | XTTS L02 | 1/10 | 2/10 | 10/10 | 8/10 | 0/10 | 3/10 |
+| 7.850 Hz | Chatterbox L01 | 1/10 | 1/10 | 0/10 | 0/10 | 10/10 | 10/10 |
+| 7.450 Hz | Chatterbox L02 | 2/10 | 0/10 | 1/10 | 1/10 | 9/10 | 10/10 |
+| 6.550 Hz | Chatterbox L02 | 0/10 | 1/10 | 2/10 | 3/10 | 8/10 | 10/10 |
+| 527 Hz | real L01 | 9/10 | 9/10 | 2/10 | 1/10 | 1/10 | 0/10 |
+| 655 Hz | real L01 | 9/10 | 9/10 | 1/10 | 0/10 | 1/10 | 1/10 |
+
+**Leitura:**
+- Cada gerador deixa as próprias linhas, as mesmas nos dois locutores, e o
+  microfone também deixa as dele. As frequências mudam de uma ferramenta para
+  outra: é uma **assinatura de cada gerador**, não uma marca universal.
+- Nem toda linha escolhida é específica: 7.611 Hz, escolhida no XTTS do L01,
+  aparece em 7 de 10 e 4 de 10 gravações reais.
+- As linhas do Chatterbox caem, na maioria, em múltiplos de 50 Hz (6.550, 7.450,
+  7.850), que é a taxa de quadros do vocoder dele. Daí a parte 4.
+- **Por que o detector não usa as linhas.** Pelo caminho do modelo (16 kHz), a
+  linha chega inteira na resolução de 1 Hz:
+  - 6.078 Hz do XTTS: +5,6 dB (L01) e +5,1 dB (L02);
+  - 7.850 Hz do Chatterbox: +5,2 e +5,6 dB;
+  - controle a ±100 Hz da linha: +0,1 a +0,7 dB.
+
+  Na janela de 25 ms do detector (400 amostras, FFT de 512, como nos
+  `fusion_v4*.yaml`), a mesma linha fica entre −0,1 e +1,0 dB, perto do controle
+  (0,0 a +0,2). Depois ainda passa pelos 70 filtros do LFCC e pelos 80 do mel,
+  mais largos que um ponto da FFT. **A marca chega ao modelo, mas a resolução
+  dele é larga demais para vê-la.**
+
+### 10.2.20 Parte 4: o pente na taxa de quadros do vocoder (exploratório)
+
+**Hipótese:** o vocoder monta o som quadro a quadro, e uma marca repetida a cada
+quadro vira um pente de linhas nos múltiplos da taxa de quadros. Ela surgiu
+olhando as linhas da parte 3, nos mesmos arquivos; não é uma confirmação
+independente. Taxas tiradas do código instalado:
+- **XTTS v2:** HiFi-GAN com fatores 8, 8, 2, 2, ou seja, 256 amostras a 24 kHz e
+  93,75 quadros/s (`TTS/tts/layers/xtts/hifigan_decoder.py`).
+- **Chatterbox:** HiFT com fatores 8, 5, 3 e iSTFT de passo 4, ou seja, 480
+  amostras a 24 kHz e 50 quadros/s (`chatterbox/models/s3gen/s3gen.py`).
+- **Microfone, previsto antes de medir:** os estalos a cada 110 ms (10.2.16) dão
+  9,0909 Hz.
+
+**Método (`scripts/estudo_pente.py`, `outputs/estudo_pente.json`):** a força do
+pente, por arquivo, é o excesso médio (1 Hz) nos múltiplos da base menos o dos
+pontos do meio. É medida em 4–11,5 kHz no nativo e em 4–7,6 kHz no caminho do
+modelo. A separação é medida pela AUC. Uma varredura de 40 a 200 Hz mede o pente
+mais forte sem saber o gerador.
+
+**Resultado no nativo** (força mediana em dB; entre colchetes, a AUC contra os
+20 reais):
+
+| grupo | base 93,75 Hz | base 50 Hz | base 9,0909 Hz | varredura |
+|---|---|---|---|---|
+| reais L01 | +0,10 | −0,51 | +2,03 | +2,18 |
+| reais L02 | −0,25 | −0,77 | +1,86 | +1,89 |
+| XTTS L01 | +0,85 [0,96] | +0,09 [1,00] | −0,02 [0,00] | +1,36 [0,16] |
+| XTTS L02 | +0,03 [0,57] | +0,09 [1,00] | −0,00 [0,00] | +1,05 [0,07] |
+| Chatterbox L01 | −0,40 [0,17] | +0,22 [0,99] | +0,00 [0,00] | +1,15 [0,07] |
+| Chatterbox L02 | −0,27 [0,30] | +0,25 [1,00] | +0,00 [0,00] | +1,06 [0,04] |
+
+**Leitura:**
+- **O pente previsto do microfone está em todas as gravações reais e em nenhum
+  clone.** O microfone sozinho separa os reais dos clones (AUC 0,00, ou 1,00 no
+  outro sentido). É o atalho que um detector treinado nessas gravações
+  aprenderia. Na varredura, os 100 Hz dos reais (20 de 20 no nativo) são 11 ×
+  9,09 Hz.
+- **A AUC de 50 Hz contra os reais é espúria.** Ela separa o Chatterbox, mas
+  também o XTTS (1,00), porque o pente do microfone põe metade dos múltiplos de
+  50 Hz num vale (reais em −0,51 e −0,77).
+- **Comparando um gerador com o outro, sem o microfone:**
+  - base de 50 Hz, Chatterbox contra XTTS: AUC 0,58 (L01) e 0,75 (L02);
+  - base de 93,75 Hz, XTTS contra Chatterbox: 1,00 e 0,72;
+  - no caminho do modelo: 0,77 e 0,72; 0,83 e 0,61.
+
+  O relógio do vocoder existe, mas é fraco (de +0,03 a +0,85 dB nas medianas,
+  cada gerador na própria base) e
+  pouco confiável por arquivo.
+- **A varredura que não sabe o gerador falha:** o pente mais forte é o dos
+  reais (AUC dos clones de 0,04 a 0,16).
+
+**Síntese das partes 1 a 4:**
+1. O detector vê o sintético espalhado pela banda média (2–5 kHz) e lê espectro
+   incompleto como sintético.
+2. Os geradores deixam marcas finas (linhas fixas próprias de cada ferramenta;
+   um pente fraco na taxa de quadros). A resolução de 25 ms do detector é larga
+   demais para vê-las.
+3. A captura também deixa marcas finas (pente de 9,09 Hz, linhas de 527 e 655
+   Hz). As gravações reais dos ensaios não servem sozinhas de referência humana
+   para características desse tipo.
+4. Nada até aqui é universal: as linhas mudam de gerador para gerador, e há
+   relógio dos dois lados.
+
+**Próximo:** a parte 5 repete as medidas nas bases ASVspoof. Lá os humanos têm
+outra origem, há muitos geradores e há ataques que o estudo não viu.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

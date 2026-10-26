@@ -83,7 +83,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   o teste real contra clone: `gravar_frases.py`, `limiar_fusao.py`,
   `teste_voz_propria.py`, critério em RESUMO_TCC §10.2.12; clonagem local:
   `preparar_referencia.py` e `clonar_xtts.py`, no ambiente conda `xtts`, ou com
-  `--ferramenta chatterbox` no ambiente `chatterbox`).
+  `--ferramenta chatterbox` no ambiente `chatterbox`); estudo das imperfeições,
+  exploratório (`estudo_faixas.py`, `estudo_relogio.py`, `estudo_linhas.py`,
+  `estudo_pente.py`; RESUMO_TCC §10.2.17 em diante).
 - `docs/RESUMO_TCC.md`: registro de todos os experimentos e números.
   `docs/TC2_REDACAO.md`: texto do relatório, com a fonte de cada número num
   comentário `<!-- RESUMO_TCC §x -->`.
@@ -177,3 +179,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 - Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
   o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
   pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).
+- Imperfeições dos sintéticos (RESUMO_TCC §10.2.17 a §10.2.20, exploratório):
+  - O detector vê o sintético espalhado em 2–5 kHz e lê espectro incompleto como
+    sintético.
+  - Cada gerador deixa linhas fixas próprias, nos dois locutores (XTTS 6.078 Hz,
+    Chatterbox 7.850 Hz). Elas somem na janela de 25 ms do modelo.
+  - O microfone embutido põe um pente de 9,09 Hz (os estalos a cada 110 ms) em
+    todas as gravações reais e em nenhum clone. É um atalho: característica nova
+    se confere em humanos de outra origem.
