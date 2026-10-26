@@ -3353,6 +3353,22 @@ Os scores de reais e clones ficam no mesmo lugar: as medianas vão de −3,04 a
    XTTS e do Chatterbox da nossa voz gravada.
 3. **O teste justo é real e clone pelo mesmo canal** (o clone pelo ar, ou o canal
    igualado). Até lá, o resultado dos ensaios não mede a pista do sintético.
+
+### 10.2.32 Ensaios com o canal igualado (exploratório, sem critério)
+
+**Pergunta:** com o ruído do nosso microfone também nos clones, os alunos e o
+detector separam a voz real dos clones dos ensaios?
+
+**Método (`scripts/ensaio_canal_igualado.py`;
+`outputs/destilacao/ensaio_canal_igualado.json`):**
+- **Clones:** os 40 dos ensaios 2 a 4, lidos a 16 kHz pelo FIR, mais o ruído
+  das pausas das 20 gravações reais (como em 10.2.27). SNRs de 15, 20 e 25 dB, a
+  faixa de ruído medida nas gravações reais (10.2.12).
+- **Reais:** as mesmas 20 gravações, sem mudança.
+- **Medidas:** aluno 1, aluno 2 e o nosso detector, com os limiares do dev.
+
+Não é o clone pelo ar: faltam o alto-falante e a sala. Os áudios com ruído ficam
+numa pasta temporária, apagada no fim.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
