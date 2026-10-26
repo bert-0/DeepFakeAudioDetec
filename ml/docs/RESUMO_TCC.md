@@ -2897,6 +2897,48 @@ quadros, que um modelo precisa aprender. Fica em aberto se estatísticas
 temporais dos quadros locais bastam ou se é preciso um modelo de sequência
 (parte 9).
 
+### 10.2.25 Parte 9: estatísticas temporais dos quadros locais (critério combinado antes)
+
+**Pergunta:** trocar o pooling de média e desvio do nosso modelo por
+estatísticas temporais bastaria? Ou é preciso um modelo de sequência?
+
+**Método (`scripts/estudo_estatisticas_tempo.py`; `outputs/estat_tempo/`).** Para
+cada dimensão dos quadros locais, calcula média, desvio, variação quadro a
+quadro e autocorrelação. Dois tipos de quadro:
+- convolução do XLS-R: 512 dimensões, 20 ms, atrasos de 20 a 160 ms;
+- LFCC do detector: 20 coeficientes, 10 ms, atrasos de 10 a 160 ms.
+
+Os arquivos, a sonda e as réguas são os da parte 6. Conferência: a média da
+convolução é igual à da parte 6.
+
+**Critério (no commit antes de rodar):** ganho de pelo menos 0,05 de AUC sobre a
+média e o desvio das mesmas características, no dev e na 2019.
+
+| representação | dimensões | EER dev | AUC dev | AUC ensaios | AUC 2019 LA | A12 |
+|---|---|---|---|---|---|---|
+| convolução do XLS-R, média | 512 | 42,25% | 0,597 | 0,877 | 0,610 | 0,339 |
+| convolução, média e desvio | 1.024 | 33,50% | 0,709 | 0,931 | 0,634 | 0,230 |
+| convolução, com estatísticas temporais | 3.584 | 36,04% | 0,658 | 0,995 | 0,597 | 0,059 |
+| LFCC com deltas, média e desvio (o controle) | 120 | 19,54% | 0,848 | 0,999 | 0,632 | 0,138 |
+| LFCC estático, média e desvio | 40 | 25,00% | 0,839 | 0,875 | 0,601 | 0,482 |
+| LFCC estático, com estatísticas temporais | 160 | 19,79% | 0,831 | 0,999 | 0,741 | 0,100 |
+
+**Não passou:**
+- convolução: −0,051 no dev e −0,037 na 2019;
+- LFCC: −0,007 no dev e +0,140 na 2019.
+
+As estatísticas temporais ajudam o LFCC na 2019, mas não no dev, e nenhuma
+representação pega o A12.
+
+**Leitura das partes 8 e 9 juntas:**
+- O que as camadas 3 a 7 do XLS-R fazem não se reduz a resumos da dinâmica:
+  nem medidas feitas à mão (parte 8), nem autocorrelações dos quadros locais.
+- Precisa ser aprendido por um modelo de contexto. Trocar o pooling do nosso
+  modelo não bastaria.
+- Essas camadas foram aprendidas sem nenhum áudio falso, só prevendo trechos
+  escondidos de fala humana. A parte 10 testa se esse princípio explica a
+  separação.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
