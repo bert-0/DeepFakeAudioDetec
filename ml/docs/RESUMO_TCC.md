@@ -2305,7 +2305,7 @@ ocupa quase os 4 GB: cada frase levou de 25 a 108 s, e uma, 366 s, com a memóri
 transbordando para a do sistema. Inviável ao vivo nessa placa; a demonstração
 segue com o XTTS.
 
-### 10.2.16 Defeito na captura do microfone: uma emenda áspera a cada 1,1 s
+### 10.2.16 Captura do microfone: uma emenda suspeita a cada 1,1 s (sem perda de amostras)
 
 **Achado (25/10/2026):** ouvidas no VLC e no reprodutor do Windows, as gravações
 reais "travavam". Não há buraco de silêncio nem salto grande no sinal, mas nas
@@ -2325,14 +2325,22 @@ avisa perdas e aceita `--bloco-ms 100` para repetir a captura antiga. Na
 primeira gravação assim (L01, uma frase), os pontos a cada 1,1 s não se
 destacam (mediana 1,5 vez o normal, contra 1,7 em pontos ao acaso; antes, 2,3).
 Mas ao ouvido ela soou "em câmera lenta", e a voz saiu 7% mais grave que a
-média do L01 no ensaio 2, o que cabe na variação de uma frase para outra. Um tom
-de 1.000 Hz tocado e gravado nas duas capturas decide se a velocidade está
-certa.
+média do L01 no ensaio 2, o que cabe na variação de uma frase para outra.
+
+**Teste com um tom de 1.000 Hz** (26/10/2026), tocado pelo alto-falante e gravado
+nas duas capturas, 31 a 32 dB acima do ruído: a frequência gravada é 1.000,00 Hz
+nas duas (a velocidade está certa; não há câmera lenta), e a fase do tom é
+contínua nas duas, sem nenhum tranco nos instantes de 1,1 s (nenhuma amostra
+perdida ou repetida). Ao ouvido, as duas soam iguais. **Conclusão:** a captura
+não perde amostras; o "travado" ouvido não se confirmou como falha de captura. A
+emenda medida na fala segue como um artefato pequeno, de causa não explicada,
+sem efeito visível no tom. A captura fica com os pacotes do driver, que não
+mostrou nenhum custo.
 
 **Efeito nos ensaios, declarado:** a classe real dos ensaios 1 a 3 e as
 referências dos clones têm essa emenda áspera. Os resultados ficam como saíram;
-o defeito é uma imperfeição da gravação real, que mesmo assim foi julgada humana
-em 30 de 30 arquivos. O ao vivo usa a mesma fonte, então os testes ao vivo pelo
+o artefato é uma imperfeição pequena da gravação real (o tom mostrou que não
+há perda de amostras), que mesmo assim foi julgada humana em 30 de 30 arquivos. O ao vivo usa a mesma fonte, então os testes ao vivo pelo
 microfone (10.2.10 e os da aba Ao vivo) também tinham o defeito.
 
 ### 10.3 Bases públicas que já trazem canal
