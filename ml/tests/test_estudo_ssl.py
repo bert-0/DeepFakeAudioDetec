@@ -60,6 +60,20 @@ def test_explicar_reconhece_a_medida_que_acompanha():
     assert set(c["efeitos"]) == {"A09"}
 
 
+def test_auc_por_codec(tmp_path):
+    from scripts.estudo_ssl import ler_codecs, por_codec
+
+    (tmp_path / "a.tsv").write_text(
+        "E_1 E_0001 M - 0 x AC1 - bonafide -\nE_1 E_0002 M C04 7 x AC1 A17 spoof -\n"
+        "E_1 E_0003 F C04 7 x AC1 - bonafide -\nE_1 E_0004 F - 0 x AC1 A18 spoof -\n", encoding="utf-8")
+    codecs = ler_codecs(tmp_path / "a.tsv")
+    assert codecs == {"E_0001": "-", "E_0002": "C04", "E_0003": "C04", "E_0004": "-"}
+    arquivos = [f"data/x/flac/E_000{i}.flac" for i in (1, 2, 3, 4)]
+    r = por_codec(np.array([0.0, 1.0, 2.0, 3.0]), arquivos, np.array([0, 1, 0, 1]), codecs)
+    assert r["-"]["auc"] == 1.0 and r["C04"]["auc"] == 0.0     # no EnCodec o humano ficou acima
+    assert r["C04"]["nome"] == "EnCodec (neural)" and r["C04"]["humanos"] == 1
+
+
 def test_tamanho_do_efeito():
     from scripts.estudo_ssl import efeitos
 

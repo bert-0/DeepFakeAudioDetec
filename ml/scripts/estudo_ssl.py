@@ -20,6 +20,7 @@ Subcomandos (de dentro de ml/, com HF_HOME apontando para o cache do modelo):
     faixas    retira uma faixa por vez e mede a sonda da melhor camada (como a parte 1)
     tempo     reordena os quadros antes do transformer; decompõe o score por tipo de quadro
     detector  o nosso detector nos mesmos arquivos, pelo caminho da avaliação
+    codecs    AUC por codec no eval da ASVspoof 5 (só medida; nada é escolhido nele)
 
 Exemplos:
     python scripts/estudo_ssl.py extrair --saida outputs/ssl/asv5_train.npz \\
@@ -493,6 +494,38 @@ def resumir_tempo(registros: list[dict]) -> dict:
     return saida
 
 
+# --------------------------------------------------------------- por codec (eval da ASVspoof 5)
+
+#: Códigos do `ASVspoof5.codec.config.csv`; "-" = sem codec.
+NOMES_CODEC = {"-": "sem codec", "C01": "Opus banda larga", "C02": "AMR banda larga",
+               "C03": "Speex banda larga", "C04": "EnCodec (neural)", "C05": "MP3", "C06": "M4A",
+               "C07": "MP3 + EnCodec", "C08": "Opus banda estreita", "C09": "AMR banda estreita",
+               "C10": "Speex banda estreita", "C11": "aparelhos (Bluetooth, cabo)"}
+
+
+def ler_codecs(tsv: Path) -> dict[str, str]:
+    """{id do arquivo: codec} a partir da amostra do eval (4ª coluna)."""
+    saida = {}
+    for linha in Path(tsv).read_text(encoding="utf-8").splitlines():
+        partes = linha.split()
+        if len(partes) >= 4:
+            saida[partes[1]] = partes[3]
+    return saida
+
+
+def por_codec(scores: np.ndarray, arquivos, rotulos: np.ndarray, codecs: dict[str, str]) -> dict:
+    """AUC dos falsos contra os humanos que passaram pelo mesmo codec."""
+    from scripts.estudo_pente import auc
+
+    cod = np.array([codecs.get(Path(str(a)).stem, "?") for a in arquivos])
+    saida = {}
+    for c in sorted(set(cod.tolist())):
+        h, f = scores[(cod == c) & (rotulos == 0)], scores[(cod == c) & (rotulos == 1)]
+        if len(h) and len(f):
+            saida[c] = {"nome": NOMES_CODEC.get(c, c), "auc": auc(f, h), "humanos": int(len(h)), "falsos": int(len(f))}
+    return saida
+
+
 # --------------------------------------------------------------- o nosso detector
 
 def pontuar_detector(arquivos: list[str], config_caminho: str, checkpoint: str,
@@ -595,6 +628,15 @@ def main(argv=None) -> int:
     q.add_argument("--modelo", default=MODELO_HF)
     q.add_argument("--json", default="outputs/ssl/tempo.json")
 
+    k = sub.add_parser("codecs")
+    k.add_argument("--sondas", default="outputs/ssl/sondas.json")
+    k.add_argument("--npz", required=True, help="o eval da ASVspoof 5 extraído")
+    k.add_argument("--tsv", default="data/recortes/asvspoof5_eval_amostra10000_codec_s42.tsv")
+    k.add_argument("--rep", action="append", default=[], help="representações (padrão: a melhor e o lfcc)")
+    k.add_argument("--detector", default=None, help="detector.json com scores deste conjunto")
+    k.add_argument("--nome", default="asv5_eval", help="nome do conjunto no detector.json")
+    k.add_argument("--json", default="outputs/ssl/codecs.json")
+
     t = sub.add_parser("detector")
     t.add_argument("--config", default="configs/fusion_v4_asv5.yaml")
     t.add_argument("--checkpoint", default="checkpoints/fusion_lcnn_v4_asv5.pt")
@@ -668,6 +710,29 @@ def main(argv=None) -> int:
         Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps({"representacao": r["melhor"], "resumo": resumo,
                                                "registros": registros}, ensure_ascii=False), encoding="utf-8")
+        print(f"\nResultado: {args.json}")
+    elif args.cmd == "codecs":
+        r = json.loads(Path(args.sondas).read_text(encoding="utf-8"))
+        d = ler_npz(Path(args.npz))
+        codecs = ler_codecs(Path(args.tsv))
+        reps = representacoes(d)
+        nomes = args.rep or [r["melhor"], "lfcc"]
+        scores = {}
+        for nome in nomes:
+            sonda = {c: np.asarray(v) if isinstance(v, list) else v
+                     for c, v in r["representacoes"][nome]["sonda"].items()}
+            scores[nome] = aplicar(sonda, reps[nome].astype(np.float64))
+        if args.detector:
+            scores["detector"] = np.asarray(json.loads(Path(args.detector).read_text(encoding="utf-8"))["scores"][args.nome])
+        saida = {n: por_codec(s, d["arquivo"], d["rotulo"], codecs) for n, s in scores.items()}
+        todos = sorted({c for x in saida.values() for c in x})
+        print(f"{'codec':30s} {'humanos':>7s} {'falsos':>6s} " + " ".join(f"{n:>12s}" for n in saida))
+        for c in todos:
+            x0 = next(x[c] for x in saida.values() if c in x)
+            print(f"{c + ' ' + x0['nome']:30s} {x0['humanos']:7d} {x0['falsos']:6d} "
+                  + " ".join(f"{saida[n][c]['auc']:12.3f}" if c in saida[n] else f"{'':12s}" for n in saida))
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(json.dumps(saida, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"\nResultado: {args.json}")
     elif args.cmd == "detector":
         conjuntos = {}

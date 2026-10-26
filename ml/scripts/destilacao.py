@@ -298,8 +298,9 @@ def avaliar(aluno_caminho: Path, sondas: dict, treino: dict, dev: dict, avaliar_
         e, limiar = eer(s_dev[dev["rotulo"] == 0], s_dev[dev["rotulo"] == 1])
         r = {"eer_dev": e, "dev": medir(s_dev, dev["classe"], dev["rotulo"], limiar)}
         r["auc_media_dev"] = float(np.mean([c["auc"] for c in r["dev"]["classes"].values() if c["falso"]]))
-        r["avaliar"] = {n: medir(aplicar(sonda, emb[n].astype(np.float64)), d["classe"], d["rotulo"], limiar)
-                        for n, d in avaliar_.items()}
+        scores = {n: aplicar(sonda, emb[n].astype(np.float64)) for n in avaliar_}
+        r["avaliar"] = {n: medir(scores[n], d["classe"], d["rotulo"], limiar) for n, d in avaliar_.items()}
+        r["scores"] = {n: s.tolist() for n, s in scores.items()}
         saida["sondas"][nome_sonda] = r
 
     lfcc = sondas["representacoes"]["lfcc"]
@@ -344,6 +345,8 @@ def main(argv=None) -> int:
     v.add_argument("--dev", required=True)
     v.add_argument("--avaliar", action="append", default=[])
     v.add_argument("--dispositivo", default="cuda")
+    v.add_argument("--tsv", default=None,
+                   help="codecs da amostra do eval da ASVspoof 5: quebra a AUC por codec (só medida)")
     v.add_argument("--json", default="outputs/destilacao/avaliacao.json")
     args = p.parse_args(argv)
 
@@ -374,6 +377,17 @@ def main(argv=None) -> int:
               + " ".join(f"{(x[n] if x[n] is not None else float('nan')):16.3f}" for n in avaliar_))
     print("\nPor ataque no dev (sonda nova): " + ", ".join(
         f"{c} {v['auc']:.2f}" for c, v in r["sondas"]["nova"]["dev"]["classes"].items() if v["falso"]))
+    if args.tsv:
+        from scripts.estudo_ssl import ler_codecs, por_codec
+
+        codecs = ler_codecs(Path(args.tsv))
+        r["por_codec"] = {}
+        for n, d in avaliar_.items():
+            if any(Path(str(a)).stem in codecs for a in d["arquivo"][:20]):
+                r["por_codec"][n] = por_codec(np.asarray(r["sondas"]["nova"]["scores"][n]), d["arquivo"],
+                                              d["rotulo"], codecs)
+                print(f"\n{n}, AUC por codec (sonda nova): " + ", ".join(
+                    f"{x['nome']} {x['auc']:.2f}" for x in r["por_codec"][n].values()))
     if "criterio" in r:
         c = r["criterio"]
         print(f"\nCritério (ganho de {MARGEM} de AUC sobre o LFCC no dev e na 2019): dev {c['ganho_dev']:+.3f}, "
