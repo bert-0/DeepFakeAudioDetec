@@ -85,7 +85,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   `preparar_referencia.py` e `clonar_xtts.py`, no ambiente conda `xtts`, ou com
   `--ferramenta chatterbox` no ambiente `chatterbox`); estudo das imperfeições,
   exploratório (`estudo_faixas.py`, `estudo_relogio.py`, `estudo_linhas.py`,
-  `estudo_pente.py`, `estudo_bases.py`; RESUMO_TCC §10.2.17 em diante).
+  `estudo_pente.py`, `estudo_bases.py`; RESUMO_TCC §10.2.17 em diante) e o
+  XLS-R congelado como instrumento (`estudo_ssl.py`, §10.2.22; precisa de
+  `transformers` e `HF_HOME` no cache do E:).
 - `docs/RESUMO_TCC.md`: registro de todos os experimentos e números.
   `docs/TC2_REDACAO.md`: texto do relatório, com a fonte de cada número num
   comentário `<!-- RESUMO_TCC §x -->`.

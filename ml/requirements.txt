@@ -19,3 +19,8 @@ threadpoolctl>=3.0   # limita threads BLAS nos workers do DataLoader
 # Para usar o monitor ao vivo:
 #     pip install soundcard
 # soundcard>=0.4
+
+# Opcional — só para o estudo do XLS-R como instrumento de pesquisa
+# (scripts/estudo_ssl.py, RESUMO_TCC §10.2.22). O modelo não entra no sistema.
+#     pip install transformers
+# transformers>=5.0

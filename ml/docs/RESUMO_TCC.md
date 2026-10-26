@@ -2620,6 +2620,41 @@ frequência decorada. Há um risco: microfones e ambientes também têm linhas
 (527 e 655 Hz no microfone embutido, parte 3). Uma hipótese a testar é que a
 linha do gerador acompanha a fala, e a do ambiente continua nas pausas.
 
+### 10.2.22 Parte 6: o que o XLS-R enxerga (exploratório; regra fixada antes)
+
+**Por quê (26/10/2026):** os detectores com XLS-R são os que mais generalizam na
+literatura, e o grupo quer entender o que eles captam para trazer ao modelo
+próprio. O XLS-R entra como **instrumento de medida, não como detector**: os
+pesos pré-treinados da Meta (`facebook/wav2vec2-xls-r-300m`, baixados com o aval
+do grupo) ficam congelados e não entram no sistema.
+
+**Método (`scripts/estudo_ssl.py`; vetores em `outputs/ssl/`):**
+- **Representações:** cada arquivo é preparado como no treino (16 kHz pelo FIR,
+  sem silêncio nas pontas, pico em 1) e passa em janelas de 4 s com passo de 2 s.
+  A média no tempo de cada representação vira um vetor: a convolução de entrada
+  e as 25 saídas do transformer.
+- **Controle:** a média e o desvio do LFCC do nosso detector (120 valores).
+- **Sonda:** uma regressão logística por representação, com o C escolhido por
+  validação cruzada só no treino. Ela é treinada no treino do recorte da
+  ASVspoof 5 (2.000 humanos e 250 de cada ataque, A01–A08).
+- **Medida:** no dev do recorte (400 humanos e 150 de cada ataque A09–A16, que a
+  sonda não viu), na 2019 LA de treino (400 humanos e 100 de cada ataque) e nos
+  clones dos ensaios (XTTS e Chatterbox, L01 e L02). O limiar de cada sonda é o
+  ponto de EER no dev.
+
+**Regra fixada antes dos resultados:** a melhor representação é a de maior AUC
+média nos ataques do dev da ASVspoof 5. Os ensaios e a 2019 LA só medem.
+
+**Explicar:** o score da melhor representação é comparado com medidas simples:
+- energia por faixa, inclinação do espectro, planura da banda alta;
+- pico sobre a média, HNR;
+- linhas e pente (partes 4 e 5);
+- silêncio retirado e duração.
+
+A mesma sonda treinada só nessas medidas mostra o quanto elas sozinhas
+explicam. Depois, a retirada de faixas (como na parte 1) mostra onde a melhor
+camada vê o sintético.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
