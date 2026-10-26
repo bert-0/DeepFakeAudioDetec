@@ -2337,6 +2337,25 @@ emenda medida na fala segue como um artefato pequeno, de causa não explicada,
 sem efeito visível no tom. A captura fica com os pacotes do driver, que não
 mostrou nenhum custo.
 
+**O "travado" está na gravação, e parece vir do microfone** (26/10/2026). Tocado
+pelo Python, fora dos reprodutores, o áudio também soa travado. O espectrograma
+da fala mostra muitos estalos curtos de banda larga (linhas verticais até 12 kHz),
+também no meio de vogais. Contando os estalos de 1 ms acima de 7 kHz: 116 na
+referência do L01 (1,3 por segundo) e 61 na do L02; nenhum no tom e quase nenhum
+nos clones. Nas gravações antigas, eles aparecem em pares separados por 110 ms
+exatos (11 pacotes de 10 ms do driver), 20 de 22 deles nas pausas do L02: um
+estalo a cada 110 ms em dez seguidos daria os 1,1 s, e só um em dez cairia numa
+emenda de 100 ms, o que explica a primeira medida. Não há degrau de ganho nas
+pausas. **Hipótese:** processamento dentro do microfone embutido ("Grupo de
+microfones", provavelmente uma matriz com supressão de ruído ou formação de
+feixe no driver ou no hardware, que o modo exclusivo não desliga), trocando de
+estado entre fala e pausa. É o risco "o microfone faz processamento no hardware"
+do plano; o teste do microfone embutido tinha ficado para depois. Próximos
+passos: procurar esses efeitos no painel de áudio da Realtek e gravar a mesma
+frase com outro microfone para comparar. Os resultados dos ensaios ficam como
+saíram: as gravações reais, com esses estalos, foram julgadas humanas, e a banca
+usa o mesmo microfone.
+
 **Efeito nos ensaios, declarado:** a classe real dos ensaios 1 a 3 e as
 referências dos clones têm essa emenda áspera. Os resultados ficam como saíram;
 o artefato é uma imperfeição pequena da gravação real (o tom mostrou que não
