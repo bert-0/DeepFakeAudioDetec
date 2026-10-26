@@ -18,6 +18,7 @@ Subcomandos (de dentro de ml/, com HF_HOME apontando para o cache do modelo):
     sondar    sonda por representação; AUC e EER nos conjuntos de avaliação
     explicar  o que as medidas simples explicam do score da melhor camada
     faixas    retira uma faixa por vez e mede a sonda da melhor camada (como a parte 1)
+    detector  o nosso detector nos mesmos arquivos, pelo caminho da avaliação
 
 Exemplos:
     python scripts/estudo_ssl.py extrair --saida outputs/ssl/asv5_train.npz \\
@@ -367,6 +368,42 @@ def faixas(resultado: dict, lista: list[tuple[Path, str, int]], representar) -> 
     return saida
 
 
+# --------------------------------------------------------------- o nosso detector
+
+def pontuar_detector(arquivos: list[str], config_caminho: str, checkpoint: str,
+                     dispositivo: str = "cuda") -> np.ndarray:
+    """Log-odds do detector pelo caminho da avaliação (infer.py): 4 s desde o início."""
+    import torch
+
+    from src.config import load_config
+    from src.features import FeatureExtractor
+    from src.models import build_model
+    from src.preprocess import load_audio, preprocess_waveform
+
+    config = load_config(config_caminho)
+    dev = torch.device(dispositivo if torch.cuda.is_available() or dispositivo == "cpu" else "cpu")
+    extrator = FeatureExtractor(config["audio"], config["features"])
+    modelo = build_model(config["model"]).to(dev)
+    ckpt = torch.load(checkpoint, map_location=dev, weights_only=False)
+    modelo.load_state_dict(ckpt["model_state"])
+    modelo.eval()
+    saida = []
+    for arq in arquivos:
+        wav = preprocess_waveform(load_audio(arq, config["audio"]["sample_rate"]), config["audio"])
+        with torch.no_grad():
+            z = modelo({k: v.unsqueeze(0).to(dev) for k, v in extrator(wav).items()})[0]
+        saida.append(float(z[1] - z[0]))
+    return np.array(saida)
+
+
+def comparar_detector(scores: dict[str, np.ndarray], conjuntos: dict[str, dict]) -> dict:
+    """Mesma medida das sondas; limiar no ponto de EER do conjunto chamado dev."""
+    d = conjuntos["dev"]
+    e, limiar = eer(scores["dev"][d["rotulo"] == 0], scores["dev"][d["rotulo"] == 1])
+    return {"limiar": limiar, "eer_dev": e,
+            "conjuntos": {n: medir(scores[n], c["classe"], c["rotulo"], limiar) for n, c in conjuntos.items()}}
+
+
 # --------------------------------------------------------------- linha de comando
 
 def _imprimir_sondas(r: dict) -> None:
@@ -423,6 +460,14 @@ def main(argv=None) -> int:
     f.add_argument("--dispositivo", default="cuda")
     f.add_argument("--modelo", default=MODELO_HF)
     f.add_argument("--json", default="outputs/ssl/faixas.json")
+
+    t = sub.add_parser("detector")
+    t.add_argument("--config", default="configs/fusion_v4_asv5.yaml")
+    t.add_argument("--checkpoint", default="checkpoints/fusion_lcnn_v4_asv5.pt")
+    t.add_argument("--conjunto", action="append", required=True, metavar="NOME=NPZ",
+                   help="o conjunto chamado dev dá o limiar")
+    t.add_argument("--dispositivo", default="cuda")
+    t.add_argument("--json", default="outputs/ssl/detector.json")
     args = p.parse_args(argv)
 
     if args.cmd == "extrair":
@@ -463,6 +508,25 @@ def main(argv=None) -> int:
                 print(f"  {n:20s} " + ", ".join(f"{k} {x:+.2f}" for k, x in v.items()))
         Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps(ex, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"\nResultado: {args.json}")
+    elif args.cmd == "detector":
+        conjuntos = {}
+        for item in args.conjunto:
+            nome, caminho = item.split("=", 1)
+            conjuntos[nome] = ler_npz(Path(caminho))
+        if "dev" not in conjuntos:
+            p.error("um dos conjuntos precisa se chamar dev (é dele o limiar)")
+        scores = {n: pontuar_detector([str(a) for a in c["arquivo"]], args.config, args.checkpoint,
+                                      args.dispositivo) for n, c in conjuntos.items()}
+        r = comparar_detector(scores, conjuntos)
+        print(f"Detector {args.checkpoint}: EER no dev {100 * r['eer_dev']:.2f}%")
+        for nome, m in r["conjuntos"].items():
+            texto = ", ".join(f"{c} {v['certos']}/{v['n']}" + (f" ({v['auc']:.2f})" if v["auc"] is not None else "")
+                              for c, v in m["classes"].items())
+            print(f"  {nome}: AUC {m['auc'] if m['auc'] is None else round(m['auc'], 3)}; {texto}")
+        r["scores"] = {n: s.tolist() for n, s in scores.items()}
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json).write_text(json.dumps(r, ensure_ascii=False), encoding="utf-8")
         print(f"\nResultado: {args.json}")
     else:
         r = json.loads(Path(args.sondas).read_text(encoding="utf-8"))

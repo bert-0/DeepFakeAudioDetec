@@ -75,6 +75,25 @@ def test_grupo_com_rotulo_errado():
         selecionar_grupos(["x=pasta:clone"])
 
 
+def test_detector_nos_mesmos_arquivos(tmp_path):
+    torch = pytest.importorskip("torch")
+    from scripts.estudo_ssl import comparar_detector, pontuar_detector
+    from src.config import load_config
+    from src.models import build_model
+
+    config = load_config("configs/baseline.yaml")
+    torch.manual_seed(0)
+    ckpt = tmp_path / "m.pt"
+    torch.save({"model_state": build_model(config["model"]).state_dict(), "config": config}, ckpt)
+    lista = _wavs(tmp_path)
+    s = pontuar_detector([str(a) for a, _, _ in lista], "configs/baseline.yaml", str(ckpt), "cpu")
+    assert s.shape == (2,) and np.isfinite(s).all()
+    conj = {"arquivo": np.array(["a", "b"]), "classe": np.array(["real", "clone"]),
+            "rotulo": np.array([0, 1], dtype=np.int8)}
+    r = comparar_detector({"dev": np.array([-1.0, 2.0])}, {"dev": conj})
+    assert r["eer_dev"] == 0.0 and r["conjuntos"]["dev"]["classes"]["clone"]["certos"] == 1
+
+
 @pytest.fixture
 def rede_pequena():
     torch = pytest.importorskip("torch")

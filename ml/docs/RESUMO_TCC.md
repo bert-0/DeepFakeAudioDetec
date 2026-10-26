@@ -2606,6 +2606,17 @@ geradores eram só dois. Aqui os humanos são os das bases e há 22 ataques.
 - **As medidas que não sabem o gerador só pegam o A14:** pente com AUC 0,97 e
   linhas com 0,79. Nos outros 14 ataques da ASVspoof 5, AUC de 0,33 a 0,51
   (linhas) e de 0,34 a 0,59 (pente).
+- **Repetição com 500 arquivos por classe** (`--n 500`, semente 42;
+  `outputs/estudo_bases_*_n500.json`). Confirma o quadro:
+  - A14: pente com AUC 0,96, base de 62,5 Hz em 260 de 500 arquivos;
+  - A13: linha de 7.732 Hz em 209/250, contra 35/250 nos humanos;
+  - A07: linha de 7.000 Hz em 182/250, contra 26/250;
+  - A01–A06 da ASVspoof 5: a mesma linha em 114 a 132/250;
+  - demais ataques: AUC de 0,35 a 0,65 nas duas medidas, contando a 2019.
+
+  Aparece também um relógio fraco de 50 Hz no A16: base de 50 Hz em 33/500, e
+  linhas em múltiplos de 50 (6.650, 7.050, 7.300 e 7.700 Hz, +1,4 a +1,6 dB, em
+  75 a 85/250, contra 25 a 39/250 nos humanos).
 
 **Leitura:** as marcas finas são reais e explicáveis, mas não universais.
 - Aparecem nos geradores com reamostragem aprendida: o XTTS, o Chatterbox e uma
