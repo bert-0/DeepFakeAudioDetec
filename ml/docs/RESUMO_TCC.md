@@ -3402,6 +3402,55 @@ lado certo:
 4. **O próximo teste decisivo é gravar a voz real com outro microfone,** já
    pendente em 10.2.16. Se o aluno 2 aceitar como real a voz gravada sem o
    processamento do microfone embutido, o problema é o aparelho, não a pista.
+
+### 10.2.33 Outro microfone: o headset com fio (exploratório)
+
+**O que foi feito (27/10/2026):** o L01 gravou 5 das 10 frases do ensaio 2 com
+um headset com fio, ligado na entrada do notebook. O gravador e o driver são os
+mesmos; o microfone muda sozinho. Ao ouvido, o L01 notou que as gravações do
+headset também "travam".
+
+**Medidas do caminho de captura (`scripts/estudo_estalos.py`,
+`outputs/estudo_estalos.json`):**
+
+| grupo | arquivos | pente de 9,09 Hz (dB) | fundo nas pausas (dBFS) | saltos > 15 dB em 10 ms (por s) |
+|---|---|---|---|---|
+| embutido L01 | 10 | +2,03 | −66,8 | 0,38 |
+| embutido L02 | 10 | +1,86 | −71,3 | 0,09 |
+| **headset L01** | 5 | **−0,00** | **−86,7** | **0,63** |
+| clones XTTS L01 | 10 | −0,02 | −150,0 (silêncio digital) | 0,86 |
+| clones Chatterbox L01 | 10 | +0,00 | −77,4 | 0,60 |
+
+No espectrograma, a fala do headset tem bordas retas e pausas quase escuras.
+Não há perda de amostras nem pacote repetido nas gravações nativas.
+
+**Os detectores com a voz real do headset**
+(`scripts/ensaio_canal_igualado.py --sem-ruido`, mesmos clones do L01; arquivos
+`outputs/destilacao/microfone_*_L01.json`). AUC e, pelo limiar do dev, quantos
+reais ficam do lado certo:
+
+| L01 real pelo | detector | aluno 1 | aluno 2 |
+|---|---|---|---|
+| microfone embutido | 0,975 (10/10) | 0,940 (10/10) | 0,310 (4/10) |
+| **headset** | **0,000 (0/5)** | **0,200 (4/5)** | **0,170 (1/5)** |
+
+**Leitura:**
+1. **Os estalos a cada 110 ms vêm do caminho do microfone embutido.** O pente
+   some no headset, com o mesmo driver e o mesmo gravador. Isso responde, em
+   parte, a dúvida de 10.2.16: não é o driver nem o gravador.
+2. **O caminho do headset aplica uma redução de ruído com portão.** O fundo nas
+   pausas fica 20 dB mais baixo que no embutido, e há mais saltos bruscos de
+   nível. É provavelmente o "travado" que se ouve: o ruído some e volta de uma
+   vez a cada palavra.
+3. **Com esse processamento, a voz real parece sintética para todos os
+   detectores.** Até o detector atual, que separa o embutido (0,975), põe as 5
+   frases do headset acima de todos os clones (AUC 0,000). Pausas limpas demais e
+   bordas retas lembram o áudio gerado.
+4. **Para a segurança na prática, isso é um alerta:** redução de ruído (de
+   chamadas, aplicativos e drivers) pode fazer voz real ser acusada de falsa. Os
+   próximos testes precisam do caminho sem esse processamento: desligar a redução
+   de ruído da entrada do headset (Windows e Realtek) e regravar, ou usar um
+   gravador de celular sem redução de ruído.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
