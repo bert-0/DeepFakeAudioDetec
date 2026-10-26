@@ -132,7 +132,54 @@ def criterio(resumo: dict, dev: str = "asv5_dev", regua_2019: str = "asv19_train
             "sentido": "falsos surpreendem mais" if a > 0.5 else "falsos surpreendem menos"}
 
 
+def combinar(registros: list[dict], detector: dict[str, float], ref: str = "asv5_dev") -> dict:
+    """Detector + surpresa com pesos iguais, fixados antes: cada score vira z pelos
+    humanos do dev (calibração só no dev) e os dois são somados."""
+    from scripts.estudo_pente import auc
+
+    regs = [r for r in registros if r["arquivo"] in detector]
+    humanos_ref = [r for r in regs if r["conjunto"] == ref and r["rotulo"] == 0]
+    norma = {}
+    for chave, valores in (("detector", [detector[r["arquivo"]] for r in humanos_ref]),
+                           ("perda", [r["perda"] for r in humanos_ref])):
+        norma[chave] = (float(np.mean(valores)), float(np.std(valores)) + 1e-9)
+
+    def z(chave, v):
+        return (v - norma[chave][0]) / norma[chave][1]
+
+    for r in regs:
+        r["z_detector"], r["z_perda"] = z("detector", detector[r["arquivo"]]), z("perda", r["perda"])
+        r["fusao"] = r["z_detector"] + r["z_perda"]
+    saida = {"norma": norma, "conjuntos": {}}
+    for conj in sorted({r["conjunto"] for r in regs}):
+        rs = [r for r in regs if r["conjunto"] == conj]
+        h = [r for r in rs if r["rotulo"] == 0]
+        linha = {}
+        for chave in ("z_detector", "z_perda", "fusao"):
+            linha[chave] = {"auc": auc([r[chave] for r in rs if r["rotulo"] == 1], [r[chave] for r in h]),
+                            "classes": {c: auc([r[chave] for r in rs if r["classe"] == c], [r[chave] for r in h])
+                                        for c in sorted({r["classe"] for r in rs if r["rotulo"] == 1})}}
+        saida["conjuntos"][conj] = linha
+    return saida
+
+
+def scores_do_detector(caminho_json: Path, conjuntos: dict[str, Path]) -> dict[str, float]:
+    """{arquivo: log-odds} a partir do detector.json da parte 6 e dos .npz na mesma ordem."""
+    from scripts.estudo_ssl import ler_npz
+
+    r = json.loads(Path(caminho_json).read_text(encoding="utf-8"))["scores"]
+    saida = {}
+    for nome, npz in conjuntos.items():
+        arquivos = [str(a) for a in ler_npz(npz)["arquivo"]]
+        saida.update(dict(zip(arquivos, r[nome])))
+    return saida
+
+
 def main(argv=None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "combinar":
+        return main_combinar(argv[1:])
     p = argparse.ArgumentParser(description="Surpresa do modelo de fala natural (parte 10)")
     p.add_argument("--npz", action="append", required=True, help=".npz da parte 6 (lista de arquivos)")
     p.add_argument("--n-por-classe", type=int, default=80)
@@ -176,6 +223,31 @@ def main(argv=None) -> int:
     Path(args.json).write_text(json.dumps({"resumo": resumo, "criterio": c, "registros": registros},
                                           ensure_ascii=False), encoding="utf-8")
     print(f"Resultado: {args.json}")
+    return 0
+
+
+def main_combinar(argv) -> int:
+    p = argparse.ArgumentParser(prog="estudo_surpresa.py combinar",
+                                description="Detector + surpresa, pesos iguais, normalização no dev")
+    p.add_argument("--surpresa", default="outputs/surpresa/surpresa.json")
+    p.add_argument("--detector", default="outputs/ssl/detector.json")
+    p.add_argument("--conjunto", action="append", required=True, metavar="NOME=NPZ",
+                   help="nomes do detector.json e os .npz da parte 6 na mesma ordem")
+    p.add_argument("--json", default="outputs/surpresa/combinar.json")
+    args = p.parse_args(argv)
+    conjuntos = {}
+    for item in args.conjunto:
+        nome, caminho = item.split("=", 1)
+        conjuntos[nome] = Path(caminho)
+    registros = json.loads(Path(args.surpresa).read_text(encoding="utf-8"))["registros"]
+    r = combinar(registros, scores_do_detector(Path(args.detector), conjuntos))
+    for conj, linha in r["conjuntos"].items():
+        print(f"\n{conj}:")
+        for chave, x in linha.items():
+            print(f"  {chave:11s} AUC {x['auc']:.3f}; " + ", ".join(f"{c} {v:.2f}" for c, v in x["classes"].items()))
+    Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.json).write_text(json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"\nResultado: {args.json}")
     return 0
 
 

@@ -56,3 +56,20 @@ def test_resumo_e_criterio():
     assert c["passa"] and c["sentido"] == "falsos surpreendem mais"
     regs[-1]["perda"] = regs[-2]["perda"] = 1.15  # 2019 no meio: não passa
     assert not criterio(resumir(regs))["passa"]
+
+
+def test_combinar_com_o_detector():
+    from scripts.estudo_surpresa import combinar
+
+    regs = [dict(_reg("asv5_dev", c, rot, p), arquivo=f"d{i}")
+            for i, (c, rot, p) in enumerate([("bonafide", 0, 1.0), ("bonafide", 0, 1.4), ("A12", 1, 2.2),
+                                              ("A09", 1, 1.2)])]
+    regs.append(dict(_reg("ensaios", "L01_real", 0, 3.0), arquivo="e0"))
+    regs.append(dict(_reg("ensaios", "L01_xtts", 1, 1.5), arquivo="e1"))
+    # o detector erra o A12 e acerta o A09; a surpresa, o contrário
+    detector = {"d0": -10.0, "d1": -8.0, "d2": -12.0, "d3": 5.0, "e0": -9.0, "e1": 4.0}
+    r = combinar(regs, detector)
+    dev = r["conjuntos"]["asv5_dev"]
+    assert dev["z_detector"]["classes"]["A12"] == 0.0 and dev["z_perda"]["classes"]["A12"] == 1.0
+    assert r["norma"]["perda"][0] == 1.2  # média dos humanos do dev
+    assert set(r["conjuntos"]) == {"asv5_dev", "ensaios"}

@@ -196,6 +196,26 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   sintético, que marcas os geradores deixam (vocoder, ritmo dos quadros, fase,
   ruído) e se elas valem para ferramentas que o treino não viu (RESUMO_TCC
   §10.2.17 em diante).
+- **Proposta de modelo próprio (27/10/2026), a decidir com o orientador.** Ela
+  sai do estudo das imperfeições (RESUMO_TCC §10.2.22 a §10.2.26):
+  - **O que se descobriu:**
+    - o XLS-R separa ataques que nunca viu pela dinâmica da voz no tempo;
+    - medidas feitas à mão e estatísticas dos quadros não reproduzem isso;
+    - a surpresa de um modelo só de fala natural, somada ao nosso detector,
+      sobe a AUC de 0,835 para 0,983 no dev e de 0,682 para 0,849 na 2019.
+  - **Proposta:** um "modelo de naturalidade" nosso, pequeno. É um transformer
+    sobre quadros de LFCC ou log-mel, treinado só com fala humana (recorte da
+    ASVspoof 5) para prever trechos escondidos, com as degradações de canal do
+    treino atual. A surpresa dele entra como pista ao lado do `fusion_v4`. Não
+    usa pesos da Meta e não precisa conhecer os geradores.
+  - **Risco medido:** no microfone dos ensaios, a surpresa do XLS-R se inverte
+    (o canal ruim parece mais estranho que o clone). O teste de aceite seria
+    medir isso de novo antes de tudo.
+  - **Custo:** treino novo, rodado pelo grupo (GTX 1650); cabe antes da data de
+    congelamento?
+  - **Alternativa mais curta:** um modelo de sequência (transformer) sobre os
+    quadros das LCNN, no lugar do pooling de média e desvio, treinado
+    supervisionado como hoje.
 - Quais ferramentas de clonagem usar, e qual fica fora do treino. Para a
   demonstração e os ensaios: XTTS v2 no próprio computador (24/10/2026), sem
   internet e sem a voz sair da máquina. Se ele entra no treino segue aberto; se o

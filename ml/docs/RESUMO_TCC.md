@@ -2939,6 +2939,64 @@ representação pega o A12.
   escondidos de fala humana. A parte 10 testa se esse princípio explica a
   separação.
 
+### 10.2.26 Parte 10: a surpresa do modelo de fala natural (critério combinado antes)
+
+**Pergunta:** o XLS-R nunca viu um áudio falso. No pré-treino, ele esconde
+trechos de fala humana e tenta reconhecer o verdadeiro entre distratores. A fala
+sintética torna essa tarefa diferente?
+
+**Método (`scripts/estudo_surpresa.py`; `outputs/surpresa/`):**
+- **máscaras** como no pré-treino: início em 7,5% dos quadros, 10 quadros cada,
+  6 repetições com sementes fixas por janela;
+- **medidas, por quadro escondido:**
+  - perda contrastiva contra 100 distratores do mesmo áudio;
+  - acerto (o verdadeiro em 1º);
+  - similaridade com o verdadeiro;
+- **amostra:** 80 arquivos por classe da parte 6, ou seja, 1.340 no total;
+- **conferência:** a perda calculada aqui é igual à do próprio modelo (maior
+  diferença 2,4·10⁻⁷).
+
+**Critério (no commit antes de rodar):** |AUC − 0,5| ≥ 0,2 na perda, no dev e na
+2019, no mesmo sentido.
+
+| conjunto | AUC da perda | perda mediana dos humanos | por classe (AUC) |
+|---|---|---|---|
+| dev ASVspoof 5 | 0,886 | 1,75 | A09 0,71; A10 0,73; A11 0,86; **A12 0,99**; A13 0,91; A14 1,00; A15 0,91; A16 0,97 |
+| 2019 LA | 0,766 | 2,03 | A01 0,76; A02 0,68; A03 0,50; A04 0,87; A05 0,97; A06 0,81 |
+| ensaios | **0,000** | **3,18** | os quatro grupos de clones 0,00 (medianas de 1,78 a 2,16) |
+
+**Passou:** dev 0,886 e 2019 0,766, no mesmo sentido. A fala sintética
+surpreende mais o modelo de fala natural; as outras duas medidas também mostram
+isso (acerto: AUC 0,126 e 0,243; similaridade: 0,040 e 0,182). É uma pista **de
+classe única**: vem de um modelo que só viu fala humana. Ela pega o A12, que o
+nosso detector inverte.
+
+**Mas nos ensaios ela se inverte por completo.** As gravações do nosso microfone
+(ruído, estalos, sala) surpreendem mais (mediana 3,18) que os clones (1,78 a
+2,16) e que os humanos das bases (1,75 a 2,03). Para um modelo de fala natural, o
+canal ruim parece mais "estranho" que um clone limpo.
+
+**Combinação com o nosso detector (`estudo_surpresa.py combinar`,
+`outputs/surpresa/combinar.json`).** Pesos iguais, fixados antes; cada score vira
+z pelos humanos do dev, e os dois são somados.
+
+| conjunto | detector | surpresa | soma |
+|---|---|---|---|
+| dev ASVspoof 5 | 0,835 | 0,886 | 0,983 (A12 0,09 → 0,89; A13 0,76 → 1,00) |
+| 2019 LA (teste) | 0,682 | 0,766 | 0,849 (A04 0,48 → 0,79; A05 0,36 → 0,83; A06 0,39 → 0,68) |
+| ensaios | 0,983 | 0,000 | 0,168 |
+
+**Leitura:**
+1. As duas pistas se completam. O detector pega o que a surpresa pega menos
+   (A09–A11), e a surpresa pega o que o detector inverte (A12, A04–A06).
+2. O princípio "um modelo de fala natural estranha a fala sintética" explica
+   parte do que o XLS-R faz e não depende de conhecer os geradores.
+3. Para o uso real (microfone, chamada), o canal decide. Um modelo de
+   naturalidade só serve se tiver aprendido que o canal varia, por exemplo com as
+   degradações do nosso treino (RawBoost, codecs, captura).
+
+Proposta para o modelo próprio: anotada no plano como decisão pendente.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
