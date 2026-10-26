@@ -54,26 +54,38 @@ def duracao_s(caminho: Path) -> float:
     return info.frames / info.samplerate
 
 
-def gerar(tts, frase: str, referencia: Path, destino: Path, idioma: str, semente: int) -> dict:
+def sem_ponto(frase: str) -> str:
+    """Tira o ponto final: o XTTS às vezes o lê como a palavra "ponto" (clones do
+    L02, 25/10/2026). Interrogação e exclamação ficam, pela entonação."""
+    texto = frase.rstrip()
+    while texto.endswith(".") and not texto.endswith("..."):
+        texto = texto[:-1].rstrip()
+    return texto
+
+
+def gerar(tts, frase: str, referencia: Path, destino: Path, idioma: str, semente: int,
+          sem_ponto_final: bool = False) -> dict:
     """Uma fala com a voz da referência; devolve o registro dela."""
     import torch
+
+    texto = sem_ponto(frase) if sem_ponto_final else frase
 
     destino.parent.mkdir(parents=True, exist_ok=True)
     # O XTTS sorteia na geração: a semente deixa cada frase reproduzível.
     torch.manual_seed(semente)
     inicio = time.perf_counter()
-    tts.tts_to_file(text=frase, speaker_wav=str(referencia), language=idioma,
+    tts.tts_to_file(text=texto, speaker_wav=str(referencia), language=idioma,
                     file_path=str(destino))
     gasto = time.perf_counter() - inicio
     dur = duracao_s(destino)
     print(f"[{destino.stem}] {dur:.1f} s de fala em {gasto:.1f} s "
           f"({gasto / dur:.2f}x o tempo real), semente {semente}: {frase[:50]}")
-    return {"arquivo": destino.name, "frase": frase, "semente": semente,
+    return {"arquivo": destino.name, "frase": frase, "texto_enviado": texto, "semente": semente,
             "duracao_s": round(dur, 2), "tempo_s": round(gasto, 2)}
 
 
 def clonar(tts, frases: list[str], referencia: Path, saida: Path, idioma: str = "pt",
-           semente: int = 0) -> list[dict]:
+           semente: int = 0, sem_ponto_final: bool = False) -> list[dict]:
     """Uma fala por frase do arquivo (fNN.wav); pula as que já existem."""
     registro = []
     for i, frase in enumerate(frases, start=1):
@@ -81,7 +93,8 @@ def clonar(tts, frases: list[str], referencia: Path, saida: Path, idioma: str = 
         if destino.exists():
             print(f"[{i:02d}] já existe, pulando: {destino.name}")
             continue
-        registro.append(gerar(tts, frase, referencia, destino, idioma, semente + i))
+        registro.append(gerar(tts, frase, referencia, destino, idioma, semente + i,
+                              sem_ponto_final))
     return registro
 
 
@@ -91,17 +104,19 @@ def proximo_livre(saida: Path) -> int:
     return max(usados, default=0) + 1
 
 
-def falar(tts, frase: str, referencia: Path, saida: Path, idioma: str, semente: int) -> dict:
+def falar(tts, frase: str, referencia: Path, saida: Path, idioma: str, semente: int,
+          sem_ponto_final: bool = False) -> dict:
     """Frase livre: vira frase_NN.wav, sem sobrescrever nenhuma anterior."""
     if len(frase.split()) < PALAVRAS_MINIMAS:
         print(f"    [AVISO] menos de {PALAVRAS_MINIMAS} palavras: a fala não deve encher "
               "uma janela de 4 s do detector")
     n = proximo_livre(saida)
-    return gerar(tts, frase, referencia, saida / f"frase_{n:02d}.wav", idioma, semente + n)
+    return gerar(tts, frase, referencia, saida / f"frase_{n:02d}.wav", idioma, semente + n,
+                 sem_ponto_final)
 
 
 def interativo(tts, referencia: Path, saida: Path, idioma: str, semente: int,
-               ler=None) -> list[dict]:
+               ler=None, sem_ponto_final: bool = False) -> list[dict]:
     """Pede frases até `sair`; `r` refaz a última com outra semente.
 
     Linha vazia não encerra: um Enter sem querer na frente da banca custaria
@@ -126,7 +141,8 @@ def interativo(tts, referencia: Path, saida: Path, idioma: str, semente: int,
             extra += 1000
             texto = ultima
         ultima = texto
-        registro.append(falar(tts, texto, referencia, saida, idioma, semente + extra))
+        registro.append(falar(tts, texto, referencia, saida, idioma, semente + extra,
+                              sem_ponto_final))
 
 
 def main(argv=None) -> int:
@@ -138,6 +154,8 @@ def main(argv=None) -> int:
     modo.add_argument("--interativo", action="store_true",
                       help="pede frases uma a uma, com o modelo já carregado")
     p.add_argument("--saida", required=True)
+    p.add_argument("--sem-ponto-final", action="store_true",
+                   help="manda a frase sem o ponto final (o XTTS às vezes fala \"ponto\")")
     p.add_argument("--idioma", default="pt")
     p.add_argument("--semente", type=int, default=0)
     p.add_argument("--dispositivo", default=None, help="cuda | cpu (padrão: cuda, se houver)")
@@ -159,12 +177,14 @@ def main(argv=None) -> int:
     saida.mkdir(parents=True, exist_ok=True)
     if args.frases:
         registro = clonar(tts, ler_frases(args.frases), referencia, saida, args.idioma,
-                          args.semente)
+                          args.semente, args.sem_ponto_final)
     elif args.texto:
-        registro = [falar(tts, t, referencia, saida, args.idioma, args.semente)
+        registro = [falar(tts, t, referencia, saida, args.idioma, args.semente,
+                          args.sem_ponto_final)
                     for t in args.texto]
     else:
-        registro = interativo(tts, referencia, saida, args.idioma, args.semente)
+        registro = interativo(tts, referencia, saida, args.idioma, args.semente,
+                              sem_ponto_final=args.sem_ponto_final)
 
     manifesto = saida / "clonagem.json"
     anterior = (json.loads(manifesto.read_text(encoding="utf-8"))

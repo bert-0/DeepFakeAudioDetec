@@ -149,3 +149,41 @@ def test_fora_do_ambiente_do_xtts_diz_o_que_fazer(monkeypatch, tmp_path):
     with pytest.raises(SystemExit, match="conda activate xtts"):
         main(["--referencia", str(ref), "--frases", str(frases), "--saida", str(tmp_path / "c"),
               "--dispositivo", "cpu"])
+
+
+def test_sem_ponto_final_tira_so_o_ponto():
+    """Clones do L02 (25/10/2026): o XTTS leu o ponto final como "ponto"."""
+    from scripts.clonar_xtts import sem_ponto
+
+    assert sem_ponto("Vamos ao parque amanhã cedo.") == "Vamos ao parque amanhã cedo"
+    assert sem_ponto("Fim. ") == "Fim"
+    assert sem_ponto("Você vem?") == "Você vem?" and sem_ponto("Que dia!") == "Que dia!"
+    assert sem_ponto("E então...") == "E então..."
+
+
+def test_opcao_sem_ponto_final_nos_tres_modos(monkeypatch, tmp_path):
+    _instalar_falso(monkeypatch)
+    ref, frases = _entradas(tmp_path)
+    assert main(["--referencia", str(ref), "--frases", str(frases), "--saida", str(tmp_path / "a"),
+                 "--dispositivo", "cpu", "--sem-ponto-final"]) == 0
+    assert [p[0] for p in _TTSFalso.pedidos] == ["Frase 1", "Frase 2", "Frase 3"]
+    reg = json.loads((tmp_path / "a" / "clonagem.json").read_text(encoding="utf-8"))
+    assert reg["frases"][0]["frase"] == "Frase 1." and reg["frases"][0]["texto_enviado"] == "Frase 1"
+    _TTSFalso.pedidos.clear()
+    texto = "Uma frase escolhida pela banca para o clone dizer agora."
+    assert main(["--referencia", str(ref), "--saida", str(tmp_path / "b"), "--dispositivo", "cpu",
+                 "--texto", texto, "--sem-ponto-final"]) == 0
+    respostas = iter([texto, "sair"])
+    monkeypatch.setattr("builtins.input", lambda *_: next(respostas))
+    assert main(["--referencia", str(ref), "--saida", str(tmp_path / "c"), "--dispositivo", "cpu",
+                 "--interativo", "--sem-ponto-final"]) == 0
+    assert [p[0] for p in _TTSFalso.pedidos] == [texto[:-1]] * 2
+
+
+def test_sem_a_opcao_a_frase_vai_como_esta(monkeypatch, tmp_path):
+    """O padrão não muda: os ensaios 1 e 2 mandaram a frase com o ponto."""
+    _instalar_falso(monkeypatch)
+    ref, frases = _entradas(tmp_path)
+    assert main(["--referencia", str(ref), "--frases", str(frases), "--saida", str(tmp_path / "a"),
+                 "--dispositivo", "cpu"]) == 0
+    assert _TTSFalso.pedidos[0][0] == "Frase 1."
