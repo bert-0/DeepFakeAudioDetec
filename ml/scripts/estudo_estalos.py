@@ -75,7 +75,7 @@ def niveis(x: np.ndarray, sr: int) -> np.ndarray:
 def medir_arquivo(arq: Path) -> dict:
     """Na taxa original: pente de 9,09 Hz, nível do fundo nas pausas e saltos bruscos
     de nível (sinal de um "portão" de ruído). A contagem de estalos ficou de fora: o
-    detector de picos confunde começo e fim de palavra com estalos (27/10/2026)."""
+    detector de picos confunde começo e fim de palavra com estalos (26/10/2026)."""
     from scripts.estudo_linhas import excesso, ler
     from scripts.estudo_pente import forca
 

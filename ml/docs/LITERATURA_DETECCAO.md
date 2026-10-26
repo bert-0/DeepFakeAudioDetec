@@ -1,4 +1,4 @@
-# Literatura: detecção de áudio sintético (levantamento de 27/10/2026)
+# Literatura: detecção de áudio sintético (levantamento de 26/10/2026)
 
 Levantamento feito depois do estudo das imperfeições (RESUMO_TCC §10.2.17 a
 §10.2.28), para ver o que mais existe além do XLS-R e o que muda nos geradores
@@ -106,7 +106,7 @@ redação, conferir no artigo.
   pré-treinados ([arXiv 2405.02179](https://arxiv.org/abs/2405.02179)).
 - **Ligação:** essa linha muda a pergunta de "isto é sintético?" para "isto é
   mesmo esta pessoa?".
-- **Descartada pelo grupo (27/10/2026)**, por três motivos:
+- **Descartada pelo grupo (26/10/2026)**, por três motivos:
   1. Só protege quem foi cadastrado antes, e o projeto busca um detector geral.
   2. O reconhecedor de voz precisa ser treinado com milhares de locutores, ou
      ser um modelo pronto (outra caixa-preta).

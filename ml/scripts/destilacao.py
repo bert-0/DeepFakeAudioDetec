@@ -258,7 +258,7 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
     agenda = torch.optim.lr_scheduler.LambdaLR(
         otim, lambda p: min(1.0, (p + 1) / aquecimento) * 0.5 * (1 + np.cos(np.pi * min(p, passos) / passos)))
     # Desligada por padrão: na GTX 1650 a convolução de passo 2 em fp16 dá NaN já
-    # no primeiro lote (medido em 27/10/2026); em fp32 a perda sai normal.
+    # no primeiro lote (medido em 26/10/2026); em fp32 a perda sai normal.
     usar_amp = amp and dev_t.type == "cuda"
     escala = torch.amp.GradScaler("cuda", enabled=usar_amp)
     n_param = sum(p.numel() for p in aluno.parameters())

@@ -2383,6 +2383,12 @@ o artefato é uma imperfeição pequena da gravação real (o tom mostrou que n�
 há perda de amostras), que mesmo assim foi julgada humana em 30 de 30 arquivos. O ao vivo usa a mesma fonte, então os testes ao vivo pelo
 microfone (10.2.10 e os da aba Ao vivo) também tinham o defeito.
 
+**Causa achada em 10.2.34 (26/10/2026):** não é o microfone. No modo exclusivo,
+a captura entrega cerca de 1,47 vez mais pacotes que o tempo real: ela insere
+cópias exatas de trechos recentes (110 ms com os blocos de 100 ms, 20 ms com os
+pacotes do driver). O tom de 1.000 Hz não via isso, porque 10 ms são 10 ciclos
+exatos: a cópia sai com a fase contínua. A "câmera lenta" ouvida era isso.
+
 ### 10.2.17 Imperfeições dos sintéticos, parte 1: onde o detector vê o sintético (exploratório)
 
 **Por quê (26/10/2026):** no ensaio 4, o Chatterbox passou pelo detector (L01: 3
@@ -2452,6 +2458,7 @@ ondulação de 0,12 a 0,49 dB. O espaçamento é o dos estalos do microfone a ca
 do gerador.** Alerta para as partes seguintes: as gravações reais dos ensaios
 têm uma marca do microfone, e uma característica nova precisa ser conferida em
 áudio real de outra origem, senão o detector aprende "tem estalo = humano".
+(10.2.34: a marca é da captura, cópias de 110 ms; sem elas, o pente some.)
 
 ### 10.2.19 Parte 3: linhas fixas no espectro (exploratório)
 
@@ -3040,7 +3047,7 @@ ser igualado antes de gravar.
 
 ### 10.2.28 A marca d'água Perth do Chatterbox (exploratório)
 
-**Por quê (27/10/2026):** o Chatterbox põe em todo áudio gerado a marca Perth
+**Por quê (26/10/2026):** o Chatterbox põe em todo áudio gerado a marca Perth
 (Resemble AI), verificável com o pacote `perth`. Duas perguntas:
 1. Ela está nos nossos clones?
 2. As linhas fixas atribuídas ao vocoder dele (6.550, 7.450 e 7.850 Hz, 10.2.19 e
@@ -3066,15 +3073,18 @@ pasta temporária, apagada no fim.
    um selo de origem verificável. Mas o Chatterbox é de código aberto (MIT), e
    quem quiser enganar pode desligar a marca. Ela só pega quem não se esforça e
    não serve como detector geral.
+2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
+   cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
+   vocoder (10.2.19, 10.2.20) se mantém.
 
 ### 10.2.29 Piloto de destilação: um aluno pequeno imitando a camada 7 (critério combinado antes)
 
-**Por quê (27/10/2026):** a camada 7 do XLS-R separa ataques que ele nunca viu
+**Por quê (26/10/2026):** a camada 7 do XLS-R separa ataques que ele nunca viu
 (10.2.22), mas o grupo não quer o XLS-R como detector, e as medidas feitas à mão
 não chegam lá (10.2.24 e 10.2.25). Na destilação, o modelo grande entra como
 professor, só no treino. O conhecimento das 436 mil horas chega embutido nas
 respostas dele sobre os nossos áudios, e o detector final é um aluno pequeno,
-nosso, que roda sem ele. Decidido pelo grupo em 27/10/2026 como piloto; o treino
+nosso, que roda sem ele. Decidido pelo grupo em 26/10/2026 como piloto; o treino
 completo ainda passa pelo orientador.
 
 **Método (`scripts/destilacao.py`; dados em `outputs/destilacao/`):**
@@ -3099,7 +3109,7 @@ completo ainda passa pelo orientador.
 superar a sonda no LFCC (0,848 no dev, 0,632 na 2019) em pelo menos 0,05 de AUC
 no dev (média dos ataques) e na 2019 LA.
 
-**Régua extra, pedida pelo grupo (27/10/2026): o eval da ASVspoof 5.**
+**Régua extra, pedida pelo grupo (26/10/2026): o eval da ASVspoof 5.**
 - **Amostra:** a já usada em 10.9 (`data/ASVspoof5_recorte/eval`), com 10 mil
   arquivos: 2.036 humanos e cerca de 500 de cada ataque A17–A32, com o codec de
   cada um em `data/recortes/asvspoof5_eval_amostra10000_codec_s42.tsv`.
@@ -3109,7 +3119,7 @@ no dev (média dos ataques) e na 2019 LA.
   por ataque e por codec. É a busca de um padrão que sobreviva aos ataques e
   codecs que nenhum dos modelos viu.
 
-**Treino (27/10/2026, rodado pela sessão a pedido do usuário, que estava longe
+**Treino (26/10/2026, rodado pela sessão a pedido do usuário, que estava longe
 da máquina).** A primeira tentativa, em precisão mista, deu NaN desde o primeiro
 lote. A convolução de passo 2 em fp16 gera NaN nesta GTX 1650; o treino passou
 para fp32 (commit `8faee3a`).
@@ -3151,11 +3161,11 @@ para fp32 (commit `8faee3a`).
   um novo piloto, com critério próprio.
 
 **Expectativa para o eval da ASVspoof 5, registrada antes de ver os números
-(27/10/2026):** o aluno acima do nosso detector no geral e abaixo dele em parte
+(26/10/2026):** o aluno acima do nosso detector no geral e abaixo dele em parte
 dos codecs de banda estreita. A destilação usou só áudio limpo, sem as
 degradações de canal do treino. Chegar perto do professor é improvável.
 
-**Resultado no eval da ASVspoof 5 (27/10/2026).**
+**Resultado no eval da ASVspoof 5 (26/10/2026).**
 - **Amostra:** 9.979 arquivos (2.036 humanos; A17–A32).
 - **Medida:** só medida. A camada 7, os limiares (ponto de EER do dev) e o
   checkpoint do aluno vieram do dev.
@@ -3224,7 +3234,7 @@ de 2.036. A sonda do professor aplicada ao aluno dá AUC geral de 0,861.
 
 ### 10.2.30 O aluno somado ao detector (critério combinado antes)
 
-**Pergunta, do grupo (27/10/2026):** o detector ainda ganha do aluno em alguns
+**Pergunta, do grupo (26/10/2026):** o detector ainda ganha do aluno em alguns
 ataques do eval (A17, A21, A24, A25, A28). Somados, os dois ajudam mesmo?
 
 **Método (`scripts/combinar_detector_aluno.py`; `outputs/destilacao/combinacao.json`):**
@@ -3242,7 +3252,7 @@ ataques do eval (A17, A21, A24, A25, A28). Somados, os dois ajudam mesmo?
 o melhor dos dois sozinhos em pelo menos 0,02 de AUC no eval da ASVspoof 5 e na
 2019 LA, sem perder mais de 0,02 nos ensaios.
 
-**Resultado (27/10/2026; 1.600, 1.000, 60 e 9.979 arquivos com os dois scores):**
+**Resultado (26/10/2026; 1.600, 1.000, 60 e 9.979 arquivos com os dois scores):**
 
 | conjunto | detector | aluno | soma (pesos iguais) | logística (ajustada no dev) |
 |---|---|---|---|---|
@@ -3274,7 +3284,7 @@ sozinho, o aluno. Nos ensaios ganhou +0,012.
 
 ### 10.2.31 Piloto 2 de destilação: mais dados e o canal (critério combinado antes)
 
-**Por quê (27/10/2026):** no piloto 1, a perda ainda caía no fim do treino, e o
+**Por quê (26/10/2026):** no piloto 1, a perda ainda caía no fim do treino, e o
 aluno, que só viu áudio limpo, deixa passar quase todos os clones do L01 pelo
 microfone (10.2.30). O piloto 2 ataca as duas coisas.
 
@@ -3302,7 +3312,7 @@ precisa superar a sonda no LFCC (0,848 no dev, 0,632 na 2019) em pelo menos 0,05
 de AUC no dev e na 2019. A comparação com o aluno 1 no eval da ASVspoof 5 e nos
 ensaios é informação.
 
-**Execução (27/10/2026, pela sessão):**
+**Execução (26/10/2026, pela sessão):**
 - **Preparo:** 20.000 arquivos e 22.924 janelas, das 13h05 às 14h24.
 - **Treino:** 20 épocas de cerca de 155 s. A perda no dev foi de 1,139 na época
   1 a 0,978 na época 20, ainda caindo.
@@ -3370,7 +3380,7 @@ detector separam a voz real dos clones dos ensaios?
 Não é o clone pelo ar: faltam o alto-falante e a sala. Os áudios com ruído ficam
 numa pasta temporária, apagada no fim.
 
-**Resultado (27/10/2026).** AUC e, pelo limiar do dev, quantos de 10 ficam do
+**Resultado (26/10/2026).** AUC e, pelo limiar do dev, quantos de 10 ficam do
 lado certo:
 
 | SNR do ruído nos clones | detector | aluno 1 | aluno 2 |
@@ -3395,7 +3405,8 @@ lado certo:
    microfone embutido (mediana 3,18) é mais estranha que os clones (1,78 a 2,16).
    O microfone tem processamento interno e estalos a cada 110 ms (10.2.16), e o
    ruído das pausas não reproduz isso. O aluno 2, que imita melhor esse modelo,
-   herdou a estranheza.
+   herdou a estranheza. (10.2.34: o que ele estranha são as cópias da captura;
+   sem elas, aceita 10 de 10 vozes reais do L01.)
 3. **O detector atual segue separando os ensaios (0,954 a 0,975)**, mesmo com o
    ruído nos clones. Ele foi treinado com a captura simulada (10.7) e não depende
    só do ruído.
@@ -3405,7 +3416,7 @@ lado certo:
 
 ### 10.2.33 Outro microfone: o headset com fio (exploratório)
 
-**O que foi feito (27/10/2026):** o L01 gravou 5 das 10 frases do ensaio 2 com
+**O que foi feito (26/10/2026):** o L01 gravou 5 das 10 frases do ensaio 2 com
 um headset com fio, ligado na entrada do notebook. O gravador e o driver são os
 mesmos; o microfone muda sozinho. Ao ouvido, o L01 notou que as gravações do
 headset também "travam".
@@ -3451,9 +3462,156 @@ reais ficam do lado certo:
    próximos testes precisam do caminho sem esse processamento: desligar a redução
    de ruído da entrada do headset (Windows e Realtek) e regravar, ou usar um
    gravador de celular sem redução de ruído.
-2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
-   cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
-   vocoder (10.2.19, 10.2.20) se mantém.
+
+**Corrigido em 10.2.34:** a captura do headset também tinha pacotes repetidos
+(29%); a frase "não há perda de amostras nem pacote repetido" estava errada. As
+leituras 1 a 3 mudam: o pente sumiu porque o gravador trocou os blocos de 100 ms
+pelos pacotes do driver (as cópias passaram a ser de 20 ms), não por causa do
+microfone; e não há portão de ruído, e sim nível muito baixo no modo exclusivo
+(fala em −57 dBFS, pausas no arredondamento de 16 bits). Sem as cópias, o
+detector dá 0,660 para o headset (antes 0,000).
+
+### 10.2.34 Defeito na captura: o modo exclusivo insere cópias (diagnóstico)
+
+**Por quê (26/10/2026):** o L01 ouviu as gravações do headset "travando", como
+as do microfone embutido. O pedido foi procurar defeito no próprio gravador.
+
+**Método (`scripts/diagnostico_captura.py`; `outputs/diagnostico_captura.json`).**
+Em cada gravação, os trechos de 10 ms (480 amostras a 48 kHz) idênticos bit a
+bit a um trecho anterior. Num sinal de microfone, isso não acontece por acaso;
+silêncio digital não conta. Depois, capturas de 4 s do ruído da sala (nenhum
+som tocado, nada salvo) em cada configuração do `sounddevice` (PortAudio
+V19.7.0-devel), no "Grupo de microfones (Realtek(R) Audio)".
+
+**Todas as gravações reais têm cópias; nenhum clone tem:**
+
+| pasta | trechos de 10 ms repetidos | distância da cópia |
+|---|---|---|
+| ensaio 1, reais do L01 | 3.958/12.000 (33,0%) | 11 trechos (110 ms) |
+| ensaio 2, reais do L01 | 3.814/12.000 (31,8%) | 110 ms |
+| reais do L02 | 3.619/12.600 (28,7%) | 110 ms |
+| referências da clonagem, L01 / L02 | 32,4% / 27,9% | 110 ms |
+| clones pelo ar do ensaio 1 | 3.665/11.318 (32,4%) | 110 ms |
+| headset do L01 | 1.758/6.000 (29,3%) | 2 trechos (20 ms) |
+| clones do XTTS (L01 e L02, ensaios 1 a 3) | 0 | — |
+| clones do Chatterbox, L01 / L02 | 98/5.776 / 19/5.916 | 1 a 5 trechos, só no fim do arquivo |
+| celular do L01 (gravador do aparelho) | 0/10.307 | — |
+
+Nos clones do Chatterbox, as repetições são o enchimento do fim do arquivo: as
+amostras valem no máximo 1 degrau de 16 bits. Não é o mesmo defeito.
+
+**A causa é o modo exclusivo.** Ruído da sala, 4 s por configuração:
+
+| configuração | trechos repetidos | amostras por segundo |
+|---|---|---|
+| exclusivo, 1 canal, pacotes do driver (o gravador) | 194/592 (32,8%), a 20 ms | ~71 mil |
+| exclusivo, blocos de 100 ms (o gravador antigo) | 187/580 (32,2%), a 110 ms | — |
+| exclusivo, 2 canais | 192/590 (32,5%) | — |
+| exclusivo, latência de 20 a 60 ms | 29,1% a 30,8% das janelas de 64 amostras | 69 a 72 mil |
+| exclusivo, latência baixa (11,3 e 14,7 ms) | nenhum trecho inteiro, mas 22,1% a 23,5% das janelas de 64 amostras | 63 a 65 mil |
+| compartilhado, 1 ou 2 canais | 0 (nenhuma janela de 64 amostras) | 47.966 e 48.013 |
+
+No exclusivo, com latência de 20 ms ou mais, o PortAudio chama a captura em
+rajadas: a mediana entre duas chamadas é 0,01 a 0,05 ms, e as pausas têm o
+tamanho da latência. Cada chamada traz 10 ms. Ele lê o buffer do driver mais vezes do que o driver o enche, e a leitura a
+mais devolve um trecho antigo. Com a latência baixa, a cópia só deixa de cair
+alinhada nos trechos de 10 ms.
+
+**As cópias são inseridas, nada se perde.** Na fala:
+- na emenda de um trecho novo com a cópia, o salto da amostra é 14 vezes (L01),
+  4 vezes (L02) e 19 vezes (headset) o do meio do trecho;
+- na saída da cópia, ele é normal (0,95 a 1,02), e os trechos novos seguem em
+  ordem.
+
+Apagar as cópias devolve o sinal contínuo (`diagnostico_captura.py reparar`;
+cópias em `data/vozes/reparadas/`, fora do Git). As frases do ensaio 2 vão de
+12,00 s para 8,19 s em média: a voz gravada ficava 1,47 vez mais longa, a
+"câmera lenta" de 10.2.16. O tom de 1.000 Hz não via isso, porque 10 ms são 10
+ciclos exatos.
+
+**Outros defeitos do exclusivo neste notebook.** Ruído da sala, nos dois modos:
+- o compartilhado fica +40,0 dB acima do exclusivo, igual em todas as faixas
+  (39,2 a 40,1 dB, de 50 Hz a 23 kHz). É o ganho do Windows, que o exclusivo não
+  aplica, sem mudar a forma do espectro;
+- o exclusivo entrega 16 bits (pedido em int32, os valores vêm em múltiplos de
+  2¹⁶). O compartilhado tem resolução abaixo de 1/100 do degrau de 16 bits.
+
+**O headset não tem portão de ruído.** A fala dele ficou em −57,2 dBFS (pico
+−40,8). Nas pausas, as amostras valem 0 a 3 degraus de 16 bits (23% são zero):
+é o arredondamento, que o pico normalizado do modelo amplia. A leitura 2 de
+10.2.33 estava errada.
+
+**Medidas do caminho, sem as cópias** (`scripts/estudo_estalos.py`,
+`outputs/estudo_estalos_reparadas.json`):
+
+| grupo | pente de 9,09 Hz (dB) | fundo nas pausas (dBFS) | saltos > 15 dB (por s) |
+|---|---|---|---|
+| embutido L01, com cópias | +2,03 | −66,8 | 0,38 |
+| embutido L01, sem cópias | −0,00 | −66,7 | 0,10 |
+| embutido L02, sem cópias | −0,03 | −71,2 | 0,03 |
+| headset L01, sem cópias | −0,01 | −86,8 | 0,61 |
+| celular L01 | −0,02 | −56,2 | 0,45 |
+
+O pente de 9,09 Hz (10.2.18, 10.2.20) era o eco das cópias de 110 ms e some sem
+elas.
+
+**Os detectores com a voz real sem o defeito** (`ensaio_canal_igualado.py
+--sem-ruido`, os 20 clones do L01 do XTTS e do Chatterbox;
+`outputs/destilacao/microfone_*_L01.json`). AUC e, pelo limiar do dev, quantos
+reais ficam do lado certo:
+
+| L01 real | detector | aluno 1 | aluno 2 |
+|---|---|---|---|
+| embutido, com cópias (10.2.33) | 0,975 (10/10) | 0,940 (10/10) | 0,310 (4/10) |
+| embutido, sem cópias | 0,935 (10/10) | 0,880 (10/10) | 0,655 (10/10) |
+| headset, com cópias (10.2.33) | 0,000 (0/5) | 0,200 (4/5) | 0,170 (1/5) |
+| headset, sem cópias | 0,660 (4/5) | 0,410 (4/5) | 0,720 (5/5) |
+| celular (10 frases do ensaio 2) | 0,870 (9/10) | 0,810 (10/10) | 0,545 (9/10) |
+
+Os clones pegos são os mesmos nos três casos: detector 7/10 (XTTS) e 6/10
+(Chatterbox), aluno 1 0/10 e 2/10, aluno 2 1/10 e 2/10.
+
+**Placar dos ensaios 2 a 4 com os reais sem as cópias** (mesmo protocolo:
+`fusion_lcnn_v4_asv5`, limiar −8,671, `--taxa-comum 48000`;
+`outputs/teste_voz_propria_reparado_*.json`): reais 10/10 nos dois locutores;
+clones pegos L01 XTTS 9/10, L01 Chatterbox 3/10, L02 XTTS 10/10, L02 Chatterbox
+9/10, os mesmos de antes. A média dos reais sobe pouco: L01 −13,27 → −13,03, L02
+−12,86 → −12,68 nos log-odds.
+
+**A surpresa do XLS-R (10.2.26) sem as cópias** (`surpresa_arquivo`, mesmas
+máscaras; `outputs/surpresa/reparadas.json`). Perda mediana e AUC dos 40 clones
+dos ensaios contra cada grupo real (abaixo de 0,5: o real surpreende mais, a
+inversão de 10.2.26):
+
+| voz real | perda mediana | AUC dos clones |
+|---|---|---|
+| L01 embutido, com / sem cópias | 3,41 / 2,55 | 0,000 / 0,020 |
+| L02 embutido, com / sem cópias | 3,18 / 2,12 | 0,000 / 0,285 |
+| L01 headset, sem cópias | 2,34 | 0,115 |
+| L01 celular | 2,12 | 0,343 |
+
+Clones: XTTS L01 2,12, Chatterbox L01 2,03, XTTS L02 1,85, Chatterbox L02 1,85.
+As cópias explicam parte da inversão, não toda: até o celular surpreende mais
+que os clones. O resto fica com o canal (sala e microfone contra arquivo
+limpo), como em 10.2.27.
+
+**Leitura:**
+1. **O defeito era do nosso caminho de captura (PortAudio em WASAPI exclusivo
+   com este driver), não do microfone.** Ele está em todas as gravações reais,
+   nas referências da clonagem, nos clones pelo ar e no ao vivo pelo microfone
+   (mesma fonte). Os clones do XTTS e do Chatterbox foram feitos a partir de
+   referências com cópias.
+2. **Os placares dos ensaios se mantêm.** Com os reais recuperados, nenhum
+   veredito muda. Os resultados ficam como saíram, com o defeito declarado.
+3. **O "estranhamento" do aluno 2 era o defeito.** Sem as cópias, ele aceita as
+   10 vozes reais do L01 e deixa de inverter (0,310 → 0,655). Mas segue fraco
+   contra estes clones: pelo limiar do dev, pega 3 dos 20.
+4. **O headset parecia sintético pelas cópias de 20 ms e pelo nível baixo.** Sem
+   as cópias, o detector sobe de 0,000 para 0,660; o resto fica com o nível de
+   −57 dBFS, perto do arredondamento de 16 bits.
+5. **O modo compartilhado não tem nenhum dos dois defeitos** neste notebook
+   (taxa certa, sem cópias, resolução maior e o ganho do Windows). O plano pede
+   o exclusivo; a troca é decisão do grupo.
 
 ### 10.3 Bases públicas que já trazem canal
 

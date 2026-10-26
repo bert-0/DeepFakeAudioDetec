@@ -190,13 +190,19 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
 - Qual microfone será usado na coleta (na banca, o embutido do notebook, junto
   da webcam, informado em 02/10/2026), e se há uma interface USB com
   ASIO disponível.
+- **Modo da captura (26/10/2026).** O plano pede WASAPI exclusivo, mas neste
+  notebook ele insere cópias de trechos recentes, entrega 16 bits e não aplica
+  o ganho do Windows (RESUMO_TCC §10.2.34). O compartilhado não tem esses
+  defeitos, mas passa pelo mixer do Windows (os aprimoramentos precisam estar
+  desligados). Decidir: trocar o padrão para o compartilhado, com a checagem de
+  cópias depois de gravar, e regravar ou usar as gravações recuperadas.
 - Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
   desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
   lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o
   sintético, que marcas os geradores deixam (vocoder, ritmo dos quadros, fase,
   ruído) e se elas valem para ferramentas que o treino não viu (RESUMO_TCC
   §10.2.17 em diante).
-- **Proposta de modelo próprio (27/10/2026), a decidir com o orientador.** Ela
+- **Proposta de modelo próprio (26/10/2026), a decidir com o orientador.** Ela
   sai do estudo das imperfeições (RESUMO_TCC §10.2.22 a §10.2.26):
   - **O que se descobriu:**
     - o XLS-R separa ataques que nunca viu pela dinâmica da voz no tempo;
@@ -212,15 +218,16 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
     porque o real passou pelo microfone e o clone é arquivo limpo. Com o mesmo
     canal nas duas classes, inclusive o ruído do nosso microfone, ela segue
     separando (§10.2.27). O teste de aceite seria o clone pelo ar, com o nível
-    igualado ao da voz real.
+    igualado ao da voz real. Parte da inversão eram as cópias da captura; sem
+    elas, e no celular, ela diminui, mas continua (§10.2.34).
   - **Custo:** treino novo, rodado pelo grupo (GTX 1650); cabe antes da data de
     congelamento?
   - **Alternativa mais curta:** um modelo de sequência (transformer) sobre os
     quadros das LCNN, no lugar do pooling de média e desvio, treinado
     supervisionado como hoje.
-  - **Descartada (27/10/2026):** a verificação da identidade da pessoa. Só
+  - **Descartada (26/10/2026):** a verificação da identidade da pessoa. Só
     protege quem foi cadastrado, e o clone é feito para imitar essa identidade.
-  - **Piloto decidido pelo grupo (27/10/2026):** destilar a camada 7 do XLS-R
+  - **Piloto decidido pelo grupo (26/10/2026):** destilar a camada 7 do XLS-R
     num aluno pequeno sobre LFCC e log-mel (RESUMO_TCC §10.2.29). O XLS-R entra
     só como professor no treino; o detector final é o aluno. O treino do piloto é
     rodado pelo grupo. O treino completo depende do resultado e do orientador.

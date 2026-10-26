@@ -175,9 +175,14 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   critério: L01 3 de 10, L02 9 de 10; meta não atingida. A ordem quase não erra
   (clone acima do real do mesmo locutor em 396 de 400 pares nos ensaios 2 a 4);
   falha o ponto de corte.
-- Microfone embutido (RESUMO_TCC §10.2.16): captura sem perda de amostras (tom de
-  1.000 Hz exato), mas a fala tem estalos curtos, em pares a 110 ms nas pausas,
-  com os efeitos da Realtek desligados. Causa em aberto.
+- Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
+  com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
+  blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
+  bits e sem o ganho do Windows (+40 dB). Está em todas as gravações reais, nas
+  referências da clonagem, nos clones pelo ar e no ao vivo. Nada se perde:
+  `diagnostico_captura.py reparar` apaga as cópias (`data/vozes/reparadas/`). O
+  modo compartilhado não tem o defeito. Os placares dos ensaios não mudam sem
+  as cópias; o pente de 9,09 Hz e os "estalos a 110 ms" eram elas.
 - Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
   o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
   pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).
@@ -186,9 +191,9 @@ que ele colar. Não rode um treino pelo terminal da sessão.
     sintético.
   - Cada gerador deixa linhas fixas próprias, nos dois locutores (XTTS 6.078 Hz,
     Chatterbox 7.850 Hz). Elas somem na janela de 25 ms do modelo.
-  - O microfone embutido põe um pente de 9,09 Hz (os estalos a cada 110 ms) em
-    todas as gravações reais e em nenhum clone. É um atalho: característica nova
-    se confere em humanos de outra origem.
+  - A captura põe um pente de 9,09 Hz (as cópias de 110 ms, §10.2.34) em todas
+    as gravações reais e em nenhum clone. É um atalho: característica nova se
+    confere em humanos de outra origem.
   - Nas bases ASVspoof (§10.2.21), as linhas e os pentes aparecem só em parte
     dos geradores modernos: A14 com pente de 62,5 Hz (AUC 0,97), A13 e A07 com
     linhas. Nenhum aparece na 2019 LA. Não são uma marca universal.
@@ -211,7 +216,8 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   sem nunca ver um falso) separa os falsos com AUC 0,886 no dev (A12 0,99) e
   0,766 na 2019.
   - Somada ao detector: 0,983 no dev e 0,849 na 2019.
-  - Nos ensaios se inverte (real pelo microfone, clone limpo).
+  - Nos ensaios se inverte (real pelo microfone, clone limpo); sem as cópias da
+    captura e no celular, a inversão diminui, mas fica (§10.2.34).
   - Com o mesmo canal nas duas classes, segue separando (0,82–0,85 no dev).
   - A proposta de um modelo de naturalidade próprio está no plano, como
     decisão pendente.
