@@ -2655,6 +2655,62 @@ A mesma sonda treinada só nessas medidas mostra o quanto elas sozinhas
 explicam. Depois, a retirada de faixas (como na parte 1) mostra onde a melhor
 camada vê o sintético.
 
+### 10.2.23 Parte 7: a linha fixa acompanha a fala? (critério combinado antes)
+
+**Hipótese (escrita na parte 5, antes do teste):** a linha do gerador faz parte
+do som sintetizado e some nas pausas; a do ambiente é constante e aparece mais
+nas pausas. Se valesse, separaria "tom de máquina que fala" de "zumbido da sala".
+
+**Método (`scripts/estudo_acompanha.py`; `outputs/estudo_acompanha_*.json`):**
+espectrograma com janela de 0,25 s e passo de 50 ms. O excesso da linha é a
+potência nela sobre a mediana dos vizinhos a 16–48 Hz. Fala: quadros acima do
+percentil 60 de energia; pausa: abaixo do percentil 20. Diferença = excesso
+mediano na fala − nas pausas.
+
+**Critério e linhas, fixados no commit antes de rodar:** a linha "acompanha a
+fala" se a diferença é positiva em pelo menos 70% dos arquivos e "fica nas
+pausas" se é negativa em pelo menos 70%. As linhas são as das partes 3 e 5.
+
+**Resultado** (excesso mediano em dB; arquivos com diferença positiva):
+
+| grupo | linha | fala | pausa | diferença | dif. > 0 | veredito |
+|---|---|---|---|---|---|---|
+| real L01 | 527 Hz | +3,23 | +2,66 | +0,58 | 5/10 | indefinida |
+| real L01 | 655 Hz | +3,12 | +4,90 | −1,00 | 2/10 | fica nas pausas |
+| real L02 | 527 Hz | +3,03 | +3,92 | −0,93 | 3/10 | fica nas pausas |
+| real L02 | 655 Hz | +0,16 | +3,03 | −3,19 | 1/10 | fica nas pausas |
+| XTTS L01 | 6.078 Hz | +3,97 | +3,92 | +0,12 | 6/10 | indefinida |
+| XTTS L01 | 7.014 Hz | +3,14 | +4,12 | −1,20 | 2/10 | fica nas pausas |
+| XTTS L01 | 8.139 Hz | +4,77 | +2,73 | +2,22 | 9/10 | acompanha a fala |
+| XTTS L02 | 6.078 Hz | +4,66 | +2,73 | +2,10 | 9/10 | acompanha a fala |
+| XTTS L02 | 7.014 Hz | +3,82 | +3,64 | +0,30 | 6/10 | indefinida |
+| XTTS L02 | 8.139 Hz | +2,88 | +1,15 | +1,77 | 9/10 | acompanha a fala |
+| Chatterbox L01 | 6.550 Hz | +4,56 | +5,58 | −0,62 | 3/10 | fica nas pausas |
+| Chatterbox L01 | 7.450 Hz | +2,86 | +5,92 | −2,92 | 0/10 | fica nas pausas |
+| Chatterbox L01 | 7.850 Hz | +2,32 | +3,56 | −1,32 | 4/10 | indefinida |
+| Chatterbox L02 | 6.550 Hz | +3,63 | +5,82 | −2,16 | 0/10 | fica nas pausas |
+| Chatterbox L02 | 7.450 Hz | +5,25 | +8,34 | −3,14 | 0/10 | fica nas pausas |
+| Chatterbox L02 | 7.850 Hz | +2,04 | +4,50 | −2,32 | 1/10 | fica nas pausas |
+| A14 (dev, 100) | 4.000 Hz | +9,02 | +12,41 | −3,99 | 12/100 | fica nas pausas |
+| A14 | 7.562 Hz | +10,45 | +11,24 | −0,83 | 37/100 | indefinida |
+| A14 | 7.875 Hz | +11,66 | +10,36 | +0,95 | 67/100 | indefinida |
+| A13 (dev, 100) | 2.756 Hz | +4,41 | +6,52 | −2,57 | 16/100 | fica nas pausas |
+| A13 | 5.512 Hz | +6,63 | +9,44 | −2,83 | 18/100 | fica nas pausas |
+| A13 | 7.732 Hz | +11,16 | +14,39 | −3,19 | 9/100 | fica nas pausas |
+| A07 (treino, 100) | 7.000 Hz | +4,20 | +9,46 | −5,41 | 7/100 | fica nas pausas |
+
+**Hipótese rejeitada.** Das 19 linhas de gerador, só 3 acompanham a fala, todas
+do XTTS; 11 ficam nas pausas, como as do microfone. O tom do gerador se comporta
+como um zumbido constante do vocoder, que não depende do que está sendo dito: a
+pausa de um áudio sintético não é silêncio, é o vocoder ligado. A regra "linha
+que acompanha a fala" não separa o gerador da sala.
+
+**Consequência para o detector:** nas 11 linhas que ficam nas pausas, o excesso
+nas pausas vai de +4,1 a +14,4 dB. O pré-processamento do treino corta o
+silêncio das pontas, e o analisador ao vivo pesa as janelas pela fração de fala:
+as duas escolhas afastam o modelo justamente das partes onde a marca do gerador
+é mais forte. Testar o efeito exige outro treino e fica como proposta.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
