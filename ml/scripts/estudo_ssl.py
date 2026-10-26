@@ -337,7 +337,25 @@ def explicar(resultado: dict, treino: dict, conjuntos: dict[str, dict]) -> dict:
         r2 = 1 - np.var(score - x @ coef) / np.var(score)
         saida["conjuntos"][nome] = {"correlacao": corr, "r2_medidas": float(r2),
                                     "so_medidas": medir(aplicar(sonda_medidas, m), d["classe"], d["rotulo"],
-                                                        limiar_med)}
+                                                        limiar_med),
+                                    "efeitos": efeitos(d)}
+    return saida
+
+
+def efeitos(d: dict) -> dict[str, dict[str, float]]:
+    """Tamanho do efeito (d de Cohen) de cada classe falsa contra os humanos, por medida."""
+    nomes = [str(n) for n in d["nomes_medidas"]]
+    m, classes = d["medidas"].astype(np.float64), d["classe"]
+    humanos = m[d["rotulo"] == 0]
+    saida = {}
+    for c in sorted(set(classes[d["rotulo"] == 1].tolist())):
+        x = m[classes == c]
+        linha = {}
+        for j, n in enumerate(nomes):
+            a, b = x[:, j][~np.isnan(x[:, j])], humanos[:, j][~np.isnan(humanos[:, j])]
+            if len(a) > 1 and len(b) > 1:
+                linha[n] = float((a.mean() - b.mean()) / (np.sqrt((a.var() + b.var()) / 2) + 1e-12))
+        saida[c] = linha
     return saida
 
 
@@ -506,6 +524,11 @@ def main(argv=None) -> int:
                             key=lambda kv: -max(abs(v) for v in kv[1].values()) if kv[1] else 0)[:6]
             for n, v in fortes:
                 print(f"  {n:20s} " + ", ".join(f"{k} {x:+.2f}" for k, x in v.items()))
+            if c["efeitos"]:
+                classes = list(c["efeitos"])
+                print(f"  efeito (d de Cohen) contra os humanos: {'':4s}" + " ".join(f"{k:>8s}" for k in classes))
+                for n in ex["medidas"]:
+                    print(f"    {n:20s}{'':19s}" + " ".join(f"{c['efeitos'][k].get(n, float('nan')):+8.2f}" for k in classes))
         Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps(ex, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"\nResultado: {args.json}")

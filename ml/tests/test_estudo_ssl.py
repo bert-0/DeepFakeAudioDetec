@@ -57,6 +57,14 @@ def test_explicar_reconhece_a_medida_que_acompanha():
     assert c["correlacao"]["acompanha"]["falsos"] > 0.2
     assert abs(c["correlacao"]["ruido"]["falsos"]) < 0.35
     assert c["so_medidas"]["auc"] > 0.7
+    assert set(c["efeitos"]) == {"A09"}
+
+
+def test_tamanho_do_efeito():
+    from scripts.estudo_ssl import efeitos
+
+    e = efeitos(_conjunto(400, seed=5, classes=("bonafide", "A12")))["A12"]
+    assert 1.2 < e["acompanha"] < 1.8 and abs(e["ruido"]) < 0.2
 
 
 def test_medidas_simples():
