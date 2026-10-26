@@ -3098,6 +3098,16 @@ completo ainda passa pelo orientador.
 **Critério (no commit antes de rodar):** o piloto passa se a sonda no aluno
 superar a sonda no LFCC (0,848 no dev, 0,632 na 2019) em pelo menos 0,05 de AUC
 no dev (média dos ataques) e na 2019 LA.
+
+**Régua extra, pedida pelo grupo (27/10/2026): o eval da ASVspoof 5.**
+- **Amostra:** a já usada em 10.9 (`data/ASVspoof5_recorte/eval`), com 10 mil
+  arquivos: 2.036 humanos e cerca de 500 de cada ataque A17–A32, com o codec de
+  cada um em `data/recortes/asvspoof5_eval_amostra10000_codec_s42.tsv`.
+- **Uso:** só medida, depois de tudo escolhido. A camada (a 7), os limiares
+  (ponto de EER do dev) e o checkpoint do aluno (perda no dev) vêm do dev.
+- **Leituras:** o XLS-R camada por camada, o LFCC, o nosso detector e o aluno,
+  por ataque e por codec. É a busca de um padrão que sobreviva aos ataques e
+  codecs que nenhum dos modelos viu.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
