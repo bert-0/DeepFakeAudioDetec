@@ -241,3 +241,9 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   demonstração e os ensaios: XTTS v2 no próprio computador (24/10/2026), sem
   internet e sem a voz sair da máquina. Se ele entra no treino segue aberto; se o
   ensaio 2 falhar, a reserva é o XLS-R.
+  Proposta do L01 (26/10/2026), para depois do ensaio 5: acrescentar o
+  Chatterbox ajustado para o português do Brasil. O multilíngue usado nos
+  ensaios 4 e 5 soa como português de Portugal (RESUMO_TCC §10.2.35), e um clone
+  convincente da voz brasileira é peça central da demonstração. Precisa baixar
+  o modelo (com aprovação), conferir se o `clonar_xtts.py` o carrega e fixar o
+  critério antes de gerar.
