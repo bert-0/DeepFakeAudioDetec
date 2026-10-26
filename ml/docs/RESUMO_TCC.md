@@ -3271,6 +3271,36 @@ sozinho, o aluno. Nos ensaios ganhou +0,012.
 - **Conclusão:** nas réguas gerais, o aluno sozinho é o melhor; somar o
   detector atual não compensa. Ele só agrega no canal dos nossos ensaios, e até
   isso pede cuidado com o limiar.
+
+### 10.2.31 Piloto 2 de destilação: mais dados e o canal (critério combinado antes)
+
+**Por quê (27/10/2026):** no piloto 1, a perda ainda caía no fim do treino, e o
+aluno, que só viu áudio limpo, deixa passar quase todos os clones do L01 pelo
+microfone (10.2.30). O piloto 2 ataca as duas coisas.
+
+**Método (`scripts/destilacao.py`; dados em `outputs/destilacao/asv5_train2/`).**
+O que muda em relação ao piloto 1:
+- **Dados:** 20 mil arquivos do treino do recorte, 6.000 humanos e 1.750 de cada
+  ataque A01–A08 (semente 42). Eles contêm os 4 mil do piloto 1.
+- **Canal:** cada janela ganha 2 cópias degradadas das entradas do aluno, além
+  da limpa.
+  - A degradação é a do `configs/fusion_v4_asv5.yaml` (RawBoost, captura FIR,
+    codecs e corte da banda alta), mais ruído de 10 a 30 dB com chance de 0,5.
+  - Em cada época, o aluno vê uma das 3 versões, sorteada, e tenta dar a resposta
+    que o professor deu sobre a janela **limpa**.
+- **Alvos comprimidos:** PCA de 1.024 para 256 dimensões, ajustada nos quadros do
+  treino do piloto 1 (87,9% da variância).
+  - A PCA não tira a separação: a sonda do professor nas representações
+    projetadas dá 1,000 no dev e 0,987 na 2019, contra 1,000 e 0,998 sem PCA.
+  - Com 128, 384 e 512 dimensões: 1,000/0,992, 0,999/0,993 e 0,998/0,992.
+- **Mesmos do piloto 1:** a arquitetura do aluno, a perda e a escolha do
+  checkpoint pela perda no dev limpo, sem rótulo.
+- **Treino:** 20 épocas.
+
+**Critério (no commit antes de rodar):** o mesmo do piloto 1. A sonda no aluno 2
+precisa superar a sonda no LFCC (0,848 no dev, 0,632 na 2019) em pelo menos 0,05
+de AUC no dev e na 2019. A comparação com o aluno 1 no eval da ASVspoof 5 e nos
+ensaios é informação.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.

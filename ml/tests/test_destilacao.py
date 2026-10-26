@@ -47,7 +47,22 @@ def test_preparar_sem_professor(tmp_path):
     r = preparar(origem, tmp_path / "sem", None, None)
     d = carregar_dados(tmp_path / "sem")
     assert r["janelas"] == 2 and d["alvos"] is None
-    assert (d["n_alvo"] == 149).all() and d["entradas"].shape == (2, MAX_ENTRADA, 140)
+    assert (d["n_alvo"] == 149).all() and d["entradas"].shape == (2, 1, MAX_ENTRADA, 140)  # 1 versão: a limpa
+
+
+def test_pca_guarda_a_variancia_de_dados_de_posto_baixo():
+    from scripts.destilacao import ajustar_pca
+
+    rng = np.random.default_rng(0)
+    base = rng.standard_normal((3, 12))
+    alvos = np.zeros((20, MAX_ALVO, 12), np.float32)
+    for i in range(20):
+        alvos[i, :50] = rng.standard_normal((50, 3)) @ base + 5.0
+    pca, fracao = ajustar_pca({"alvos": alvos, "n_alvo": np.full(20, 50)}, k=3, amostra=20)
+    assert pca["componentes"].shape == (3, 12) and fracao > 0.999
+    q = alvos[0, :50]
+    volta = (q - pca["media"]) @ pca["componentes"].T @ pca["componentes"] + pca["media"]
+    assert np.allclose(volta, q, atol=1e-3)
 
 
 def test_perda_ignora_quadros_vazios():
@@ -102,7 +117,7 @@ def test_preparar_treinar_avaliar(tmp_path, professor, capsys):
         r = preparar(_base(tmp_path, nome, n=n, seed=seed), pastas[nome], rede, dev, camada=1)
         assert r == {"arquivos": n, "janelas": n}
     d = carregar_dados(pastas["treino"])
-    assert d["entradas"].shape == (10, MAX_ENTRADA, 140) and d["alvos"].shape == (10, MAX_ALVO, 16)
+    assert d["entradas"].shape == (10, 1, MAX_ENTRADA, 140) and d["alvos"].shape == (10, MAX_ALVO, 16)
     assert (d["n_alvo"] > 0).all() and (d["n_entrada"] == 301).all()
 
     ck = tmp_path / "aluno.pt"
@@ -125,3 +140,26 @@ def test_preparar_treinar_avaliar(tmp_path, professor, capsys):
     r = json.loads(saida.read_text(encoding="utf-8"))
     assert set(r["sondas"]) == {"professor", "nova"} and "passa" in r["criterio"]
     assert "Critério" in capsys.readouterr().out
+
+    # Piloto 2: versões degradadas e alvos por PCA; o dev continua com 16 dimensões
+    from scripts.destilacao import ajustar_pca
+
+    pca, _ = ajustar_pca(d, k=4, amostra=10)
+    np.savez(tmp_path / "pca.npz", **pca)
+
+    def degradar(x, rng):
+        return x + rng.standard_normal(len(x)).astype(np.float32) * 0.05
+
+    p2 = tmp_path / "treino2"
+    preparar(_base(tmp_path, "t2", n=10, seed=5), p2, rede, dev, camada=1, degradar=degradar, versoes=2, pca=pca)
+    d2 = carregar_dados(p2)
+    assert d2["entradas"].shape == (10, 3, MAX_ENTRADA, 140) and d2["alvos"].shape[2] == 4
+    assert not np.allclose(np.asarray(d2["entradas"][0, 0]), np.asarray(d2["entradas"][0, 1]))
+    ck2 = tmp_path / "aluno2.pt"
+    assert main(["treinar", "--treino", str(p2), "--dev", str(pastas["dev"]), "--saida", str(ck2),
+                 "--epocas", "1", "--lote", "2", "--dispositivo", "cpu", "--dim", "32", "--camadas", "1"]) == 0
+    assert main(["avaliar", "--aluno", str(ck2), "--sondas", str(tmp_path / "s.json"), "--treino", str(p2),
+                 "--dev", str(pastas["dev"]), "--avaliar", str(pastas["asv19_train"]), "--dispositivo", "cpu",
+                 "--json", str(tmp_path / "av2.json")]) == 0
+    r2 = json.loads((tmp_path / "av2.json").read_text(encoding="utf-8"))
+    assert set(r2["sondas"]) == {"professor", "nova"}

@@ -72,10 +72,15 @@ def quadros_do_professor(n_amostras: int) -> int:
     return max(0, n_amostras)
 
 
-def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: int = CAMADA) -> dict:
+def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: int = CAMADA,
+             degradar=None, versoes: int = 0, pca: dict | None = None, semente: int = 0) -> dict:
     """Uma amostra por janela de 4 s (as mesmas janelas da parte 6). Duas passadas:
     a primeira só conta as janelas, para gravar direto em disco (memmap). Sem `rede`,
-    grava só as entradas do aluno: basta para avaliá-lo, e não roda o XLS-R."""
+    grava só as entradas do aluno: basta para avaliá-lo, e não roda o XLS-R.
+
+    Piloto 2: com `degradar` e `versoes`, cada janela ganha `versoes` cópias
+    degradadas das entradas do aluno (a 0 é a limpa); o professor responde sempre
+    sobre a janela limpa. Com `pca`, os alvos vão projetados (menos disco)."""
     from scripts.estudo_ssl import janelas, ler_npz
     from scripts.estudo_ssl import preparar as preparar_audio
 
@@ -84,11 +89,12 @@ def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: in
     contagem = [len(janelas(preparar_audio(a)[0])) for a in arquivos]
     n = sum(contagem)
     destino.mkdir(parents=True, exist_ok=True)
-    ent = np.lib.format.open_memmap(destino / "entradas.npy", "w+", np.float16, (n, MAX_ENTRADA, 140))
+    forma = (n, 1 + versoes, MAX_ENTRADA, 140) if versoes else (n, MAX_ENTRADA, 140)
+    ent = np.lib.format.open_memmap(destino / "entradas.npy", "w+", np.float16, forma)
     alv = None
     if rede is not None:
-        alv = np.lib.format.open_memmap(destino / "alvos.npy", "w+", np.float16,
-                                        (n, MAX_ALVO, int(rede.config.hidden_size)))
+        dim = pca["componentes"].shape[0] if pca else int(rede.config.hidden_size)
+        alv = np.lib.format.open_memmap(destino / "alvos.npy", "w+", np.float16, (n, MAX_ALVO, dim))
     elif (destino / "alvos.npy").exists():
         (destino / "alvos.npy").unlink()  # alvos de uma rodada anterior não valem para estas janelas
     janela_arquivo = np.zeros(n, np.int32)
@@ -98,7 +104,14 @@ def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: in
         wav, _ = preparar_audio(arq)
         for x in janelas(wav):
             e = entradas(x)[:MAX_ENTRADA]
-            ent[k, :len(e)], ent[k, len(e):] = e, 0
+            if versoes:
+                ent[k, 0, :len(e)], ent[k, 0, len(e):] = e, 0
+                for v in range(1, versoes + 1):
+                    xd = degradar(x.copy(), np.random.default_rng([semente, k, v]))
+                    ev = entradas(xd)[:MAX_ENTRADA]
+                    ent[k, v, :len(ev)], ent[k, v, len(ev):] = ev, 0
+            else:
+                ent[k, :len(e)], ent[k, len(e):] = e, 0
             if alv is not None:
                 import torch
 
@@ -106,6 +119,8 @@ def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: in
                 with torch.inference_mode():
                     s = rede(torch.from_numpy(xn).float()[None].to(dev), output_hidden_states=True)
                 a = s.hidden_states[camada][0].float().cpu().numpy()[:MAX_ALVO]
+                if pca:
+                    a = (a - pca["media"]) @ pca["componentes"].T
                 alv[k, :len(a)], alv[k, len(a):] = a, 0
                 n_alv[k] = len(a)
             else:
@@ -117,17 +132,36 @@ def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: in
     ent.flush()
     if alv is not None:
         alv.flush()
+    extra = {"pca_componentes": pca["componentes"], "pca_media": pca["media"]} if pca else {}
     np.savez(destino / "meta.npz", arquivo=d["arquivo"], classe=d["classe"], rotulo=d["rotulo"],
-             janela_arquivo=janela_arquivo, n_entrada=n_ent, n_alvo=n_alv, camada=camada)
+             janela_arquivo=janela_arquivo, n_entrada=n_ent, n_alvo=n_alv, camada=camada, **extra)
     return {"arquivos": len(arquivos), "janelas": n}
 
 
 def carregar_dados(pasta: Path) -> dict:
+    """Entradas sempre como (janelas, versões, quadros, 140); a versão 0 é a limpa."""
     meta = dict(np.load(pasta / "meta.npz", allow_pickle=False))
-    meta["entradas"] = np.load(pasta / "entradas.npy", mmap_mode="r")
+    ent = np.load(pasta / "entradas.npy", mmap_mode="r")
+    meta["entradas"] = ent if ent.ndim == 4 else ent.reshape(ent.shape[0], 1, *ent.shape[1:])
     alvos = pasta / "alvos.npy"
     meta["alvos"] = np.load(alvos, mmap_mode="r") if alvos.exists() else None
+    meta["pca"] = ({"componentes": meta["pca_componentes"], "media": meta["pca_media"]}
+                   if "pca_componentes" in meta else None)
     return meta
+
+
+def ajustar_pca(dados: dict, k: int = 256, amostra: int = 1000, semente: int = 0) -> tuple[dict, float]:
+    """PCA dos quadros do professor (amostra de janelas): ({componentes (k, D), media (D,)},
+    fração da variância que fica)."""
+    rng = np.random.default_rng(semente)
+    idx = np.sort(rng.permutation(len(dados["n_alvo"]))[:amostra])
+    q = np.concatenate([np.asarray(dados["alvos"][i, :dados["n_alvo"][i]], dtype=np.float64) for i in idx])
+    media = q.mean(axis=0)
+    cov = np.cov(q - media, rowvar=False)
+    val, vec = np.linalg.eigh(cov)
+    ordem = np.argsort(val)[::-1]
+    comp = vec[:, ordem[:k]].T.astype(np.float32)
+    return {"componentes": comp, "media": media.astype(np.float32)}, float(val[ordem[:k]].sum() / val.sum())
 
 
 # --------------------------------------------------------------- o aluno
@@ -179,14 +213,20 @@ def perda(pred, alvo, n_valido):
     return (por_quadro * valido).sum() / valido.sum().clamp(min=1)
 
 
-def _lote(dados, idx, media, desvio, dispositivo):
+def _lote(dados, idx, media, desvio, dispositivo, rng=None, pca=None, com_alvo=True):
+    """Com `rng`, uma versão sorteada por janela (limpa ou degradada); sem, a limpa.
+    Com `pca`, alvos de 1.024 dimensões são projetados (o dev do piloto 1)."""
     import torch
 
     idx = np.sort(idx)
-    x = torch.from_numpy(np.asarray(dados["entradas"][idx], dtype=np.float32)).to(dispositivo)
+    versoes = dados["entradas"].shape[1]
+    v = rng.integers(0, versoes, size=len(idx)) if rng is not None else np.zeros(len(idx), int)
+    x = torch.from_numpy(np.asarray(dados["entradas"][idx, v], dtype=np.float32)).to(dispositivo)
     y = None
-    if dados["alvos"] is not None:
+    if dados["alvos"] is not None and com_alvo:
         y = np.asarray(dados["alvos"][idx], dtype=np.float32)
+        if pca is not None and y.shape[-1] != len(media):
+            y = (y - pca["media"]) @ pca["componentes"].T
         y = torch.from_numpy((y - media) / desvio).to(dispositivo)
     n_e = torch.from_numpy(dados["n_entrada"][idx].astype(np.int64)).to(dispositivo)
     n_a = torch.from_numpy(dados["n_alvo"][idx].astype(np.int64)).to(dispositivo)
@@ -210,6 +250,7 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
     rng = np.random.default_rng(semente)
     dev_t = torch.device(dispositivo if torch.cuda.is_available() or dispositivo == "cpu" else "cpu")
     media, desvio = estatisticas_alvo(treino)
+    pca = treino.get("pca")
     aluno = criar_aluno(dim_alvo=treino["alvos"].shape[2], **(arquitetura or {})).to(dev_t)
     otim = torch.optim.AdamW(aluno.parameters(), lr=lr, weight_decay=0.01)
     passos = epocas * int(np.ceil(len(treino["n_alvo"]) / lote))
@@ -221,8 +262,9 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
     usar_amp = amp and dev_t.type == "cuda"
     escala = torch.amp.GradScaler("cuda", enabled=usar_amp)
     n_param = sum(p.numel() for p in aluno.parameters())
-    print(f"Aluno: {n_param / 1e6:.2f} milhões de parâmetros; {len(treino['n_alvo'])} janelas de treino, "
-          f"{len(dev['n_alvo'])} de dev; {epocas} épocas; {dev_t}", flush=True)
+    print(f"Aluno: {n_param / 1e6:.2f} milhões de parâmetros; {len(treino['n_alvo'])} janelas de treino "
+          f"({treino['entradas'].shape[1]} versões cada), {len(dev['n_alvo'])} de dev; {epocas} épocas; "
+          f"alvos de {treino['alvos'].shape[2]} dimensões; {dev_t}", flush=True)
     historico, melhor = [], float("inf")
     for epoca in range(1, epocas + 1):
         inicio = time.time()
@@ -230,7 +272,7 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
         ordem = rng.permutation(len(treino["n_alvo"]))
         soma, cont = 0.0, 0
         for b in range(0, len(ordem), lote):
-            x, y, n_e, n_a = _lote(treino, ordem[b:b + lote], media, desvio, dev_t)
+            x, y, n_e, n_a = _lote(treino, ordem[b:b + lote], media, desvio, dev_t, rng=rng)
             with torch.autocast(dev_t.type, enabled=usar_amp):
                 pred, n_s = aluno(x, n_e)
             p = perda(pred.float(), y, torch.minimum(n_s, n_a))
@@ -242,7 +284,7 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
             escala.update()
             agenda.step()
             soma, cont = soma + float(p.detach()) * len(x), cont + len(x)
-        perda_dev = avaliar_perda(aluno, dev, media, desvio, lote, dev_t)
+        perda_dev = avaliar_perda(aluno, dev, media, desvio, lote, dev_t, pca=pca)
         historico.append({"epoca": epoca, "perda_treino": soma / cont, "perda_dev": perda_dev})
         marca = ""
         if perda_dev < melhor:
@@ -250,21 +292,23 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
             saida.parent.mkdir(parents=True, exist_ok=True)
             torch.save({"estado": aluno.state_dict(), "config": aluno.config, "media_alvo": media,
                         "desvio_alvo": desvio, "epoca": epoca, "perda_dev": perda_dev,
-                        "camada": int(treino["camada"])}, saida)
+                        "camada": int(treino["camada"]), "pca": pca}, saida)
             marca = "  <- salvo"
         print(f"época {epoca:3d}: perda treino {soma / cont:.4f}, dev {perda_dev:.4f} "
               f"({time.time() - inicio:.0f} s){marca}", flush=True)
     return {"historico": historico, "melhor_perda_dev": melhor, "parametros": n_param}
 
 
-def avaliar_perda(aluno, dados, media, desvio, lote, dispositivo) -> float:
+def avaliar_perda(aluno, dados, media, desvio, lote, dispositivo, pca=None) -> float:
+    """Perda de destilação nas entradas limpas (a escolha do checkpoint, sem rótulo)."""
     import torch
 
     aluno.eval()
     soma, cont = 0.0, 0
     with torch.inference_mode():
         for b in range(0, len(dados["n_alvo"]), lote):
-            x, y, n_e, n_a = _lote(dados, np.arange(b, min(b + lote, len(dados["n_alvo"]))), media, desvio, dispositivo)
+            x, y, n_e, n_a = _lote(dados, np.arange(b, min(b + lote, len(dados["n_alvo"]))), media, desvio,
+                                   dispositivo, pca=pca)
             pred, n_s = aluno(x, n_e)
             soma += float(perda(pred.float(), y, torch.minimum(n_s, n_a))) * len(x)
             cont += len(x)
@@ -292,7 +336,8 @@ def representar(aluno, ck, dados, dispositivo, lote: int = 32) -> np.ndarray:
     por_janela = []
     with torch.inference_mode():
         for b in range(0, len(dados["n_alvo"]), lote):
-            x, _, n_e, _ = _lote(dados, np.arange(b, min(b + lote, len(dados["n_alvo"]))), media, desvio, dispositivo)
+            x, _, n_e, _ = _lote(dados, np.arange(b, min(b + lote, len(dados["n_alvo"]))), media, desvio,
+                                 dispositivo, com_alvo=False)
             pred, n_s = aluno(x, n_e)
             pred = pred.float().cpu().numpy() * desvio + media
             for j, n in enumerate(n_s.cpu().numpy()):
@@ -314,17 +359,20 @@ def avaliar(aluno_caminho: Path, sondas: dict, treino: dict, dev: dict, avaliar_
     emb = {n: representar(aluno, ck, d, dev_t) for n, d in conjuntos.items()}
     saida = {"camada": camada, "epoca": ck["epoca"], "perda_dev": ck["perda_dev"], "sondas": {}}
 
-    # 1) a sonda do professor (parte 6) aplicada às respostas do aluno
+    # 1) a sonda do professor (parte 6) aplicada às respostas do aluno; com PCA, as
+    #    respostas voltam ao espaço de 1.024 dimensões do professor (aproximadas)
     prof = {k: np.asarray(v) if isinstance(v, list) else v
             for k, v in sondas["representacoes"][camada]["sonda"].items()}
+    pca = ck.get("pca")
+    no_professor = {n: (e @ pca["componentes"] + pca["media"]) if pca else e for n, e in emb.items()}
     # 2) uma sonda nova, treinada nas respostas do aluno (a régua justa, como a do LFCC)
     nova = treinar_sonda(emb["treino"].astype(np.float64), treino["rotulo"])
-    for nome_sonda, sonda in (("professor", prof), ("nova", nova)):
-        s_dev = aplicar(sonda, emb["dev"].astype(np.float64))
+    for nome_sonda, sonda, espaco in (("professor", prof, no_professor), ("nova", nova, emb)):
+        s_dev = aplicar(sonda, espaco["dev"].astype(np.float64))
         e, limiar = eer(s_dev[dev["rotulo"] == 0], s_dev[dev["rotulo"] == 1])
         r = {"eer_dev": e, "dev": medir(s_dev, dev["classe"], dev["rotulo"], limiar)}
         r["auc_media_dev"] = float(np.mean([c["auc"] for c in r["dev"]["classes"].values() if c["falso"]]))
-        scores = {n: aplicar(sonda, emb[n].astype(np.float64)) for n in avaliar_}
+        scores = {n: aplicar(sonda, espaco[n].astype(np.float64)) for n in avaliar_}
         r["avaliar"] = {n: medir(scores[n], d["classe"], d["rotulo"], limiar) for n, d in avaliar_.items()}
         r["scores"] = {"dev": s_dev.tolist(), **{n: s.tolist() for n, s in scores.items()}}
         r["arquivos"] = {n: [str(a) for a in d["arquivo"]] for n, d in {"dev": dev, **avaliar_}.items()}
@@ -358,6 +406,14 @@ def main(argv=None) -> int:
     a.add_argument("--semente", type=int, default=42)
     a.add_argument("--sem-professor", action="store_true",
                    help="só as entradas do aluno (para avaliá-lo); não roda o XLS-R")
+    a.add_argument("--degradacao", help="config com audio.degradacao (piloto 2: as versões degradadas)")
+    a.add_argument("--ruido", action="store_true", help="soma ruído de 10 a 30 dB (prob. 0,5) à degradação")
+    a.add_argument("--versoes", type=int, default=0, help="cópias degradadas por janela, além da limpa")
+    a.add_argument("--pca", help="PCA dos alvos (subcomando pca)")
+    pc = sub.add_parser("pca")
+    pc.add_argument("--dados", required=True, help="pasta preparada com alvos de 1.024 dimensões")
+    pc.add_argument("--k", type=int, default=256)
+    pc.add_argument("--saida", required=True)
     a.add_argument("--saida", required=True)
     a.add_argument("--camada", type=int, default=CAMADA)
     a.add_argument("--dispositivo", default="cuda")
@@ -399,8 +455,29 @@ def main(argv=None) -> int:
         else:
             p.error("preparar precisa de --npz ou de --protocolo e --pasta")
         rede, dev = (None, None) if args.sem_professor else carregar_rede(args.dispositivo)
-        r = preparar(origem, Path(args.saida), rede, dev, camada=args.camada)
+        degradar = None
+        if args.versoes:
+            from src.config import load_config
+            from src.preprocess.degradacao import Degradacao
+
+            cfg = dict(load_config(args.degradacao)["audio"]["degradacao"])
+            cfg["etapas"] = list(cfg["etapas"]) + ([{"tipo": "ruido", "prob": 0.5, "faixa": [10, 30]}]
+                                                   if args.ruido else [])
+            degradar = Degradacao(cfg, SR)
+            print(f"Degradação ({args.versoes} versões por janela): {degradar.descricao()}", flush=True)
+        pca = None
+        if args.pca:
+            z = np.load(args.pca)
+            pca = {"componentes": z["componentes"], "media": z["media"]}
+        r = preparar(origem, Path(args.saida), rede, dev, camada=args.camada, degradar=degradar,
+                     versoes=args.versoes, pca=pca, semente=args.semente)
         print(f"Pronto: {r['arquivos']} arquivos, {r['janelas']} janelas em {args.saida}")
+        return 0
+    if args.cmd == "pca":
+        pca, fracao = ajustar_pca(carregar_dados(Path(args.dados)), args.k)
+        Path(args.saida).parent.mkdir(parents=True, exist_ok=True)
+        np.savez(args.saida, **pca, fracao=fracao)
+        print(f"PCA com {args.k} componentes: {100 * fracao:.1f}% da variância. Salvo em {args.saida}")
         return 0
     if args.cmd == "treinar":
         r = treinar(carregar_dados(Path(args.treino)), carregar_dados(Path(args.dev)), Path(args.saida),
