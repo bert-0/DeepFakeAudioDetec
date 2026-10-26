@@ -129,6 +129,8 @@ primeiro: nenhuma gravação começa antes deles.
   caminho arquivo com uma voz nova. Falta a voz do orientador. Ensaio 4
   (§10.2.15), clones do Chatterbox: L01 3 de 10, L02 9 de 10, meta não
   atingida; o detector pega o XTTS, mas não com folga uma ferramenta mais nova.
+  Ensaio 5 (§10.2.35), critério fixado em 26/10/2026: os dois caminhos de novo
+  com a captura corrigida (modo compartilhado), referência e clones novos do L01.
 - Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
   `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
   (22/10/2026). Medido no mesmo dia: tirar 7,6–8 kHz custa +6,27 pp no

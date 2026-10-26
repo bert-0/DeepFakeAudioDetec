@@ -197,3 +197,19 @@ def test_outra_pasta_de_clones(tmp_path):
                  "--json", str(saida), "--clones", "clone_chatterbox"]) == 0
     r = json.loads(saida.read_text(encoding="utf-8"))
     assert r["clones"] == "clone_chatterbox" and r["placar"]["arquivo"]["clone"]["n"] == 2
+
+
+def test_outra_pasta_de_clones_pelo_ar(tmp_path):
+    """Ensaio 5: o Chatterbox também pelo alto-falante, com as mesmas gravações reais."""
+    modelo = _checkpoint(tmp_path / "a.pt", 0)
+    limiar = tmp_path / "limiar.json"
+    limiar.write_text(json.dumps({"regra": "logodds", "limiar": 0.0, "modelos": [modelo]}),
+                      encoding="utf-8")
+    _gravacoes(tmp_path / "vozes")
+    (tmp_path / "vozes" / "clone_ar").rename(tmp_path / "vozes" / "clone_ar_chatterbox")
+    saida = tmp_path / "r.json"
+    assert main(["--pasta", str(tmp_path / "vozes"), "--limiar", str(limiar),
+                 "--json", str(saida), "--clones-ar", "clone_ar_chatterbox"]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert r["clones_ar"] == "clone_ar_chatterbox"
+    assert r["placar"]["microfone"]["clone_ar"]["n"] == 2

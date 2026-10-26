@@ -40,7 +40,7 @@ def test_le_uma_frase_por_linha_sem_as_vazias(tmp_path):
 
 
 @pytest.mark.parametrize("arquivo", ["frases_teste_voz_propria.txt", "frases_ensaio2.txt",
-                                     "frases_ensaio3.txt"])
+                                     "frases_ensaio3.txt", "frases_ensaio5.txt"])
 def test_frases_do_teste_fora_do_texto_de_referencia(arquivo):
     """O clone sai do texto de referência; as frases do teste não podem estar nele."""
     frases = ler_frases(RAIZ / "docs/etica" / arquivo)
@@ -49,16 +49,18 @@ def test_frases_do_teste_fora_do_texto_de_referencia(arquivo):
     assert not any(f.rstrip(".") in referencia for f in frases)
 
 
-@pytest.mark.parametrize("novo", ["frases_ensaio2.txt", "frases_ensaio3.txt"])
+@pytest.mark.parametrize("novo", ["frases_ensaio2.txt", "frases_ensaio3.txt", "frases_ensaio5.txt"])
 def test_cada_ensaio_tem_frases_novas(novo):
     """Cada ensaio confirma o anterior com dados novos (RESUMO_TCC §10.2.13)."""
-    conjuntos = ["frases_teste_voz_propria.txt", "frases_ensaio2.txt", "frases_ensaio3.txt"]
+    conjuntos = ["frases_teste_voz_propria.txt", "frases_ensaio2.txt", "frases_ensaio3.txt",
+                 "frases_ensaio5.txt"]
     anteriores = set().union(*(ler_frases(RAIZ / "docs/etica" / c)
                                for c in conjuntos[:conjuntos.index(novo)]))
     frases = ler_frases(RAIZ / "docs/etica" / novo)
     assert not anteriores & set(frases)
     palavras = [len(f.split()) for f in frases]
-    assert min(palavras) >= 15 and max(palavras) <= 22, "mesmo tamanho do ensaio 1 (~7 s)"
+    # ~5 s de fala no L01 com a captura corrigida; os ~7 s de antes eram as cópias.
+    assert min(palavras) >= 15 and max(palavras) <= 22, "mesmo tamanho do ensaio 1"
 
 
 def test_grava_sem_o_comeco_e_avisa_no_instante_certo(monkeypatch):

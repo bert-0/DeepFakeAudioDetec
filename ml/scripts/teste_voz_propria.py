@@ -216,6 +216,8 @@ def main(argv=None) -> int:
     p.add_argument("--clones", default="clone", metavar="SUBPASTA",
                    help="subpasta dos clones como arquivo (ex.: clone_chatterbox, para "
                         "comparar outra ferramenta com as mesmas gravações reais)")
+    p.add_argument("--clones-ar", default="clone_ar", metavar="SUBPASTA",
+                   help="subpasta dos clones pelo ar (ex.: clone_ar_chatterbox)")
     p.add_argument("--taxa-comum", type=int, default=None, metavar="HZ",
                    help="leva todo arquivo a esta taxa antes da do modelo (o ensaio 2 usa "
                         "48000: clone de 24 kHz e gravação de 48 kHz pela mesma conversão)")
@@ -224,8 +226,8 @@ def main(argv=None) -> int:
     from src.config import load_config, resolve_device
 
     pasta = Path(args.pasta)
-    arquivos = {nome: listar(pasta / (args.clones if nome == "clone" else nome))
-                for nome in CLASSES}
+    subpasta = {"clone": args.clones, "clone_ar": args.clones_ar}
+    arquivos = {nome: listar(pasta / subpasta.get(nome, nome)) for nome in CLASSES}
     if not arquivos["real"] or not (arquivos["clone"] or arquivos["clone_ar"]):
         print(f"[ERRO] faltam gravações em {pasta}: precisa de real/ e de clone/ ou clone_ar/")
         return 1
@@ -246,7 +248,7 @@ def main(argv=None) -> int:
     Path(args.json).parent.mkdir(parents=True, exist_ok=True)
     Path(args.json).write_text(json.dumps(
         {"regra": escolha.regra, "limiar": escolha.limiar, "limiar_score": limiar,
-         "clones": args.clones,
+         "clones": args.clones, "clones_ar": args.clones_ar,
          "limiar_origem": str(args.limiar), "taxa_comum": args.taxa_comum,
          "checkpoints": checkpoints, "placar": r, "arquivos": [asdict(a) for a in analises]},
         indent=2, ensure_ascii=False), encoding="utf-8")

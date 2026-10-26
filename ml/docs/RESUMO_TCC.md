@@ -3637,6 +3637,50 @@ de −25,1 dBFS no L01 (máximo −23,1) e −29,4 no L02 (−26,5); o headset, 
 passaria de 0 dBFS. O volume do microfone no Windows precisa baixar antes de
 gravar, conferido com uma frase de teste (protocolo: pico entre −12 e −3 dBFS).
 
+### 10.2.35 Ensaio 5: os dois caminhos com a captura corrigida (em preparação)
+
+**Por quê (26/10/2026):** todo o material de voz real dos ensaios 1 a 4, as
+referências da clonagem e os clones pelo ar saíram com as cópias do modo
+exclusivo (10.2.34). O caminho pelo microfone nunca foi medido sem elas. Com o
+modo compartilhado e o nível acertado (frase de teste: pico −9,9 e −8,2 dBFS,
+0 de 1.200 trechos repetidos, ruído 23 a 25 dB abaixo da fala), o L01 regrava
+tudo.
+
+**Critério (fixado em 26/10/2026, antes de gravar):**
+- **Modelo e limiar:** os dos ensaios 2 a 4, sem mudança: `fusion_lcnn_v4_asv5`
+  sozinho, −8,671 nos log-odds (`outputs/limiar_fusao/limiar_asv5_treino.json`),
+  média das janelas ponderada pela fala, `--taxa-comum 48000`.
+- **Material:** L01, microfone embutido em modo compartilhado, com o nível da
+  frase de teste, sem fone e sem carregador, mesma sala. Referência nova (texto
+  de referência, 90 s, preparada pelo `preparar_referencia.py`). Dez frases
+  novas para todos (`docs/etica/frases_ensaio5.txt`, 21 e 22 palavras: com a
+  captura certa, as de 17 a 19 palavras davam menos de 4 s de fala em 4 das 10
+  frases recuperadas do L01). Regras de gravação dos ensaios (`--piso-minimo
+  15`, 12 s, regravar só pelas checagens).
+- **Clones:** XTTS v2 e Chatterbox Multilingual locais, da referência nova,
+  sementes 1 a 10, sem o ponto final. Clone que travar, cortar palavra ou não
+  disser a frase inteira e certa é gerado de novo com outra semente antes do
+  placar, e fica registrado.
+- **Clone pelo ar:** cada clone tocado pelo alto-falante do notebook
+  (aprimoramentos da saída desligados) e gravado pelo mesmo microfone. O volume
+  da saída é acertado no primeiro clone para o pico gravado ficar a até 3 dB do
+  pico típico das frases reais, e fica o mesmo para os 20 (no ensaio 1, os
+  clones tocaram ~8 dB mais baixo).
+- **Caminhos e meta:** arquivo (real × clone) e microfone (real × clone pelo
+  ar), para cada ferramenta. Pelo menos 8 de 10 reais julgados humanos e 8 de
+  10 clones julgados sintéticos em cada caminho. Arquivo sem janela útil conta
+  como erro.
+- **Sem espiar:** nenhum score deste material antes do placar.
+- **Leitura combinada antes:**
+  - Pelo ar, se passar: a falha do ensaio 1 (2 de 10) vinha em boa parte da
+    captura. Se falhar: o caminho pelo ar segue como limitação medida, como na
+    proposta da demonstração.
+  - Pelo arquivo, a comparação é com os ensaios 2 e 4 do L01 (XTTS 9 de 10,
+    Chatterbox 3 de 10). A referência nova e a gravação real nova mudam juntas,
+    e o ensaio não separa as duas.
+- **Limitações declaradas antes:** um locutor, cuja voz e scores já foram
+  vistos; uma sala; o limiar escolhido com o risco declarado em 10.2.13.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
