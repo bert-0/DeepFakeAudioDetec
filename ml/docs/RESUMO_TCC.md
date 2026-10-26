@@ -2997,6 +2997,47 @@ z pelos humanos do dev, e os dois são somados.
 
 Proposta para o modelo próprio: anotada no plano como decisão pendente.
 
+### 10.2.27 Parte 10b: o canal na surpresa (critério combinado antes)
+
+**Pergunta:** nos ensaios, a surpresa se inverte. Isso acontece porque a medida é
+frágil a qualquer canal, ou porque real e clone passaram por canais diferentes
+(microfone contra arquivo limpo)?
+
+**Método (`estudo_surpresa.py canal`, `outputs/surpresa/canal.json`).** O mesmo
+canal é aplicado às duas classes, em 30 arquivos por classe do dev e da 2019 (480
+no total), com as mesmas máscaras em todas as condições:
+- ruído branco a 20 dB;
+- Opus;
+- **o ruído do nosso microfone a 20 dB:** só as pausas das 20 gravações reais
+  dos ensaios (88,2 s, quadros até 6 dB acima do percentil 20 de energia, em
+  trechos de 100 ms ou mais), com os estalos inclusos.
+
+**Critério (no commit antes de rodar):** o problema é o descasamento se a AUC da
+perda no dev cair no máximo 0,10 em relação ao limpo em pelo menos 2 das 3
+condições.
+
+| condição (nas duas classes) | AUC dev | perda mediana, humanos / falsos (dev) | AUC 2019 |
+|---|---|---|---|
+| limpo | 0,883 | 1,74 / 2,59 | 0,767 |
+| ruído branco a 20 dB | 0,817 | 2,28 / 2,89 | 0,752 |
+| Opus | 0,852 | 1,78 / 2,58 | 0,779 |
+| ruído do nosso microfone a 20 dB | 0,830 | 1,98 / 2,80 | 0,799 |
+
+**Passou nas três:** quedas de 0,066, 0,032 e 0,053 no dev; na 2019, a AUC fica
+entre 0,752 e 0,799.
+
+**Leitura:** com o mesmo canal nas duas classes, a ordem entre real e falso se
+mantém, mesmo com o ruído e os estalos do nosso microfone. A inversão dos ensaios
+vem do descasamento de canal, não da medida em si. Mas o canal sobe a surpresa
+de todos, e por isso um limiar absoluto não serviria.
+
+Num ataque real, o clone também passa pelo canal (telefone, alto-falante,
+microfone). Esse é o caso "pelo ar", em que o nosso detector não separa (10.2.12).
+Ele deve ser o primeiro teste se a proposta do modelo de naturalidade seguir.
+Ressalva para esse teste: no ensaio 1, os clones pelo ar tocaram ~8 dB mais
+baixo, e menos sinal sobre o mesmo ruído também sobe a surpresa; o nível precisa
+ser igualado antes de gravar.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
