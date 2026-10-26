@@ -18,7 +18,9 @@ from src.capture.sources import CaptureError, MicrofoneWasapiSource, abrir_micro
 
 class _FluxoFalso:
     def __init__(self, sd, callback, channels, blocksize, **kw):
-        self.sd, self.callback, self.canais, self.bloco = sd, callback, channels, blocksize
+        # blocksize 0: o driver escolhe; o falso usa o pacote dele (528, como o Realtek).
+        self.sd, self.callback, self.canais = sd, callback, channels
+        self.pedido, self.bloco = blocksize, blocksize or sd.pacote
         self.kw = kw
         self.active = False
         sd.fluxos.append(self)
@@ -50,12 +52,12 @@ class _FluxoFalso:
 
 
 def _sounddevice_falso(monkeypatch, sinal=None, recusar=(), parar_no_fim=False,
-                       transbordar_em=(), taxas=(48000,)):
+                       transbordar_em=(), taxas=(48000,), pacote=528):
     """`recusar`: pares (exclusivo, canais) que o driver não aceita; `taxas`: as
-    taxas que ele aceita."""
+    taxas que ele aceita; `pacote`: o tamanho que o driver entrega com blocksize 0."""
     sd = types.SimpleNamespace(
         sinal=np.zeros(0) if sinal is None else sinal, fluxos=[], parar_no_fim=parar_no_fim,
-        transbordar_em=set(transbordar_em))
+        transbordar_em=set(transbordar_em), pacote=pacote)
     sd.query_hostapis = lambda: [
         {"name": "MME", "default_input_device": 0},
         {"name": "Windows WASAPI", "default_input_device": 2}]
@@ -107,7 +109,7 @@ def test_driver_que_so_aceita_estereo_no_exclusivo(monkeypatch):
     sd = _sounddevice_falso(monkeypatch, sinal, recusar={(True, 1)})
     fonte = MicrofoneWasapiSource(16000)
     assert fonte.modo == "exclusivo" and fonte._canais == 2
-    assert len(_coletar(fonte, 3)) == 3 * 1600
+    assert len(_coletar(fonte, 3)) == 3 * 528 // 3, "3 pacotes do driver, de 48 para 16 kHz"
     assert sd.fluxos[0].canais == 2
 
 
@@ -143,7 +145,8 @@ def test_sem_taxa_pedida_entrega_o_audio_bruto(monkeypatch):
     _sounddevice_falso(monkeypatch, sinal, taxas=(96000,))
     fonte = MicrofoneWasapiSource(None)
     assert fonte.sample_rate == 96000
-    np.testing.assert_allclose(_coletar(fonte, 5), sinal[: 5 * 9600], atol=1e-6)
+    capturado = _coletar(fonte, 5)
+    np.testing.assert_allclose(capturado, sinal[: len(capturado)], atol=1e-6)
 
 
 def test_escolhe_o_microfone_pelo_nome_so_no_wasapi(monkeypatch):
@@ -184,3 +187,34 @@ def test_com_sounddevice_abre_pelo_wasapi(monkeypatch):
     _sounddevice_falso(monkeypatch)
     fonte = abrir_microfone(16000)
     assert isinstance(fonte, MicrofoneWasapiSource) and fonte.modo == "exclusivo"
+
+
+def test_pacotes_no_tamanho_do_driver(monkeypatch):
+    """25/10/2026: blocos fixos de 100 ms faziam o PortAudio emendar pacotes de 528
+    amostras, e as gravações tinham uma descontinuidade a cada 1,1 s (o encaixe de
+    4.800 com 528 se repete a cada 52.800 amostras). Agora o driver escolhe."""
+    sinal = np.random.default_rng(7).standard_normal(48000) * 0.1
+    sd = _sounddevice_falso(monkeypatch, sinal)
+    fonte = MicrofoneWasapiSource(None)
+    capturado = _coletar(fonte, 20)
+    assert sd.fluxos[0].pedido == 0
+    assert fonte.quadros_por_pacote == 528
+    np.testing.assert_array_equal(capturado, sinal[:len(capturado)].astype(np.float32))
+
+
+@pytest.mark.parametrize("pacote", [441, 528, 1000, 4800])
+def test_qualquer_tamanho_de_pacote_da_o_mesmo_sinal_a_16_khz(monkeypatch, pacote):
+    """O FIR guarda a fase entre os pacotes: o tamanho que o driver escolher não muda o sinal."""
+    from src.preprocess.reamostragem import DecimadorFIR
+
+    sinal = np.random.default_rng(8).standard_normal(48000 * 2) * 0.1
+    _sounddevice_falso(monkeypatch, sinal, pacote=pacote)
+    capturado = _coletar(MicrofoneWasapiSource(16000), 48000 // pacote)
+    referencia = DecimadorFIR()(sinal)
+    np.testing.assert_allclose(capturado, referencia[: len(capturado)], atol=1e-4)
+
+
+def test_bloco_fixo_ainda_pode_ser_pedido(monkeypatch):
+    sd = _sounddevice_falso(monkeypatch, np.zeros(48000))
+    _coletar(MicrofoneWasapiSource(None, bloco_ms=100), 2)
+    assert sd.fluxos[0].pedido == 4800

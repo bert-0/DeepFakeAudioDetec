@@ -72,7 +72,12 @@ def gravar(segundos: float, dispositivo: str | None = None,
     fonte.fechar()
     if fonte.aviso:
         print(f"    [AVISO] {fonte.aviso}")
-    return np.concatenate(blocos)[descarte:descarte + total], taxa, fonte.modo, fonte.nome
+    if fonte.descontinuidades:
+        print(f"    [AVISO] o driver avisou {fonte.descontinuidades} perda(s) de amostras: "
+              "feche outros programas e regrave")
+    nome = fonte.nome + (f", pacotes de {fonte.quadros_por_pacote} amostras"
+                         if fonte.quadros_por_pacote else "")
+    return np.concatenate(blocos)[descarte:descarte + total], taxa, fonte.modo, nome
 
 
 def salvar(destino: Path, wav: np.ndarray, taxa: int) -> None:

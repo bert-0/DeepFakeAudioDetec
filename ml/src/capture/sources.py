@@ -214,9 +214,15 @@ class MicrofoneWasapiSource(AudioSource):
     """
 
     def __init__(self, sample_rate: int | None, nome_dispositivo: str | None = None,
-                 bloco_ms: int = 100, exclusivo: bool = True):
+                 bloco_ms: int | None = None, exclusivo: bool = True):
         self.nome_dispositivo = nome_dispositivo
-        self._bloco_ms = int(bloco_ms)
+        # None: os pacotes no tamanho do driver. Blocos fixos de 100 ms faziam o
+        # PortAudio emendar pacotes de 528 amostras; o encaixe se repete a cada
+        # 1,1 s e deixava uma descontinuidade periódica nas gravações, que soavam
+        # travadas (RESUMO_TCC §10.2.16).
+        self._bloco_ms = None if bloco_ms is None else int(bloco_ms)
+        #: Tamanho dos pacotes que o driver entregou (diagnóstico).
+        self.quadros_por_pacote: int | None = None
         self._exclusivo_pedido = exclusivo
         #: "exclusivo" ou "compartilhado", conforme o driver aceitou.
         self.modo: str | None = None
@@ -268,7 +274,8 @@ class MicrofoneWasapiSource(AudioSource):
         fila: queue.Queue = queue.Queue()
         self._parar = threading.Event()
         self.descontinuidades = 0
-        quadros = int(self.taxa_dispositivo * self._bloco_ms / 1000)
+        quadros = (0 if self._bloco_ms is None
+                   else int(self.taxa_dispositivo * self._bloco_ms / 1000))
         # Na taxa do dispositivo, o áudio sai bruto: o FIR 1:1 cortaria em 7,9 kHz.
         conversor = (_conversor(self.taxa_dispositivo, self.sample_rate)
                      if self.sample_rate != self.taxa_dispositivo else (lambda x: x))
@@ -276,6 +283,8 @@ class MicrofoneWasapiSource(AudioSource):
         def callback(dados, n_quadros, tempo, status):
             if getattr(status, "input_overflow", False):
                 self.descontinuidades += 1
+            if self.quadros_por_pacote is None:
+                self.quadros_por_pacote = int(n_quadros)
             fila.put(dados.copy())
 
         try:
