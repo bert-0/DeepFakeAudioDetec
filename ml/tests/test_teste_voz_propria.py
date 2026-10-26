@@ -182,3 +182,18 @@ def test_ensaio_so_do_arquivo_com_um_modelo(tmp_path, capsys):
     assert r["taxa_comum"] == 48000 and r["placar"]["microfone"]["meta"] is None
     assert all(len(a["por_modelo"]) == 1 for a in r["arquivos"])
     assert "Caminho microfone: não medido" in capsys.readouterr().out
+
+
+def test_outra_pasta_de_clones(tmp_path):
+    """Ensaio 4: as mesmas gravações reais contra os clones de outra ferramenta."""
+    modelo = _checkpoint(tmp_path / "a.pt", 0)
+    limiar = tmp_path / "limiar.json"
+    limiar.write_text(json.dumps({"regra": "logodds", "limiar": 0.0, "modelos": [modelo]}),
+                      encoding="utf-8")
+    _gravacoes(tmp_path / "vozes")
+    (tmp_path / "vozes" / "clone").rename(tmp_path / "vozes" / "clone_chatterbox")
+    saida = tmp_path / "r.json"
+    assert main(["--pasta", str(tmp_path / "vozes"), "--limiar", str(limiar),
+                 "--json", str(saida), "--clones", "clone_chatterbox"]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert r["clones"] == "clone_chatterbox" and r["placar"]["arquivo"]["clone"]["n"] == 2

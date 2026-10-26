@@ -189,3 +189,54 @@ def test_com_ponto_final_repete_os_ensaios_1_e_2(monkeypatch, tmp_path):
     assert _TTSFalso.pedidos[0][0] == "Frase 1."
     reg = json.loads((tmp_path / "a" / "clonagem.json").read_text(encoding="utf-8"))
     assert reg["sem_ponto_final"] is False
+
+
+def _chatterbox_falso(monkeypatch):
+    import torch
+
+    chamadas = {"pedidos": [], "carregado": None}
+
+    class _Modelo:
+        sr = 24000
+
+        @classmethod
+        def from_pretrained(cls, device, t3_model):
+            chamadas["carregado"] = (device, t3_model)
+            return cls()
+
+        def generate(self, text, language_id, audio_prompt_path):
+            chamadas["pedidos"].append((text, language_id, audio_prompt_path))
+            return torch.randn(1, 24000 * 2) * 0.1
+
+    mtl = types.ModuleType("chatterbox.mtl_tts")
+    mtl.ChatterboxMultilingualTTS = _Modelo
+    monkeypatch.setitem(sys.modules, "chatterbox", types.ModuleType("chatterbox"))
+    monkeypatch.setitem(sys.modules, "chatterbox.mtl_tts", mtl)
+    return chamadas
+
+
+def test_segunda_ferramenta_chatterbox(monkeypatch, tmp_path):
+    """A segunda ferramenta do plano, com as mesmas frases, sementes e registro."""
+    chamadas = _chatterbox_falso(monkeypatch)
+    ref, frases = _entradas(tmp_path)
+    saida = tmp_path / "clone_chatterbox"
+    assert main(["--referencia", str(ref), "--frases", str(frases), "--saida", str(saida),
+                 "--dispositivo", "cpu", "--ferramenta", "chatterbox"]) == 0
+    assert chamadas["carregado"] == ("cpu", "v3")
+    assert [p[0] for p in chamadas["pedidos"]] == ["Frase 1", "Frase 2", "Frase 3"]
+    assert {p[1] for p in chamadas["pedidos"]} == {"pt"}
+    assert sf.info(saida / "f01.wav").samplerate == 24000
+    reg = json.loads((saida / "clonagem.json").read_text(encoding="utf-8"))
+    assert reg["ferramenta"] == "chatterbox" and "chatterbox" in reg["modelo"].lower()
+    assert [f["semente"] for f in reg["frases"]] == [1, 2, 3]
+
+
+def test_chatterbox_fora_do_ambiente(monkeypatch, tmp_path):
+    import pytest
+
+    monkeypatch.setitem(sys.modules, "chatterbox", None)
+    monkeypatch.setitem(sys.modules, "chatterbox.mtl_tts", None)
+    ref, frases = _entradas(tmp_path)
+    with pytest.raises(SystemExit, match="conda activate chatterbox"):
+        main(["--referencia", str(ref), "--frases", str(frases), "--saida", str(tmp_path / "c"),
+              "--dispositivo", "cpu", "--ferramenta", "chatterbox"])

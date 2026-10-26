@@ -213,6 +213,9 @@ def main(argv=None) -> int:
     p.add_argument("--device", default="cpu")
     p.add_argument("--json", default="outputs/teste_voz_propria.json",
                    help="scores e placar (sem áudio)")
+    p.add_argument("--clones", default="clone", metavar="SUBPASTA",
+                   help="subpasta dos clones como arquivo (ex.: clone_chatterbox, para "
+                        "comparar outra ferramenta com as mesmas gravações reais)")
     p.add_argument("--taxa-comum", type=int, default=None, metavar="HZ",
                    help="leva todo arquivo a esta taxa antes da do modelo (o ensaio 2 usa "
                         "48000: clone de 24 kHz e gravação de 48 kHz pela mesma conversão)")
@@ -221,7 +224,8 @@ def main(argv=None) -> int:
     from src.config import load_config, resolve_device
 
     pasta = Path(args.pasta)
-    arquivos = {nome: listar(pasta / nome) for nome in CLASSES}
+    arquivos = {nome: listar(pasta / (args.clones if nome == "clone" else nome))
+                for nome in CLASSES}
     if not arquivos["real"] or not (arquivos["clone"] or arquivos["clone_ar"]):
         print(f"[ERRO] faltam gravações em {pasta}: precisa de real/ e de clone/ ou clone_ar/")
         return 1
@@ -242,6 +246,7 @@ def main(argv=None) -> int:
     Path(args.json).parent.mkdir(parents=True, exist_ok=True)
     Path(args.json).write_text(json.dumps(
         {"regra": escolha.regra, "limiar": escolha.limiar, "limiar_score": limiar,
+         "clones": args.clones,
          "limiar_origem": str(args.limiar), "taxa_comum": args.taxa_comum,
          "checkpoints": checkpoints, "placar": r, "arquivos": [asdict(a) for a in analises]},
         indent=2, ensure_ascii=False), encoding="utf-8")

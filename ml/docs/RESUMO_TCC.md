@@ -2263,6 +2263,34 @@ mostrá-lo e refazer (`r` no modo interativo) se precisar.
   ou gravada em outro lugar, segue sem medida; o clone pelo ar segue sem
   separação (10.2.12).
 
+### 10.2.15 Ensaio 4: uma segunda ferramenta de clonagem (em preparação)
+
+Os ensaios 2 e 3 mediram clones do XTTS v2, que ao ouvido soam genéricos. O
+ensaio 4 pergunta se o detector pega clones de uma ferramenta mais recente, ou
+se o resultado vale só para o XTTS. É a segunda ferramenta que o plano prevê.
+
+**Critério (fixado em 25/10/2026, antes de gerar qualquer clone com ela):**
+- **Ferramenta:** Chatterbox Multilingual (Resemble AI, licença MIT, 2025,
+  modelo t3 v3), no próprio computador, num ambiente conda separado
+  (`clonar_xtts.py --ferramenta chatterbox`), com os padrões dela. Todo áudio
+  que ela gera leva uma marca d'água inaudível (Perth); fica registrado.
+- **Material:** as mesmas referências preparadas e as mesmas gravações reais dos
+  ensaios 2 (L01, `frases_ensaio2.txt`) e 3 (L02, `frases_ensaio3.txt`). Clones
+  novos, sementes 1 a 10, frase sem o ponto final, em `clone_chatterbox/` ao
+  lado de `clone/`. Clone que travar ou não disser a frase inteira é refeito com
+  outra semente antes do placar.
+- **Detector e caminho:** os dos ensaios 2 e 3, sem mudança: `fusion_lcnn_v4_asv5`,
+  −8,671 nos log-odds, caminho arquivo com `--taxa-comum 48000`
+  (`teste_voz_propria.py --clones clone_chatterbox`).
+- **Meta:** para cada locutor, pelo menos 8 de 10 clones julgados sintéticos. O
+  lado real já foi medido (10 de 10 em cada) e só se repete no placar.
+- **Leitura combinada antes:** se passar nos dois locutores, o resultado não é só
+  do XTTS. Se falhar, o detector reconhece o XTTS mas não uma ferramenta mais
+  nova: entra como limitação, no texto e na demonstração, que usa o XTTS. O
+  realismo de cada ferramenta, julgado de ouvido, é só descritivo.
+- **Limitações declaradas antes:** as gravações reais e os scores delas já
+  foram vistos; dois locutores, uma sala, um microfone.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

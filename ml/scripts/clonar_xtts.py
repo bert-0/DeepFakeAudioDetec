@@ -1,8 +1,10 @@
-"""Clona uma voz com o XTTS v2 (Coqui), no próprio computador.
+"""Clona uma voz no próprio computador: XTTS v2 (Coqui) ou Chatterbox Multilingual.
 
-A voz não sai da máquina. Roda num ambiente conda separado: o XTTS fixa versões
-do PyTorch e de outras bibliotecas que podem quebrar o ambiente do detector. Por
-isso este script não importa nada do projeto.
+A voz não sai da máquina. Cada ferramenta roda num ambiente conda separado
+(`xtts` ou `chatterbox`): elas fixam versões do PyTorch e de outras bibliotecas
+que podem quebrar o ambiente do detector. Por isso este script não importa nada
+do projeto. `--ferramenta chatterbox` usa a segunda ferramenta do plano
+(Resemble AI, MIT, 2025), que marca todo áudio com uma marca d'água inaudível.
 
 Três jeitos de dizer o que o clone fala:
 - `--frases arquivo.txt`: cada linha vira `fNN.wav` (os ensaios);
@@ -31,6 +33,7 @@ import time
 from pathlib import Path
 
 MODELO = "tts_models/multilingual/multi-dataset/xtts_v2"
+MODELOS = {"xtts": MODELO, "chatterbox": "ResembleAI/chatterbox (multilingual, t3 v3)"}
 #: Uma janela do detector é de 4 s; frase mais curta é completada por repetição.
 PALAVRAS_MINIMAS = 8
 
@@ -40,12 +43,30 @@ def ler_frases(caminho: str | Path) -> list[str]:
             if linha.strip()]
 
 
-def carregar(dispositivo: str):
+class _Chatterbox:
+    """O Chatterbox com a mesma interface do XTTS (`tts_to_file`)."""
+
+    def __init__(self, dispositivo: str):
+        from chatterbox.mtl_tts import ChatterboxMultilingualTTS
+
+        self.modelo = ChatterboxMultilingualTTS.from_pretrained(device=dispositivo,
+                                                                t3_model="v3")
+
+    def tts_to_file(self, text, speaker_wav, language, file_path):
+        import soundfile as sf
+
+        wav = self.modelo.generate(text, language_id=language, audio_prompt_path=speaker_wav)
+        sf.write(file_path, wav.squeeze().detach().cpu().numpy(), self.modelo.sr)
+
+
+def carregar(dispositivo: str, ferramenta: str = "xtts"):
     try:
+        if ferramenta == "chatterbox":
+            return _Chatterbox(dispositivo)
         from TTS.api import TTS
     except ImportError:
-        raise SystemExit("[ERRO] o XTTS não está instalado neste ambiente: rode "
-                         "`conda activate xtts` e o comando de novo.") from None
+        raise SystemExit(f"[ERRO] o {ferramenta} não está instalado neste ambiente: rode "
+                         f"`conda activate {ferramenta}` e o comando de novo.") from None
     return TTS(MODELO).to(dispositivo)
 
 
@@ -148,7 +169,7 @@ def interativo(tts, referencia: Path, saida: Path, idioma: str, semente: int,
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description="Clona uma voz com o XTTS v2, no próprio computador")
+    p = argparse.ArgumentParser(description="Clona uma voz no próprio computador")
     p.add_argument("--referencia", required=True, help="gravação da voz a clonar")
     modo = p.add_mutually_exclusive_group(required=True)
     modo.add_argument("--frases", help="arquivo com uma frase por linha (vira fNN.wav)")
@@ -162,6 +183,7 @@ def main(argv=None) -> int:
     p.add_argument("--idioma", default="pt")
     p.add_argument("--semente", type=int, default=0)
     p.add_argument("--dispositivo", default=None, help="cuda | cpu (padrão: cuda, se houver)")
+    p.add_argument("--ferramenta", choices=tuple(MODELOS), default="xtts")
     args = p.parse_args(argv)
 
     referencia = Path(args.referencia)
@@ -171,9 +193,9 @@ def main(argv=None) -> int:
     import torch
 
     dispositivo = args.dispositivo or ("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Modelo: {MODELO} | dispositivo: {dispositivo}")
+    print(f"Modelo: {MODELOS[args.ferramenta]} | dispositivo: {dispositivo}")
     inicio = time.perf_counter()
-    tts = carregar(dispositivo)
+    tts = carregar(dispositivo, args.ferramenta)
     print(f"Carregado em {time.perf_counter() - inicio:.1f} s")
 
     saida = Path(args.saida)
@@ -192,7 +214,8 @@ def main(argv=None) -> int:
     manifesto = saida / "clonagem.json"
     anterior = (json.loads(manifesto.read_text(encoding="utf-8"))
                 if manifesto.is_file() else {"frases": []})
-    anterior.update(modelo=MODELO, idioma=args.idioma, referencia=referencia.as_posix(),
+    anterior.update(ferramenta=args.ferramenta, modelo=MODELOS[args.ferramenta],
+                    idioma=args.idioma, referencia=referencia.as_posix(),
                     dispositivo=dispositivo, sem_ponto_final=not args.com_ponto_final)
     anterior["frases"] += registro
     manifesto.write_text(json.dumps(anterior, indent=2, ensure_ascii=False), encoding="utf-8")
