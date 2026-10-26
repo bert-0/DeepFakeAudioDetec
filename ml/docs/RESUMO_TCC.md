@@ -3369,6 +3369,39 @@ detector separam a voz real dos clones dos ensaios?
 
 Não é o clone pelo ar: faltam o alto-falante e a sala. Os áudios com ruído ficam
 numa pasta temporária, apagada no fim.
+
+**Resultado (27/10/2026).** AUC e, pelo limiar do dev, quantos de 10 ficam do
+lado certo:
+
+| SNR do ruído nos clones | detector | aluno 1 | aluno 2 |
+|---|---|---|---|
+| 15 dB | 0,954 | 0,796 | 0,345 |
+| 20 dB | 0,970 | 0,877 | 0,374 |
+| 25 dB | 0,975 | 0,910 | 0,422 |
+| sem ruído (10.2.31) | 0,983 | 0,955 | 0,506 |
+
+| a 20 dB, do lado certo | detector | aluno 1 | aluno 2 |
+|---|---|---|---|
+| reais L01 / L02 | 10 / 10 | 10 / 10 | 4 / 9 |
+| XTTS L01 / L02 | 7 / 6 | 0 / 10 | 0 / 3 |
+| Chatterbox L01 / L02 | 3 / 4 | 0 / 5 | 0 / 1 |
+
+**Leitura:**
+1. **O ruído não explica a queda do aluno 2.** Com o ruído do microfone nos
+   clones, ele fica invertido (0,345 a 0,422) e continua acusando 6 das 10
+   vozes reais do L01.
+2. **O que o aluno 2 estranha são as nossas gravações reais.** Isso bate com a
+   surpresa da parte 10: para o modelo de fala natural, a voz gravada pelo
+   microfone embutido (mediana 3,18) é mais estranha que os clones (1,78 a 2,16).
+   O microfone tem processamento interno e estalos a cada 110 ms (10.2.16), e o
+   ruído das pausas não reproduz isso. O aluno 2, que imita melhor esse modelo,
+   herdou a estranheza.
+3. **O detector atual segue separando os ensaios (0,954 a 0,975)**, mesmo com o
+   ruído nos clones. Ele foi treinado com a captura simulada (10.7) e não depende
+   só do ruído.
+4. **O próximo teste decisivo é gravar a voz real com outro microfone,** já
+   pendente em 10.2.16. Se o aluno 2 aceitar como real a voz gravada sem o
+   processamento do microfone embutido, o problema é o aparelho, não a pista.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
