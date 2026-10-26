@@ -192,3 +192,18 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   - Nas bases ASVspoof (§10.2.21), as linhas e os pentes aparecem só em parte
     dos geradores modernos: A14 com pente de 62,5 Hz (AUC 0,97), A13 e A07 com
     linhas. Nenhum aparece na 2019 LA. Não são uma marca universal.
+  - Parte 7 (§10.2.23): a linha do gerador fica nas pausas, como zumbido do
+    vocoder, e não separa o gerador da sala.
+- XLS-R congelado como instrumento (RESUMO_TCC §10.2.22): sonda linear na camada
+  7, treinada no treino do recorte. No dev (ataques não vistos), EER 0,21%,
+  contra 20,75% do `fusion_lcnn_v4_asv5` nos mesmos arquivos. Pega o A12 (AUC
+  1,000; o detector dá 0,113) e transfere para a 2019 LA (0,998). Por quê:
+  - a convolução de entrada e o LFCC falham (AUC 0,60 e 0,85);
+  - a evidência fica em 0–500 Hz e 1–2 kHz;
+  - embaralhar a ordem dos quadros derruba a AUC para 0,39.
+
+  É a dinâmica da voz no tempo. Camadas 10–18 invertem nos ensaios (canal).
+- Partes 8 e 9 (§10.2.24, §10.2.25), critérios não atingidos: nem medidas de
+  dinâmica feitas à mão (pYIN, vozeação, energia por faixa) nem estatísticas
+  temporais dos quadros locais reproduzem a pista. Ela precisa de um modelo de
+  contexto aprendido; trocar o pooling não basta.
