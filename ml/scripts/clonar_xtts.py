@@ -33,7 +33,7 @@ import time
 from pathlib import Path
 
 MODELO = "tts_models/multilingual/multi-dataset/xtts_v2"
-MODELOS = {"xtts": MODELO, "chatterbox": "ResembleAI/chatterbox (multilingual, t3 v3)"}
+MODELOS = {"xtts": MODELO, "chatterbox": "ResembleAI/chatterbox (multilingual)"}
 #: Uma janela do detector é de 4 s; frase mais curta é completada por repetição.
 PALAVRAS_MINIMAS = 8
 
@@ -43,14 +43,30 @@ def ler_frases(caminho: str | Path) -> list[str]:
             if linha.strip()]
 
 
+def _versao(pacote: str) -> str:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version(pacote)
+    except PackageNotFoundError:
+        return "?"
+
+
 class _Chatterbox:
     """O Chatterbox com a mesma interface do XTTS (`tts_to_file`)."""
 
     def __init__(self, dispositivo: str):
+        import inspect
+
         from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
-        self.modelo = ChatterboxMultilingualTTS.from_pretrained(device=dispositivo,
-                                                                t3_model="v3")
+        # O pacote do pip (0.1.7) só tem o modelo multilíngue v2; o do repositório
+        # escolhe a versão. Registra a que foi usada.
+        opcoes = {}
+        if "t3_model" in inspect.signature(ChatterboxMultilingualTTS.from_pretrained).parameters:
+            opcoes["t3_model"] = "v3"
+        self.modelo = ChatterboxMultilingualTTS.from_pretrained(device=dispositivo, **opcoes)
+        self.versao = f"chatterbox-tts {_versao('chatterbox-tts')}, t3 {opcoes.get('t3_model', 'v2')}"
 
     def tts_to_file(self, text, speaker_wav, language, file_path):
         import soundfile as sf
@@ -196,7 +212,8 @@ def main(argv=None) -> int:
     print(f"Modelo: {MODELOS[args.ferramenta]} | dispositivo: {dispositivo}")
     inicio = time.perf_counter()
     tts = carregar(dispositivo, args.ferramenta)
-    print(f"Carregado em {time.perf_counter() - inicio:.1f} s")
+    print(f"Carregado em {time.perf_counter() - inicio:.1f} s"
+          + (f" ({tts.versao})" if getattr(tts, "versao", None) else ""))
 
     saida = Path(args.saida)
     saida.mkdir(parents=True, exist_ok=True)
@@ -215,6 +232,7 @@ def main(argv=None) -> int:
     anterior = (json.loads(manifesto.read_text(encoding="utf-8"))
                 if manifesto.is_file() else {"frases": []})
     anterior.update(ferramenta=args.ferramenta, modelo=MODELOS[args.ferramenta],
+                    versao=getattr(tts, "versao", None) or f"coqui-tts {_versao('coqui-tts')}",
                     idioma=args.idioma, referencia=referencia.as_posix(),
                     dispositivo=dispositivo, sem_ponto_final=not args.com_ponto_final)
     anterior["frases"] += registro

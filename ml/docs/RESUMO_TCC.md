@@ -2270,10 +2270,13 @@ ensaio 4 pergunta se o detector pega clones de uma ferramenta mais recente, ou
 se o resultado vale só para o XTTS. É a segunda ferramenta que o plano prevê.
 
 **Critério (fixado em 25/10/2026, antes de gerar qualquer clone com ela):**
-- **Ferramenta:** Chatterbox Multilingual (Resemble AI, licença MIT, 2025,
-  modelo t3 v3), no próprio computador, num ambiente conda separado
-  (`clonar_xtts.py --ferramenta chatterbox`), com os padrões dela. Todo áudio
-  que ela gera leva uma marca d'água inaudível (Perth); fica registrado.
+- **Ferramenta:** Chatterbox Multilingual (Resemble AI, licença MIT, 2025), no
+  próprio computador, num ambiente conda separado (`clonar_xtts.py --ferramenta
+  chatterbox`), com os padrões dela. O pacote do pip (`chatterbox-tts` 0.1.7)
+  traz o modelo multilíngue v2 (`t3_mtl23ls_v2`), e não a v3 do repositório;
+  corrigido em 25/10/2026, antes de gerar qualquer clone. Ele usa só os
+  primeiros 10 s da referência (o XTTS usa 30 s). Todo áudio que ela gera leva
+  uma marca d'água inaudível (Perth); fica registrado.
 - **Material:** as mesmas referências preparadas e as mesmas gravações reais dos
   ensaios 2 (L01, `frases_ensaio2.txt`) e 3 (L02, `frases_ensaio3.txt`). Clones
   novos, sementes 1 a 10, frase sem o ponto final, em `clone_chatterbox/` ao
