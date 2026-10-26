@@ -207,3 +207,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   dinâmica feitas à mão (pYIN, vozeação, energia por faixa) nem estatísticas
   temporais dos quadros locais reproduzem a pista. Ela precisa de um modelo de
   contexto aprendido; trocar o pooling não basta.
+- Parte 10 (§10.2.26, §10.2.27): a perda do pré-treino do XLS-R (a "surpresa",
+  sem nunca ver um falso) separa os falsos com AUC 0,886 no dev (A12 0,99) e
+  0,766 na 2019.
+  - Somada ao detector: 0,983 no dev e 0,849 na 2019.
+  - Nos ensaios se inverte (real pelo microfone, clone limpo).
+  - Com o mesmo canal nas duas classes, segue separando (0,82–0,85 no dev).
+  - A proposta de um modelo de naturalidade próprio está no plano, como
+    decisão pendente.

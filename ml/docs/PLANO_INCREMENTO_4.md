@@ -208,9 +208,11 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
     ASVspoof 5) para prever trechos escondidos, com as degradações de canal do
     treino atual. A surpresa dele entra como pista ao lado do `fusion_v4`. Não
     usa pesos da Meta e não precisa conhecer os geradores.
-  - **Risco medido:** no microfone dos ensaios, a surpresa do XLS-R se inverte
-    (o canal ruim parece mais estranho que o clone). O teste de aceite seria
-    medir isso de novo antes de tudo.
+  - **Risco medido:** no microfone dos ensaios, a surpresa do XLS-R se inverte,
+    porque o real passou pelo microfone e o clone é arquivo limpo. Com o mesmo
+    canal nas duas classes, inclusive o ruído do nosso microfone, ela segue
+    separando (§10.2.27). O teste de aceite seria o clone pelo ar, com o nível
+    igualado ao da voz real.
   - **Custo:** treino novo, rodado pelo grupo (GTX 1650); cabe antes da data de
     congelamento?
   - **Alternativa mais curta:** um modelo de sequência (transformer) sobre os
