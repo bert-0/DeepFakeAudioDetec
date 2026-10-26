@@ -2251,6 +2251,12 @@ mostrá-lo e refazer (`r` no modo interativo) se precisar.
   intervalo de 2,64, maior que o do L01 no ensaio 2 (0,73).
 - **Ensaios 2 e 3 juntos** (mesmo modelo, limiar e caminho, critério combinado
   antes nos dois): reais 20 de 20 humanos, clones 19 de 20 sintéticos.
+- **O silêncio das gravações não explica a separação** (exploratório, depois
+  do placar): as gravações reais têm 2 a 4 s de ruído antes da fala, e os clones
+  começam a falar logo. Cortando as reais para o trecho com fala (0,5 s de
+  folga), os log-odds mudam de −1,24 a +2,74, nos dois sentidos, e as 20 seguem
+  abaixo do limiar (L01 de −14,88 a −11,61; L02 de −14,23 a −9,28). A f01 do L02
+  chega a 0,61 do limiar: a margem do lado humano também é estreita.
 - **O que o resultado não mostra:** dois locutores, uma ferramenta (o XTTS v2,
   que no ensaio 3 recebeu as frases sem o ponto final), uma sala, um microfone;
   o clone analisado como arquivo, não tocado. A voz da banca, de outra pessoa
