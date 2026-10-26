@@ -38,32 +38,12 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-#: Abaixo disso o pacote é silêncio digital, que pode se repetir sem defeito.
-MINIMO = 1e-6
+# A contagem mora nas checagens, que a rodam depois de cada gravação.
+from src.capture.checagens import SILENCIO_DIGITAL, contar_repetidos  # noqa: E402
 
 
-def contar_repetidos(x: np.ndarray, pacote: int = 480, minimo: float = MINIMO) -> dict:
-    """Pacotes de `pacote` amostras idênticos a um anterior, e a que distância (em pacotes)."""
-    n = len(x) // pacote
-    blocos = x[:n * pacote].reshape(n, pacote)
-    primeiro: dict[bytes, int] = {}
-    distancias: Counter = Counter()
-    vivos = 0
-    for i in range(n):
-        if np.abs(blocos[i]).max() <= minimo:
-            continue
-        vivos += 1
-        chave = blocos[i].tobytes()
-        if chave in primeiro:
-            distancias[i - primeiro[chave]] += 1
-        else:
-            primeiro[chave] = i
-    repetidos = sum(distancias.values())
-    return {"pacotes": vivos, "repetidos": repetidos, "fracao": repetidos / vivos if vivos else 0.0,
-            "distancias": dict(distancias.most_common(5))}
-
-
-def remover_repetidos(x: np.ndarray, pacote: int = 480, minimo: float = MINIMO) -> np.ndarray:
+def remover_repetidos(x: np.ndarray, pacote: int = 480,
+                      minimo: float = SILENCIO_DIGITAL) -> np.ndarray:
     """O sinal sem os pacotes que repetem um anterior (o resto final, menor que um pacote, fica).
 
     Com vários canais, a repetição é procurada no primeiro e o quadro sai inteiro."""
@@ -116,14 +96,15 @@ def gravar_trecho(segundos: float, exclusivo: bool, canais: int, blocksize: int,
                                                  "overflow": avisos["overflow"]}
 
 
-#: (rótulo, exclusivo, canais, blocksize, latência). A primeira é a do gravador hoje.
+#: (rótulo, exclusivo, canais, blocksize, latência). O gravador usa a primeira
+#: até 26/10/2026 e a penúltima depois.
 CONFIGURACOES = (
-    ("exclusivo, 1 canal, pacote do driver (o gravador)", True, 1, 0, None),
+    ("exclusivo, 1 canal, pacote do driver (o gravador antes de 26/10)", True, 1, 0, None),
     ("exclusivo, 1 canal, blocos de 100 ms (o gravador antigo)", True, 1, 4800, None),
     ("exclusivo, 2 canais, pacote do driver", True, 2, 0, None),
     ("exclusivo, 1 canal, latência alta", True, 1, 0, "high"),
     ("exclusivo, 1 canal, latência baixa", True, 1, 0, "low"),
-    ("compartilhado, 1 canal, pacote do driver", False, 1, 0, None),
+    ("compartilhado, 1 canal, pacote do driver (o gravador)", False, 1, 0, None),
     ("compartilhado, 2 canais, pacote do driver", False, 2, 0, None),
 )
 
@@ -181,12 +162,12 @@ def main(argv=None) -> int:
         try:
             x, sr, info = gravar_trecho(args.segundos, exclusivo, canais, blocksize, latencia, args.dispositivo)
         except Exception as erro:
-            print(f"  {rotulo:58s} não abriu: {str(erro)[:80]}")
+            print(f"  {rotulo:66s} não abriu: {str(erro)[:80]}")
             resultado[rotulo] = {"erro": str(erro)}
             continue
         r = contar_repetidos(x, 480)
         resultado[rotulo] = {**r, **info, "segundos": len(x) / sr}
-        print(f"  {rotulo:58s} {r['repetidos']:4d}/{r['pacotes']:4d} repetidos ({100 * r['fracao']:5.1f}%), "
+        print(f"  {rotulo:66s} {r['repetidos']:4d}/{r['pacotes']:4d} repetidos ({100 * r['fracao']:5.1f}%), "
               f"distâncias {r['distancias']}, pacotes do driver {info['pacotes_do_driver']}, "
               f"overflow {info['overflow']}")
     Path(args.json).parent.mkdir(parents=True, exist_ok=True)

@@ -66,7 +66,7 @@ def test_grava_sem_o_comeco_e_avisa_no_instante_certo(monkeypatch):
     _sounddevice_falso(monkeypatch, sinal)
     instantes = []
     wav, taxa, modo, _ = gravar(3.0, avisos=((1.0, lambda: instantes.append(1.0)),))
-    assert (taxa, modo, len(wav)) == (SR, "exclusivo", 3 * SR)
+    assert (taxa, modo, len(wav)) == (SR, "compartilhado", 3 * SR)
     np.testing.assert_allclose(wav, sinal[SR // 2:SR // 2 + 3 * SR], atol=1e-6)
     assert instantes == [1.0]
 
@@ -158,3 +158,26 @@ def test_bloco_fixo_para_diagnostico(monkeypatch, tmp_path):
     assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "b"),
                  "--segundos", "3", "--sem-pausa"]) == 0
     assert sd.fluxos[0].pedido == 0
+
+
+def test_compartilhado_por_padrao_e_exclusivo_so_pedido(monkeypatch, tmp_path, capsys):
+    """26/10/2026: o exclusivo insere cópias de trechos neste notebook (RESUMO_TCC §10.2.34)."""
+    sd = _sounddevice_falso(monkeypatch, _cena(3.0))
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "a"),
+                 "--segundos", "3", "--sem-pausa"]) == 0
+    assert not sd.fluxos[0].kw["extra_settings"].exclusive
+    assert "WASAPI compartilhado" in capsys.readouterr().out
+    sd = _sounddevice_falso(monkeypatch, _cena(3.0))
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "b"),
+                 "--segundos", "3", "--sem-pausa", "--exclusivo"]) == 0
+    assert sd.fluxos[0].kw["extra_settings"].exclusive
+    assert "WASAPI exclusivo" in capsys.readouterr().out
+
+
+def test_avisa_quando_a_captura_repete_trechos(monkeypatch, tmp_path, capsys):
+    sinal = _cena(7.0)
+    sinal[SR * 3:SR * 3 + 480] = sinal[SR * 2:SR * 2 + 480]
+    _sounddevice_falso(monkeypatch, sinal, pacote=480)
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "a"),
+                 "--segundos", "7", "--sem-pausa"]) == 0
+    assert "REGRAVAR cópias" in capsys.readouterr().out

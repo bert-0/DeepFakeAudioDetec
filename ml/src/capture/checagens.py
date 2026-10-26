@@ -7,6 +7,7 @@ com o áudio: corte de silêncio a 30 dB do pico e janela de 4 s.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 
 import numpy as np
@@ -39,6 +40,15 @@ TRECHO_MINIMO_S = 0.25
 
 FAIXAS_HZ = ((0, 4000), (4000, 7600), (7600, 8000))
 
+#: Trechos de 10 ms idênticos bit a bit a um anterior não acontecem num microfone:
+#: são a captura repetindo áudio (o modo exclusivo, RESUMO_TCC §10.2.34).
+TRECHO_REPETIDO_S = 0.01
+#: Na contagem do diagnóstico, só o silêncio digital fica de fora.
+SILENCIO_DIGITAL = 1e-6
+#: Na checagem, também trechos de até 1 degrau de 16 bits: o enchimento do fim dos
+#: clones do Chatterbox se repete sem ser o defeito.
+SILENCIO_REPETIDO = 2.0 ** -15
+
 
 @dataclass(frozen=True)
 class Checagem:
@@ -57,6 +67,36 @@ def _maior_sequencia(mascara: np.ndarray) -> int:
 
 def _db(x: float) -> float:
     return float(20 * np.log10(max(x, 1e-12)))
+
+
+def contar_repetidos(x: np.ndarray, pacote: int = 480, minimo: float = SILENCIO_DIGITAL) -> dict:
+    """Pacotes de `pacote` amostras idênticos a um anterior, e a que distância (em pacotes)."""
+    n = len(x) // pacote
+    blocos = x[:n * pacote].reshape(n, pacote)
+    primeiro: dict[bytes, int] = {}
+    distancias: Counter = Counter()
+    vivos = 0
+    for i in range(n):
+        if np.abs(blocos[i]).max() <= minimo:
+            continue
+        vivos += 1
+        chave = blocos[i].tobytes()
+        if chave in primeiro:
+            distancias[i - primeiro[chave]] += 1
+        else:
+            primeiro[chave] = i
+    repetidos = sum(distancias.values())
+    return {"pacotes": vivos, "repetidos": repetidos, "fracao": repetidos / vivos if vivos else 0.0,
+            "distancias": dict(distancias.most_common(5))}
+
+
+def checar_copias(wav: np.ndarray, sample_rate: int) -> Checagem:
+    """Falha com qualquer trecho de 10 ms repetido: o defeito põe 1 em 3."""
+    pacote = max(1, int(round(TRECHO_REPETIDO_S * sample_rate)))
+    r = contar_repetidos(np.asarray(wav, dtype=np.float32).reshape(-1), pacote, SILENCIO_REPETIDO)
+    ok = r["repetidos"] == 0
+    return Checagem("cópias", ok, f"{r['repetidos']} de {r['pacotes']} trechos de 10 ms repetidos",
+                    None if ok else "a captura repetiu trechos: grave no modo compartilhado")
 
 
 def _sem_graves(wav: np.ndarray, sample_rate: int) -> np.ndarray:
@@ -93,7 +133,7 @@ def trechos_de_fala(wav: np.ndarray, sample_rate: int,
 
 def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
            piso_minimo: float | None = None) -> list[Checagem]:
-    """As quatro checagens do protocolo: saturação, fala, banda e piso de ruído.
+    """As checagens do protocolo: saturação, cópias, fala, banda e piso de ruído.
 
     `piso_minimo`: distância mínima entre fala e ruído, em dB (padrão: o corte de
     silêncio mais a margem, 35 dB). O teste com a voz própria usa 15, a margem do
@@ -110,6 +150,7 @@ def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
     saida.append(Checagem("saturação", not saturou, f"pico {_db(pico):.1f} dBFS",
                           f"{seguidas} amostras seguidas no limite: baixe o ganho"
                           if saturou else None))
+    saida.append(checar_copias(wav, sample_rate))
 
     if pico == 0.0:
         return saida + [Checagem("fala", False, "0,0 s", "nenhum som gravado"),

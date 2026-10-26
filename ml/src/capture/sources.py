@@ -205,20 +205,22 @@ TAXAS_MICROFONE = (48000, 96000)
 
 
 class MicrofoneWasapiSource(AudioSource):
-    """Microfone por WASAPI em modo exclusivo (sounddevice), a 48 ou 96 kHz, com o FIR.
+    """Microfone por WASAPI (sounddevice), a 48 ou 96 kHz, com o FIR.
 
-    No modo exclusivo o áudio não passa pelo mixer do Windows: sem os
-    aprimoramentos do microfone e sem conversão de taxa. Se o driver recusar,
-    abre em modo compartilhado e deixa o motivo em `aviso`. Com `sample_rate`
-    None, entrega o áudio bruto, na taxa do dispositivo.
+    Modo compartilhado por padrão (decisão de 26/10/2026). Neste notebook, o
+    exclusivo do PortAudio insere cópias de trechos recentes (cerca de 1 em 3
+    pacotes de 10 ms), entrega 16 bits e não aplica o ganho do Windows
+    (RESUMO_TCC §10.2.34). O compartilhado passa pelo mixer do Windows, então os
+    aprimoramentos do microfone precisam estar desligados. Com `exclusivo`
+    (diagnóstico), se o driver recusar, abre em compartilhado e deixa o motivo em
+    `aviso`. Com `sample_rate` None, entrega o áudio bruto, na taxa do dispositivo.
     """
 
     def __init__(self, sample_rate: int | None, nome_dispositivo: str | None = None,
-                 bloco_ms: int | None = None, exclusivo: bool = True):
+                 bloco_ms: int | None = None, exclusivo: bool = False):
         self.nome_dispositivo = nome_dispositivo
-        # None: os pacotes no tamanho do driver (480 no Realtek). Com blocos fixos de
-        # 100 ms, as gravações tinham uma emenda áspera a cada 1,1 s, de causa ainda
-        # não explicada (RESUMO_TCC §10.2.16).
+        # None: os pacotes no tamanho do driver (480 no Realtek). A emenda áspera dos
+        # blocos fixos de 100 ms eram as cópias do modo exclusivo (RESUMO_TCC §10.2.34).
         self._bloco_ms = None if bloco_ms is None else int(bloco_ms)
         #: Tamanho dos pacotes que o driver entregou (diagnóstico).
         self.quadros_por_pacote: int | None = None
@@ -310,18 +312,19 @@ class MicrofoneWasapiSource(AudioSource):
             parar.set()
 
 
-def abrir_microfone(sample_rate: int, nome_dispositivo: str | None = None) -> AudioSource:
-    """Microfone por WASAPI exclusivo; sem o `sounddevice`, o caminho do `soundcard`
-    (modo compartilhado), com o aviso em `aviso`."""
+def abrir_microfone(sample_rate: int, nome_dispositivo: str | None = None,
+                    exclusivo: bool = False) -> AudioSource:
+    """Microfone pelo WASAPI do `sounddevice` (compartilhado, ou exclusivo se pedido);
+    sem ele, o caminho do `soundcard`, também compartilhado, com o aviso em `aviso`."""
     try:
         import sounddevice  # noqa: F401
     except (ImportError, OSError):
         fonte = MicrofoneSource(sample_rate, nome_dispositivo=nome_dispositivo)
         fonte.modo = "compartilhado"
-        fonte.aviso = ("sem o pacote sounddevice o microfone abre em modo compartilhado, "
-                       "sujeito aos aprimoramentos do Windows: pip install sounddevice")
+        fonte.aviso = ("sem o pacote sounddevice o microfone abre pelo soundcard, fora do "
+                       "caminho medido: pip install sounddevice")
         return fonte
-    return MicrofoneWasapiSource(sample_rate, nome_dispositivo)
+    return MicrofoneWasapiSource(sample_rate, nome_dispositivo, exclusivo=exclusivo)
 
 
 def _importar_sounddevice():

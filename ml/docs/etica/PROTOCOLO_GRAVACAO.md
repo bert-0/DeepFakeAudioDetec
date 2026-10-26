@@ -34,11 +34,11 @@ gravação começa antes do termo assinado (TERMO_CONSENTIMENTO.md). Campos
   de microfones (Realtek(R) Audio)", sem fone conectado). Na coleta: [A DEFINIR];
   recomendação, o mesmo da apresentação, para a condição de captura ser a da
   demonstração. Interface USB com ASIO: [A DEFINIR].
-- Captura pela aba Gravar: WASAPI exclusivo, 48 ou 96 kHz conforme o
+- Captura pela aba Gravar: WASAPI compartilhado, 48 ou 96 kHz conforme o
   microfone, FIR para 16 kHz. O arquivo guardado é o da taxa do microfone, em
-  24 bits, sem conversão. O compartilhado fica de fora: no microfone do
-  notebook ele aplica +16 a +17 dB de ganho que o exclusivo não tem (RESUMO_TCC
-  §10.2.10).
+  24 bits, sem conversão. O exclusivo ficou de fora em 26/10/2026: neste
+  notebook ele insere cópias de trechos recentes (cerca de 1 em 3 trechos de
+  10 ms) e entrega 16 bits (RESUMO_TCC §10.2.34).
 - Nenhum fone com microfone conectado ao notebook: com ele, o driver Realtek
   troca o microfone embutido pelo do fone sem mudar o nome da entrada.
 - Aprimoramentos de áudio do Windows desligados no microfone (RESUMO_TCC
@@ -46,14 +46,14 @@ gravação começa antes do termo assinado (TERMO_CONSENTIMENTO.md). Campos
   com ruído constante ao fundo, para ver se o hardware processa o áudio.
 - Sala: [A DEFINIR]. Distância boca–microfone de 15 a 30 cm, a mesma para
   todos.
-- Nível: no modo exclusivo o volume e o reforço do microfone do Windows não
-  valem; o nível é o do hardware. No microfone do fone, pela entrada do
-  notebook, pico de cerca de −40 dBFS (RESUMO_TCC §10.2.10); o do embutido
-  falta medir. O modelo normaliza pelo pico, então o que
+- Nível: no modo compartilhado vale o volume (e o reforço) do microfone no
+  Windows. No "Grupo de microfones", o ruído da sala ficou +40 dB acima do
+  exclusivo; no exclusivo, a fala do embutido tinha pico de −25 dBFS (L01) e
+  −29 dBFS (L02) (RESUMO_TCC §10.2.34). Com o mesmo ganho, a fala saturaria. O modelo normaliza pelo pico, então o que
   importa é a distância entre fala e ruído, não o nível; guardar em 24 bits
-  para não perder resolução. Ajuste de nível só com microfone ou interface de
-  ganho físico: pico entre −12 e −3 dBFS, sem saturar, com uma frase de teste
-  que não entra no conjunto.
+  para não perder resolução. Ajuste pelo volume do microfone no Windows, com
+  uma frase de teste que não entra no conjunto: pico entre −12 e −3 dBFS, sem
+  saturar. O mesmo nível para todos os locutores e na apresentação.
 
 ## Toda condição nas duas classes
 
@@ -73,6 +73,7 @@ A aba Gravar mostra as checagens; se alguma falhar, regravar a frase.
 | checagem | falha quando |
 |---|---|
 | saturação | 3 ou mais amostras seguidas no limite do conversor |
+| cópias | algum trecho de 10 ms idêntico a um anterior: a captura repetiu áudio (RESUMO_TCC §10.2.34) |
 | fala | menos de 4 s de fala, ou menos de 0,5 s de silêncio antes ou depois |
 | banda | nada acima de 4 kHz (o caminho perdeu a banda alta) |
 | piso de ruído | ruído nas pausas a menos de 35 dB da fala: o corte de silêncio do modelo (30 dB) não o remove |

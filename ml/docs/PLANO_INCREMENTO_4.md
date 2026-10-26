@@ -35,7 +35,7 @@ modelo reage às condições de gravação.
 | Degradação de canal (codec, RawBoost, conversão de taxa, resposta ao impulso) aplicada antes do pré-processamento | hoje ela atinge o trecho já sem silêncio e normalizado |
 | Sem dependência de 7,6 a 8 kHz: descarte aleatório da banda alta no treino (corte entre 4 e 7,9 kHz em metade das amostras), escolhido pelo grupo em 23/10/2026 | a faixa some nos codecs e na telefonia (com o soxr, sumia também na captura); no teste, o LFCC de 0 a 4 kHz custou 5,20 pp no limpo e o descarte 2,40 pp, com −2,99 pp no corte (RESUMO_TCC §10.2.11) |
 | Toda condição de captura aparece nas duas classes, no treino e na demonstração | evita um detector de microfone em vez de um detector de síntese |
-| Microfone por WASAPI exclusivo (sounddevice), 48 kHz e o FIR do projeto; loopback só para chamada; arquivos analisados sem captura | contorna os aprimoramentos do driver e a conversão de taxa do Windows |
+| Microfone por WASAPI compartilhado (sounddevice), 48 kHz e o FIR do projeto, com os aprimoramentos do Windows desligados e a checagem de cópias depois de gravar; loopback só para chamada; arquivos analisados sem captura. Trocado do exclusivo em 26/10/2026 | neste notebook, o exclusivo insere cópias de trechos recentes, entrega 16 bits e não aplica o ganho do Windows (RESUMO_TCC §10.2.34) |
 | Aba Gravar na interface, com espectrograma e energia por faixa | coleta e demonstração pelo mesmo caminho; cobre a visualização ao operador (RF10) |
 | Treino na nuvem: Kaggle (T4, fp16), uma conta por integrante; Colab como reserva; GTX 1650 para avaliação e XLS-R congelado | cerca de 30 h de GPU por semana por conta |
 | Áudios fora do GitHub; versionar scripts, protocolos, listas do recorte e resultados | tamanho, licença da ASVspoof 5 e privacidade das vozes |
@@ -57,11 +57,13 @@ primeiro: nenhuma gravação começa antes deles.
 
 **Captura e gravador**
 - Fonte de microfone com `sounddevice` em WASAPI exclusivo, 48 kHz, FIR para
-  16 kHz; modo compartilhado com aviso se o driver recusar.
+  16 kHz; modo compartilhado com aviso se o driver recusar. Em 26/10/2026 o
+  padrão passou ao compartilhado; o exclusivo ficou como `--exclusivo`, para
+  diagnóstico (RESUMO_TCC §10.2.34).
 - Aba Gravar: gravar e parar, análise do arquivo inteiro, espectrograma, energia
   em 0–4, 4–7,6 e 7,6–8 kHz e score por janela.
 - Checagens logo após gravar: saturação, fração de fala, banda estreita, piso de
-  ruído nas pausas.
+  ruído nas pausas e, desde 26/10/2026, trechos de 10 ms repetidos (cópias).
 - Botão "salvar no conjunto de dados" com metadados: locutor, frase, termo,
   dispositivo e modo de captura.
 - Testar o microfone da coleta: mesma frase em modo compartilhado e exclusivo, e
@@ -190,12 +192,14 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
 - Qual microfone será usado na coleta (na banca, o embutido do notebook, junto
   da webcam, informado em 02/10/2026), e se há uma interface USB com
   ASIO disponível.
-- **Modo da captura (26/10/2026).** O plano pede WASAPI exclusivo, mas neste
-  notebook ele insere cópias de trechos recentes, entrega 16 bits e não aplica
-  o ganho do Windows (RESUMO_TCC §10.2.34). O compartilhado não tem esses
-  defeitos, mas passa pelo mixer do Windows (os aprimoramentos precisam estar
-  desligados). Decidir: trocar o padrão para o compartilhado, com a checagem de
-  cópias depois de gravar, e regravar ou usar as gravações recuperadas.
+- **Modo da captura (26/10/2026).** O exclusivo, neste notebook, insere cópias
+  de trechos recentes, entrega 16 bits e não aplica o ganho do Windows
+  (RESUMO_TCC §10.2.34). Decidido no mesmo dia: o padrão passou ao
+  compartilhado, com a checagem de cópias depois de gravar. O compartilhado
+  passa pelo mixer do Windows (os aprimoramentos precisam estar desligados) e
+  aplica o ganho dele: o nível do microfone no Windows tem de ser ajustado com
+  uma frase de teste. Falta decidir: regravar as vozes reais e os clones pelo ar
+  no modo novo ou usar as gravações recuperadas.
 - Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
   desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
   lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o

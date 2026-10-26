@@ -1,4 +1,4 @@
-"""Microfone por WASAPI exclusivo (src/capture/sources.py, MicrofoneWasapiSource).
+"""Microfone por WASAPI (src/capture/sources.py, MicrofoneWasapiSource).
 
 O `sounddevice` real só abre o hardware no Windows; aqui um falso entrega o sinal
 pelo callback numa thread própria, como o PortAudio, e recusa as configurações
@@ -90,24 +90,34 @@ def _coletar(fonte, n_blocos, atraso_s=0.0):
     return np.concatenate(saida)
 
 
-def test_exclusivo_entrega_o_sinal_reamostrado_pelo_fir(monkeypatch):
+def test_compartilhado_por_padrao_entrega_o_sinal_reamostrado_pelo_fir(monkeypatch):
+    """26/10/2026: o exclusivo insere cópias de trechos neste notebook (RESUMO_TCC
+    §10.2.34); o padrão passou a ser o compartilhado."""
     from src.preprocess.reamostragem import DecimadorFIR
 
     sinal = np.random.default_rng(0).standard_normal(48000 * 3) * 0.1
     sd = _sounddevice_falso(monkeypatch, sinal)
     fonte = MicrofoneWasapiSource(16000)
-    assert (fonte.modo, fonte.aviso, fonte.nome) == ("exclusivo", None, "Microfone (Realtek Audio)")
+    assert (fonte.modo, fonte.aviso, fonte.nome) == ("compartilhado", None, "Microfone (Realtek Audio)")
     capturado = _coletar(fonte, 20, atraso_s=0.01)
     referencia = DecimadorFIR()(sinal[: 20 * 4800])
     np.testing.assert_allclose(capturado, referencia[: len(capturado)], atol=1e-4)
-    assert sd.fluxos[0].kw["extra_settings"].exclusive and sd.fluxos[0].canais == 1
+    assert not sd.fluxos[0].kw["extra_settings"].exclusive and sd.fluxos[0].canais == 1
     assert sd.fluxos[0].kw["samplerate"] == 48000
+
+
+def test_exclusivo_so_quando_pedido(monkeypatch):
+    sd = _sounddevice_falso(monkeypatch, np.zeros(48000))
+    fonte = MicrofoneWasapiSource(16000, exclusivo=True)
+    assert (fonte.modo, fonte.aviso) == ("exclusivo", None)
+    _coletar(fonte, 2)
+    assert sd.fluxos[0].kw["extra_settings"].exclusive
 
 
 def test_driver_que_so_aceita_estereo_no_exclusivo(monkeypatch):
     sinal = np.random.default_rng(1).standard_normal(48000) * 0.1
     sd = _sounddevice_falso(monkeypatch, sinal, recusar={(True, 1)})
-    fonte = MicrofoneWasapiSource(16000)
+    fonte = MicrofoneWasapiSource(16000, exclusivo=True)
     assert fonte.modo == "exclusivo" and fonte._canais == 2
     assert len(_coletar(fonte, 3)) == 3 * 528 // 3, "3 pacotes do driver, de 48 para 16 kHz"
     assert sd.fluxos[0].canais == 2
@@ -115,7 +125,7 @@ def test_driver_que_so_aceita_estereo_no_exclusivo(monkeypatch):
 
 def test_exclusivo_recusado_cai_no_compartilhado_com_aviso(monkeypatch):
     _sounddevice_falso(monkeypatch, recusar={(True, 1), (True, 2)})
-    fonte = MicrofoneWasapiSource(16000)
+    fonte = MicrofoneWasapiSource(16000, exclusivo=True)
     assert fonte.modo == "compartilhado"
     assert "recusou o modo exclusivo" in fonte.aviso
 
@@ -133,7 +143,7 @@ def test_microfone_que_so_abre_a_96_khz(monkeypatch):
     sinal = np.random.default_rng(5).standard_normal(96000 * 2) * 0.1
     sd = _sounddevice_falso(monkeypatch, sinal, taxas=(96000,))
     fonte = MicrofoneWasapiSource(16000)
-    assert (fonte.modo, fonte.taxa_dispositivo) == ("exclusivo", 96000)
+    assert (fonte.modo, fonte.taxa_dispositivo) == ("compartilhado", 96000)
     capturado = _coletar(fonte, 10)
     referencia = DecimadorFIR(96000, 16000)(sinal[: 10 * 9600])
     np.testing.assert_allclose(capturado, referencia[: len(capturado)], atol=1e-4)
@@ -184,9 +194,11 @@ def test_sem_sounddevice_usa_o_soundcard_com_aviso(monkeypatch):
 
 
 def test_com_sounddevice_abre_pelo_wasapi(monkeypatch):
+    """O ao vivo (monitor.py e a aba Ao vivo) abre por aqui: compartilhado, salvo pedido."""
     _sounddevice_falso(monkeypatch)
     fonte = abrir_microfone(16000)
-    assert isinstance(fonte, MicrofoneWasapiSource) and fonte.modo == "exclusivo"
+    assert isinstance(fonte, MicrofoneWasapiSource) and fonte.modo == "compartilhado"
+    assert abrir_microfone(16000, exclusivo=True).modo == "exclusivo"
 
 
 def test_pacotes_no_tamanho_do_driver(monkeypatch):

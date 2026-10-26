@@ -2,8 +2,9 @@
 
 Modos:
 - `voz`: mostra cada linha de --frases, grava pelo microfone em WASAPI
-  exclusivo, na taxa do dispositivo e em 24 bits, e roda as checagens; Enter
-  segue para a próxima, r regrava. Com o texto de referência e `--segundos 90`,
+  compartilhado, na taxa do dispositivo e em 24 bits, e roda as checagens; Enter
+  segue para a próxima, r regrava. O exclusivo (`--exclusivo`, só diagnóstico)
+  insere cópias de trechos neste notebook (RESUMO_TCC §10.2.34). Com o texto de referência e `--segundos 90`,
   grava a amostra para a ferramenta de clonagem.
 - `pelo-ar`: toca cada arquivo de --clones pelo alto-falante padrão e grava pelo
   microfone ao mesmo tempo: o clone "pelo microfone" da demonstração.
@@ -11,7 +12,8 @@ Modos:
 Arquivos que já existem na saída são pulados (dá para parar e continuar).
 A saída deve ficar em ml/data/vozes/, fora do Git: é voz de uma pessoa.
 
-Uso (de dentro de ml/), sem fone com microfone conectado. O teste com a voz
+Uso (de dentro de ml/), sem fone com microfone conectado e com os
+aprimoramentos do microfone desligados no Windows. O teste com a voz
 própria aceita ruído a 15 dB da fala (`--piso-minimo 15`), a margem do microfone
 embutido na sala (RESUMO_TCC §10.2.12):
     python scripts/gravar_frases.py voz --frases docs/etica/frases_teste_voz_propria.txt \\
@@ -49,11 +51,11 @@ def ler_frases(caminho: str | Path) -> list[str]:
 
 def gravar(segundos: float, dispositivo: str | None = None,
            avisos: tuple[tuple[float, object], ...] = (),
-           bloco_ms: int | None = None) -> tuple[np.ndarray, int, str, str]:
+           bloco_ms: int | None = None, exclusivo: bool = False) -> tuple[np.ndarray, int, str, str]:
     """Grava `segundos` na taxa do dispositivo, sem conversão. Cada aviso é
     (instante em s, texto ou função): o texto é mostrado e a função chamada
     quando a gravação passa daquele instante."""
-    fonte = MicrofoneWasapiSource(None, dispositivo, bloco_ms=bloco_ms)
+    fonte = MicrofoneWasapiSource(None, dispositivo, bloco_ms=bloco_ms, exclusivo=exclusivo)
     taxa = fonte.taxa_dispositivo
     descarte, total = int(DESCARTE_S * taxa), int(segundos * taxa)
     pendentes = sorted(avisos, key=lambda a: a[0])
@@ -105,7 +107,7 @@ def _seguir(sem_pausa: bool) -> bool:
 
 def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str | None,
              sem_pausa: bool, piso_minimo: float | None = None,
-             bloco_ms: int | None = None) -> int:
+             bloco_ms: int | None = None, exclusivo: bool = False) -> int:
     for i, frase in enumerate(frases, start=1):
         destino = saida / f"f{i:02d}.wav"
         if destino.exists():
@@ -117,7 +119,7 @@ def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str |
                 input("    Enter para gravar; espere o aviso para começar a ler...")
             wav, taxa, modo, nome = gravar(segundos, dispositivo, (
                 (MARGEM_S, "leia agora"), (segundos - MARGEM_S, "silêncio até o fim")),
-                bloco_ms)
+                bloco_ms, exclusivo)
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
             relatar_checagens(wav, taxa, piso_minimo)
             if _seguir(sem_pausa):
@@ -127,7 +129,8 @@ def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str |
 
 
 def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: bool,
-                 piso_minimo: float | None = None, bloco_ms: int | None = None) -> int:
+                 piso_minimo: float | None = None, bloco_ms: int | None = None,
+                 exclusivo: bool = False) -> int:
     import librosa
     import sounddevice as sd
 
@@ -147,7 +150,7 @@ def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: 
         while True:
             print(f"\n[{arq.stem}] tocando {arq.name} ({duracao:.1f} s) pelo alto-falante")
             wav, taxa, modo, nome = gravar(duracao + 2 * MARGEM_S, dispositivo, (
-                (MARGEM_S, lambda: sd.play(clone, taxa_clone)),), bloco_ms)
+                (MARGEM_S, lambda: sd.play(clone, taxa_clone)),), bloco_ms, exclusivo)
             sd.stop()
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
             relatar_checagens(wav, taxa, piso_minimo)
@@ -174,6 +177,9 @@ def main(argv=None) -> int:
     p.add_argument("--bloco-ms", type=int, default=None,
                    help="diagnóstico: blocos fixos, como antes de 25/10/2026 (padrão: os "
                         "pacotes do driver)")
+    p.add_argument("--exclusivo", action="store_true",
+                   help="diagnóstico: WASAPI exclusivo, que neste notebook insere cópias de "
+                        "trechos (RESUMO_TCC §10.2.34)")
     p.add_argument("--sem-pausa", action="store_true", help="não espera Enter (testes)")
     args = p.parse_args(argv)
 
@@ -183,11 +189,11 @@ def main(argv=None) -> int:
             if not args.frases:
                 p.error("o modo voz precisa de --frases")
             return modo_voz(ler_frases(args.frases), saida, args.segundos, args.dispositivo,
-                            args.sem_pausa, args.piso_minimo, args.bloco_ms)
+                            args.sem_pausa, args.piso_minimo, args.bloco_ms, args.exclusivo)
         if not args.clones:
             p.error("o modo pelo-ar precisa de --clones")
         return modo_pelo_ar(Path(args.clones), saida, args.dispositivo, args.sem_pausa,
-                            args.piso_minimo, args.bloco_ms)
+                            args.piso_minimo, args.bloco_ms, args.exclusivo)
     except CaptureError as erro:
         print(f"[ERRO] {erro}")
         return 1

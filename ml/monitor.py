@@ -23,7 +23,8 @@ tipo de áudio (src/limiares.py); o score é indício, não veredito.
     python monitor.py --config ... --checkpoint ... --arquivo chamada.wav
 
     # pelo microfone (o padrão do Windows, ou --dispositivo-audio "<nome>");
-    # WASAPI exclusivo a 48 kHz com o sounddevice, modo compartilhado sem ele
+    # WASAPI compartilhado a 48 kHz; o exclusivo (--exclusivo) insere cópias de
+    # trechos neste notebook (RESUMO_TCC §10.2.34)
     python monitor.py --config ... --checkpoint ... --fonte microfone
 
     # ver os dispositivos disponíveis
@@ -69,6 +70,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--dispositivo-audio", default=None,
                    help="nome do dispositivo (saída ou microfone, conforme --fonte; "
                         "padrão: o do sistema)")
+    p.add_argument("--exclusivo", action="store_true",
+                   help="diagnóstico: microfone em WASAPI exclusivo, que neste notebook "
+                        "insere cópias de trechos (RESUMO_TCC §10.2.34)")
     p.add_argument("--hop", type=float, default=None,
                    help="passo entre janelas em segundos (padrão: metade da janela)")
     p.add_argument("--device", default=None, help="cuda | cpu")
@@ -169,7 +173,8 @@ def main(argv=None) -> int:
         if args.arquivo:
             fonte = FileSource(args.arquivo, analisador.sample_rate)
         elif args.fonte == "microfone":
-            fonte = abrir_microfone(analisador.sample_rate, args.dispositivo_audio)
+            fonte = abrir_microfone(analisador.sample_rate, args.dispositivo_audio,
+                                    exclusivo=args.exclusivo)
         else:
             fonte = WasapiLoopbackSource(analisador.sample_rate,
                                          nome_dispositivo=args.dispositivo_audio)

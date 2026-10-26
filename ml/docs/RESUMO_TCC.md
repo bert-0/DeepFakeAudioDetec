@@ -3613,6 +3613,30 @@ limpo), como em 10.2.27.
    (taxa certa, sem cópias, resolução maior e o ganho do Windows). O plano pede
    o exclusivo; a troca é decisão do grupo.
 
+**Decisão e checagem (26/10/2026).** O grupo trocou o padrão para o
+compartilhado: gravador (`gravar_frases.py`), monitor e aba Ao vivo. O exclusivo
+ficou como `--exclusivo`, só para diagnóstico. As checagens depois de gravar
+ganharam a de cópias (`checar_copias` em `src/capture/checagens.py`): falha com
+qualquer trecho de 10 ms idêntico a um anterior. Trechos de até 1 degrau de 16
+bits não contam, para o enchimento do Chatterbox não acusar. Conferida em todas
+as pastas de `data/vozes/`:
+
+| pastas | arquivos acusados | trechos repetidos |
+|---|---|---|
+| reais do embutido: ensaio 1, ensaio 2, L02 | 10/10 em cada | 3.958, 3.814, 3.619 |
+| referências da clonagem, L01 / L02 | 2/2 / 2/2 | 5.225 / 4.879 |
+| clones pelo ar do ensaio 1 | 10/10 | 3.665 |
+| headset do L01 | 5/5 | 1.758 |
+| clones do XTTS (4 pastas) e do Chatterbox (2) | 0 | 0 |
+| celular do L01 | 0/10 | 0 |
+| reais recuperados (L01, L02, headset) | 0 | 0 |
+
+**Nível no compartilhado.** No exclusivo, a fala do embutido tinha pico mediano
+de −25,1 dBFS no L01 (máximo −23,1) e −29,4 no L02 (−26,5); o headset, −41,1
+(−35,6). Com os +40 dB do compartilhado medidos acima, a fala do embutido
+passaria de 0 dBFS. O volume do microfone no Windows precisa baixar antes de
+gravar, conferido com uma frase de teste (protocolo: pico entre −12 e −3 dBFS).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

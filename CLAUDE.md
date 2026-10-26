@@ -61,9 +61,10 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   (MP3, Vorbis, Opus, G.711, GSM pelo libsndfile).
 - `src/features/`, `src/models/`: LFCC, log-mel, CNN, LCNN, fusão e atenção.
 - `src/capture/`: fontes de áudio (arquivo, loopback, microfone por WASAPI
-  exclusivo com `sounddevice`, ou `soundcard` sem ele), analisador em janelas
-  de 4 s com passo de 2 s, peso pela fração de fala; `checagens.py` (depois de
-  gravar: saturação, fala, banda, piso de ruído).
+  compartilhado com `sounddevice`, `--exclusivo` só para diagnóstico, ou
+  `soundcard` sem ele), analisador em janelas de 4 s com passo de 2 s, peso pela
+  fração de fala; `checagens.py` (depois de gravar: saturação, cópias, fala,
+  banda, piso de ruído).
 - `docs/etica/`: rascunhos do termo de consentimento e do protocolo de gravação.
 - `src/data/asvspoof5.py` e `scripts/montar_recorte_asvspoof5.py`: protocolos da
   ASVspoof 5 e o recorte lido direto dos `.tar` (em `D:`, pela junção
@@ -181,8 +182,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   bits e sem o ganho do Windows (+40 dB). Está em todas as gravações reais, nas
   referências da clonagem, nos clones pelo ar e no ao vivo. Nada se perde:
   `diagnostico_captura.py reparar` apaga as cópias (`data/vozes/reparadas/`). O
-  modo compartilhado não tem o defeito. Os placares dos ensaios não mudam sem
-  as cópias; o pente de 9,09 Hz e os "estalos a 110 ms" eram elas.
+  modo compartilhado não tem o defeito e virou o padrão (26/10/2026), com a
+  checagem de cópias depois de gravar. Ele aplica o ganho do Windows: com o
+  nível de 26/10, a fala do embutido (pico −25 dBFS no exclusivo) saturaria. Os
+  placares dos ensaios não mudam sem as cópias; o pente de 9,09 Hz e os
+  "estalos a 110 ms" eram elas.
 - Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
   o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
   pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).

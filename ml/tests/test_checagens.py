@@ -7,7 +7,7 @@ acima de 4 kHz nas fricativas.
 import numpy as np
 from scipy.signal import butter, sosfilt
 
-from src.capture.checagens import checar, energia_por_faixa
+from src.capture.checagens import checar, checar_copias, energia_por_faixa
 
 SR = 48000
 
@@ -24,9 +24,9 @@ def _por_nome(checagens):
     return {c.nome: c for c in checagens}
 
 
-def test_gravacao_boa_passa_nas_quatro():
+def test_gravacao_boa_passa_em_todas():
     r = _por_nome(checar(_gravacao(), SR))
-    assert list(r) == ["saturação", "fala", "banda", "piso de ruído"]
+    assert list(r) == ["saturação", "cópias", "fala", "banda", "piso de ruído"]
     assert all(c.ok for c in r.values()), r
     assert r["fala"].valor == "5.0 s"
 
@@ -66,7 +66,7 @@ def test_ruido_nas_pausas_acima_do_corte_de_silencio():
 
 def test_silencio_total():
     r = checar(np.zeros(SR * 3, dtype=np.float32), SR)
-    assert [c.ok for c in r] == [True, False, False, False]
+    assert [c.ok for c in r] == [True, True, False, False, False]
 
 
 def test_energia_por_faixa_acha_o_tom_em_7_8_khz():
@@ -118,3 +118,46 @@ def test_pancada_do_teclado_na_borda_nao_e_fala():
     r = _por_nome(checar(wav, SR, piso_minimo=15))
     assert r["fala"].ok, r["fala"].motivo
     assert abs(float(r["fala"].valor.split()[0]) - 6.0) < 0.3
+
+
+def _com_copias(wav, a_cada=3, distancia=11, pacote=480):
+    """Como o modo exclusivo (RESUMO_TCC §10.2.34): a cada `a_cada` trechos de 10 ms
+    novos, insere a cópia do trecho `distancia` atrás."""
+    blocos = list(wav[:len(wav) // pacote * pacote].reshape(-1, pacote))
+    saida = []
+    for i, b in enumerate(blocos):
+        saida.append(b)
+        if (i + 1) % a_cada == 0 and len(saida) > distancia:
+            saida.append(saida[-distancia])
+    return np.concatenate(saida)
+
+
+def test_trechos_repetidos_pedem_regravar():
+    r = _por_nome(checar(_com_copias(_gravacao()), SR))
+    assert not r["cópias"].ok and "modo compartilhado" in r["cópias"].motivo
+    assert r["cópias"].valor.startswith("230 de 930 "), "700 trechos novos, 230 cópias"
+    assert r["fala"].ok, "o resto da gravação não acusa nada"
+
+
+def test_uma_copia_so_ja_acusa():
+    wav = _gravacao()
+    wav[480 * 300:480 * 301] = wav[480 * 200:480 * 201]
+    assert not _por_nome(checar(wav, SR))["cópias"].ok
+
+
+def test_enchimento_de_um_degrau_de_16_bits_nao_e_copia():
+    """O fim dos clones do Chatterbox: trechos iguais de no máximo 1 degrau de 16
+    bits (RESUMO_TCC §10.2.34). Não é a captura repetindo áudio."""
+    wav = _gravacao()
+    rng = np.random.default_rng(9)
+    enchimento = np.tile(rng.integers(-1, 2, 480) / 32768, 20).astype(np.float32)
+    r = _por_nome(checar(np.concatenate([wav, enchimento]), SR))
+    assert r["cópias"].ok, r["cópias"].valor
+
+
+def test_copias_a_96_khz_em_trechos_de_10_ms():
+    sr = 96000
+    rng = np.random.default_rng(10)
+    wav = (rng.standard_normal(sr * 7) * 0.1).astype(np.float32)
+    assert checar_copias(wav, sr).ok
+    assert not checar_copias(_com_copias(wav, pacote=960), sr).ok
