@@ -124,7 +124,9 @@ primeiro: nenhuma gravação começa antes deles.
   locutor só. Falta uma voz que o sistema nunca viu: ensaio 3 com o L02,
   voluntário de fora do grupo, critério fixado em 25/10/2026 (§10.2.14).
   Rodado no mesmo dia: reais 10 de 10, clones 10 de 10, meta atingida no
-  caminho arquivo com uma voz nova. Falta a voz do orientador.
+  caminho arquivo com uma voz nova. Falta a voz do orientador. Ensaio 4
+  (§10.2.15), clones do Chatterbox: L01 3 de 10, L02 9 de 10, meta não
+  atingida; o detector pega o XTTS, mas não com folga uma ferramenta mais nova.
 - Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
   `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
   (22/10/2026). Medido no mesmo dia: tirar 7,6–8 kHz custa +6,27 pp no

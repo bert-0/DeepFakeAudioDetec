@@ -2305,6 +2305,25 @@ ocupa quase os 4 GB: cada frase levou de 25 a 108 s, e uma, 366 s, com a memóri
 transbordando para a do sistema. Inviável ao vivo nessa placa; a demonstração
 segue com o XTTS.
 
+**Resultado do ensaio 4 (26/10/2026; `outputs/ensaio4_L01.json` e `ensaio4_L02.json`):**
+
+| locutor | reais julgados humanos | clones do Chatterbox julgados sintéticos | pares clone acima do real |
+|---|---|---|---|
+| L01 | 10 de 10 | **3 de 10** | 96 de 100 |
+| L02 | 10 de 10 | **9 de 10** | 100 de 100 |
+
+- **Meta não atingida:** o critério pedia pelo menos 8 de 10 em cada locutor, e o
+  L01 ficou em 3. O detector não pega com folga os clones de uma ferramenta mais
+  nova; o resultado dos ensaios 2 e 3 vale para o XTTS.
+- **Descritivo, em log-odds:** clones do Chatterbox do L01 de −12,61 a −5,86 (o
+  limiar é −8,671), do L02 de −9,55 a −6,11; os do XTTS do L02 iam de −7,94 a
+  −0,97. O Chatterbox fica mais perto do lado humano, e mais ainda na voz do L01.
+- **A ordem quase não erra:** em 196 dos 200 pares (clone, gravação real do
+  mesmo locutor), o clone fica acima. Juntando os ensaios 2 a 4, o modelo do
+  recorte põe o clone acima da voz real do mesmo locutor em 396 de 400 pares; o
+  que falha é o ponto de corte, que não se ajusta à voz de cada pessoa.
+  Observação depois dos dados, não critério.
+
 ### 10.2.16 Captura do microfone: uma emenda suspeita a cada 1,1 s (sem perda de amostras)
 
 **Achado (25/10/2026):** ouvidas no VLC e no reprodutor do Windows, as gravações
@@ -2350,9 +2369,11 @@ pausas. **Hipótese:** processamento dentro do microfone embutido ("Grupo de
 microfones", provavelmente uma matriz com supressão de ruído ou formação de
 feixe no driver ou no hardware, que o modo exclusivo não desliga), trocando de
 estado entre fala e pausa. É o risco "o microfone faz processamento no hardware"
-do plano; o teste do microfone embutido tinha ficado para depois. Próximos
-passos: procurar esses efeitos no painel de áudio da Realtek e gravar a mesma
-frase com outro microfone para comparar. Os resultados dos ensaios ficam como
+do plano; o teste do microfone embutido tinha ficado para depois. No painel da
+Realtek (Realtek Audio Console), os efeitos do microfone já estavam desligados
+("Desabilitar Tudo"), com reforço de +10 dB e formato compartilhado de 48 kHz e
+16 bits; os estalos não vêm dessas opções. Falta gravar a mesma frase com outro
+microfone para separar o microfone embutido de uma interferência elétrica. Os resultados dos ensaios ficam como
 saíram: as gravações reais, com esses estalos, foram julgadas humanas, e a banca
 usa o mesmo microfone.
 

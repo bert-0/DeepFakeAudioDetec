@@ -167,6 +167,13 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   grupo), frases do conjunto 3, clones sem o ponto final: reais 10 de 10, clones
   10 de 10. Ensaios 2 e 3 juntos: 20 de 20 e 19 de 20. O clone pelo ar segue sem
   separação. O XTTS corta o fim, trava palavras e lê o ponto como "ponto".
+- Ensaio 4 (RESUMO_TCC §10.2.15): clones do Chatterbox Multilingual, mesmo
+  critério: L01 3 de 10, L02 9 de 10; meta não atingida. A ordem quase não erra
+  (clone acima do real do mesmo locutor em 396 de 400 pares nos ensaios 2 a 4);
+  falha o ponto de corte.
+- Microfone embutido (RESUMO_TCC §10.2.16): captura sem perda de amostras (tom de
+  1.000 Hz exato), mas a fala tem estalos curtos, em pares a 110 ms nas pausas,
+  com os efeitos da Realtek desligados. Causa em aberto.
 - Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
   o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
   pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).
