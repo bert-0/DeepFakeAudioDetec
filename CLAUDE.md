@@ -85,7 +85,7 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   `preparar_referencia.py` e `clonar_xtts.py`, no ambiente conda `xtts`, ou com
   `--ferramenta chatterbox` no ambiente `chatterbox`); estudo das imperfeições,
   exploratório (`estudo_faixas.py`, `estudo_relogio.py`, `estudo_linhas.py`,
-  `estudo_pente.py`; RESUMO_TCC §10.2.17 em diante).
+  `estudo_pente.py`, `estudo_bases.py`; RESUMO_TCC §10.2.17 em diante).
 - `docs/RESUMO_TCC.md`: registro de todos os experimentos e números.
   `docs/TC2_REDACAO.md`: texto do relatório, com a fonte de cada número num
   comentário `<!-- RESUMO_TCC §x -->`.
@@ -187,3 +187,6 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   - O microfone embutido põe um pente de 9,09 Hz (os estalos a cada 110 ms) em
     todas as gravações reais e em nenhum clone. É um atalho: característica nova
     se confere em humanos de outra origem.
+  - Nas bases ASVspoof (§10.2.21), as linhas e os pentes aparecem só em parte
+    dos geradores modernos: A14 com pente de 62,5 Hz (AUC 0,97), A13 e A07 com
+    linhas. Nenhum aparece na 2019 LA. Não são uma marca universal.

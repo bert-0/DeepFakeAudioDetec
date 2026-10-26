@@ -2566,6 +2566,60 @@ mais forte sem saber o gerador.
 **Próximo:** a parte 5 repete as medidas nas bases ASVspoof. Lá os humanos têm
 outra origem, há muitos geradores e há ataques que o estudo não viu.
 
+### 10.2.21 Parte 5: linhas e pente nas bases ASVspoof (exploratório)
+
+**Por quê:** nas partes 3 e 4, os humanos vinham todos do mesmo microfone, e os
+geradores eram só dois. Aqui os humanos são os das bases e há 22 ataques.
+
+**Método (`scripts/estudo_bases.py`; `outputs/estudo_bases_<rótulo>.json`):**
+- **Amostra:** 100 arquivos por classe (semente 42), cortados nos primeiros 3 s,
+  para que todas as classes tenham o mesmo número de segmentos no espectro (2 Hz
+  de resolução, 11 segmentos).
+- **Bases:** a 2019 LA (treino, A01–A06) e o recorte da ASVspoof 5 (treino,
+  A01–A08; dev, A09–A16). O eval fica para um teste com critério.
+- **Linhas da classe:** escolhidas na metade A dos arquivos e contadas na metade B
+  e na metade B dos humanos.
+- **Duas medidas por arquivo, sem saber o gerador:** a fração da banda de 2 a 7,6
+  kHz com linha (6 dB acima do contorno) e o pente varrido (parte 4, 4–7,6 kHz).
+  A separação é a AUC contra os humanos da mesma base.
+
+**Resultado:**
+- **2019 LA:** nenhum ataque tem linha fixa. Nos ataques, a mediana mais alta é
+  +2,2 dB (A02), em 7.998 Hz, a borda dos 8 kHz, que aparece igual nos humanos
+  (11/50). As duas
+  medidas não separam: AUC de 0,34 a 0,60 (linhas) e de 0,34 a 0,68 (pente). Os
+  geradores da 2019 (WORLD, WaveNet, concatenação) não têm camadas de
+  reamostragem aprendidas, de onde vêm os tons segundo Pons et al.
+- **ASVspoof 5:** marcas em parte dos ataques.
+
+  | ataque | marca | arquivos com a marca | humanos |
+  |---|---|---|---|
+  | A14 (dev) | pente de 62,5 Hz; as 5 linhas mais fortes em múltiplos de 62,5 Hz (4.000, 7.562, 7.812, 7.875 e 7.938 Hz, +4,4 a +5,9 dB) | pente: base de 62,5 Hz em 55/100 e de 187,5 Hz em 40/100; linhas: 32 a 37/50 | linhas: 0 a 7/50 |
+  | A13 (dev) | linhas em 7.732, 5.512 e 2.756 Hz (+6,7, +2,5, +2,3 dB) | 45, 33 e 26/50 | 9, 5 e 6/50 |
+  | A07 (treino) | linha em 7.000 Hz (+5,2 dB); pente de 93,75 Hz | linha: 40/50; pente: 9/100 | linha: 8/50 |
+  | A01–A06 (treino) | a mesma linha de 7.000 Hz, mais fraca (+2,4 a +3,3 dB) | 20 a 26/50 | 8/50 |
+  | A08–A12, A15, A16 | nenhuma linha acima de +2,3 dB | — | — |
+
+  Os 62,5 Hz são compatíveis com um vocoder a 16 kHz e passo de 256 amostras;
+  5.512 e 2.756 Hz, com reamostragem a 22,05 kHz (22.050/4 e 22.050/8). A
+  documentação desses ataques não foi conferida.
+- **As medidas que não sabem o gerador só pegam o A14:** pente com AUC 0,97 e
+  linhas com 0,79. Nos outros 14 ataques da ASVspoof 5, AUC de 0,33 a 0,51
+  (linhas) e de 0,34 a 0,59 (pente).
+
+**Leitura:** as marcas finas são reais e explicáveis, mas não universais.
+- Aparecem nos geradores com reamostragem aprendida: o XTTS, o Chatterbox e uma
+  parte dos ataques da ASVspoof 5.
+- A frequência muda de um gerador para outro.
+- Na 2019 LA não aparecem.
+- Uma medida simples por arquivo só separa o gerador de marca mais forte (A14).
+
+Para o detector, isso sugere um ramo de resolução fina, de convolução ao longo
+da frequência, que procure "linha estreita" em qualquer lugar e não numa
+frequência decorada. Há um risco: microfones e ambientes também têm linhas
+(527 e 655 Hz no microfone embutido, parte 3). Uma hipótese a testar é que a
+linha do gerador acompanha a fala, e a do ambiente continua nas pausas.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
