@@ -62,22 +62,35 @@ def entradas(x: np.ndarray) -> np.ndarray:
 
 # --------------------------------------------------------------- preparar (professor)
 
-def preparar(origem: Path, destino: Path, rede, dev, camada: int = CAMADA) -> dict:
-    """Uma amostra por janela de 4 s (as mesmas janelas da parte 6). Duas passadas:
-    a primeira só conta as janelas, para gravar direto em disco (memmap)."""
-    import torch
+#: Convolução do XLS-R (kernels e passos): dá o número de quadros do professor sem rodá-lo.
+CONV_XLSR = ((10, 5), (3, 2), (3, 2), (3, 2), (3, 2), (2, 2), (2, 2))
 
+
+def quadros_do_professor(n_amostras: int) -> int:
+    for k, s in CONV_XLSR:
+        n_amostras = (n_amostras - k) // s + 1
+    return max(0, n_amostras)
+
+
+def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: int = CAMADA) -> dict:
+    """Uma amostra por janela de 4 s (as mesmas janelas da parte 6). Duas passadas:
+    a primeira só conta as janelas, para gravar direto em disco (memmap). Sem `rede`,
+    grava só as entradas do aluno: basta para avaliá-lo, e não roda o XLS-R."""
     from scripts.estudo_ssl import janelas, ler_npz
     from scripts.estudo_ssl import preparar as preparar_audio
 
-    d = ler_npz(origem)
+    d = origem if isinstance(origem, dict) else ler_npz(origem)
     arquivos = [Path(str(a)) for a in d["arquivo"]]
     contagem = [len(janelas(preparar_audio(a)[0])) for a in arquivos]
     n = sum(contagem)
-    dim_alvo = int(rede.config.hidden_size)
     destino.mkdir(parents=True, exist_ok=True)
     ent = np.lib.format.open_memmap(destino / "entradas.npy", "w+", np.float16, (n, MAX_ENTRADA, 140))
-    alv = np.lib.format.open_memmap(destino / "alvos.npy", "w+", np.float16, (n, MAX_ALVO, dim_alvo))
+    alv = None
+    if rede is not None:
+        alv = np.lib.format.open_memmap(destino / "alvos.npy", "w+", np.float16,
+                                        (n, MAX_ALVO, int(rede.config.hidden_size)))
+    elif (destino / "alvos.npy").exists():
+        (destino / "alvos.npy").unlink()  # alvos de uma rodada anterior não valem para estas janelas
     janela_arquivo = np.zeros(n, np.int32)
     n_ent, n_alv = np.zeros(n, np.int32), np.zeros(n, np.int32)
     k = 0
@@ -85,18 +98,25 @@ def preparar(origem: Path, destino: Path, rede, dev, camada: int = CAMADA) -> di
         wav, _ = preparar_audio(arq)
         for x in janelas(wav):
             e = entradas(x)[:MAX_ENTRADA]
-            xn = (x - x.mean()) / np.sqrt(x.var() + 1e-7)
-            with torch.inference_mode():
-                s = rede(torch.from_numpy(xn).float()[None].to(dev), output_hidden_states=True)
-            a = s.hidden_states[camada][0].float().cpu().numpy()[:MAX_ALVO]
             ent[k, :len(e)], ent[k, len(e):] = e, 0
-            alv[k, :len(a)], alv[k, len(a):] = a, 0
-            janela_arquivo[k], n_ent[k], n_alv[k] = i, len(e), len(a)
+            if alv is not None:
+                import torch
+
+                xn = (x - x.mean()) / np.sqrt(x.var() + 1e-7)
+                with torch.inference_mode():
+                    s = rede(torch.from_numpy(xn).float()[None].to(dev), output_hidden_states=True)
+                a = s.hidden_states[camada][0].float().cpu().numpy()[:MAX_ALVO]
+                alv[k, :len(a)], alv[k, len(a):] = a, 0
+                n_alv[k] = len(a)
+            else:
+                n_alv[k] = min(MAX_ALVO, quadros_do_professor(len(x)))
+            janela_arquivo[k], n_ent[k] = i, len(e)
             k += 1
         if (i + 1) % 500 == 0:
             print(f"  {i + 1}/{len(arquivos)}", flush=True)
     ent.flush()
-    alv.flush()
+    if alv is not None:
+        alv.flush()
     np.savez(destino / "meta.npz", arquivo=d["arquivo"], classe=d["classe"], rotulo=d["rotulo"],
              janela_arquivo=janela_arquivo, n_entrada=n_ent, n_alvo=n_alv, camada=camada)
     return {"arquivos": len(arquivos), "janelas": n}
@@ -105,7 +125,8 @@ def preparar(origem: Path, destino: Path, rede, dev, camada: int = CAMADA) -> di
 def carregar_dados(pasta: Path) -> dict:
     meta = dict(np.load(pasta / "meta.npz", allow_pickle=False))
     meta["entradas"] = np.load(pasta / "entradas.npy", mmap_mode="r")
-    meta["alvos"] = np.load(pasta / "alvos.npy", mmap_mode="r")
+    alvos = pasta / "alvos.npy"
+    meta["alvos"] = np.load(alvos, mmap_mode="r") if alvos.exists() else None
     return meta
 
 
@@ -163,8 +184,10 @@ def _lote(dados, idx, media, desvio, dispositivo):
 
     idx = np.sort(idx)
     x = torch.from_numpy(np.asarray(dados["entradas"][idx], dtype=np.float32)).to(dispositivo)
-    y = np.asarray(dados["alvos"][idx], dtype=np.float32)
-    y = torch.from_numpy((y - media) / desvio).to(dispositivo)
+    y = None
+    if dados["alvos"] is not None:
+        y = np.asarray(dados["alvos"][idx], dtype=np.float32)
+        y = torch.from_numpy((y - media) / desvio).to(dispositivo)
     n_e = torch.from_numpy(dados["n_entrada"][idx].astype(np.int64)).to(dispositivo)
     n_a = torch.from_numpy(dados["n_alvo"][idx].astype(np.int64)).to(dispositivo)
     return x, y, n_e, n_a
@@ -326,7 +349,14 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Piloto de destilação do XLS-R num aluno pequeno")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("preparar")
-    a.add_argument("--npz", required=True, help=".npz da parte 6 (a lista de arquivos)")
+    a.add_argument("--npz", help=".npz da parte 6 (a lista de arquivos)")
+    a.add_argument("--protocolo", help="ou a lista pelo protocolo, como no extrair da parte 6")
+    a.add_argument("--pasta")
+    a.add_argument("--n-humanos", type=int, default=400)
+    a.add_argument("--n-ataque", type=int, default=100)
+    a.add_argument("--semente", type=int, default=42)
+    a.add_argument("--sem-professor", action="store_true",
+                   help="só as entradas do aluno (para avaliá-lo); não roda o XLS-R")
     a.add_argument("--saida", required=True)
     a.add_argument("--camada", type=int, default=CAMADA)
     a.add_argument("--dispositivo", default="cuda")
@@ -355,9 +385,20 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     if args.cmd == "preparar":
-        from scripts.estudo_ssl import carregar_rede
+        from scripts.estudo_ssl import carregar_rede, selecionar_protocolo
 
-        r = preparar(Path(args.npz), Path(args.saida), *carregar_rede(args.dispositivo), camada=args.camada)
+        if args.npz:
+            origem = Path(args.npz)
+        elif args.protocolo:
+            lista = selecionar_protocolo(Path(args.protocolo), Path(args.pasta), args.n_humanos,
+                                         args.n_ataque, args.semente)
+            origem = {"arquivo": np.array([str(a) for a, _, _ in lista]),
+                      "classe": np.array([c for _, c, _ in lista]),
+                      "rotulo": np.array([r for _, _, r in lista], dtype=np.int8)}
+        else:
+            p.error("preparar precisa de --npz ou de --protocolo e --pasta")
+        rede, dev = (None, None) if args.sem_professor else carregar_rede(args.dispositivo)
+        r = preparar(origem, Path(args.saida), rede, dev, camada=args.camada)
         print(f"Pronto: {r['arquivos']} arquivos, {r['janelas']} janelas em {args.saida}")
         return 0
     if args.cmd == "treinar":

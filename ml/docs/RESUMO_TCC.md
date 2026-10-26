@@ -3154,6 +3154,73 @@ para fp32 (commit `8faee3a`).
 (27/10/2026):** o aluno acima do nosso detector no geral e abaixo dele em parte
 dos codecs de banda estreita. A destilação usou só áudio limpo, sem as
 degradações de canal do treino. Chegar perto do professor é improvável.
+
+**Resultado no eval da ASVspoof 5 (27/10/2026).**
+- **Amostra:** 9.979 arquivos (2.036 humanos; A17–A32).
+- **Medida:** só medida. A camada 7, os limiares (ponto de EER do dev) e o
+  checkpoint do aluno vieram do dev.
+- **Arquivos:** `outputs/ssl/sondas_com_eval.json`,
+  `outputs/ssl/detector_eval.json`, `outputs/ssl/codecs_eval.json` e
+  `outputs/destilacao/avaliacao_com_eval.json`.
+- **Entradas do aluno:** preparadas sem rodar o professor
+  (`preparar --sem-professor`, 20.371 janelas).
+
+| ataque | nosso detector | sonda no LFCC | aluno (sonda nova) | professor (camada 7) |
+|---|---|---|---|---|
+| **geral** | **0,659** | **0,724** | **0,828** | **0,971** |
+| A17 | 0,97 | 0,88 | 0,91 | 0,97 |
+| A18 | 0,47 | 0,75 | 0,83 | 0,94 |
+| A19 | 0,28 | 0,31 | 0,60 | 0,99 |
+| A20 | 0,28 | 0,51 | 0,61 | 0,99 |
+| A21 | 0,99 | 0,78 | 0,97 | 1,00 |
+| A22 | 0,96 | 0,84 | 0,92 | 0,99 |
+| A23 | 0,86 | 0,80 | 0,93 | 0,98 |
+| A24 | 0,96 | 0,93 | 0,89 | 0,97 |
+| A25 | 0,89 | 0,68 | 0,81 | 0,99 |
+| A26 | 0,78 | 0,79 | 0,87 | 0,99 |
+| A27 | 0,21 | 0,69 | 0,81 | 0,98 |
+| A28 | 0,85 | 0,65 | 0,78 | 0,91 |
+| A29 | 1,00 | 0,92 | 0,98 | 0,98 |
+| A30 | 0,18 | 0,64 | 0,76 | 0,93 |
+| A31 | 0,50 | 0,73 | 0,75 | 0,94 |
+| A32 | 0,28 | 0,62 | 0,81 | 0,99 |
+
+Humanos abaixo do limiar do dev: detector 1.430, aluno 1.483 e professor 1.726,
+de 2.036. A sonda do professor aplicada ao aluno dá AUC geral de 0,861.
+
+**Por codec** (AUC dos falsos contra os humanos do mesmo codec):
+
+| codec | detector | LFCC | aluno | professor |
+|---|---|---|---|---|
+| sem codec | 0,681 | 0,845 | 0,898 | 0,999 |
+| Opus banda larga | 0,690 | 0,730 | 0,870 | 0,994 |
+| AMR banda larga | 0,650 | 0,718 | 0,818 | 0,988 |
+| Speex banda larga | 0,657 | 0,721 | 0,805 | 0,994 |
+| EnCodec (neural) | 0,635 | 0,673 | 0,831 | 0,901 |
+| MP3 | 0,692 | 0,752 | 0,897 | 0,999 |
+| M4A | 0,656 | 0,712 | 0,832 | 0,996 |
+| MP3 + EnCodec | 0,623 | 0,706 | 0,824 | 0,881 |
+| Opus banda estreita | 0,632 | 0,729 | 0,824 | 0,958 |
+| AMR banda estreita | 0,636 | 0,658 | 0,750 | 0,988 |
+| Speex banda estreita | 0,608 | 0,668 | 0,755 | 0,984 |
+| aparelhos (Bluetooth, cabo) | 0,645 | 0,707 | 0,822 | 0,998 |
+
+**Leitura:**
+1. **No teste mais difícil, o aluno supera o nosso detector com folga:** 0,828
+   contra 0,659. Os sete ataques em que o detector se inverte (A18, A19, A20,
+   A27, A30, A31 e A32, de 0,18 a 0,50) ficam de 0,60 a 0,83 no aluno: nenhum
+   abaixo do acaso.
+2. **O aluno ganha do detector em todos os 12 codecs.** A expectativa
+   registrada acertou no geral e errou nos codecs de banda estreita, para o lado
+   pessimista. O pior codec do aluno (AMR banda estreita, 0,750) ainda fica acima
+   do melhor do detector (MP3, 0,692).
+3. **O detector ainda é melhor em alguns ataques** (A17, A21, A22, A24, A25, A28 e
+   A29). As duas pistas se completam, como na parte 10, e a soma é um próximo
+   passo natural.
+4. **O professor mostra o teto:** 0,971 no geral. Só o EnCodec o derruba um pouco
+   (0,901; MP3 + EnCodec, 0,881).
+5. **Ressalva:** o critério do piloto (dev e 2019) continua não atingido. O eval
+   é uma régua extra, pedida pelo grupo, que não muda esse veredito.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.

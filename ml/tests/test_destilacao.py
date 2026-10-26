@@ -33,6 +33,23 @@ def test_aluno_reduz_para_o_passo_do_professor():
     assert MAX_ALVO <= 201  # o professor tem 199 quadros em 4 s
 
 
+def test_quadros_do_professor_sem_roda_lo():
+    from scripts.destilacao import quadros_do_professor
+
+    assert quadros_do_professor(64000) == MAX_ALVO   # 4 s
+    assert quadros_do_professor(48000) == 149         # 3 s, como no teste com a rede pequena
+
+
+def test_preparar_sem_professor(tmp_path):
+    from scripts.destilacao import carregar_dados, preparar
+
+    origem = _base(tmp_path, "e", n=2)
+    r = preparar(origem, tmp_path / "sem", None, None)
+    d = carregar_dados(tmp_path / "sem")
+    assert r["janelas"] == 2 and d["alvos"] is None
+    assert (d["n_alvo"] == 149).all() and d["entradas"].shape == (2, MAX_ENTRADA, 140)
+
+
 def test_perda_ignora_quadros_vazios():
     from scripts.destilacao import perda
 
