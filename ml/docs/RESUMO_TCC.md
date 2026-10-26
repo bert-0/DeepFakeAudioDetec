@@ -3241,6 +3241,36 @@ ataques do eval (A17, A21, A24, A25, A28). Somados, os dois ajudam mesmo?
 **Critério (no commit antes de rodar):** a soma de pesos iguais ajuda se superar
 o melhor dos dois sozinhos em pelo menos 0,02 de AUC no eval da ASVspoof 5 e na
 2019 LA, sem perder mais de 0,02 nos ensaios.
+
+**Resultado (27/10/2026; 1.600, 1.000, 60 e 9.979 arquivos com os dois scores):**
+
+| conjunto | detector | aluno | soma (pesos iguais) | logística (ajustada no dev) |
+|---|---|---|---|---|
+| dev ASVspoof 5 | 0,830 | 0,872 | 0,852 | 0,877 (dentro da amostra) |
+| 2019 LA | 0,657 | 0,800 | 0,763 | 0,805 |
+| ensaios | 0,983 | 0,955 | 0,995 | 0,939 |
+| eval ASVspoof 5 | 0,659 | 0,828 | 0,781 | 0,828 |
+
+**Não passou:** a soma ficou −0,048 no eval e −0,038 na 2019 em relação ao melhor
+sozinho, o aluno. Nos ensaios ganhou +0,012.
+
+**Leitura:**
+- **O detector traz mais erro do que pista.** Nos ataques em que ele se inverte,
+  a soma puxa o aluno para baixo: A19 0,60 → 0,43, A20 0,61 → 0,44, A27 0,81 →
+  0,58, A30 0,76 → 0,49, A32 0,81 → 0,61.
+- **Onde o detector era melhor, a soma só empata com ele:** A17 0,96, A21 0,99,
+  A24 0,95, A25 0,89, A28 0,85.
+- **Por codec, a soma fica abaixo do aluno em todos os 12.**
+- **A logística ajustada no dev confirma:** os pesos são −0,09 para o detector e
+  0,80 para o aluno, ou seja, ela praticamente descarta o detector e repete o
+  aluno.
+- **Nos ensaios, a soma separa melhor no geral (AUC 0,995), mas pelo limiar do
+  dev deixa passar mais clones do L01** (XTTS 3/10, Chatterbox 2/10) que o
+  detector sozinho (7/10 e 6/10). Esses ensaios usam o caminho da avaliação
+  (4 s desde o início), não o do placar.
+- **Conclusão:** nas réguas gerais, o aluno sozinho é o melhor; somar o
+  detector atual não compensa. Ele só agrega no canal dos nossos ensaios, e até
+  isso pede cuidado com o limiar.
 2. **As linhas fixas não são a marca.** Aplicada aos outros áudios, a marca não
    cria nenhuma das três linhas (as contagens não mudam). A atribuição ao
    vocoder (10.2.19, 10.2.20) se mantém.
