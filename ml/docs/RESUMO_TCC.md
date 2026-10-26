@@ -3692,9 +3692,9 @@ clone; o detector não sabe de sotaque).
 **Primeira tentativa do clone pelo ar, descartada (26/10/2026, nenhum score
 visto):** os clones do XTTS tocaram no fone de ouvido, não no alto-falante. O
 pico gravado ficou entre −24,9 e −49,6 dBFS, contra −6,9 a −13,6 dBFS das frases
-reais, e as checagens de fala e de ruído falharam. Os quatro arquivos salvos
-saíram da pasta do ensaio (`outputs/descartados/`); a gravação recomeça pelo
-alto-falante, sem fone. O ruído nas pausas das frases reais (−44,5 dBFS) é o da
+reais, e as checagens de fala e de ruído falharam. Os arquivos salvos saíram da
+pasta do ensaio antes de refazer; a gravação recomeça pelo alto-falante, sem
+fone. O ruído nas pausas das frases reais (−44,5 dBFS) é o da
 frase de teste (−42,4): o mesmo microfone.
 
 ### 10.3 Bases públicas que já trazem canal
