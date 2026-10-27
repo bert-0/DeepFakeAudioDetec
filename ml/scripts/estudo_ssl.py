@@ -180,6 +180,8 @@ def selecionar_protocolo(protocolo: Path, pasta: Path, n_humanos: int, n_ataque:
 
 
 EXTENSOES_AUDIO = {".wav", ".flac", ".mp3"}
+#: Menos que isso de fala não é uma frase (o mínimo de `checagens.TRECHO_MINIMO_S`).
+MIN_AMOSTRAS = int(0.25 * 16000)
 
 
 def selecionar_grupos(grupos: list[str]) -> list[tuple[Path, str, int]]:
@@ -203,6 +205,11 @@ def extrair(lista: list[tuple[Path, str, int]], representar, destino: Path,
             wav, silencio = preparar(arq)
         except Exception as erro:  # arquivo ilegível: registra e segue
             print(f"  pulado {arq.name}: {erro}", flush=True)
+            continue
+        if len(wav) < MIN_AMOSTRAS:
+            # Um clone do ToucanTTS no BRSpeech-DF sobra com 17 ms depois do corte de
+            # silêncio, menor que a primeira convolução do XLS-R (10.2.40).
+            print(f"  pulado {arq.name}: {len(wav) / SR:.3f} s depois do corte de silêncio", flush=True)
             continue
         cnn, cam = representar(wav)
         cnns.append(cnn.astype(np.float16))

@@ -213,3 +213,17 @@ def test_grupos_aceitam_flac_e_mp3(tmp_path):
     (tmp_path / "notas.txt").write_text("x", encoding="utf-8")
     lista = selecionar_grupos([f"g={tmp_path}:spoof"])
     assert [a.name for a, _, _ in lista] == ["a.wav", "b.flac"] and all(r == 1 for _, _, r in lista)
+
+
+def test_extrair_pula_audio_curto_demais(tmp_path, capsys):
+    from scripts.estudo_ssl import extrair, ler_npz
+
+    import soundfile as sf
+
+    rng = np.random.default_rng(0)
+    sf.write(tmp_path / "longo.wav", (rng.standard_normal(16000) * 0.1).astype(np.float32), 16000)
+    sf.write(tmp_path / "curto.wav", (rng.standard_normal(267) * 0.1).astype(np.float32), 16000)
+    lista = [(tmp_path / "curto.wav", "x", 1), (tmp_path / "longo.wav", "x", 1)]
+    extrair(lista, lambda w: (np.zeros(512), np.zeros((25, 1024))), tmp_path / "s.npz")
+    assert list(map(str, ler_npz(tmp_path / "s.npz")["arquivo"])) == [str(tmp_path / "longo.wav")]
+    assert "pulado curto.wav" in capsys.readouterr().out
