@@ -4089,6 +4089,49 @@ clean sala`; os mesmos 10.002 áudios do eval da 2019; EER):
    voz humana em sala de sintética: 926 de 1.032 vão a 1,0. O do recorte piora
    menos, de 37,71% para 46,12%.
 
+### 10.2.39 Limiar calibrado pelo canal com outro locutor (critério combinado antes)
+
+**Por quê (27/10/2026):** o limiar escolhido no dev não transfere para o nosso
+microfone (no aluno 3b, pega 1 de 40 clones do ensaio 5; 10.2.38). A literatura
+calibra o ponto de corte com dados do próprio canal: regressão logística, como
+na ASVspoof 5, ou normalização por coorte, como na verificação de locutor. O
+teste mais simples, sem gravar nada novo: o limiar sai só de vozes reais de
+outra pessoa no mesmo microfone e é testado no L01.
+
+**Desenho:**
+- **Calibração:** as 10 gravações reais do L02 (frases do conjunto 3; mesmo
+  notebook, microfone e sala), sem as cópias da captura
+  (`data/vozes/reparadas/L02_embutido`). Nenhum clone entra.
+- **Regra principal:** o limiar é o maior score entre os 10 reais do L02;
+  acima dele, sintético. Nenhuma voz real do L02 é acusada.
+- **Regra secundária (descritiva):** o segundo maior, ou seja, 1 de 10 reais do
+  L02 acusado.
+- **Modelos:**
+  - o aluno 3b, com a mesma sonda nova do 10.2.38;
+  - o professor (sonda da camada 7, treinada no treino do recorte);
+  - o detector `fusion_lcnn_v4_asv5`, pelo caminho da interface.
+- **Teste:** o material do ensaio 5 (L01). Reais; clones do XTTS e do
+  Chatterbox pelo arquivo e pelo ar.
+- **Meta, como nos ensaios:** pelo menos 8 de 10 reais julgados humanos e 8 de
+  10 clones julgados sintéticos, em cada caminho e ferramenta.
+
+**Leitura combinada antes:**
+- **O aluno 3b ou o professor atinge a meta onde o limiar do dev falhava:** a
+  calibração pelo canal, com outro locutor, resolve o ponto de corte naquele
+  caminho.
+- **Os reais do L01 passam do limiar do L02:** a variação entre pessoas pesa
+  mais que o canal, e 10 gravações de uma pessoa não bastam.
+- **Nem uma coisa nem outra:** a ordem é o limite, não o corte.
+
+**Ressalvas declaradas antes:**
+- Os scores do detector nos reais do L02 já foram vistos (10.2.34, média
+  −12,68), e os do ensaio 5 também. Para ele, o resultado é só descritivo. Os
+  testes limpos são o aluno 3b e o professor, cujos scores no L02 ainda não
+  foram calculados.
+- É um locutor só, com 10 arquivos.
+- O L02 gravou no modo exclusivo (16 bits, sem o ganho do Windows), recuperado
+  sem as cópias; o L01 gravou no compartilhado.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
