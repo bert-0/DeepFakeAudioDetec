@@ -4168,6 +4168,41 @@ impressão foi corrigida.
    outra pessoa bastaram para pôr o corte. Com um locutor só, isso precisa de
    confirmação com mais vozes.
 
+### 10.2.40 Régua em português: o BRSpeech-DF (descritivo, expectativa registrada antes)
+
+**Por quê (27/10/2026):** todo o resultado em português até aqui vem de dois
+locutores (L01 e L02) e duas ferramentas. O BRSpeech-DF (EMNLP 2025; CC BY 4.0
+na página da base) é a primeira base pública de deepfake em português: leitores
+de audiolivros do LibriVox (Brasil e Portugal) e clones deles feitos por cinco
+ferramentas que clonam a partir de uma amostra de voz.
+
+**Material (baixado com aprovação do L01, 11,7 GB da base):**
+- **Teste:** 10 leitores, 1.320 vozes reais e 6.587 clones (~1.316 por
+  ferramenta: XTTS, F5-TTS, Fish-Speech, YourTTS e ToucanTTS).
+- **Validação:** outros 10 leitores, 1.161 reais e 5.795 clones.
+- **Treino:** 4 de 37 blocos de reais (6 leitores, 8.020) e 6 de 274 de clones
+  (8.106, todos do F5-TTS).
+- As partes não repetem leitores.
+- Amostra da régua: as 1.320 reais e 300 clones de cada ferramenta do teste,
+  semente 42 (`scripts/montar_amostra_brspeech.py`, lista em
+  `data/recortes/brspeech_df_test_300_s42.tsv`).
+
+**Medidas:** AUC por ferramenta contra as reais, e quantos ficam do lado certo
+pelo limiar do dev da ASVspoof 5. Modelos:
+- a sonda da camada 7 do XLS-R (o professor);
+- o aluno 3b;
+- o `fusion_lcnn_v4_asv5`, pelo caminho da avaliação (os primeiros 4 s).
+
+**Expectativa (antes de ver):**
+- o professor acima de 0,95 de AUC em todas as ferramentas;
+- o aluno 3b entre o detector e o professor;
+- o detector abaixo de 0,80 em parte delas: nos autores da base, detectores
+  treinados em inglês dão de 30% a 63% de EER.
+
+O canal das vozes reais (audiolivros) é parecido com o da ASVspoof 5, também
+construída sobre audiolivros (MLS em inglês). O que muda é a língua e as
+ferramentas, não o microfone.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
