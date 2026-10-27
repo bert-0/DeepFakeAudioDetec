@@ -104,10 +104,20 @@ def parse_args() -> argparse.Namespace:
                         "as de canal (codec e banda estreita)")
     p.add_argument("--so", nargs="+", default=None, metavar="CONDICAO",
                    help="roda só estas condições (ex.: clean captura_48k)")
+    p.add_argument("--sala", default=None, metavar="PASTA",
+                   help="acrescenta a condição 'sala': cada áudio passa por uma sala real do "
+                        "BUT ReverbDB (resposta ao impulso e silêncio do mesmo microfone)")
     p.add_argument("--amostra", type=int, default=None, metavar="N",
                    help="avalia só N áudios, estratificados por ataque (e bonafide), "
                         "com a semente do config — mesma amostra em toda condição")
     return p.parse_args()
+
+
+def condicao_sala(pasta: str, sample_rate: int) -> tuple[str, object]:
+    """A sala simulada (RESUMO_TCC §10.2.38) como condição; sorteio pelo `rng` de cada áudio."""
+    from src.preprocess.sala import Sala
+
+    return ("sala", Sala(pasta, sample_rate))
 
 
 def indices_estratificados(labels, systems, n: int, seed: int) -> list[int]:
@@ -219,6 +229,8 @@ def main() -> None:
                       for label, etapas in CHANNEL_CONDITIONS]
         if not args.so or any(c.startswith("opus") or c.endswith("opus") for c in args.so):
             relatar_taxas(sample_rate)
+    if args.sala:
+        condicoes.append(condicao_sala(args.sala, sample_rate))
     if args.so:
         conhecidas = {label for label, _ in condicoes}
         desconhecidas = set(args.so) - conhecidas

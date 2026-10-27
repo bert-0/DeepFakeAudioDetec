@@ -13,7 +13,6 @@ Estrutura esperada (a do pacote `RIR-Only`): cada posição é uma pasta com
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -62,7 +61,10 @@ def _ler(caminho: Path, sample_rate: int, inicio: int | None = None, n: int | No
 
 
 class Sala:
-    """`sala(wav, rng)`: o mesmo comprimento, passado por uma sala sorteada, pico em 1."""
+    """`sala(wav, rng)`: o mesmo comprimento, passado por uma sala sorteada, pico em 1.
+
+    Serve também de condição do `robustness_eval.py`, cujos workers copiam o
+    objeto entre processos: por isso o cache é um dicionário, não `lru_cache`."""
 
     def __init__(self, raiz: str | Path, sample_rate: int = 16000, faixa_snr: tuple[float, float] = (10.0, 30.0),
                  prob_ruido: float = 1.0, max_rir_s: float = 1.0):
@@ -71,8 +73,12 @@ class Sala:
             raise ValueError(f"nenhuma pasta RIR/ com .wav em {raiz}")
         self.sample_rate, self.faixa_snr = sample_rate, faixa_snr
         self.prob_ruido, self.max_rir_s = prob_ruido, max_rir_s
-        self._rir = lru_cache(maxsize=512)(
-            lambda c: preparar_rir(_ler(c, sample_rate), sample_rate, max_rir_s))
+        self._cache: dict[Path, np.ndarray] = {}
+
+    def _rir(self, caminho: Path) -> np.ndarray:
+        if caminho not in self._cache:
+            self._cache[caminho] = preparar_rir(_ler(caminho, self.sample_rate), self.sample_rate, self.max_rir_s)
+        return self._cache[caminho]
 
     def descricao(self) -> str:
         n_rir = sum(len(p.rirs) for p in self.posicoes)

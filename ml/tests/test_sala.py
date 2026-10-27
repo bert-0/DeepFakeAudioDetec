@@ -83,3 +83,18 @@ def test_preparar_com_a_sala_muda_o_que_o_professor_ouve(tmp_path):
     assert limpo["entradas"].shape == sala["entradas"].shape
     assert not np.allclose(np.asarray(limpo["alvos"]), np.asarray(sala["alvos"]))
     assert not np.allclose(np.asarray(limpo["entradas"]), np.asarray(sala["entradas"]))
+
+
+def test_sala_copia_entre_processos_e_vira_condicao_da_robustez(tmp_path):
+    """Os workers do robustness_eval copiam a condição (pickle) para cada processo."""
+    import pickle
+
+    from scripts.robustness_eval import condicao_sala
+
+    _arvore(tmp_path)
+    nome, sala = condicao_sala(str(tmp_path), SR)
+    x = np.random.default_rng(4).standard_normal(SR).astype(np.float32)
+    antes = sala(x, rng=np.random.default_rng(9))
+    copia = pickle.loads(pickle.dumps(sala))
+    assert nome == "sala"
+    np.testing.assert_array_equal(copia(x, rng=np.random.default_rng(9)), antes)
