@@ -23,6 +23,10 @@ ml/data/ASVspoof5/
 # Recorte montado (FLAC e o protocolo.txt da pasta); a seleção versionada fica
 # em ml/data/recortes/.
 ml/data/ASVspoof5_recorte/
+# Common Voice (termos: não redistribuir) e BUT ReverbDB, no D: pelos atalhos;
+# a seleção da amostra fica em ml/data/recortes/.
+ml/data/CommonVoice_pt/
+ml/data/BUT_ReverbDB/
 
 # Amostras de voluntarios — voz e dado biometrico sensivel (LGPD): NUNCA versionar
 ml/data/volunteers/
