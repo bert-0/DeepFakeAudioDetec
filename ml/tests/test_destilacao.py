@@ -163,3 +163,60 @@ def test_preparar_treinar_avaliar(tmp_path, professor, capsys):
                  "--json", str(tmp_path / "av2.json")]) == 0
     r2 = json.loads((tmp_path / "av2.json").read_text(encoding="utf-8"))
     assert set(r2["sondas"]) == {"professor", "nova"}
+
+
+def test_juntar_pastas_indexa_como_uma_so(tmp_path, professor):
+    """Piloto 3: o treino junta pastas preparadas (ASVspoof, Common Voice, salas)."""
+    from scripts.destilacao import _lote, carregar_dados, juntar, preparar
+
+    rede, dev = professor
+    preparar(_base(tmp_path, "a", n=3, seed=0), tmp_path / "a", rede, dev, camada=1)
+    preparar(_base(tmp_path, "b", n=2, seed=1), tmp_path / "b", rede, dev, camada=1)
+    a, b = carregar_dados(tmp_path / "a"), carregar_dados(tmp_path / "b")
+    j = juntar([a, b])
+    assert j["entradas"].shape == (5, 1, MAX_ENTRADA, 140) and len(j["arquivo"]) == 5
+    assert list(j["janela_arquivo"]) == [0, 1, 2, 3, 4]
+    np.testing.assert_array_equal(j["entradas"][np.array([1, 3]), np.array([0, 0])],
+                                  np.stack([a["entradas"][1, 0], b["entradas"][0, 0]]))
+    np.testing.assert_array_equal(j["alvos"][4, :5], b["alvos"][1, :5])
+    media, desvio = np.zeros(16, np.float32), np.ones(16, np.float32)
+    x, y, n_e, n_a = _lote(j, np.array([0, 4]), media, desvio, "cpu")
+    assert x.shape == (2, MAX_ENTRADA, 140) and y.shape == (2, MAX_ALVO, 16)
+
+
+def test_juntar_recusa_formatos_diferentes(tmp_path, professor):
+    from scripts.destilacao import carregar_dados, juntar, preparar
+
+    rede, dev = professor
+    preparar(_base(tmp_path, "a", n=2), tmp_path / "a", rede, dev, camada=1)
+    preparar(_base(tmp_path, "b", n=2), tmp_path / "b", rede, dev, camada=1,
+             degradar=lambda x, rng: x, versoes=1)
+    with pytest.raises(ValueError, match="versões"):
+        juntar([carregar_dados(tmp_path / "a"), carregar_dados(tmp_path / "b")])
+
+
+def test_pasta_de_audio_e_treino_com_varias_pastas_e_devs(tmp_path, professor, monkeypatch):
+    """O Common Voice entra por --pasta-audio, sem rótulo; o checkpoint sai pela média dos devs."""
+    from scripts import destilacao
+
+    rede, dev = professor
+    monkeypatch.setattr("scripts.estudo_ssl.carregar_rede", lambda *a, **k: (rede, dev))
+    cv = tmp_path / "cv"
+    cv.mkdir()
+    rng = np.random.default_rng(3)
+    for i in range(3):
+        sf.write(cv / f"c{i}.wav", (rng.standard_normal(16000 * 3) * 0.1).astype(np.float32), 16000)
+    (cv / "notas.txt").write_text("não é áudio", encoding="utf-8")
+    assert destilacao.main(["preparar", "--pasta-audio", str(cv), "--saida", str(tmp_path / "p_cv"),
+                            "--camada", "1", "--dispositivo", "cpu"]) == 0
+    d = destilacao.carregar_dados(tmp_path / "p_cv")
+    assert len(d["arquivo"]) == 3 and set(d["classe"]) == {"cv"} and not d["rotulo"].any()
+    destilacao.preparar(_base(tmp_path, "t", n=4), tmp_path / "p_t", rede, dev, camada=1)
+    destilacao.preparar(_base(tmp_path, "d", n=2, seed=1), tmp_path / "p_d", rede, dev, camada=1)
+    ck = tmp_path / "aluno3.pt"
+    assert destilacao.main(["treinar", "--treino", str(tmp_path / "p_t"), "--treino", str(tmp_path / "p_cv"),
+                            "--dev", str(tmp_path / "p_d"), "--dev", str(tmp_path / "p_cv"), "--saida", str(ck),
+                            "--epocas", "1", "--lote", "2", "--dispositivo", "cpu", "--dim", "32",
+                            "--camadas", "1"]) == 0
+    h = json.loads(ck.with_suffix(".json").read_text())["historico"][0]
+    assert len(h["perdas_dev"]) == 2 and h["perda_dev"] == pytest.approx(np.mean(h["perdas_dev"]))

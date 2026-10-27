@@ -150,6 +150,60 @@ def carregar_dados(pasta: Path) -> dict:
     return meta
 
 
+class _Juntos:
+    """Vários memmaps com o mesmo formato (menos a 1ª dimensão), indexados como um só."""
+
+    def __init__(self, partes: list):
+        self.partes = partes
+        self.inicios = np.cumsum([0] + [len(x) for x in partes])
+        self.shape = (int(self.inicios[-1]), *partes[0].shape[1:])
+
+    def __len__(self) -> int:
+        return self.shape[0]
+
+    def __getitem__(self, chave):
+        idx, resto = (chave[0], chave[1:]) if isinstance(chave, tuple) else (chave, ())
+        if isinstance(idx, (int, np.integer)):
+            k = int(np.searchsorted(self.inicios, idx, side="right") - 1)
+            return self.partes[k][(int(idx) - int(self.inicios[k]), *resto)]
+        idx = np.asarray(idx)
+        k = np.searchsorted(self.inicios, idx, side="right") - 1
+        saida = None
+        for parte in np.unique(k):
+            sel = np.where(k == parte)[0]
+            outros = tuple(x[sel] if isinstance(x, np.ndarray) and x.shape == idx.shape else x for x in resto)
+            bloco = np.asarray(self.partes[parte][(idx[sel] - self.inicios[parte], *outros)])
+            if saida is None:
+                saida = np.empty((len(idx), *bloco.shape[1:]), bloco.dtype)
+            saida[sel] = bloco
+        return saida
+
+
+def juntar(conjuntos: list[dict]) -> dict:
+    """Piloto 3: várias pastas preparadas como um treino só (mesmas versões e alvos)."""
+    if len(conjuntos) == 1:
+        return conjuntos[0]
+    base = conjuntos[0]
+    for c in conjuntos[1:]:
+        if c["entradas"].shape[1:] != base["entradas"].shape[1:]:
+            raise ValueError(f"versões ou quadros diferentes: {c['entradas'].shape} e {base['entradas'].shape}")
+        if (c["alvos"] is None) != (base["alvos"] is None) or (
+                c["alvos"] is not None and c["alvos"].shape[1:] != base["alvos"].shape[1:]):
+            raise ValueError("alvos com formatos diferentes: prepare todas as pastas com a mesma --pca")
+        if int(c["camada"]) != int(base["camada"]):
+            raise ValueError("pastas preparadas com camadas diferentes")
+    deslocados, n_arquivos = [], 0
+    for c in conjuntos:
+        deslocados.append(np.asarray(c["janela_arquivo"]) + n_arquivos)
+        n_arquivos += len(c["arquivo"])
+    juntos = {k: np.concatenate([np.asarray(c[k]) for c in conjuntos])
+              for k in ("arquivo", "classe", "rotulo", "n_entrada", "n_alvo")}
+    juntos.update(janela_arquivo=np.concatenate(deslocados), camada=base["camada"], pca=base["pca"],
+                  entradas=_Juntos([c["entradas"] for c in conjuntos]),
+                  alvos=None if base["alvos"] is None else _Juntos([c["alvos"] for c in conjuntos]))
+    return juntos
+
+
 def ajustar_pca(dados: dict, k: int = 256, amostra: int = 1000, semente: int = 0) -> tuple[dict, float]:
     """PCA dos quadros do professor (amostra de janelas): ({componentes (k, D), media (D,)},
     fração da variância que fica)."""
@@ -241,11 +295,14 @@ def estatisticas_alvo(dados, amostra: int = 500, semente: int = 0) -> tuple[np.n
     return quadros.mean(axis=0), quadros.std(axis=0) + 1e-4
 
 
-def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 16, lr: float = 5e-4,
+def treinar(treino: dict, dev: dict | list[dict], saida: Path, epocas: int = 30, lote: int = 16, lr: float = 5e-4,
             semente: int = 42, dispositivo: str = "cuda", arquitetura: dict | None = None,
             amp: bool = False) -> dict:
     import torch
 
+    # Piloto 3: com vários devs (ASVspoof e Common Voice), o checkpoint sai pela média
+    # das perdas, sem rótulo.
+    devs = dev if isinstance(dev, list) else [dev]
     torch.manual_seed(semente)
     rng = np.random.default_rng(semente)
     dev_t = torch.device(dispositivo if torch.cuda.is_available() or dispositivo == "cpu" else "cpu")
@@ -263,7 +320,7 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
     escala = torch.amp.GradScaler("cuda", enabled=usar_amp)
     n_param = sum(p.numel() for p in aluno.parameters())
     print(f"Aluno: {n_param / 1e6:.2f} milhões de parâmetros; {len(treino['n_alvo'])} janelas de treino "
-          f"({treino['entradas'].shape[1]} versões cada), {len(dev['n_alvo'])} de dev; {epocas} épocas; "
+          f"({treino['entradas'].shape[1]} versões cada), {sum(len(d['n_alvo']) for d in devs)} de dev; {epocas} épocas; "
           f"alvos de {treino['alvos'].shape[2]} dimensões; {dev_t}", flush=True)
     historico, melhor = [], float("inf")
     for epoca in range(1, epocas + 1):
@@ -284,8 +341,10 @@ def treinar(treino: dict, dev: dict, saida: Path, epocas: int = 30, lote: int = 
             escala.update()
             agenda.step()
             soma, cont = soma + float(p.detach()) * len(x), cont + len(x)
-        perda_dev = avaliar_perda(aluno, dev, media, desvio, lote, dev_t, pca=pca)
-        historico.append({"epoca": epoca, "perda_treino": soma / cont, "perda_dev": perda_dev})
+        perdas_dev = [avaliar_perda(aluno, d, media, desvio, lote, dev_t, pca=pca) for d in devs]
+        perda_dev = float(np.mean(perdas_dev))
+        historico.append({"epoca": epoca, "perda_treino": soma / cont, "perda_dev": perda_dev,
+                          "perdas_dev": perdas_dev})
         marca = ""
         if perda_dev < melhor:
             melhor = perda_dev
@@ -401,6 +460,7 @@ def main(argv=None) -> int:
     a.add_argument("--npz", help=".npz da parte 6 (a lista de arquivos)")
     a.add_argument("--protocolo", help="ou a lista pelo protocolo, como no extrair da parte 6")
     a.add_argument("--pasta")
+    a.add_argument("--pasta-audio", help="piloto 3: todos os áudios de uma pasta, sem rótulo (Common Voice)")
     a.add_argument("--n-humanos", type=int, default=400)
     a.add_argument("--n-ataque", type=int, default=100)
     a.add_argument("--semente", type=int, default=42)
@@ -418,8 +478,8 @@ def main(argv=None) -> int:
     a.add_argument("--camada", type=int, default=CAMADA)
     a.add_argument("--dispositivo", default="cuda")
     t = sub.add_parser("treinar")
-    t.add_argument("--treino", required=True)
-    t.add_argument("--dev", required=True)
+    t.add_argument("--treino", required=True, action="append", help="pode repetir (piloto 3)")
+    t.add_argument("--dev", required=True, action="append", help="pode repetir: média das perdas")
     t.add_argument("--saida", required=True, help="checkpoint do aluno (.pt)")
     t.add_argument("--epocas", type=int, default=30)
     t.add_argument("--lote", type=int, default=16)
@@ -444,7 +504,14 @@ def main(argv=None) -> int:
     if args.cmd == "preparar":
         from scripts.estudo_ssl import carregar_rede, selecionar_protocolo
 
-        if args.npz:
+        if args.pasta_audio:
+            arquivos = sorted(str(a) for a in Path(args.pasta_audio).iterdir()
+                              if a.suffix.lower() in {".wav", ".flac", ".mp3"})
+            if not arquivos:
+                p.error(f"nenhum áudio em {args.pasta_audio}")
+            origem = {"arquivo": np.array(arquivos), "classe": np.array([Path(args.pasta_audio).name] * len(arquivos)),
+                      "rotulo": np.zeros(len(arquivos), dtype=np.int8)}
+        elif args.npz:
             origem = Path(args.npz)
         elif args.protocolo:
             lista = selecionar_protocolo(Path(args.protocolo), Path(args.pasta), args.n_humanos,
@@ -453,7 +520,7 @@ def main(argv=None) -> int:
                       "classe": np.array([c for _, c, _ in lista]),
                       "rotulo": np.array([r for _, _, r in lista], dtype=np.int8)}
         else:
-            p.error("preparar precisa de --npz ou de --protocolo e --pasta")
+            p.error("preparar precisa de --pasta-audio, --npz ou de --protocolo e --pasta")
         rede, dev = (None, None) if args.sem_professor else carregar_rede(args.dispositivo)
         degradar = None
         if args.versoes:
@@ -480,7 +547,8 @@ def main(argv=None) -> int:
         print(f"PCA com {args.k} componentes: {100 * fracao:.1f}% da variância. Salvo em {args.saida}")
         return 0
     if args.cmd == "treinar":
-        r = treinar(carregar_dados(Path(args.treino)), carregar_dados(Path(args.dev)), Path(args.saida),
+        r = treinar(juntar([carregar_dados(Path(x)) for x in args.treino]),
+                    [carregar_dados(Path(x)) for x in args.dev], Path(args.saida),
                     args.epocas, args.lote, args.lr, args.semente, args.dispositivo,
                     {"dim": args.dim, "camadas": args.camadas}, amp=args.amp)
         Path(args.saida).with_suffix(".json").write_text(json.dumps(r, indent=1), encoding="utf-8")
