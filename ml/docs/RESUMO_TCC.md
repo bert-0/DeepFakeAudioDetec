@@ -4203,6 +4203,50 @@ O canal das vozes reais (audiolivros) é parecido com o da ASVspoof 5, também
 construída sobre audiolivros (MLS em inglês). O que muda é a língua e as
 ferramentas, não o microfone.
 
+**Resultado (27/10/2026;** `outputs/ssl/sondas_brspeech.json`,
+`outputs/ssl/detector_brspeech.json`, `outputs/destilacao/brspeech_aluno3b.json`**).**
+Um clone do ToucanTTS ficou fora: 17 ms de fala depois do corte de silêncio.
+Antes disso, duas falhas de encanamento foram corrigidas: o estudo do XLS-R só
+lia `.wav` e quebrava com áudio curto demais. AUC contra as 1.320 vozes reais:
+
+| ferramenta | detector | sonda no LFCC | professor (camada 7) | aluno 3b |
+|---|---|---|---|---|
+| XTTS | 0,86 | 0,88 | 0,60 | 0,57 |
+| F5-TTS | 0,54 | 0,69 | 0,59 | 0,39 |
+| Fish-Speech | 0,95 | 0,95 | 0,92 | 0,78 |
+| ToucanTTS | 0,86 | 0,89 | 0,91 | 0,73 |
+| YourTTS | 0,99 | 1,00 | 0,86 | 0,98 |
+| **todas** | **0,84** | **0,880** | **0,776** | **0,690** |
+
+Vozes reais do lado humano pelo limiar do dev da ASVspoof 5: detector 939, LFCC
+971, professor 641 e aluno 3b 855, de 1.320.
+
+Por camada do XLS-R, todas as ferramentas juntas: a 4 dá 0,942, a 3 0,918, a 5
+0,885 e a 7 0,776; da 10 em diante, de 0,68 a 0,71. É descritivo: a camada 7
+foi escolhida no dev da ASVspoof 5, antes desta régua.
+
+**Leitura:**
+1. **A expectativa não se confirmou.** O professor ficou em 0,776, não acima de
+   0,95, e quase não separa o XTTS (0,60) e o F5-TTS (0,59). Aqui o detector
+   (0,84) e até a sonda no LFCC (0,880) ficam acima dele.
+2. **O contraste com o ensaio 5 é grande.** Lá, o professor deu 1,00 no XTTS
+   pelo arquivo (10.2.36). Duas explicações possíveis, que esta régua não
+   separa:
+   - no ensaio 5, a voz real passou pelo nosso microfone e o clone não, e parte
+     da separação seria o canal (pelo ar, com o mesmo canal, ele ainda deu 0,98
+     e 0,88);
+   - aqui, cada clone imita uma gravação de audiolivro, com o canal dela, e
+     falta essa diferença.
+3. **O F5-TTS é o mais difícil para todos** (0,39 a 0,69). É também a
+   ferramenta dos blocos de treino que baixamos.
+4. **O aluno 3b fica abaixo do professor e do detector** (0,690) e inverte o
+   F5-TTS (0,39).
+5. **Os limiares do dev não transferem para o português de audiolivro.** O
+   professor acusa 679 das 1.320 vozes reais (51%).
+6. **As camadas de baixo do XLS-R (3 e 4) separam melhor aqui** do que a 7.
+   Uma escolha de camada que valha para as duas réguas teria de ser feita em
+   dados que não sejam o teste.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

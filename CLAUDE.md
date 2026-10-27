@@ -200,6 +200,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   da camada 7 do XLS-R atinge a meta pelo arquivo no ensaio 5 (reais, XTTS e
   Chatterbox 10 de 10); pelo ar, XTTS 7 e Chatterbox 1. O aluno 3b não (o
   limite dele é a ordem).
+- Régua em português, BRSpeech-DF (RESUMO_TCC §10.2.40; 10 leitores, 5
+  ferramentas): AUC detector 0,84, sonda no LFCC 0,880, professor (camada 7)
+  0,776, aluno 3b 0,690. O professor quase não separa XTTS (0,60) e F5-TTS
+  (0,59); a camada 4 dá 0,942. O sucesso do professor no ensaio 5 não se repete
+  com clones de audiolivro.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
