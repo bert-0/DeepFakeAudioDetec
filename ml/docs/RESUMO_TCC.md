@@ -3973,6 +3973,22 @@ e o tempo de treino ao mesmo tempo, de propósito: é a busca do melhor aluno, n
 uma medida isolada. O critério é o mesmo. Se os dois braços passarem, fica o de
 menor perda média nos três devs, sem olhar o ensaio 5.
 
+**Preparo (26 e 27/10/2026, pela sessão; nenhum treino ainda):**
+- **Common Voice:** 4.000 clipes e 4.787 janelas de treino. No dev, 1 dos 400
+  clipes tem o cabeçalho maior que o áudio (5,202 s contra 5,146 s) e foi pulado:
+  ficam 399 clipes e 503 janelas.
+- **BUT ReverbDB:** pacote `RIR-Only` (9,3 GB) baixado com aprovação do L01.
+  Foram extraídas só as respostas ao impulso (2.325), 2 silêncios por posição
+  (2.046) e as descrições (1.674). Há 1.674 posições em 9 salas.
+- **Salas:** 4.000 arquivos e 4.523 janelas de treino; o dev passado por salas
+  tem 1.600 arquivos e 1.992 janelas.
+- **Degradação** das versões 1 e 2, a do piloto 2: RawBoost 50%, captura FIR
+  30%, codec 30%, oclusão 50% e ruído 50%.
+- **Réguas a mais na avaliação,** decididas antes do treino:
+  - o dev da ASVspoof passado por salas, para os alunos 2, 3 e 3b;
+  - a condição `sala` do `robustness_eval.py`, para o detector da demonstração
+    e o `fusion_v4` da 2019 (10 mil áudios do eval da 2019).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
