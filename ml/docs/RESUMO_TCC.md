@@ -3708,6 +3708,18 @@ ruído do alto-falante. Ajuste antes de regravar: os arquivos do XTTS têm pico 
 20. O `gravar_frases.py pelo-ar` passa a tocar cada clone com o pico em −1 dBFS;
 o resto do critério não muda.
 
+**Por onde tocar (26/10/2026, nenhum score visto).** O Windows já estava em
+100%: o alto-falante do notebook não chega a 3 dB da voz real (no ensaio 1, no
+exclusivo, também ficou ~8 dB abaixo). A troca depende só do equipamento, não
+de resultado, e fica combinada assim:
+- **Com uma caixinha de som externa** (preferida): ela é a saída do Windows,
+  fica na frente do notebook, a ~25 cm do microfone, onde fica a boca de quem
+  fala. O volume é acertado no primeiro clone, e o resto do critério vale como
+  está. É também o cenário do ataque: alguém tocando o clone perto do microfone.
+- **Sem caixinha:** alto-falante do notebook a 100%, e a diferença de nível é
+  declarada. A checagem de fala dos clones pelo ar fica só descritiva. As outras
+  checagens e a regra "arquivo sem janela útil conta como erro" continuam.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
