@@ -3989,6 +3989,44 @@ menor perda média nos três devs, sem olhar o ensaio 5.
   - a condição `sala` do `robustness_eval.py`, para o detector da demonstração
     e o `fusion_v4` da 2019 (10 mil áudios do eval da 2019).
 
+**Treino do aluno 3 (27/10/2026, pela sessão com o aval do L01):** 3,59 milhões
+de parâmetros; 32.234 janelas de treino, cada uma com 3 versões; 20 épocas em 77
+minutos (`checkpoints/aluno3_xlsr_l7.pt`). A perda média nos três devs caiu de
+1,095 na época 1 a 0,9365 na 20, ainda caindo. Só no dev da ASVspoof, a perda
+foi 0,951; a do aluno 2 era 0,978.
+
+**Resultado do piloto 3** (`outputs/destilacao/avaliacao_piloto3.json`; o aluno
+2 nas mesmas réguas em `avaliacao_piloto2_reguas5.json`). Sonda nova, AUC:
+
+| régua | aluno 2 | aluno 3 | critério |
+|---|---|---|---|
+| ensaio 5, arquivo (XTTS e Chatterbox) | 0,590 | 0,750 | ≥ 0,80: **não** |
+| ensaio 5, pelo ar | 0,355 | 0,685 | ≥ 0,65: sim |
+| dev da ASVspoof 5 (média dos ataques) | 0,961 | 0,917 | ≥ 0,941: **não** |
+| 2019 LA | 0,819 | 0,778 | ≥ 0,799: **não** |
+| eval da ASVspoof 5 (informação) | 0,879 | 0,857 | — |
+| dev da ASVspoof 5 passado por salas (informação) | 0,629 | 0,685 | — |
+
+**Critério: não passou.** No ensaio 5, por grupo: XTTS 1,00, Chatterbox 0,50,
+XTTS pelo ar 0,72 e Chatterbox pelo ar 0,65 (aluno 2: 0,78, 0,40, 0,36 e 0,35).
+As 10 vozes reais ficam do lado humano nos dois alunos.
+
+**Descritivo:**
+- **Imitação** (perda, como em 10.2.37):
+
+  | grupo | aluno 2 | aluno 3 |
+  |---|---|---|
+  | humanos do dev da ASVspoof | 0,922 | 0,903 |
+  | voz real do L01 | 1,064 | 0,982 |
+  | clones pelo ar | 1,096 e 1,119 | 0,990 e 1,008 |
+
+  A diferença entre a voz do L01 e os humanos do dev caiu de 0,142 para 0,079.
+  A expectativa registrada era ficar dentro de 0,05.
+- **A sonda do professor aplicada ao aluno 3** (informação, fora do critério):
+  - dev 0,973, 2019 0,871, eval 0,930, salas 0,752;
+  - ensaio 5 pelo arquivo 0,660;
+  - ensaio 5 pelo ar 0,930, a mesma AUC do professor.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
