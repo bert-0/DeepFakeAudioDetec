@@ -3802,6 +3802,60 @@ passam do limiar −8,671:
 Junto, só descritivo: o aluno 1, o aluno 2 e a sonda da camada 7 do XLS-R
 (10.2.22) no material do ensaio 5 e nestes clones.
 
+**Referências (26/10/2026).** A antiga tem 2.310 de 7.120 trechos de 10 ms
+repetidos; a reparada (48,4 s) e a nova (55,2 s), nenhum. Placar
+(`outputs/referencia_*.json` e os do ensaio 5):
+
+| clones do conjunto 5 | XTTS: média dos log-odds (pegos) | Chatterbox: média (pegos) |
+|---|---|---|
+| referência antiga, com cópias | −8,57 (6/10) | −12,53 (0/10) |
+| antiga reparada | −9,59 (4/10) | −13,30 (0/10) |
+| nova (ensaio 5) | −7,84 (7/10) | −13,36 (0/10) |
+
+**Leitura, pela regra combinada:** as três referências ficam perto, então a
+queda veio das frases. No XTTS não há padrão (a nova é a mais alta). No
+Chatterbox, a referência com cópias sobe 0,8, contra a queda de 3,5 entre os
+ensaios 4 e 5: as cópias explicam pouco. "Frases" inclui o que mudou junto com
+elas: as sementes, o ponto final e, no ensaio 2, a escuta com regeração. As
+cópias da referência não explicam os acertos dos ensaios 2 a 4. Descritivo: com
+a referência antiga, os clones do XTTS falam mais devagar (f09: 13,1 s contra
+9,5 s com a reparada).
+
+**Os candidatos no mesmo material (descritivo;** `outputs/destilacao/ensaio5.json`,
+`outputs/ssl/sondas_ensaio5.json`**).** AUC contra as 10 vozes reais e, pelo
+limiar do dev de cada um, quantos clones são pegos. Todos aceitam as 10 vozes
+reais. "Detector (interface)" é o caminho do placar (janelas, 48 kHz);
+"detector (avaliação)" é o do `evaluate.py`.
+
+| clones | detector (interface) | detector (avaliação) | aluno 1 | aluno 2 | sonda XLS-R, camada 7 |
+|---|---|---|---|---|---|
+| XTTS, arquivo | 1,000 | 1,00 (8/10) | 0,97 (8/10) | 0,78 (6/10) | 1,00 (9/10) |
+| Chatterbox, arquivo | 0,560 | 0,92 (0/10) | 0,63 (0/10) | 0,40 (1/10) | 1,00 (5/10) |
+| XTTS, pelo ar | 0,690 | 0,79 (1/10) | 0,32 (0/10) | 0,36 (1/10) | 0,98 (0/10) |
+| Chatterbox, pelo ar | 0,010 | 0,48 (0/10) | 0,21 (0/10) | 0,35 (1/10) | 0,88 (0/10) |
+| XTTS, ref. antiga / reparada | — | 1,00 / 0,99 | 0,78 / 0,58 | 0,47 / 0,36 | 1,00 (9/10) / 1,00 (8/10) |
+| Chatterbox, ref. antiga / reparada | — | 0,84 / 0,81 | 0,67 / 0,63 | 0,46 / 0,71 | 1,00 (7/10) / 1,00 (7/10) |
+
+Sonda, todas as camadas no conjunto: camada 7 0,983, camada 8 1,000; camadas 10 a
+18 de 0,799 a 0,935; LFCC 0,776 (a sonda do LFCC acusa as 10 vozes reais).
+
+**Leitura (descritiva):**
+1. **A sonda da camada 7 põe todos os clones acima de todas as vozes reais pelo
+   arquivo, nas duas ferramentas e nas três referências (AUC 1,00).** Ela foi
+   treinada só no recorte da ASVspoof 5, sem as nossas vozes, o nosso microfone
+   ou estas ferramentas. É o Chatterbox que o detector não separa (0,560).
+2. **Pelo ar, a ordem quase se mantém (0,98 e 0,88), mas o limiar do dev não
+   pega nenhum.** O canal desloca os scores; o limiar teria de ser calibrado
+   com o nosso canal nas duas classes (a coleta do plano).
+3. **Os alunos não reproduzem isso** (AUC geral 0,599 e 0,486): a destilação
+   não levou o que a camada 7 vê nestes clones.
+4. **A inversão das camadas 10 a 18 nos ensaios (10.2.22) não aparece sem as
+   cópias** (0,799 a 0,935).
+5. **O detector separa o Chatterbox melhor no caminho da avaliação (0,92) que no
+   da interface (0,560),** com os mesmos arquivos. Os caminhos diferem no trecho
+   lido e na conversão de taxa; a investigar antes de qualquer conclusão sobre a
+   demonstração.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

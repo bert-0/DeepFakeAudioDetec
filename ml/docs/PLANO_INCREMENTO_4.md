@@ -209,7 +209,11 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o
   sintético, que marcas os geradores deixam (vocoder, ritmo dos quadros, fase,
   ruído) e se elas valem para ferramentas que o treino não viu (RESUMO_TCC
-  §10.2.17 em diante).
+  §10.2.17 em diante). Dado novo para essa decisão (26/10/2026, §10.2.36, descritivo):
+  no ensaio 5, a sonda da camada 7 do XLS-R ordena todos os clones acima das
+  vozes reais pelo arquivo (AUC 1,00 nas duas ferramentas, com o Chatterbox que
+  o detector não separa) e quase todos pelo ar (0,98 e 0,88); os alunos
+  destilados não reproduzem isso.
 - **Proposta de modelo próprio (26/10/2026), a decidir com o orientador.** Ela
   sai do estudo das imperfeições (RESUMO_TCC §10.2.22 a §10.2.26):
   - **O que se descobriu:**

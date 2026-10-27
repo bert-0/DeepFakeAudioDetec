@@ -182,6 +182,12 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   ar 0 de 10 nos dois (Chatterbox pelo ar abaixo de todos os reais). Contra os
   ensaios 2 e 4, a queda vem da referência ou das frases: os acertos antigos
   usaram referências com cópias.
+- Referência e candidatos no ensaio 5 (RESUMO_TCC §10.2.36): as cópias na
+  referência não explicam os acertos antigos (a queda veio das frases). A sonda
+  da camada 7 do XLS-R ordena todo clone acima das vozes reais pelo arquivo (AUC
+  1,00, XTTS e Chatterbox) e quase todos pelo ar (0,98 e 0,88), sem acertar o
+  limiar pelo ar; os alunos não (0,599 e 0,486). O detector separa o Chatterbox
+  no caminho da avaliação (0,92), não no da interface (0,560): a investigar.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
