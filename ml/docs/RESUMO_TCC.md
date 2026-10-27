@@ -4304,6 +4304,58 @@ decisão cumprir todas as condições, com AUC:
 **Descritivo:** a AUC por ferramenta; o dev passado por salas; e a meta do
 ensaio 5 com o limiar das vozes reais do L02 (regra do 10.2.39).
 
+**Execução (27/10/2026, pela sessão com o aval do L01):**
+- **BRSpeech-DF:** treino com 3.000 reais e 3.000 do F5-TTS (12.383 janelas);
+  validação com 2.161 arquivos (9.148 janelas).
+- **PCA da camada 4:** 86,0% da variância em 256 componentes.
+- **Camada 4 e detector** em 21.693 das 44.617 janelas de treino.
+- **Treino:** 11,53 milhões de parâmetros, 12 épocas de ~930 s. A melhor perda
+  média nos devs foi a da **época 1** (2,568); depois ela subiu, entre 2,85 e
+  3,90.
+  - **Por quê:** no treino, a perda da cabeça de decisão caiu de 0,137 para
+    0,000, enquanto a perda no dev da ASVspoof (ataques A09–A16, que o treino não
+    tem) foi de 3,38 a 4,58, e a do dev em salas de 2,45 a 3,96. A cabeça de
+    decisão decorou os ataques do treino.
+  - A imitação das camadas 7 e 4 seguiu caindo no treino, e o dev do Common
+    Voice também (2,13 → 1,89).
+
+**Resultado** (`outputs/destilacao/avaliacao_piloto4.json`; a cabeça de
+decisão da época 1). AUC:
+
+| régua | aluno 4 | critério | antes, o melhor |
+|---|---|---|---|
+| BRSpeech-DF, teste | **0,938** | ≥ 0,90: **sim** | 0,880 (sonda no LFCC) |
+| ensaio 5, arquivo | 0,625 | ≥ 0,90: não | 0,785 (aluno 3b); professor 1,00 |
+| ensaio 5, pelo ar | 0,440 | ≥ 0,80: não | 0,785 (aluno 3b) |
+| eval da ASVspoof 5 | 0,826 | ≥ 0,95: não | 0,964 (aluno 3b) |
+| 2019 LA | 0,753 | ≥ 0,90: não | 0,934 (aluno 3b) |
+| dev passado por salas (informação) | 0,803 | — | 0,782 (aluno 3b) |
+
+**Critério: não passou.** Só o BRSpeech-DF passou.
+
+**Descritivo:**
+- **BRSpeech-DF por ferramenta:** F5-TTS 1,00, YourTTS 0,98, ToucanTTS 0,97,
+  XTTS 0,93 e Fish-Speech 0,82. Reais do lado humano: 810 de 1.320.
+- **Ensaio 5:** XTTS 0,99 e Chatterbox 0,26 pelo arquivo; pelo ar, XTTS 0,71 e
+  Chatterbox 0,17.
+- **Com o limiar do L02** (10.2.39): reais 10, XTTS 9, Chatterbox 0, pelo ar 0
+  e 0.
+- **Dev da ASVspoof:** EER 19,25%; a AUC média cai de 0,989 (aluno 3b) para
+  0,861.
+- **Eval da ASVspoof 5:** A19 e A20 em 0,43 e 0,41.
+
+**Leitura:**
+1. **Os rótulos ensinam o que mostram, e só isso.** O F5-TTS, que todos os
+   modelos erravam (0,39 a 0,69), vai a 1,00. O BRSpeech-DF inteiro sobe ao
+   melhor resultado até agora (0,938), com leitores que o treino não viu.
+2. **A cabeça de decisão generaliza pior que a sonda sobre a imitação.** Nos
+   ataques que o treino não tem, a ASVspoof e a 2019 caem, e o Chatterbox do
+   ensaio 5 fica abaixo da voz real (0,26). Uma época bastou para decorar o
+   treino.
+3. **Próximo passo natural, a decidir:** manter a imitação dos professores e
+   tirar a cabeça de decisão (ou dar a ela peso bem menor), e pôr a sonda sobre
+   a imitação, que generalizou melhor nos pilotos 2 a 3b. Não foi testado.
+
 ### 10.2.42 Régua do caminho pelo ar: o ReplayDF (descritivo, expectativa registrada antes)
 
 **Por quê (27/10/2026):** o caminho pelo ar só foi medido com um locutor (o
