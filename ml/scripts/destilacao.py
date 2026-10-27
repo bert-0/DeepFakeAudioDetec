@@ -73,14 +73,19 @@ def quadros_do_professor(n_amostras: int) -> int:
 
 
 def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: int = CAMADA,
-             degradar=None, versoes: int = 0, pca: dict | None = None, semente: int = 0) -> dict:
+             degradar=None, versoes: int = 0, pca: dict | None = None, semente: int = 0,
+             transformar=None) -> dict:
     """Uma amostra por janela de 4 s (as mesmas janelas da parte 6). Duas passadas:
     a primeira só conta as janelas, para gravar direto em disco (memmap). Sem `rede`,
     grava só as entradas do aluno: basta para avaliá-lo, e não roda o XLS-R.
 
     Piloto 2: com `degradar` e `versoes`, cada janela ganha `versoes` cópias
     degradadas das entradas do aluno (a 0 é a limpa); o professor responde sempre
-    sobre a janela limpa. Com `pca`, os alvos vão projetados (menos disco)."""
+    sobre a janela limpa. Com `pca`, os alvos vão projetados (menos disco).
+
+    Piloto 3: `transformar(wav, rng)` (a sala simulada) muda o áudio antes de tudo,
+    e o professor responde sobre o áudio já transformado: o aluno aprende a imitá-lo
+    no canal de sala e microfone, não a ignorar o canal. Mantém o comprimento."""
     from scripts.estudo_ssl import janelas, ler_npz
     from scripts.estudo_ssl import preparar as preparar_audio
 
@@ -102,6 +107,8 @@ def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: in
     k = 0
     for i, arq in enumerate(arquivos):
         wav, _ = preparar_audio(arq)
+        if transformar is not None:
+            wav = transformar(wav, np.random.default_rng([semente, i, 3]))
         for x in janelas(wav):
             e = entradas(x)[:MAX_ENTRADA]
             if versoes:
@@ -470,6 +477,7 @@ def main(argv=None) -> int:
     a.add_argument("--ruido", action="store_true", help="soma ruído de 10 a 30 dB (prob. 0,5) à degradação")
     a.add_argument("--versoes", type=int, default=0, help="cópias degradadas por janela, além da limpa")
     a.add_argument("--pca", help="PCA dos alvos (subcomando pca)")
+    a.add_argument("--sala", help="piloto 3: pasta do BUT ReverbDB; cada áudio passa por uma sala sorteada")
     pc = sub.add_parser("pca")
     pc.add_argument("--dados", required=True, help="pasta preparada com alvos de 1.024 dimensões")
     pc.add_argument("--k", type=int, default=256)
@@ -536,8 +544,14 @@ def main(argv=None) -> int:
         if args.pca:
             z = np.load(args.pca)
             pca = {"componentes": z["componentes"], "media": z["media"]}
+        transformar = None
+        if args.sala:
+            from src.preprocess.sala import Sala
+
+            transformar = Sala(args.sala, SR)
+            print(f"Sala simulada: {transformar.descricao()}", flush=True)
         r = preparar(origem, Path(args.saida), rede, dev, camada=args.camada, degradar=degradar,
-                     versoes=args.versoes, pca=pca, semente=args.semente)
+                     versoes=args.versoes, pca=pca, semente=args.semente, transformar=transformar)
         print(f"Pronto: {r['arquivos']} arquivos, {r['janelas']} janelas em {args.saida}")
         return 0
     if args.cmd == "pca":
