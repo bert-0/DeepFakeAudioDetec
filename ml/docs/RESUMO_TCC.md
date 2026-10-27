@@ -3967,6 +3967,12 @@ expectativa é a voz real do L01 chegar a 0,05 dos humanos do dev.
 - o Common Voice passa pelo processamento do navegador e pelo MP3;
 - nenhum desses é o microfone do notebook da banca.
 
+**Braço 3b, a "versão máxima" (combinado antes, 26/10/2026):** os mesmos dados
+e devs, com um aluno maior (6 camadas, dimensão 384) e 30 épocas. Muda o tamanho
+e o tempo de treino ao mesmo tempo, de propósito: é a busca do melhor aluno, não
+uma medida isolada. O critério é o mesmo. Se os dois braços passarem, fica o de
+menor perda média nos três devs, sem olhar o ensaio 5.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
