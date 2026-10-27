@@ -176,6 +176,12 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   critério: L01 3 de 10, L02 9 de 10; meta não atingida. A ordem quase não erra
   (clone acima do real do mesmo locutor em 396 de 400 pares nos ensaios 2 a 4);
   falha o ponto de corte.
+- Ensaio 5 (RESUMO_TCC §10.2.35, critério antes): captura corrigida, referência
+  nova do L01, frases do conjunto 5. Reais 10 de 10; clones pegos pelo arquivo:
+  XTTS 7 de 10 (AUC 1,000, falha o corte), Chatterbox 0 de 10 (AUC 0,560); pelo
+  ar 0 de 10 nos dois (Chatterbox pelo ar abaixo de todos os reais). Contra os
+  ensaios 2 e 4, a queda vem da referência ou das frases: os acertos antigos
+  usaram referências com cópias.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

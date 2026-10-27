@@ -3637,7 +3637,7 @@ de −25,1 dBFS no L01 (máximo −23,1) e −29,4 no L02 (−26,5); o headset, 
 passaria de 0 dBFS. O volume do microfone no Windows precisa baixar antes de
 gravar, conferido com uma frase de teste (protocolo: pico entre −12 e −3 dBFS).
 
-### 10.2.35 Ensaio 5: os dois caminhos com a captura corrigida (em preparação)
+### 10.2.35 Ensaio 5: os dois caminhos com a captura corrigida (critério combinado antes)
 
 **Por quê (26/10/2026):** todo o material de voz real dos ensaios 1 a 4, as
 referências da clonagem e os clones pelo ar saíram com as cópias do modo
@@ -3719,6 +3719,60 @@ de resultado, e fica combinada assim:
 - **Sem caixinha:** alto-falante do notebook a 100%, e a diferença de nível é
   declarada. A checagem de fala dos clones pelo ar fica só descritiva. As outras
   checagens e a regra "arquivo sem janela útil conta como erro" continuam.
+
+Sem caixinha: alto-falante do notebook a 100%, tampa aberta. Pico mediano dos
+clones pelo ar: XTTS −15,4 dBFS, Chatterbox −15,8, contra −9,8 das frases reais.
+A checagem de fala falhou em todos os 20 (descritiva); o f09 do Chatterbox falhou
+no piso de ruído (14 dB) e foi regravado (16 dB) antes do placar.
+
+**Placar (26/10/2026;** `outputs/ensaio5_L01_xtts.json` e
+`outputs/ensaio5_L01_chatterbox.json`**):**
+
+| caminho | reais julgados humanos | clones pegos | meta |
+|---|---|---|---|
+| arquivo, XTTS | 10/10 | 7/10 | não atingida |
+| arquivo, Chatterbox | 10/10 | 0/10 | não atingida |
+| microfone (pelo ar), XTTS | 10/10 | 0/10 | não atingida |
+| microfone (pelo ar), Chatterbox | 10/10 | 0/10 | não atingida |
+
+Descritivo, nos log-odds (limiar −8,671):
+
+| grupo | média (mín. a máx.) | AUC contra os reais | acima do real da mesma frase |
+|---|---|---|---|
+| reais | −13,84 (−15,75 a −12,55) | — | — |
+| XTTS, arquivo | −7,84 (−10,27 a −5,16) | 1,000 | 10/10 |
+| XTTS, pelo ar | −13,21 (−14,74 a −11,56) | 0,690 | 8/10 |
+| Chatterbox, arquivo | −13,36 (−16,31 a −10,77) | 0,560 | 6/10 |
+| Chatterbox, pelo ar | −16,75 (−20,08 a −15,30) | 0,010 | 0/10 |
+
+Contra os ensaios com a referência antiga (com cópias), mesmo limiar:
+
+| clones do L01 | média dos clones | pegos |
+|---|---|---|
+| XTTS, ensaio 2 → ensaio 5 | −7,30 → −7,84 | 9/10 → 7/10 |
+| Chatterbox, ensaio 4 → ensaio 5 | −9,85 → −13,36 | 3/10 → 0/10 |
+
+Os reais do L01 foram de −13,27 (ensaio 2, com cópias) para −13,84.
+
+**Leitura:**
+1. **A meta não foi atingida em nenhum caminho nem ferramenta.** As vozes reais
+   ficam todas do lado certo; o que falha são os clones.
+2. **Pelo ar, a limitação se confirma sem o defeito da captura.** Nenhum clone é
+   pego. O do XTTS ainda fica um pouco acima do real (AUC 0,690); o do Chatterbox
+   fica abaixo de todas as vozes reais (0,010): pelo alto-falante, ele parece
+   mais humano que a voz real. Os clones chegaram 5,6 dB abaixo da voz, o que
+   está declarado.
+3. **Pelo arquivo, o XTTS mantém a ordem e perde o ponto de corte.** Todos os
+   clones ficam acima de todas as vozes reais (AUC 1,000), mas 3 caem abaixo do
+   limiar. É o mesmo padrão dos ensaios 2 a 4.
+4. **O Chatterbox com a referência nova não se separa nem na ordem** (AUC
+   0,560): a média dos clones caiu 3,5 nos log-odds e ficou no nível da voz real.
+5. **A queda dos clones vem da referência ou das frases, não das gravações
+   reais.** Com o limiar fixo, o veredito de um clone só depende dele. Este ensaio
+   não separa referência e frases. Uma hipótese a testar: os clones herdavam
+   da referência com cópias algo que o detector pegava. Se for isso, os acertos
+   dos ensaios 2 a 4, todos com referências com cópias, eram em parte o defeito.
+   Eles ficam como saíram, com essa ressalva.
 
 ### 10.3 Bases públicas que já trazem canal
 

@@ -131,6 +131,8 @@ primeiro: nenhuma gravação começa antes deles.
   atingida; o detector pega o XTTS, mas não com folga uma ferramenta mais nova.
   Ensaio 5 (§10.2.35), critério fixado em 26/10/2026: os dois caminhos de novo
   com a captura corrigida (modo compartilhado), referência e clones novos do L01.
+  Rodado no mesmo dia: reais 10 de 10; clones pegos pelo arquivo XTTS 7 de 10 e
+  Chatterbox 0 de 10, pelo ar 0 de 10 nos dois. Meta não atingida.
 - Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
   `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
   (22/10/2026). Medido no mesmo dia: tirar 7,6–8 kHz custa +6,27 pp no
