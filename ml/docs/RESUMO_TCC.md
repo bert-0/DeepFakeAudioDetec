@@ -3856,6 +3856,61 @@ Sonda, todas as camadas no conjunto: camada 7 0,983, camada 8 1,000; camadas 10 
    lido e na conversão de taxa; a investigar antes de qualquer conclusão sobre a
    demonstração.
 
+### 10.2.37 Dois diagnósticos no ensaio 5: o trecho que cada caminho lê e o aluno fora do domínio (exploratório)
+
+**1. Por que o detector separa o Chatterbox na avaliação (0,92) e não na
+interface (0,560)** (`outputs/caminhos_ensaio5.json`). Os mesmos arquivos, o
+`fusion_lcnn_v4_asv5`, AUC contra as 10 vozes reais:
+
+| trecho lido | XTTS | Chatterbox | XTTS pelo ar | Chatterbox pelo ar |
+|---|---|---|---|---|
+| primeiros 4 s (avaliação; 16 kHz direto ou por 48 kHz, igual) | 1,000 | 0,920 | 0,790 | 0,480 |
+| 4 s a partir de 2 s | 0,960 | 0,620 | 0,650 | 0,200 |
+| 4 s a partir de 4 s | 1,000 | 0,275 | 0,550 | 0,110 |
+| últimos 4 s | 0,870 | 0,200 | 0,350 | 0,030 |
+| média das janelas (interface) | 1,000 | 0,560 | 0,690 | 0,010 |
+| só a primeira janela da interface | 1,000 | 0,890 | 0,790 | 0,480 |
+| interface, janelas pesadas pela fala de verdade (`trechos_de_fala`) | 1,000 | 0,680 | 0,680 | 0,056 |
+
+- **A conversão de taxa não muda nada.** O que muda é o trecho.
+- **O Chatterbox parece sintético no começo da frase e humano no fim,** também
+  com recortes alinhados ao início da fala nas duas classes (AUC 0,880 no
+  início, 0,560 no fim). Por janela, os clones vão de −12,15 a −14,14; as vozes
+  reais ficam entre −15,06 e −14,07 nas janelas com fala.
+- **A interface trata o ruído da sala como fala.** Com o ruído a menos de 30 dB
+  da voz, o corte de silêncio não acha pausa, e as janelas finais das gravações
+  reais (só ruído) entram com peso cheio. Elas parecem mais sintéticas (−11,23).
+  Pesar pela fala de verdade, como a checagem faz, sobe o Chatterbox de 0,560
+  para 0,680.
+- **Não é um erro de conta:** os caminhos fazem perguntas diferentes (o começo
+  da frase contra a frase inteira). Mudar a regra da interface é decisão de
+  calibração, no dev, antes de um ensaio novo.
+
+**2. O aluno imita o professor no nosso domínio?** (`outputs/destilacao/
+fidelidade_ensaio5.json`). O professor (camada 7) respondeu sobre os 50 arquivos
+do ensaio 5 (184 janelas); perda de destilação de cada aluno, a mesma do treino
+(menor é melhor):
+
+| janelas | aluno 1 | aluno 2 |
+|---|---|---|
+| dev da ASVspoof 5, humanos | 0,985 | 0,922 |
+| dev da ASVspoof 5, falsos | 1,051 | 0,995 |
+| clones como arquivo (XTTS / Chatterbox) | 0,996 / 1,020 | 0,926 / 0,976 |
+| voz real do L01 pelo microfone | 1,094 | 1,064 |
+| clones pelo ar (XTTS / Chatterbox) | 1,114 / 1,141 | 1,096 / 1,119 |
+
+- **O aluno imita mal só o áudio que passou pelo nosso microfone.** Nos clones
+  em arquivo, em português, a perda é a do dev; não é a língua.
+- **A diferença é do tamanho do treino inteiro:** no aluno 2, a perda no dev foi
+  de 1,139 na época 1 a 0,978 na 20. Na voz real do L01 (1,064), ele imita como
+  no começo do treino.
+- **A sonda do professor nas respostas do aluno** dá AUC 0,723 (aluno 1) e
+  0,500 (aluno 2) no ensaio 5, contra 0,983 no professor.
+- **Leitura:** mais épocas com os mesmos dados melhorariam a ASVspoof (a perda
+  ainda caía), mas não o nosso canal. O aluno precisa ver, na destilação, áudio
+  que passou por microfone e sala. Como a destilação não usa rótulos, qualquer
+  fala gravada assim serve, desde que os locutores dos ensaios fiquem de fora.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
