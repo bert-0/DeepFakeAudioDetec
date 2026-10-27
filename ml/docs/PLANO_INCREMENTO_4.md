@@ -204,6 +204,11 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   aplica o ganho dele: o nível do microfone no Windows tem de ser ajustado com
   uma frase de teste. Falta decidir: regravar as vozes reais e os clones pelo ar
   no modo novo ou usar as gravações recuperadas.
+- **Decidido pelo grupo (27/10/2026): o modelo final usa o XLS-R, melhorado
+  pelos treinos.** É o que mais reduz o risco de falhar na pré-banca e na banca:
+  ele é o melhor pelo ar (ReplayDF 0,797) e, com o limiar calibrado no canal,
+  atinge a meta pelo arquivo no ensaio 5 (RESUMO_TCC §10.2.39 a §10.2.42). A
+  proposta abaixo, de tirar o XLS-R, fica registrada como histórico.
 - Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
   desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
   lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o
