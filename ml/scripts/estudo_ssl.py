@@ -179,6 +179,9 @@ def selecionar_protocolo(protocolo: Path, pasta: Path, n_humanos: int, n_ataque:
     return saida
 
 
+EXTENSOES_AUDIO = {".wav", ".flac", ".mp3"}
+
+
 def selecionar_grupos(grupos: list[str]) -> list[tuple[Path, str, int]]:
     saida = []
     for item in grupos:
@@ -186,7 +189,8 @@ def selecionar_grupos(grupos: list[str]) -> list[tuple[Path, str, int]]:
         pasta, rotulo = resto.rsplit(":", 1)
         if rotulo not in ("bonafide", "spoof"):
             raise ValueError(f"--grupo {item}: o rótulo depois de ':' é bonafide ou spoof")
-        for arq in sorted(Path(pasta).glob("*.wav")):
+        # O BRSpeech-DF vem em FLAC, o Common Voice em MP3 (10.2.40).
+        for arq in sorted(a for a in Path(pasta).iterdir() if a.suffix.lower() in EXTENSOES_AUDIO):
             saida.append((arq, nome, int(rotulo == "spoof")))
     return saida
 

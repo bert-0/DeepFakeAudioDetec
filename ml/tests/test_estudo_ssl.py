@@ -202,3 +202,14 @@ def test_faixas_com_rede_pequena(tmp_path, rede_pequena):
     saida = faixas(r, lista, rede_pequena)
     assert set(saida) == {"real", "clone"}
     assert saida["clone"]["falso"] and len(saida["clone"]["sem 3000-4000"]) == 1
+
+
+def test_grupos_aceitam_flac_e_mp3(tmp_path):
+    """O BRSpeech-DF vem em FLAC: a extração pegava só .wav e não achava nada."""
+    import soundfile as sf
+
+    for nome in ("a.wav", "b.flac"):
+        sf.write(tmp_path / nome, np.zeros(1600, np.float32), 16000)
+    (tmp_path / "notas.txt").write_text("x", encoding="utf-8")
+    lista = selecionar_grupos([f"g={tmp_path}:spoof"])
+    assert [a.name for a, _, _ in lista] == ["a.wav", "b.flac"] and all(r == 1 for _, _, r in lista)
