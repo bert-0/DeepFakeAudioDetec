@@ -4304,6 +4304,35 @@ decisão cumprir todas as condições, com AUC:
 **Descritivo:** a AUC por ferramenta; o dev passado por salas; e a meta do
 ensaio 5 com o limiar das vozes reais do L02 (regra do 10.2.39).
 
+### 10.2.42 Régua do caminho pelo ar: o ReplayDF (descritivo, expectativa registrada antes)
+
+**Por quê (27/10/2026):** o caminho pelo ar só foi medido com um locutor (o
+L01), uma sala e um alto-falante (10.2.35, 10.2.39). O ReplayDF (Interspeech
+2025; CC BY-NC 4.0, só pesquisa; 23 GB, baixado com aprovação do L01) traz real
+e falso tocados por alto-falante e regravados, as duas classes pelo mesmo canal.
+
+**Material:**
+- 109 montagens, com 30 microfones e 33 alto-falantes;
+- 6 línguas (en, de, fr, es, it, pl), sem português;
+- falsos do Bark, do VITS e do XTTS v1.1 e v2.0; reais do M-AILABS.
+- Amostra: 10 reais e 10 falsos por montagem, os falsos repartidos entre as
+  ferramentas, semente 42. São 2.180 áudios (1.090 reais; Bark 327, VITS 327,
+  XTTS v1.1 218, XTTS v2 218), em `scripts/montar_amostra_replaydf.py` e
+  `data/recortes/replaydf_10_s42.tsv`.
+
+**Medidas:** AUC por ferramenta contra os reais e acertos pelo limiar do dev da
+ASVspoof 5. Modelos: a sonda da camada 7 (e as outras camadas), o detector
+(caminho da avaliação), o aluno 3b e, se o piloto 4 terminar antes, o aluno 4.
+
+**Expectativa (antes de ver):**
+- todos abaixo do que dão sem regravação;
+- o professor acima dos outros, na faixa de 0,80 a 0,90, como no ensaio 5 pelo
+  ar (0,93);
+- o detector abaixo de 0,75.
+
+No artigo do ReplayDF, o melhor detector testado vai de 4,7% a 18,2% de EER
+com a regravação.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

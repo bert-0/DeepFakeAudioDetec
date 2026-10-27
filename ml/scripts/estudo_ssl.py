@@ -197,6 +197,14 @@ def selecionar_grupos(grupos: list[str]) -> list[tuple[Path, str, int]]:
     return saida
 
 
+def ler_lista(caminho: Path) -> list[tuple[Path, str, int]]:
+    """(arquivo, classe, rótulo) de um TSV com essas colunas; as outras são ignoradas."""
+    import csv
+
+    with open(caminho, encoding="utf-8", newline="") as f:
+        return [(Path(r["arquivo"]), r["classe"], int(r["rotulo"])) for r in csv.DictReader(f, delimiter="	")]
+
+
 def extrair(lista: list[tuple[Path, str, int]], representar, destino: Path,
             avisar_a_cada: int = 200) -> None:
     cnns, camadas, lfccs, medidas, guardados = [], [], [], [], []
@@ -604,6 +612,7 @@ def main(argv=None) -> int:
     e.add_argument("--n-humanos", type=int, default=400)
     e.add_argument("--n-ataque", type=int, default=100)
     e.add_argument("--grupo", action="append", default=[], metavar="NOME=PASTA:bonafide|spoof")
+    e.add_argument("--lista", help="TSV com arquivo, classe e rotulo (a amostra do ReplayDF)")
     e.add_argument("--semente", type=int, default=42)
     e.add_argument("--dispositivo", default="cuda")
     e.add_argument("--modelo", default=MODELO_HF)
@@ -661,6 +670,8 @@ def main(argv=None) -> int:
         if args.protocolo:
             lista = selecionar_protocolo(Path(args.protocolo), Path(args.pasta), args.n_humanos,
                                          args.n_ataque, args.semente)
+        elif args.lista:
+            lista = ler_lista(Path(args.lista))
         else:
             lista = selecionar_grupos(args.grupo)
         if not lista:
