@@ -3697,6 +3697,17 @@ pasta do ensaio antes de refazer; a gravação recomeça pelo alto-falante, sem
 fone. O ruído nas pausas das frases reais (−44,5 dBFS) é o da
 frase de teste (−42,4): o mesmo microfone.
 
+**Segunda tentativa, descartada, e um ajuste no critério (26/10/2026, nenhum
+score visto):** pelo alto-falante, o pico mediano dos clones do XTTS ficou em
+−14,4 dBFS, contra −9,75 das frases reais: 4,7 dB abaixo, fora dos 3 dB do
+critério. A fala ficou só 7,3 dB acima do ruído no quadro mediano (11,4 nas
+reais), e a checagem achou menos de 4 s de fala em 9 dos 10. O ruído durante o
+clone é o da sala (−54,8 dBFS antes de tocar, −55,0 no quadro p10): é nível, não
+ruído do alto-falante. Ajuste antes de regravar: os arquivos do XTTS têm pico em
+0 dBFS e os do Chatterbox de −2,8 a −12,4, e um volume só não serviria para os
+20. O `gravar_frases.py pelo-ar` passa a tocar cada clone com o pico em −1 dBFS;
+o resto do critério não muda.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from scripts.gravar_frases import DESCARTE_S, MARGEM_S, gravar, ler_frases, main
+from scripts.gravar_frases import DESCARTE_S, MARGEM_S, PICO_TOCADO_DB, gravar, ler_frases, main
 from test_microfone_wasapi import _sounddevice_falso
 
 SR = 48000
@@ -183,3 +183,19 @@ def test_avisa_quando_a_captura_repete_trechos(monkeypatch, tmp_path, capsys):
     assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "a"),
                  "--segundos", "7", "--sem-pausa"]) == 0
     assert "REGRAVAR cópias" in capsys.readouterr().out
+
+
+def test_pelo_ar_toca_todo_clone_com_o_mesmo_pico(monkeypatch, tmp_path):
+    """Ensaio 5: o Chatterbox entrega arquivos ~11 dB abaixo do XTTS; com o mesmo
+    volume do Windows, chegava ao microfone baixo demais (RESUMO_TCC §10.2.35)."""
+    sd = _sounddevice_falso(monkeypatch, _cena(2.0 + 2 * MARGEM_S))
+    picos = []
+    sd.play = lambda x, taxa: picos.append(float(np.abs(x).max()))
+    sd.stop = lambda: None
+    clones = tmp_path / "clone"
+    clones.mkdir()
+    rng = np.random.default_rng(2)
+    for nome, ganho in (("f01", 0.9), ("f02", 0.05)):
+        sf.write(clones / f"{nome}.wav", np.clip(rng.standard_normal(2 * 24000) * ganho / 4, -1, 1), 24000)
+    assert main(["pelo-ar", "--clones", str(clones), "--saida", str(tmp_path / "ar"), "--sem-pausa"]) == 0
+    assert picos == pytest.approx([10 ** (PICO_TOCADO_DB / 20)] * 2, rel=1e-4)

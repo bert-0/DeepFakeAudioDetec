@@ -41,6 +41,10 @@ from src.capture.sources import CaptureError, MicrofoneWasapiSource  # noqa: E40
 DESCARTE_S = 0.5
 #: Silêncio antes e depois da fala, que a checagem de fala exige (0,5 s no mínimo).
 MARGEM_S = 1.0
+#: Cada clone toca com o mesmo pico: as ferramentas entregam níveis diferentes (XTTS
+#: em 0 dBFS, Chatterbox de −2,8 a −12,4) e um volume só tem de servir para todos
+#: (RESUMO_TCC §10.2.35).
+PICO_TOCADO_DB = -1.0
 EXTENSOES = {".wav", ".flac", ".mp3", ".ogg", ".m4a", ".opus"}
 
 
@@ -146,9 +150,13 @@ def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: 
             print(f"[{arq.stem}] já existe, pulando")
             continue
         clone, taxa_clone = librosa.load(str(arq), sr=None, mono=True)
+        pico = float(np.abs(clone).max())
+        if pico > 0:
+            clone = clone * (10 ** (PICO_TOCADO_DB / 20) / pico)
         duracao = len(clone) / taxa_clone
         while True:
-            print(f"\n[{arq.stem}] tocando {arq.name} ({duracao:.1f} s) pelo alto-falante")
+            print(f"\n[{arq.stem}] tocando {arq.name} ({duracao:.1f} s, pico em "
+                  f"{PICO_TOCADO_DB:.0f} dBFS) pelo alto-falante")
             wav, taxa, modo, nome = gravar(duracao + 2 * MARGEM_S, dispositivo, (
                 (MARGEM_S, lambda: sd.play(clone, taxa_clone)),), bloco_ms, exclusivo)
             sd.stop()
