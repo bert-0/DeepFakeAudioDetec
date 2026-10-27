@@ -3911,6 +3911,62 @@ do ensaio 5 (184 janelas); perda de destilação de cada aluno, a mesma do trein
   que passou por microfone e sala. Como a destilação não usa rótulos, qualquer
   fala gravada assim serve, desde que os locutores dos ensaios fiquem de fora.
 
+### 10.2.38 Piloto 3 de destilação: o canal de sala e microfone (critério combinado antes)
+
+**Por quê (26/10/2026):** os alunos imitam mal a camada 7 justamente no áudio
+que passou por microfone e sala (10.2.37); mais épocas com os mesmos dados não
+mudam isso. Tocar áudios pelo alto-falante à noite não é viável na casa do L01.
+A destilação não usa rótulos: qualquer fala serve, gravada em canal real ou
+passada por uma sala real medida.
+
+**Dados de treino do aluno (todos sem rótulo; `scripts/destilacao.py`):**
+1. **O conjunto do piloto 2:** 20 mil arquivos do recorte, 22.924 janelas, a
+   limpa e 2 degradadas.
+2. **Common Voice em português** (CC0, versão 27.0): 4.000 clipes de 1.749
+   pessoas, cada um gravado pela própria pessoa, com o microfone que tinha
+   (`scripts/montar_amostra_commonvoice.py`, seleção em
+   `data/recortes/commonvoice_pt_4000_400_s42.tsv`).
+3. **Salas simuladas:** os 4.000 arquivos do piloto 1 passados por uma posição
+   sorteada do BUT ReverbDB (resposta ao impulso real e o silêncio gravado pelo
+   mesmo microfone, a 10–30 dB; `src/preprocess/sala.py`).
+
+Nos itens 2 e 3, o professor responde sobre o áudio como o aluno o ouve (no
+piloto 2, sempre sobre o limpo). Todos os itens recebem as mesmas 2 versões
+degradadas e a mesma PCA de 256 dimensões do piloto 2.
+
+**Escolha do checkpoint, sem rótulo:** a média das perdas de destilação em três
+devs:
+- o dev da ASVspoof 5 (1.600 arquivos);
+- o dev do Common Voice (400 clipes de outras 172 pessoas);
+- o mesmo dev da ASVspoof passado por salas.
+
+**Aluno e treino:** a mesma arquitetura do piloto 2 (4 camadas, dimensão 256),
+do zero, semente 42, 20 épocas. Só os dados mudam.
+
+**Avaliação:** as réguas do piloto 2 (dev, 2019 LA, eval da ASVspoof 5) e o
+material do ensaio 5 (50 arquivos do L01, nunca usados no preparo nem na
+escolha). Sonda nova treinada nas respostas do aluno, como antes.
+
+**Critério (no commit antes de rodar):** o piloto 3 passa se cumprir as duas
+condições:
+- **No ensaio 5, fechar pelo menos metade da distância até o professor.**
+  - **Arquivo:** AUC da sonda nova ≥ 0,80 com os clones do XTTS e do
+    Chatterbox juntos contra a voz real. O aluno 2 dá 0,59 e o professor 1,00.
+  - **Pelo ar:** ≥ 0,65 com os clones pelo ar juntos. O aluno 2 dá 0,355 e o
+    professor 0,93.
+- **Não piorar na ASVspoof.** AUC média no dev ≥ 0,941 e na 2019 LA ≥ 0,799,
+  ou seja, no máximo 0,02 abaixo do aluno 2 (0,961 e 0,819).
+
+**Descritivo:** a perda de imitação por grupo no ensaio 5, como em 10.2.37. A
+expectativa é a voz real do L01 chegar a 0,05 dos humanos do dev.
+
+**Limitações declaradas antes:**
+- o ensaio 5 tem um locutor só e 50 arquivos;
+- os microfones do BUT ficam a ~1,4 m de um alto-falante, mais longe que a voz
+  do L01 do microfone;
+- o Common Voice passa pelo processamento do navegador e pelo MP3;
+- nenhum desses é o microfone do notebook da banca.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

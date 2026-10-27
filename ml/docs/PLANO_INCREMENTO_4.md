@@ -243,6 +243,10 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
     num aluno pequeno sobre LFCC e log-mel (RESUMO_TCC §10.2.29). O XLS-R entra
     só como professor no treino; o detector final é o aluno. O treino do piloto é
     rodado pelo grupo. O treino completo depende do resultado e do orientador.
+    Piloto 3 (26/10/2026, pedido do L01; critério em RESUMO_TCC §10.2.38): os
+    alunos imitam mal o professor no áudio de microfone e sala (§10.2.37); o
+    aluno é treinado de novo com o Common Voice em português e salas simuladas
+    do BUT ReverbDB, sem tocar nada em casa.
 - Quais ferramentas de clonagem usar, e qual fica fora do treino. Para a
   demonstração e os ensaios: XTTS v2 no próprio computador (24/10/2026), sem
   internet e sem a voz sair da máquina. Se ele entra no treino segue aberto; se o
