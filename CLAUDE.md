@@ -188,6 +188,13 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   1,00, XTTS e Chatterbox) e quase todos pelo ar (0,98 e 0,88), sem acertar o
   limiar pelo ar; os alunos não (0,599 e 0,486). O detector separa o Chatterbox
   no caminho da avaliação (0,92), não no da interface (0,560): a investigar.
+- Piloto 3 de destilação (RESUMO_TCC §10.2.37 e §10.2.38): com Common Voice
+  em português e salas do BUT ReverbDB, o aluno 3b (6 camadas, 384, 30 épocas,
+  11,4 milhões de parâmetros) dá 0,964 no eval da ASVspoof 5 (professor 0,971,
+  detector 0,659), 0,934 na 2019 e 0,785 no ensaio 5 pelo arquivo e pelo ar.
+  Critério não atingido (arquivo < 0,80); o limiar do dev pega 1 de 40 clones.
+  Salas no eval da 2019: `fusion_lcnn_v4` 20,25% → 42,53% (926 de 1.032
+  humanos em 1,0); o do recorte 37,71% → 46,12%.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

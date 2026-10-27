@@ -4026,6 +4026,68 @@ As 10 vozes reais ficam do lado humano nos dois alunos.
   - dev 0,973, 2019 0,871, eval 0,930, salas 0,752;
   - ensaio 5 pelo arquivo 0,660;
   - ensaio 5 pelo ar 0,930, a mesma AUC do professor.
+- **Por ataque no dev** (sonda nova): o A12 cai de 0,92 no aluno 2 para 0,66.
+- A linha "Critério ... passa" que o `avaliar` imprime é a do piloto 1 (ganho
+  sobre o LFCC), não a do piloto 3.
+
+**Treino do aluno 3b (27/10/2026):** 11,43 milhões de parâmetros; 30 épocas de
+~546 s (4 h 34 min). A perda média nos devs caiu de 1,051 na época 1 a 0,8600 na
+29, a escolhida; a do aluno 3 terminou em 0,9365. Arquivo:
+`checkpoints/aluno3b_xlsr_l7.pt`.
+
+**Resultado dos três alunos e do professor** (sonda nova; professor: a sonda da
+camada 7, 10.2.22 e 10.2.36). AUC:
+
+| régua | aluno 2 | aluno 3 | **aluno 3b** | professor |
+|---|---|---|---|---|
+| dev da ASVspoof 5 (média dos ataques) | 0,961 | 0,917 | **0,989** | 1,000 |
+| 2019 LA | 0,819 | 0,778 | **0,934** | 0,998 |
+| eval da ASVspoof 5 | 0,879 | 0,857 | **0,964** | 0,971 |
+| dev passado por salas | 0,629 | 0,685 | **0,782** | — |
+| ensaio 5, arquivo | 0,590 | 0,750 | **0,785** | 1,00 |
+| ensaio 5, pelo ar | 0,355 | 0,685 | **0,785** | 0,93 |
+
+**Critério do 3b: não passou.** O ensaio 5 pelo arquivo ficou em 0,785, abaixo
+de 0,80. As outras três condições passaram: pelo ar 0,785 (≥ 0,65), dev 0,989
+(≥ 0,941) e 2019 0,934 (≥ 0,799). Nenhum braço passou; a regra de escolha entre
+os dois não se aplica.
+
+**Descritivo do 3b:**
+- **Por ataque no dev:** A09 a A16 entre 0,96 e 1,00; o A12 dá 0,99.
+- **Eval da ASVspoof 5 por codec:** de 0,94 (EnCodec, AMR e Speex de banda
+  estreita) a 0,98.
+- **Ensaio 5 por grupo:**
+  - XTTS 0,79, Chatterbox 0,78, XTTS pelo ar 0,67, Chatterbox pelo ar 0,90;
+  - as 10 vozes reais ficam do lado humano;
+  - pelo limiar do dev, só 1 dos 40 clones é pego: o limiar não transfere.
+- **Imitação:** humanos do dev 0,820, voz do L01 0,914, clones pelo ar 0,918 e
+  0,933. A diferença entre o L01 e o dev ficou em 0,094.
+- **Sonda do professor aplicada ao 3b:** dev 0,993, 2019 0,960, eval 0,970,
+  ensaio 5 pelo ar 0,920 e pelo arquivo 0,595.
+
+**Robustez a salas dos detectores** (`robustness_eval.py --amostra 10000 --so
+clean sala`; os mesmos 10.002 áudios do eval da 2019; EER):
+
+| detector | limpo | sala | humanos saturados em 1,0 na sala |
+|---|---|---|---|
+| `fusion_lcnn_v4_asv5` (o da demonstração) | 37,71% | 46,12% | 0 de 1.032 |
+| `fusion_lcnn_v4` (2019) | 20,25% | 42,53% | 926 de 1.032 |
+
+**Leitura:**
+1. **Nenhum braço passou.** Os dois falham no ensaio 5 pelo arquivo (0,750 e
+   0,785 contra 0,80); o aluno 3 também perde na ASVspoof, o 3b não.
+2. **O aluno 3b é o melhor modelo nosso até agora na ASVspoof.** No eval da
+   ASVspoof 5 chega a 0,964, contra 0,971 do professor, 0,879 do aluno 2 e
+   0,659 do nosso detector (10.2.29). São 11,4 milhões de parâmetros, sem o
+   XLS-R na hora de detectar. Tamanho e tempo de treino mudaram juntos;
+   este braço não separa os dois.
+3. **No nosso domínio, o ganho é grande, mas não basta.** No ensaio 5, o
+   arquivo vai de 0,590 a 0,785 e o pelo ar de 0,355 a 0,785. O professor
+   continua acima pelo arquivo (1,00). O limiar do dev não pega quase nenhum
+   clone: falta calibrar com o nosso canal nas duas classes.
+4. **As salas derrubam os dois detectores.** O da 2019 passa a chamar quase toda
+   voz humana em sala de sintética: 926 de 1.032 vão a 1,0. O do recorte piora
+   menos, de 37,71% para 46,12%.
 
 ### 10.3 Bases públicas que já trazem canal
 
