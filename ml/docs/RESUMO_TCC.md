@@ -4385,6 +4385,51 @@ ASVspoof 5. Modelos: a sonda da camada 7 (e as outras camadas), o detector
 No artigo do ReplayDF, o melhor detector testado vai de 4,7% a 18,2% de EER
 com a regravação.
 
+**Resultado (27/10/2026;** `outputs/ssl/sondas_replaydf.json`,
+`outputs/ssl/detector_replaydf.json`, `outputs/destilacao/replaydf_aluno3b.json`,
+`outputs/destilacao/replaydf_aluno4.json`**).** Nenhum áudio pulado. AUC de
+cada ferramenta contra os 1.090 reais regravados:
+
+| ferramenta | detector | sonda no LFCC | professor (camada 7) | aluno 3b | aluno 4 |
+|---|---|---|---|---|---|
+| Bark | 0,87 | 0,73 | 0,76 | 0,68 | 0,77 |
+| VITS | 0,71 | 0,57 | 0,76 | 0,64 | 0,68 |
+| XTTS v1.1 | 0,58 | 0,62 | 0,86 | 0,54 | 0,68 |
+| XTTS v2 | 0,74 | 0,69 | 0,85 | 0,62 | 0,76 |
+| **todas** | **0,741** | **0,649** | **0,797** | **0,628** | **0,724** |
+
+Reais do lado humano pelo limiar do dev: detector 839, LFCC 664, professor
+1.071, aluno 3b 1.054 e aluno 4 963, de 1.090. O professor acusa só 199 dos
+1.090 falsos.
+
+Por camada do XLS-R, todas as ferramentas juntas:
+- da 0 à 3: de 0,57 a 0,73;
+- a 4: 0,785; a 7: 0,797;
+- da 10 à 17: de 0,82 a 0,85 (a 17 dá 0,851);
+- da 19 à 24: de 0,76 a 0,79.
+
+É descritivo: a camada 7 foi escolhida antes, no dev.
+
+**Leitura, contra a expectativa registrada:**
+1. **O professor fica acima dos outros, como esperado, mas em 0,797,** logo
+   abaixo da faixa prevista (0,80 a 0,90). Os dois XTTS são os mais separados
+   por ele (0,85 e 0,86), como o XTTS do L01 pelo ar (0,98, 10.2.36).
+2. **O detector fica em 0,741, abaixo de 0,75, como esperado.** O XTTS v1.1
+   quase não se separa (0,58).
+3. **O limiar do dev não serve pelo ar.** Com a regravação, os scores dos falsos
+   vão para o lado humano: o professor deixa passar 891 de 1.090. É o mesmo
+   problema do ensaio 5, que o limiar calibrado no canal resolveu em parte
+   (10.2.39).
+4. **Os alunos não herdam a robustez do professor à regravação** (3b 0,628). O
+   aluno 4 sobe para 0,724.
+5. **Cada canal favorece camadas diferentes do XLS-R:**
+   - no dev da ASVspoof, quase todas dão perto de 1,00;
+   - no português de audiolivro, as de baixo (a 4 dá 0,942; 10.2.40);
+   - na regravação, as do meio para cima (de 10 a 17).
+
+   Uma camada fixa perde em algum canal. Uma soma ponderada das camadas, que é
+   o modelo `fusion_ssl` do plano, aprenderia a pesar cada uma.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

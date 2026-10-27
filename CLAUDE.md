@@ -210,6 +210,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   BRSpeech-DF (F5-TTS 1,00), mas decora o treino na época 1 e cai na ASVspoof
   (eval 0,826, 2019 0,753) e no ensaio 5 (Chatterbox 0,26). Critério não
   atingido.
+- Régua pelo ar, ReplayDF (RESUMO_TCC §10.2.42; 109 montagens, 2.180 áudios):
+  AUC professor 0,797, detector 0,741, aluno 4 0,724, LFCC 0,649, aluno 3b
+  0,628. Pelo limiar do dev, o professor deixa passar 891 de 1.090 falsos.
+  Camadas do XLS-R: a melhor muda com o canal (ASVspoof todas; audiolivro a 4;
+  regravação 10 a 17), argumento para a soma ponderada do `fusion_ssl`.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
