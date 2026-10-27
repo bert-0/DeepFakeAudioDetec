@@ -27,6 +27,9 @@ ml/data/ASVspoof5_recorte/
 # a seleção da amostra fica em ml/data/recortes/.
 ml/data/CommonVoice_pt/
 ml/data/BUT_ReverbDB/
+# BRSpeech-DF (CC BY 4.0) e ReplayDF (CC BY-NC 4.0, só pesquisa), no D:.
+ml/data/BRSpeech-DF/
+ml/data/ReplayDF/
 
 # Amostras de voluntarios — voz e dado biometrico sensivel (LGPD): NUNCA versionar
 ml/data/volunteers/
