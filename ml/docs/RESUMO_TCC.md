@@ -3774,6 +3774,34 @@ Os reais do L01 foram de −13,27 (ensaio 2, com cópias) para −13,84.
    dos ensaios 2 a 4, todos com referências com cópias, eram em parte o defeito.
    Eles ficam como saíram, com essa ressalva.
 
+### 10.2.36 A referência com cópias explica a queda do ensaio 5? (exploratório, leitura combinada antes)
+
+**Pergunta (26/10/2026, antes de qualquer score):** a queda dos clones pegos
+entre os ensaios 2 e 4 e o ensaio 5 (10.2.35) vem da referência ou das frases?
+
+**Desenho:** as mesmas 10 frases do conjunto 5, sementes 1 a 10, sem o ponto
+final, nas duas ferramentas, clonadas de três referências do L01:
+- **antiga:** a dos ensaios 1 a 4, com as cópias da captura
+  (`teste_proprio/referencia/referencia_envio.wav`);
+- **antiga reparada:** a mesma gravação sem as cópias (`diagnostico_captura.py
+  reparar` e `preparar_referencia.py`);
+- **nova:** a do ensaio 5 (clones já feitos).
+
+Mesmo detector, limiar e caminho do ensaio 5 (`--taxa-comum 48000`). Os clones
+não são ouvidos nem refeitos (a geração é automática, durante o jantar do L01);
+fica declarado.
+
+**Leitura combinada antes,** pela média dos log-odds dos clones e por quantos
+passam do limiar −8,671:
+- antiga acima das outras duas, e reparada perto da nova: as cópias da
+  referência deixavam os clones mais fáceis de pegar;
+- antiga e reparada perto, as duas acima da nova: é a sessão de gravação (sala,
+  nível, 16 bits), não as cópias;
+- as três perto: a queda veio das frases.
+
+Junto, só descritivo: o aluno 1, o aluno 2 e a sonda da camada 7 do XLS-R
+(10.2.22) no material do ensaio 5 e nestes clones.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
