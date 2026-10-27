@@ -41,7 +41,8 @@ def _nome_seguro(nome: str) -> str:
     return "".join(c for c in Path(nome).name if c.isalnum() or c in "._-")
 
 
-def selecionar(pasta: Path, parte: str, por_modelo: int, semente: int = 42) -> dict:
+def selecionar(pasta: Path, parte: str, por_modelo: int, semente: int = 42,
+               max_reais: int | None = None) -> dict:
     """{"bonafide": [índices], modelo: [índices]} das linhas dos Parquet da parte."""
     spoof = sorted((pasta / "spoof").glob(f"{parte}-*.parquet"))
     por: dict[str, list[int]] = {}
@@ -50,7 +51,9 @@ def selecionar(pasta: Path, parte: str, por_modelo: int, semente: int = 42) -> d
     rng = random.Random(semente)
     escolha = {m: sorted(rng.sample(idx, min(por_modelo, len(idx)))) for m, idx in sorted(por.items())}
     reais = sorted((pasta / "bonafide").glob(f"{parte}-*.parquet"))
-    escolha["bonafide"] = [k for _, k, _ in _linhas(reais, ["label"])]
+    todas = [k for _, k, _ in _linhas(reais, ["label"])]
+    # No treino baixado, um leitor tem 6.665 das 8.020 reais: o teto evita que ele domine.
+    escolha["bonafide"] = todas if max_reais is None else sorted(rng.sample(todas, min(max_reais, len(todas))))
     return escolha
 
 
@@ -80,12 +83,13 @@ def main(argv=None) -> int:
     p.add_argument("--parte", default="test", choices=("train", "validation", "test"))
     p.add_argument("--por-modelo", type=int, default=300)
     p.add_argument("--semente", type=int, default=42)
+    p.add_argument("--max-reais", type=int, default=None, help="padrão: todas as reais da parte")
     p.add_argument("--saida", required=True)
     p.add_argument("--lista", default=None)
     args = p.parse_args(argv)
 
     pasta = Path(args.pasta)
-    escolha = selecionar(pasta, args.parte, args.por_modelo, args.semente)
+    escolha = selecionar(pasta, args.parte, args.por_modelo, args.semente, args.max_reais)
     gravados = exportar(pasta, args.parte, escolha, Path(args.saida))
     lista = Path(args.lista or f"data/recortes/brspeech_df_{args.parte}_{args.por_modelo}_s{args.semente}.tsv")
     lista.parent.mkdir(parents=True, exist_ok=True)

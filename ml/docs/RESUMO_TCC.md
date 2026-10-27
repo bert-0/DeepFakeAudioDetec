@@ -4247,6 +4247,63 @@ foi escolhida no dev da ASVspoof 5, antes desta régua.
    Uma escolha de camada que valha para as duas réguas teria de ser feita em
    dados que não sejam o teste.
 
+### 10.2.41 Piloto 4 de destilação: um aluno com vários professores (critério combinado antes)
+
+**Por quê (27/10/2026, pedido do L01):** cada régua mostrou um professor forte
+num lugar diferente:
+- a camada 7 do XLS-R na ASVspoof e nos clones do L01 pelo arquivo (10.2.36,
+  10.2.39);
+- a camada 4 no português de audiolivro (0,942, 10.2.40);
+- o nosso detector nos clones do BRSpeech-DF (0,84);
+- no F5-TTS todos erram, e só os rótulos o conhecem.
+
+A destilação com vários professores é conhecida: o DistilHuBERT já imitava três
+camadas, cada uma com a sua cabeça. Aqui o aluno aprende com todos ao mesmo
+tempo (`scripts/destilacao_multi.py`).
+
+**Aluno 4:**
+- parte do aluno 3b (6 camadas, dimensão 384), com o mesmo corpo e a cabeça da
+  camada 7;
+- ganha três cabeças: a camada 4 do XLS-R (PCA de 256), o score do
+  `fusion_lcnn_v4_asv5` em cada janela e a decisão real ou falso, treinada com
+  os rótulos. A cabeça de decisão é o detector final.
+- Perda: camada 7 + camada 4 + 0,5 × detector + 1,0 × rótulo, com pesos
+  fixados antes.
+- Cada janela ensina o que tiver; o alvo que falta sai daquela parte da perda.
+- 12 épocas, taxa 3e-4, lotes de 16, semente 42.
+
+**Dados de treino:**
+
+| conjunto | camada 7 | camada 4 | detector | rótulo |
+|---|---|---|---|---|
+| ASVspoof 5 do piloto 2 (o treino do detector) | sim | — | — | sim |
+| Common Voice (piloto 3) | sim | sim | sim | real |
+| salas (piloto 3) | sim | sim | sim | sim |
+| BRSpeech-DF, treino: 3.000 reais e 3.000 do F5-TTS | sim | sim | sim | sim |
+
+No treino do BRSpeech-DF, um leitor tem 6.665 das 8.020 reais baixadas; o
+sorteio de 3.000 mantém essa proporção, e isso fica declarado.
+
+**Escolha do checkpoint:** a menor perda média em quatro devs:
+- o dev da ASVspoof 5;
+- o dev do Common Voice;
+- o dev passado por salas;
+- a validação do BRSpeech-DF: as 1.161 reais e 200 clones de cada ferramenta,
+  de 10 leitores que não estão no teste.
+
+Nenhuma régua de teste entra no treino nem na escolha.
+
+**Critério (no commit antes de rodar):** o piloto 4 passa se a cabeça de
+decisão cumprir todas as condições, com AUC:
+- **BRSpeech-DF, teste:** ≥ 0,90 (o melhor modelo anterior, a sonda no LFCC,
+  deu 0,880);
+- **ensaio 5:** ≥ 0,90 pelo arquivo (XTTS e Chatterbox juntos) e ≥ 0,80 pelo ar;
+- **eval da ASVspoof 5:** ≥ 0,95;
+- **2019 LA:** ≥ 0,90.
+
+**Descritivo:** a AUC por ferramenta; o dev passado por salas; e a meta do
+ensaio 5 com o limiar das vozes reais do L02 (regra do 10.2.39).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

@@ -489,6 +489,8 @@ def main(argv=None) -> int:
     a.add_argument("--protocolo", help="ou a lista pelo protocolo, como no extrair da parte 6")
     a.add_argument("--pasta")
     a.add_argument("--pasta-audio", help="piloto 3: todos os áudios de uma pasta, sem rótulo (Common Voice)")
+    a.add_argument("--grupo", action="append", default=[], metavar="NOME=PASTA:bonafide|spoof",
+                   help="piloto 4: pastas com rótulo, como no estudo do XLS-R (BRSpeech-DF)")
     a.add_argument("--n-humanos", type=int, default=400)
     a.add_argument("--n-ataque", type=int, default=100)
     a.add_argument("--semente", type=int, default=42)
@@ -533,7 +535,15 @@ def main(argv=None) -> int:
     if args.cmd == "preparar":
         from scripts.estudo_ssl import carregar_rede, selecionar_protocolo
 
-        if args.pasta_audio:
+        if args.grupo:
+            from scripts.estudo_ssl import selecionar_grupos
+
+            lista = selecionar_grupos(args.grupo)
+            if not lista:
+                p.error("nenhum áudio nos --grupo")
+            origem = {"arquivo": np.array([str(a) for a, _, _ in lista]), "classe": np.array([c for _, c, _ in lista]),
+                      "rotulo": np.array([r for _, _, r in lista], dtype=np.int8)}
+        elif args.pasta_audio:
             arquivos = sorted(str(a) for a in Path(args.pasta_audio).iterdir()
                               if a.suffix.lower() in {".wav", ".flac", ".mp3"})
             if not arquivos:

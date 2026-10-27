@@ -270,3 +270,18 @@ def test_avaliar_conjunto_so_de_humanos(tmp_path, professor):
     r = json.loads(saida.read_text(encoding="utf-8"))
     assert r["sondas"]["nova"]["avaliar"]["p_reais"]["auc"] is None
     assert len(r["sondas"]["nova"]["scores"]["p_reais"]) == 2
+
+
+def test_preparar_por_grupos_com_rotulo(tmp_path):
+    from scripts.destilacao import carregar_dados, main
+
+    for nome in ("reais", "clones"):
+        (tmp_path / nome).mkdir()
+        for i in range(2):
+            sf.write(tmp_path / nome / f"{i}.flac",
+                     (np.random.default_rng(i).standard_normal(16000 * 3) * 0.1).astype(np.float32), 16000)
+    assert main(["preparar", "--grupo", f"bonafide={tmp_path / 'reais'}:bonafide",
+                 "--grupo", f"f5tts={tmp_path / 'clones'}:spoof", "--saida", str(tmp_path / "p"),
+                 "--sem-professor"]) == 0
+    d = carregar_dados(tmp_path / "p")
+    assert list(d["classe"]) == ["bonafide", "bonafide", "f5tts", "f5tts"] and list(d["rotulo"]) == [0, 0, 1, 1]

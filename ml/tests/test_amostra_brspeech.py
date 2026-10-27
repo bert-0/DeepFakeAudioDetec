@@ -53,3 +53,9 @@ def test_exporta_flac_legivel_e_lista(tmp_path):
     assert sr == 24000 and len(w) == 2400
     linhas = lista.read_text(encoding="utf-8").splitlines()
     assert linhas[0] == "arquivo\tclasse" and len(linhas) == 1 + 4 + 3 + 3
+
+
+def test_teto_de_reais(tmp_path):
+    _base(tmp_path)
+    e = selecionar(tmp_path, "test", por_modelo=1, max_reais=2)
+    assert len(e["bonafide"]) == 2 and set(e["bonafide"]) <= {0, 1, 2, 3}
