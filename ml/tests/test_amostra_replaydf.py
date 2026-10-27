@@ -40,3 +40,26 @@ def test_lista_no_formato_do_extrair(tmp_path):
     assert len(itens) == 4 and sum(r for _, _, r in itens) == 2
     assert {c for _, c, r in itens if r == 0} == {"bonafide"}
     assert all(str(a).endswith(".wav") and "/wav/aaa/" in str(a).replace("\\", "/") for a, _, _ in itens)
+
+
+def test_divide_montagens_sem_cruzar_treino_e_regua(tmp_path, monkeypatch):
+    import csv
+
+    from scripts.montar_amostra_replaydf import dividir_montagens
+
+    partes = dividir_montagens([f"u{i}" for i in range(10)] * 3, 5, 2)
+    assert [len(partes[k]) for k in ("treino", "dev", "regua")] == [5, 2, 3]
+    assert not (set(partes["treino"]) & set(partes["regua"])) and not (set(partes["dev"]) & set(partes["regua"]))
+
+    for i in range(6):
+        _montagem(tmp_path / "base", f"m{i}", n_reais=3, por_ferramenta=2)
+    monkeypatch.chdir(tmp_path)
+    assert main(["--pasta", str(tmp_path / "base"), "--por-montagem", "2", "--lista", "data/recortes/amostra.tsv"]) == 0
+    assert main(["--pasta", str(tmp_path / "base"), "--por-montagem", "3", "--dividir", "3", "1",
+                 "--regua-existente", "data/recortes/amostra.tsv"]) == 0
+    ler = lambda n: list(csv.DictReader(open(tmp_path / "data/recortes" / n, encoding="utf-8"), delimiter="	"))  # noqa: E731
+    montagens = {r["montagem"]: r["parte"] for r in ler("replaydf_montagens_s42.tsv")}
+    treino, regua = ler("replaydf_treino_3_s42.tsv"), ler("replaydf_regua_s42.tsv")
+    assert {montagens[r["montagem"]] for r in treino} == {"treino"}
+    assert {montagens[r["montagem"]] for r in regua} == {"regua"} and len(regua) == 2 * 4
+    assert not {r["arquivo"] for r in treino} & {r["arquivo"] for r in regua}

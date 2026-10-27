@@ -206,7 +206,9 @@ def ler_lista(caminho: Path) -> list[tuple[Path, str, int]]:
 
 
 def extrair(lista: list[tuple[Path, str, int]], representar, destino: Path,
-            avisar_a_cada: int = 200) -> None:
+            avisar_a_cada: int = 200, transformar=None, semente: int = 42) -> None:
+    """Com `transformar(wav, rng)` (a sala simulada), o áudio passa por ela antes de
+    tudo, com o rng [semente, k, 3] de cada arquivo, como no preparo da destilação."""
     cnns, camadas, lfccs, medidas, guardados = [], [], [], [], []
     for k, (arq, classe, rotulo) in enumerate(lista):
         try:
@@ -214,6 +216,8 @@ def extrair(lista: list[tuple[Path, str, int]], representar, destino: Path,
         except Exception as erro:  # arquivo ilegível: registra e segue
             print(f"  pulado {arq.name}: {erro}", flush=True)
             continue
+        if transformar is not None:
+            wav = transformar(wav, np.random.default_rng([semente, k, 3]))
         if len(wav) < MIN_AMOSTRAS:
             # Um clone do ToucanTTS no BRSpeech-DF sobra com 17 ms depois do corte de
             # silêncio, menor que a primeira convolução do XLS-R (10.2.40).
@@ -613,6 +617,7 @@ def main(argv=None) -> int:
     e.add_argument("--n-ataque", type=int, default=100)
     e.add_argument("--grupo", action="append", default=[], metavar="NOME=PASTA:bonafide|spoof")
     e.add_argument("--lista", help="TSV com arquivo, classe e rotulo (a amostra do ReplayDF)")
+    e.add_argument("--sala", help="pasta do BUT ReverbDB: cada áudio passa por uma sala sorteada")
     e.add_argument("--semente", type=int, default=42)
     e.add_argument("--dispositivo", default="cuda")
     e.add_argument("--modelo", default=MODELO_HF)
@@ -677,7 +682,13 @@ def main(argv=None) -> int:
         if not lista:
             p.error("nada para extrair: use --protocolo e --pasta, ou --grupo")
         print(f"Extraindo {len(lista)} arquivos -> {args.saida}", flush=True)
-        extrair(lista, carregar_xlsr(args.dispositivo, args.modelo), Path(args.saida))
+        transformar = None
+        if args.sala:
+            from src.preprocess.sala import Sala
+
+            transformar = Sala(args.sala, SR)
+        extrair(lista, carregar_xlsr(args.dispositivo, args.modelo), Path(args.saida), transformar=transformar,
+                semente=args.semente)
         print(f"Pronto: {args.saida}")
     elif args.cmd == "sondar":
         r = sondar(ler_npz(Path(args.treino)), ler_npz(Path(args.dev)),

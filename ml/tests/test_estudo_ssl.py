@@ -227,3 +227,21 @@ def test_extrair_pula_audio_curto_demais(tmp_path, capsys):
     extrair(lista, lambda w: (np.zeros(512), np.zeros((25, 1024))), tmp_path / "s.npz")
     assert list(map(str, ler_npz(tmp_path / "s.npz")["arquivo"])) == [str(tmp_path / "longo.wav")]
     assert "pulado curto.wav" in capsys.readouterr().out
+
+
+def test_extrair_com_sala_muda_o_audio(tmp_path):
+    from scripts.estudo_ssl import extrair, ler_npz
+
+    import soundfile as sf
+
+    sf.write(tmp_path / "a.wav", (np.random.default_rng(0).standard_normal(16000) * 0.1).astype(np.float32), 16000)
+    vistos = []
+
+    def representar(w):
+        vistos.append(w.copy())
+        return np.zeros(512), np.zeros((25, 1024))
+
+    extrair([(tmp_path / "a.wav", "x", 0)], representar, tmp_path / "limpo.npz")
+    extrair([(tmp_path / "a.wav", "x", 0)], representar, tmp_path / "sala.npz",
+            transformar=lambda w, rng: (w * 0 + rng.standard_normal(len(w))).astype(np.float32))
+    assert not np.allclose(vistos[0], vistos[1]) and len(ler_npz(tmp_path / "sala.npz")["arquivo"]) == 1

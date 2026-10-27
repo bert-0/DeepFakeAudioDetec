@@ -4430,6 +4430,65 @@ Por camada do XLS-R, todas as ferramentas juntas:
    Uma camada fixa perde em algum canal. Uma soma ponderada das camadas, que é
    o modelo `fusion_ssl` do plano, aprenderia a pesar cada uma.
 
+### 10.2.43 Modelo final: XLS-R congelado com pesos por camada (critério combinado antes)
+
+**Por quê (27/10/2026):** o grupo decidiu que o modelo final usa o XLS-R, para
+reduzir o risco na pré-banca e na banca. Em vez do ajuste completo no Kaggle, o
+primeiro passo é o XLS-R congelado. A melhor camada muda com o canal (10.2.40,
+10.2.42), então uma cabeça pequena aprende quanto pesar cada uma das 25 camadas
+(a soma ponderada do `fusion_ssl` do plano), com um ramo LFCC somado no fim
+(`scripts/xlsr_congelado.py`).
+
+**Cabeça:**
+- pesos por camada (softmax das 25), sobre as médias no tempo de cada camada,
+  padronizadas no treino;
+- uma saída linear sobre a soma ponderada, mais uma saída linear sobre o LFCC
+  (média e desvio, 120 valores), somadas;
+- AdamW com taxa 3e-3 e decaimento 1e-2 (sem decaimento nos pesos das
+  camadas), dropout 0,2, lotes de 256, até 60 épocas, parada após 8 sem
+  melhora.
+
+**Dados de treino:** cinco domínios, cada um com o mesmo peso total e as
+classes equilibradas dentro dele.
+- **ASVspoof 5:** os 4.000 arquivos do piloto 1.
+- **BRSpeech-DF:** treino com 3.000 reais e 3.000 do F5-TTS.
+- **Salas:** os 4.000 da ASVspoof passados por uma sala do BUT ReverbDB.
+- **Common Voice:** 4.000 reais.
+- **ReplayDF:** 20 reais e 20 falsos em cada uma de 55 montagens (2.200).
+
+**Devs** (a escolha da época, pela perda média): o dev da ASVspoof 5, a
+validação do BRSpeech-DF, o dev passado por salas, o dev do Common Voice e o
+ReplayDF de outras 10 montagens (200 da amostra do 10.2.42).
+
+**Réguas, fora do treino e da escolha:**
+- o eval da ASVspoof 5 e a 2019 LA;
+- o teste do BRSpeech-DF;
+- o ReplayDF nas 44 montagens restantes: os 880 da amostra do 10.2.42, sem
+  montagem em comum com o treino (`data/recortes/replaydf_montagens_s42.tsv`);
+- o ensaio 5.
+
+**Referências do professor (sonda da camada 7):**
+
+| régua | AUC |
+|---|---|
+| eval da ASVspoof 5 | 0,971 |
+| 2019 LA | 0,998 |
+| BRSpeech-DF | 0,776 |
+| ReplayDF, as 44 montagens | 0,780 |
+| ensaio 5, arquivo | 1,00 |
+| ensaio 5, pelo ar | 0,93 |
+
+**Critério (no commit antes de rodar):** o modelo passa se cumprir tudo:
+- **ganhos, onde o professor falha:** BRSpeech-DF ≥ 0,90 e ReplayDF (44
+  montagens) ≥ 0,85;
+- **sem perdas:** eval da ASVspoof 5 ≥ 0,95, 2019 LA ≥ 0,95, ensaio 5 pelo
+  arquivo ≥ 0,95 e pelo ar ≥ 0,85.
+
+**Descritivo:**
+- a meta do ensaio 5 com o limiar das vozes reais do L02 (regra do 10.2.39);
+- os pesos aprendidos das camadas;
+- a AUC por ferramenta e por ataque.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
