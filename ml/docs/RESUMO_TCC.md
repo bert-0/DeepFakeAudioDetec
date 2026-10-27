@@ -4132,6 +4132,42 @@ outra pessoa no mesmo microfone e é testado no L01.
 - O L02 gravou no modo exclusivo (16 bits, sem o ganho do Windows), recuperado
   sem as cópias; o L01 gravou no compartilhado.
 
+**Resultado (27/10/2026;** `outputs/calibracao_L02.json`**,**
+`outputs/destilacao/calibracao_L02_aluno3b.json`**,** `outputs/ssl/L02_rep.npz`**).**
+Pela regra principal (o maior score real do L02), acertos de 10 no ensaio 5:
+
+| modelo | limiar | reais do L01 | XTTS, arquivo | Chatterbox, arquivo | XTTS, pelo ar | Chatterbox, pelo ar |
+|---|---|---|---|---|---|---|
+| **professor (camada 7)** | −3,269 | **10** | **10** | **10** | 7 | 1 |
+| aluno 3b | −2,463 | 9 | 5 | 3 | 1 | 4 |
+| detector (descritivo) | −9,976 | 10 | 9 | 0 | 0 | 0 |
+
+Pela regra secundária (o segundo maior):
+- **Professor:** reais 10, arquivo 10 e 10, pelo ar 8 (XTTS) e 3 (Chatterbox).
+- **Aluno 3b:** reais 7, arquivo 7 e 8, pelo ar 5 e 9.
+- **Detector:** reais 10, arquivo 10 e 1, pelo ar 0 e 0.
+
+A sonda nova do aluno 3b deu os mesmos scores do 10.2.38 no ensaio 5
+(conferido); a avaliação só imprimia mal um conjunto de uma classe só, e a
+impressão foi corrigida.
+
+**Leitura, pela regra combinada:**
+1. **No professor, a calibração pelo canal com outro locutor resolve o ponto de
+   corte pelo arquivo.** Reais 10 de 10, XTTS 10 de 10 e Chatterbox 10 de 10,
+   onde o limiar do dev pegava 9 e 5 (10.2.36). É a primeira vez que o
+   Chatterbox é separado no nosso caminho: a meta é atingida pelo arquivo nas
+   duas ferramentas.
+2. **Pelo ar, o professor melhora no XTTS (0 → 7 de 10; 8 pela regra
+   secundária) e não no Chatterbox (1 de 10).** O caminho pelo ar segue como
+   limitação.
+3. **No aluno 3b, o limite é a ordem, não o corte.** Os reais do L01 (−3,34 a
+   −2,41) e do L02 (−3,45 a −2,46) ficam no mesmo lugar, mas os clones não ficam
+   acima deles.
+4. **As vozes reais de pessoas diferentes caem no mesmo lugar no mesmo canal.**
+   No professor, L02 de −5,15 a −3,27 e L01 de −4,99 a −3,88: 10 gravações de
+   outra pessoa bastaram para pôr o corte. Com um locutor só, isso precisa de
+   confirmação com mais vozes.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

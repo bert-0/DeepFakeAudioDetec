@@ -145,6 +145,11 @@ def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: in
     return {"arquivos": len(arquivos), "janelas": n}
 
 
+def _auc_ou_nan(auc) -> float:
+    """Conjunto de uma classe só (as vozes reais da calibração, 10.2.39) não tem AUC."""
+    return float("nan") if auc is None else float(auc)
+
+
 def legiveis(arquivos: list[str]) -> tuple[list[str], list[str]]:
     """(os que o `load_audio` lê, os que ele recusa). No Common Voice, raros MP3 vêm
     com o cabeçalho maior que o áudio, e a checagem de truncamento do projeto os
@@ -596,7 +601,7 @@ def main(argv=None) -> int:
     print(f"{'sonda':24s} {'EER dev':>8s} {'AUC dev':>8s} " + " ".join(f"{'AUC ' + n:>16s}" for n in avaliar_))
     for nome, x in r["sondas"].items():
         print(f"{'aluno, sonda ' + nome:24s} {100 * x['eer_dev']:7.2f}% {x['auc_media_dev']:8.3f} "
-              + " ".join(f"{x['avaliar'][n]['auc']:16.3f}" for n in avaliar_))
+              + " ".join(f"{_auc_ou_nan(x['avaliar'][n]['auc']):16.3f}" for n in avaliar_))
     for nome, x in r["referencias"].items():
         print(f"{'referência ' + nome:24s} {'':>8s} {x['auc_media_dev']:8.3f} "
               + " ".join(f"{(x[n] if x[n] is not None else float('nan')):16.3f}" for n in avaliar_))

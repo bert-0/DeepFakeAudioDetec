@@ -195,6 +195,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   Critério não atingido (arquivo < 0,80); o limiar do dev pega 1 de 40 clones.
   Salas no eval da 2019: `fusion_lcnn_v4` 20,25% → 42,53% (926 de 1.032
   humanos em 1,0); o do recorte 37,71% → 46,12%.
+- Limiar pelo canal com outro locutor (RESUMO_TCC §10.2.39, critério antes):
+  limiar = maior score das 10 vozes reais do L02 no mesmo microfone. A sonda
+  da camada 7 do XLS-R atinge a meta pelo arquivo no ensaio 5 (reais, XTTS e
+  Chatterbox 10 de 10); pelo ar, XTTS 7 e Chatterbox 1. O aluno 3b não (o
+  limite dele é a ordem).
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

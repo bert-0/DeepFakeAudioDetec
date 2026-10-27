@@ -213,7 +213,9 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   no ensaio 5, a sonda da camada 7 do XLS-R ordena todos os clones acima das
   vozes reais pelo arquivo (AUC 1,00 nas duas ferramentas, com o Chatterbox que
   o detector não separa) e quase todos pelo ar (0,98 e 0,88); os alunos
-  destilados não reproduzem isso.
+  destilados não reproduzem isso. Com o limiar calibrado só com as vozes reais
+  do L02 no mesmo microfone (§10.2.39), o professor atinge a meta pelo arquivo
+  no ensaio 5 (reais, XTTS e Chatterbox 10 de 10); pelo ar, XTTS 7 e Chatterbox 1.
 - **Proposta de modelo próprio (26/10/2026), a decidir com o orientador.** Ela
   sai do estudo das imperfeições (RESUMO_TCC §10.2.22 a §10.2.26):
   - **O que se descobriu:**

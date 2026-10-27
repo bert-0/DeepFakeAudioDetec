@@ -239,3 +239,34 @@ def test_pasta_de_audio_pula_arquivo_truncado(tmp_path, monkeypatch):
         sf.write(tmp_path / f"{nome}.wav", np.zeros(16000, np.float32) + 0.01, 16000)
     bons, ruins = legiveis([str(tmp_path / "bom.wav"), str(tmp_path / "truncado.wav")])
     assert bons == [str(tmp_path / "bom.wav")] and ruins == [str(tmp_path / "truncado.wav")]
+
+
+def test_avaliar_conjunto_so_de_humanos(tmp_path, professor):
+    """10.2.39: as vozes reais do L02 entram no avaliar só para dar os scores."""
+    from scripts.destilacao import main, preparar
+
+    rede, dev = professor
+    for nome, seed, n in (("treino", 0, 10), ("dev", 1, 4)):
+        preparar(_base(tmp_path, nome, n=n, seed=seed), tmp_path / nome, rede, dev, camada=1)
+    reais = tmp_path / "reais"
+    reais.mkdir()
+    for i in range(2):
+        sf.write(reais / f"r{i}.wav", (np.random.default_rng(i).standard_normal(16000 * 3) * 0.1).astype(np.float32),
+                 16000)
+    assert main(["preparar", "--pasta-audio", str(reais), "--saida", str(tmp_path / "p_reais"),
+                 "--sem-professor"]) == 0
+    ck = tmp_path / "a.pt"
+    assert main(["treinar", "--treino", str(tmp_path / "treino"), "--dev", str(tmp_path / "dev"), "--saida", str(ck),
+                 "--epocas", "1", "--lote", "2", "--dispositivo", "cpu", "--dim", "32", "--camadas", "1"]) == 0
+    sondas = {"representacoes": {
+        "camada_01": {"sonda": {"media": [0.0] * 16, "escala": [1.0] * 16, "coef": [0.1] * 16,
+                                "intercepto": 0.0, "C": 1.0}, "auc_media_dev": 0.99, "avaliar": {}},
+        "lfcc": {"auc_media_dev": 0.8, "avaliar": {}}}}
+    (tmp_path / "s.json").write_text(json.dumps(sondas))
+    saida = tmp_path / "av.json"
+    assert main(["avaliar", "--aluno", str(ck), "--sondas", str(tmp_path / "s.json"), "--treino",
+                 str(tmp_path / "treino"), "--dev", str(tmp_path / "dev"), "--avaliar", str(tmp_path / "p_reais"),
+                 "--dispositivo", "cpu", "--json", str(saida)]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert r["sondas"]["nova"]["avaliar"]["p_reais"]["auc"] is None
+    assert len(r["sondas"]["nova"]["scores"]["p_reais"]) == 2
