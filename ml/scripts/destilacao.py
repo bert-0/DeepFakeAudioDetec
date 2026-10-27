@@ -145,6 +145,22 @@ def preparar(origem: Path | dict, destino: Path, rede=None, dev=None, camada: in
     return {"arquivos": len(arquivos), "janelas": n}
 
 
+def legiveis(arquivos: list[str]) -> tuple[list[str], list[str]]:
+    """(os que o `load_audio` lê, os que ele recusa). No Common Voice, raros MP3 vêm
+    com o cabeçalho maior que o áudio, e a checagem de truncamento do projeto os
+    recusa (1 de 400 no dev da amostra, 26/10/2026)."""
+    from src.preprocess.audio import AudioLoadError, load_audio
+
+    bons, ruins = [], []
+    for a in arquivos:
+        try:
+            load_audio(a, SR)
+            bons.append(a)
+        except AudioLoadError:
+            ruins.append(a)
+    return bons, ruins
+
+
 def carregar_dados(pasta: Path) -> dict:
     """Entradas sempre como (janelas, versões, quadros, 140); a versão 0 é a limpa."""
     meta = dict(np.load(pasta / "meta.npz", allow_pickle=False))
@@ -517,6 +533,10 @@ def main(argv=None) -> int:
                               if a.suffix.lower() in {".wav", ".flac", ".mp3"})
             if not arquivos:
                 p.error(f"nenhum áudio em {args.pasta_audio}")
+            arquivos, ruins = legiveis(arquivos)
+            if ruins:
+                print(f"[AVISO] {len(ruins)} áudio(s) ilegível(is) ou truncado(s), fora do preparo: "
+                      + ", ".join(Path(r).name for r in ruins), flush=True)
             origem = {"arquivo": np.array(arquivos), "classe": np.array([Path(args.pasta_audio).name] * len(arquivos)),
                       "rotulo": np.zeros(len(arquivos), dtype=np.int8)}
         elif args.npz:

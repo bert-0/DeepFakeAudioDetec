@@ -220,3 +220,22 @@ def test_pasta_de_audio_e_treino_com_varias_pastas_e_devs(tmp_path, professor, m
                             "--camadas", "1"]) == 0
     h = json.loads(ck.with_suffix(".json").read_text())["historico"][0]
     assert len(h["perdas_dev"]) == 2 and h["perda_dev"] == pytest.approx(np.mean(h["perdas_dev"]))
+
+
+def test_pasta_de_audio_pula_arquivo_truncado(tmp_path, monkeypatch):
+    """Como o MP3 do Common Voice com cabeçalho maior que o áudio: o load_audio recusa."""
+    from scripts.destilacao import legiveis
+    from src.preprocess import audio
+
+    original = audio.load_audio
+
+    def carregar(caminho, sr):
+        if "truncado" in str(caminho):
+            raise audio.AudioLoadError("o cabeçalho declara 5.202s mas só 5.146s foram decodificados")
+        return original(caminho, sr)
+
+    monkeypatch.setattr(audio, "load_audio", carregar)
+    for nome in ("bom", "truncado"):
+        sf.write(tmp_path / f"{nome}.wav", np.zeros(16000, np.float32) + 0.01, 16000)
+    bons, ruins = legiveis([str(tmp_path / "bom.wav"), str(tmp_path / "truncado.wav")])
+    assert bons == [str(tmp_path / "bom.wav")] and ruins == [str(tmp_path / "truncado.wav")]
