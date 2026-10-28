@@ -245,7 +245,7 @@ def monitorar_xlsr(args) -> int:
 
     dispositivo = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     # O limiar calibrado frase por frase: o do arquivo inteiro não vale aqui (src/xlsr_final.py).
-    analisador = AnalisadorFrases(ModeloFinal(lim.cabeca, dispositivo, modelo_hf=lim.modelo_hf),
+    analisador = AnalisadorFrases(ModeloFinal(lim.cabeca, dispositivo, modelo_hf=lim.fonte_modelo),
                                   limiar=lim.probabilidade_frase)
     # Uma leitura por frase: cada uma é uma observação independente.
     agregador = Agregador(janela_s=1.0, passo_s=1.0, regra=analisador.regra)

@@ -53,6 +53,17 @@ class DetectorDeFala:
         piso = float(np.percentile(self.historico, 10))
         return rms >= max(SILENCIO_RMS, piso * 10 ** (FALA_ACIMA_DO_PISO_DB / 20))
 
+    def aquecer(self, wav: np.ndarray, quadro: int) -> None:
+        """Num áudio já gravado, o piso sai do arquivo inteiro antes do primeiro quadro.
+        Sem isso, um arquivo que começa falando (um clone sem silêncio na frente) toma
+        a própria fala por piso e perde o começo."""
+        from scipy.signal import sosfilt
+
+        voz = sosfilt(self.sos, np.asarray(wav, np.float64))
+        n = len(voz) // quadro * quadro
+        if n:
+            self.historico.extend(np.sqrt((voz[:n].reshape(-1, quadro) ** 2).mean(axis=1)).tolist())
+
 
 class AnalisadorFrases:
     """Mesma interface do `AnalisadorContinuo` no monitor: `processar(bloco)` e
@@ -134,9 +145,13 @@ class AnalisadorFrases:
         return leitura
 
 
-def frases_de(modelo, wav: np.ndarray, sample_rate: int = 16000, bloco: int = 1600) -> list[Leitura]:
+def frases_de(modelo, wav: np.ndarray, sample_rate: int = 16000, bloco: int = 1600,
+              aquecer: bool = True) -> list[Leitura]:
     """As leituras do ao vivo para um áudio já gravado: a calibração passa pelo mesmo
-    caminho da demonstração."""
+    caminho da demonstração. Ao vivo, o piso se forma nos segundos de sala antes da
+    fala; aqui, com `aquecer`, sai do arquivo inteiro."""
     a = AnalisadorFrases(modelo, sample_rate=sample_rate)
+    if aquecer:
+        a.fala.aquecer(wav, a.quadro)
     leituras = [x for i in range(0, len(wav), bloco) for x in a.processar(wav[i:i + bloco])]
     return leituras + list(a.finalizar())

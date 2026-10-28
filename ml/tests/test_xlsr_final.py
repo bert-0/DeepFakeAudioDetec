@@ -287,3 +287,117 @@ def test_monitor_frase_por_frase_num_arquivo(limiar_xlsr, tmp_path):
     assert dados["limiar"] == pytest.approx(sigmoide(-1.0)), "o ao vivo usa o limiar da frase"
     assert dados["duracao_s"] == pytest.approx(9.5, abs=0.05)
     assert monitor.main(["--xlsr", str(limiar_xlsr), "--checkpoint", "x.pt"]) == 1
+
+
+def test_arquivo_que_comeca_falando_nao_perde_o_comeco():
+    """Sem aquecer o piso, a própria fala vira piso e a frase não é achada."""
+    from src.capture.frases import frases_de
+
+    sinal = np.concatenate([_fala_continua(6.0), np.zeros(SR, np.float32)])
+    modelo = _Gravador()
+    leituras = frases_de(modelo, sinal, SR)
+    assert len(leituras) == 1 and leituras[0].instante == 0.0
+    assert frases_de(_Gravador(), sinal, SR, aquecer=False)[0].instante > 0.0
+
+
+def test_pontuar_por_frases_e_a_media_das_frases(tmp_path):
+    from src.xlsr_final import FalaCurta
+
+    modelo = _modelo(_cabeca(tmp_path / "c.pt"))
+    sinal = np.concatenate([_ruido(1.0), _voz(3.0), _ruido(1.5, 2), _voz(4.0, 3, tom=170), _ruido(1.0, 4)])
+    p = modelo.pontuar_por_frases(sinal)
+    assert p.unidade == "frase" and len(p.janelas) == 2
+    assert p.logodds == pytest.approx(np.mean([z for _, z in p.janelas]))
+    with pytest.raises(FalaCurta):
+        modelo.pontuar_por_frases(_ruido(3.0))
+
+
+def test_json_do_arquivo_por_frase_e_da_pasta_local(tmp_path):
+    from src.xlsr_final import MODELO_HF, gravar_limiar, ler_limiar, modelo_local, sigmoide
+
+    ck = _cabeca(tmp_path / "c.pt")
+    with pytest.raises(ValueError):
+        gravar_limiar(tmp_path / "x.json", str(ck), -0.5, origem="x", regra="r", arquivo_por_frase=True)
+    lim = ler_limiar(gravar_limiar(tmp_path / "l.json", str(ck), -0.5, origem="x", regra="r",
+                                   limiar_frase=-1.0, arquivo_por_frase=True))
+    assert lim.arquivo_por_frase and lim.probabilidade_arquivo == pytest.approx(sigmoide(-1.0))
+    assert modelo_local("modelo/que-nao-existe") is None
+    d = json.loads((tmp_path / "l.json").read_text(encoding="utf-8"))
+    d["modelo_local"] = str(tmp_path)
+    (tmp_path / "l.json").write_text(json.dumps(d), encoding="utf-8")
+    assert ler_limiar(tmp_path / "l.json").fonte_modelo == str(tmp_path)
+    d["modelo_local"] = str(tmp_path / "apagada")
+    (tmp_path / "l.json").write_text(json.dumps(d), encoding="utf-8")
+    assert ler_limiar(tmp_path / "l.json").fonte_modelo == MODELO_HF, "pasta sumiu: volta ao nome"
+
+
+def test_interface_carrega_o_xlsr_so_na_primeira_analise(limiar_xlsr, tmp_path, monkeypatch):
+    import web.analise as analise
+
+    cargas = []
+    monkeypatch.setattr("src.features.xlsr.carregar_rede",
+                        lambda *a, **k: cargas.append(1) or (_RedeFalsa().eval(), torch.device("cpu")))
+    d = analise.Detector(xlsr=str(limiar_xlsr))
+    assert d.xlsr and d.modelo == "xlsr_congelado" and cargas == []
+    arq = tmp_path / "v.wav"
+    sf.write(arq, np.concatenate([_ruido(0.5), _voz(5.0), _ruido(1.0)]), SR)
+    d.analisar(arq)
+    d.analisar(arq)
+    assert cargas == [1]
+
+
+def test_enviar_arquivo_por_frase_usa_o_limiar_da_frase(tmp_path, monkeypatch):
+    import web.analise as analise
+    from src.xlsr_final import gravar_limiar, sigmoide
+
+    monkeypatch.setattr("src.features.xlsr.carregar_rede",
+                        lambda *a, **k: (_RedeFalsa().eval(), torch.device("cpu")))
+    ck = _cabeca(tmp_path / "c.pt")
+    lim = gravar_limiar(tmp_path / "l.json", str(ck), -0.5, origem="calibrado com L02", regra="r",
+                        limiar_frase=-1.0, arquivo_por_frase=True)
+    arq = tmp_path / "v.wav"
+    sf.write(arq, np.concatenate([_ruido(1.0), _voz(3.0), _ruido(1.5, 2), _voz(4.0, 3, tom=170), _ruido(1.0, 4)]), SR)
+    r = analise.Detector(xlsr=str(lim)).analisar(arq)
+    assert r.limiar == pytest.approx(sigmoide(-1.0)) and "frase por frase" in r.origem_limiar
+    assert len(r.janelas) == 2
+
+
+def test_modelo_local_acha_a_pasta_no_cache_sem_readme(tmp_path):
+    from src.xlsr_final import modelo_local
+
+    raiz = tmp_path / "models--org--xlsr"
+    pasta = raiz / "snapshots" / "abc123"
+    pasta.mkdir(parents=True)
+    (raiz / "refs").mkdir()
+    (raiz / "refs" / "main").write_text("abc123")
+    (pasta / "config.json").write_text("{}")
+    assert modelo_local("org/xlsr", cache=str(tmp_path)) is None, "sem os pesos não serve"
+    (pasta / "model.safetensors").write_bytes(b"0")
+    assert modelo_local("org/xlsr", cache=str(tmp_path)) == str(pasta).replace("\\", "/")
+
+
+def test_estudo_corte_fala_compara_os_dois_caminhos(tmp_path, monkeypatch):
+    from scripts.estudo_corte_fala import main, resumir
+
+    r = resumir(np.array([0.0, 1.0, 2.0, 3.0]), np.array([0.5, np.nan, 2.5, 3.5]),
+                np.array([0, 0, 1, 1]), np.array([1, 0, 2, 1]))
+    assert r["sem_frase"] == 1 and r["mais_de_uma_frase"] == 1
+    assert r["reais"]["mediana"] == pytest.approx(0.5) and r["auc_b"] == 1.0
+
+    monkeypatch.setattr("src.features.xlsr.carregar_rede",
+                        lambda *a, **k: (_RedeFalsa().eval(), torch.device("cpu")))
+    arquivos = []
+    for i in range(4):
+        arq = tmp_path / f"a{i}.wav"
+        sf.write(arq, np.concatenate([_ruido(0.5, i), _voz(3.0, i, tom=150 + 30 * i), _ruido(1.0, 9 + i)]), SR)
+        arquivos.append(str(arq))
+    npz = tmp_path / "dev.npz"
+    rng = np.random.default_rng(0)
+    np.savez(npz, arquivo=np.array(arquivos), classe=np.array(["bonafide", "bonafide", "A01", "A01"]),
+             rotulo=np.array([0, 0, 1, 1], np.int8), camadas=rng.standard_normal((4, 25, DIM)).astype(np.float16),
+             lfcc=rng.standard_normal((4, 120)).astype(np.float32))
+    saida = tmp_path / "r.json"
+    assert main(["--cabeca", str(_cabeca(tmp_path / "c.pt")), "--dev", f"x={npz}", "--dispositivo", "cpu",
+                 "--json", str(saida)]) == 0
+    x = json.loads(saida.read_text(encoding="utf-8"))["x"]
+    assert x["n"] == 4 and x["sem_frase"] == 0 and "auc_b" in x

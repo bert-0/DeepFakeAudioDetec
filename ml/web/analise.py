@@ -73,7 +73,8 @@ class Detector:
                  device: str | None = None, limiar_fusao: str | None = None,
                  xlsr: str | None = None):
         self.device = resolve_device(device or os.environ.get("DETECTOR_DEVICE", "cpu"))
-        self.xlsr = None
+        self.limiar_xlsr = None
+        self._modelo_final = None
         caminho_xlsr = xlsr or os.environ.get("DETECTOR_XLSR")
         if caminho_xlsr:
             self._iniciar_xlsr(caminho_xlsr)
@@ -98,15 +99,27 @@ class Detector:
             self.modelo = self.config["model"]["name"]
 
     def _iniciar_xlsr(self, caminho: str) -> None:
-        from src.xlsr_final import NOME, ModeloFinal, ler_limiar
+        from src.xlsr_final import NOME, ler_limiar
 
         self.limiar_xlsr = ler_limiar(caminho)
-        self.xlsr = ModeloFinal(self.limiar_xlsr.cabeca, str(self.device),
-                                modelo_hf=self.limiar_xlsr.modelo_hf)
         self.fusao, self.limiares, self.config = None, None, None
         self.config_path, self.checkpoint = None, self.limiar_xlsr.cabeca
         self.checkpoints = [self.checkpoint]
         self.modelo = NOME
+
+    @property
+    def xlsr(self) -> bool:
+        return self.limiar_xlsr is not None
+
+    def modelo_final(self):
+        """O XLS-R só carrega na primeira análise (~1,2 GB e uns 13 s na GPU): abrir a
+        página Sobre não precisa dele."""
+        if self._modelo_final is None:
+            from src.xlsr_final import ModeloFinal
+
+            self._modelo_final = ModeloFinal(self.limiar_xlsr.cabeca, str(self.device),
+                                             modelo_hf=self.limiar_xlsr.fonte_modelo)
+        return self._modelo_final
 
     @property
     def regra(self) -> str:
@@ -117,13 +130,15 @@ class Detector:
     def _analisar_xlsr(self, caminho: str | Path, nome_original: str | None) -> Resultado:
         from src.xlsr_final import sigmoide
 
-        p = self.xlsr.pontuar_arquivo(caminho)
+        lim = self.limiar_xlsr
+        p = self.modelo_final().pontuar_arquivo(caminho, por_frases=lim.arquivo_por_frase)
         scores = [sigmoide(z) for _, z in p.janelas]
         n = len(scores)
         return Resultado(
             arquivo=nome_original or Path(caminho).name, duracao_s=p.duracao_s,
             taxa_nativa=taxa_nativa(caminho), score_medio=p.score, score_maximo=max(scores),
-            limiar=self.limiar_xlsr.probabilidade, origem_limiar=self.limiar_xlsr.descricao(),
+            limiar=lim.probabilidade_arquivo,
+            origem_limiar=lim.descricao_frase() if lim.arquivo_por_frase else lim.descricao(),
             aviso_limiar=None, janelas_uteis=n,
             janelas_independentes=Agregador().efetivas(n),
             janelas=[{"t": round(t, 2), "score": significativos(s), "util": True, "peso": 1.0}

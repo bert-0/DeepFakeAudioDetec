@@ -97,7 +97,12 @@ def main(argv=None) -> int:
     origem.add_argument("--dev", metavar="NPZ", help="ponto de EER neste dev")
     p.add_argument("--saida", default=SAIDA_PADRAO)
     p.add_argument("--dispositivo", default="cuda")
+    p.add_argument("--arquivo-por-frase", action="store_true",
+                   help="opção (b) da decisão pendente (RESUMO_TCC §10.2.44): o Enviar arquivo "
+                        "também frase por frase, com o limiar da frase")
     args = p.parse_args(argv)
+    if args.arquivo_por_frase and args.dev:
+        p.error("--arquivo-por-frase precisa das vozes reais (--real)")
 
     if args.dev:
         limiar = limiar_do_dev(args.cabeca, args.dev, args.dispositivo)
@@ -124,9 +129,12 @@ def main(argv=None) -> int:
         x["pasta"] = str(pastas[nome]).replace("\\", "/")
     destino = gravar_limiar(args.saida, args.cabeca, limiar, regra="maior voz real (§10.2.39)",
                             origem="calibrado com as vozes reais de " + ", ".join(locutores) + " (maior score)",
-                            locutores=locutores, limiar_frase=limiar_frase)
+                            locutores=locutores, limiar_frase=limiar_frase,
+                            arquivo_por_frase=args.arquivo_por_frase)
     frase = "—" if limiar_frase is None else f"{limiar_frase:.4f}"
     print(f"Limiar do arquivo {limiar:.4f}; da frase (ao vivo) {frase} -> {destino}")
+    if args.arquivo_por_frase:
+        print("Enviar arquivo também frase por frase, com o limiar da frase.")
     return 0
 
 

@@ -93,6 +93,21 @@ class LimiarXlsr:
     modelo_hf: str = MODELO_HF
     locutores: dict = field(default_factory=dict)
     limiar_frase: float | None = None
+    #: Opção (b) da decisão pendente: o Enviar arquivo também frase por frase.
+    arquivo_por_frase: bool = False
+    #: A pasta do XLS-R no cache, gravada na calibração: a interface não depende do HF_HOME.
+    modelo_local: str | None = None
+
+    @property
+    def fonte_modelo(self) -> str:
+        if self.modelo_local and Path(self.modelo_local).is_dir():
+            return self.modelo_local
+        return self.modelo_hf
+
+    @property
+    def probabilidade_arquivo(self) -> float:
+        """O limiar do Enviar arquivo: o da frase, se o arquivo também vai por frase."""
+        return self.probabilidade_frase if self.arquivo_por_frase else self.probabilidade
 
     @property
     def probabilidade(self) -> float:
@@ -117,16 +132,36 @@ class LimiarXlsr:
         return self.origem + ", frase por frase"
 
 
+def modelo_local(nome: str = MODELO_HF, cache: str | None = None) -> str | None:
+    """A pasta do modelo no cache do Hugging Face, sem rede; None se não estiver lá."""
+    # O snapshot_download recusa a cópia do cache, que não tem README nem .gitattributes.
+    try:
+        from huggingface_hub import try_to_load_from_cache
+
+        config = try_to_load_from_cache(nome, "config.json", cache_dir=cache)
+    except Exception:
+        return None
+    if not isinstance(config, str):
+        return None
+    pasta = Path(config).parent
+    if not any((pasta / p).is_file() for p in ("pytorch_model.bin", "model.safetensors")):
+        return None
+    return str(pasta).replace("\\", "/")
+
+
 def gravar_limiar(destino: str | Path, cabeca: str, limiar: float, origem: str, regra: str,
                   locutores: dict | None = None, data: str | None = None,
-                  limiar_frase: float | None = None) -> Path:
+                  limiar_frase: float | None = None, arquivo_por_frase: bool = False) -> Path:
     import time
 
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
+    if arquivo_por_frase and limiar_frase is None:
+        raise ValueError("o arquivo por frase precisa do limiar da frase")
     dados = {"modelo": NOME, "cabeca": str(cabeca).replace("\\", "/"), "impressao": impressao(cabeca),
-             "modelo_hf": MODELO_HF, "limiar": float(limiar),
+             "modelo_hf": MODELO_HF, "modelo_local": modelo_local(), "limiar": float(limiar),
              "limiar_frase": None if limiar_frase is None else float(limiar_frase),
+             "arquivo_por_frase": bool(arquivo_por_frase),
              "regra": regra, "origem": origem,
              "locutores": locutores or {}, "data": data or time.strftime("%Y-%m-%d")}
     destino.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -143,7 +178,9 @@ def ler_limiar(caminho: str | Path) -> LimiarXlsr:
     frase = r.get("limiar_frase")
     return LimiarXlsr(cabeca=r["cabeca"], limiar=float(r["limiar"]), origem=r["origem"],
                       regra=r.get("regra", ""), modelo_hf=r.get("modelo_hf", MODELO_HF),
-                      locutores=r.get("locutores", {}), limiar_frase=None if frase is None else float(frase))
+                      locutores=r.get("locutores", {}), limiar_frase=None if frase is None else float(frase),
+                      arquivo_por_frase=bool(r.get("arquivo_por_frase", False)),
+                      modelo_local=r.get("modelo_local"))
 
 
 # --------------------------------------------------------------- pontuar
@@ -153,8 +190,10 @@ class Pontuacao:
     logodds: float
     duracao_s: float              # o áudio lido, antes do corte de silêncio
     silencio_s: float
-    #: (início em segundos desde o começo da fala, log-odds) de cada janela; só para ver.
+    #: (início em segundos, log-odds) de cada janela, só para ver; com `unidade` "frase",
+    #: de cada frase, e o score é a média delas.
     janelas: list[tuple[float, float]] = field(default_factory=list)
+    unidade: str = "janela"
 
     @property
     def score(self) -> float:
@@ -197,7 +236,19 @@ class ModeloFinal:
         return Pontuacao(logodds=z, duracao_s=len(bruto) / SR, silencio_s=silencio,
                          janelas=[(i / SR, float(v)) for i, v in zip(inicios(len(wav)), z_janelas, strict=True)])
 
-    def pontuar_arquivo(self, caminho: str | Path) -> Pontuacao:
+    def pontuar_por_frases(self, bruto: np.ndarray, sample_rate: int = SR) -> Pontuacao:
+        """A opção (b) da decisão pendente (§10.2.44): o arquivo pelo caminho do ao vivo,
+        frase por frase, e o score é a média dos log-odds das frases."""
+        from src.capture.frases import frases_de
+
+        leituras = [x for x in frases_de(self, np.asarray(bruto, np.float32), sample_rate) if x.confiavel]
+        if not leituras:
+            raise FalaCurta("nenhuma frase achada no áudio")
+        return Pontuacao(logodds=float(np.mean([x.logodds for x in leituras])), duracao_s=len(bruto) / SR,
+                         silencio_s=0.0, janelas=[(x.instante, x.logodds) for x in leituras], unidade="frase")
+
+    def pontuar_arquivo(self, caminho: str | Path, por_frases: bool = False) -> Pontuacao:
         from src.preprocess.audio import load_audio
 
-        return self.pontuar_wav(load_audio(caminho, SR))
+        bruto = load_audio(caminho, SR)
+        return self.pontuar_por_frases(bruto) if por_frases else self.pontuar_wav(bruto)

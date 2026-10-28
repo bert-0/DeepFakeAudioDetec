@@ -4609,6 +4609,35 @@ ReplayDF de outras 10 montagens (200 da amostra do 10.2.42).
    arquivo. É hipótese, não medida. Antes do ensaio 6, decidir se o caminho do
    arquivo também corta a fala (decisão pendente no plano).
 
+### 10.2.45 Arquivo inteiro ou só a fala, nos devs (descritivo, registrado antes de rodar)
+
+**Por quê (28/10/2026):** a decisão pendente do 10.2.44. A medida fica só nos
+devs, os mesmos que escolheram a época do modelo final, para a escolha não tocar
+nas réguas (`scripts/estudo_corte_fala.py`).
+
+**O que se compara:**
+- **(a) arquivo inteiro:** o caminho das réguas, com os scores dos .npz;
+- **(b) só a fala:** o caminho do ao vivo aplicado ao arquivo
+  (`ModeloFinal.pontuar_por_frases`). As frases são cortadas pela pausa e o
+  score é a média dos log-odds delas. O piso de ruído sai do arquivo inteiro.
+
+**Conjuntos:**
+- dev da ASVspoof 5 (1.600);
+- validação do BRSpeech-DF (2.161);
+- dev passado por salas, com a mesma sala de cada arquivo da extração (1.600);
+- dev do Common Voice (399, só reais);
+- ReplayDF de 10 montagens (200).
+
+**Medidas:**
+- AUC e EER em cada caminho;
+- quanto o score muda de (a) para (b), nos reais e nos falsos (mediana e
+  percentis 10 e 90);
+- em quantos arquivos o (b) não acha frase e em quantos acha mais de uma.
+
+**Sem critério:** os números informam a decisão do grupo. As réguas (eval,
+2019, teste do BRSpeech-DF, ReplayDF das 44 montagens e ensaio 5) não são
+medidas no caminho (b) antes da decisão.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
