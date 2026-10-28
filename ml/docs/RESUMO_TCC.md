@@ -4699,6 +4699,36 @@ achadas no ruído puro da sala (o trecho antes da fala de 9 gravações do L02,
   −0,517, frase −0,389).
 - A comparação (a) × (b) acima foi medida antes do ajuste.
 
+### 10.2.46 Calibração do modelo final com vozes no modo atual (regra registrada antes de gravar)
+
+**Por quê (28/10/2026):** com o limiar das vozes do L02, gravadas no modo
+exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
+(10.2.43). Falta calibrar com vozes de mais pessoas no modo atual
+(compartilhado), no microfone da banca.
+
+**Gravação:**
+- **Quem:** o L02, numa sessão nova, e locutores novos (L03 em diante), todos
+  com o termo assinado antes. O L01 e quem for o locutor do ensaio 6 ficam de
+  fora: o limiar não pode sair de quem vai ser testado.
+- **Como:** as 10 frases de `docs/etica/frases_ensaio5.txt`, pelo
+  `gravar_frases.py voz` (12 s por frase), com:
+  - o microfone embutido no modo compartilhado e o mesmo volume do Windows da
+    frase de teste;
+  - sem fone com microfone conectado e com os aprimoramentos desligados;
+  - `--piso-minimo 15`. Frase que falhar numa checagem é regravada na hora.
+- **Onde:** `data/vozes/calibracao/<código>/`.
+
+**Regra (a do 10.2.39, fixada antes):**
+- o limiar é o maior score das vozes reais de calibração, um para cada caminho:
+  o arquivo inteiro (Enviar arquivo) e a frase do ao vivo;
+- sai do `scripts/limiar_xlsr.py`, com todas as pastas novas;
+- as gravações antigas do L02, do modo exclusivo, ficam de fora.
+
+**Descritivo, depois:**
+- o maior score de cada locutor, nos dois caminhos;
+- o ensaio 5 (L01) com os limiares novos, só para comparar com o 10.2.43. O
+  teste com critério é o ensaio 6.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
