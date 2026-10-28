@@ -6,6 +6,9 @@ Pipeline de detecção de deepfakes em áudio (pré-processamento → extração
 características → modelo → métricas), construído nos três incrementos descritos
 no TC1.
 
+Para se achar no código (a linha de raciocínio, as pastas e cada script por etapa):
+[`docs/MAPA_DO_CODIGO.md`](docs/MAPA_DO_CODIGO.md).
+
 ## Instalação
 
 ```bash

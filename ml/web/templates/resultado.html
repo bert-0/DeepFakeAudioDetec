@@ -13,6 +13,7 @@
   <div class="linha-arquivo">
     <span class="nome">{{ a.arquivo }}</span><span class="duracao">{{ a.duracao_s | mmss }}</span>
   </div>
+  {% if audio %}<div class="ouvir"><audio controls preload="none" src="/analises/{{ a.id }}/audio"></audio></div>{% endif %}
 
   <div class="centro">
     <div class="score {{ cor }}">{{ a.score_medio | centrado(a.limiar) | br(2) }}</div>

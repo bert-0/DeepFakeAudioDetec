@@ -157,6 +157,12 @@ primeiro: nenhuma gravação começa antes deles.
 **Demonstração**
 - Roteiro: playlist da ASVspoof pelo som do computador; orientador ao vivo; clone
   dele; tela de espectrograma e faixas.
+- Aba Clonar na interface (pedido do grupo, 28/10/2026): o clone gerado na hora,
+  sem comando no terminal, e analisado como arquivo. XTTS e Chatterbox, carregados
+  a cada clone (nunca deixados prontos, para não faltar GPU); só vozes da lista
+  de autorizadas (`data/vozes/vozes_autorizadas.json`, fora do Git), ligada voz a
+  voz depois de conferir o termo e o anexo da demonstração. Medido: XTTS 55 s e
+  Chatterbox 90 s com a interface na CPU; os dois funcionam sem internet.
 - Teste cruzado: voz real também como arquivo, clone também pelo microfone.
 - Ensaio no equipamento da banca, com a meta de 8 de 10 em cada classe.
 - Plano B: vídeo de um ensaio bem-sucedido e o resultado pareado documentado.
@@ -165,6 +171,9 @@ primeiro: nenhuma gravação começa antes deles.
 - Merge da branch `claude/jolly-cerf-is46h9` na principal.
 - `soundcard` e `sounddevice` no `web/requirements.txt`.
 - `.gitignore` para os áudios coletados e gerados.
+- Organização (decidido em 28/10/2026): o mapa do código já está em
+  `docs/MAPA_DO_CODIGO.md`; mover os scripts para subpastas por etapa só depois
+  da pré-banca, para os comandos da colinha não mudarem antes da apresentação.
 
 ## Riscos e mitigação
 

@@ -26,7 +26,13 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -162,7 +168,28 @@ def ver_analise(request: Request, analise_id: int):
     a = banco().buscar(analise_id)
     if a is None:
         raise HTTPException(404, "Análise não encontrada.")
-    return templates.TemplateResponse(request, "resultado.html", {"a": a, "aba": "resultado"})
+    return templates.TemplateResponse(request, "resultado.html", {
+        "a": a, "aba": "resultado", "audio": _audio_da_analise(a) is not None})
+
+
+@app.get("/analises/{analise_id}/audio")
+def audio_da_analise(analise_id: int):
+    """A gravação da sessão ao vivo ou o clone, para ouvir na página."""
+    a = banco().buscar(analise_id)
+    caminho = _audio_da_analise(a) if a else None
+    if caminho is None:
+        raise HTTPException(404, "Áudio não encontrado.")
+    return FileResponse(caminho, media_type="audio/wav")
+
+
+def _audio_da_analise(a: dict) -> Path | None:
+    """Só arquivos da pasta ao vivo ou de um clone: o caminho vem do banco, mas a
+    rota não serve nada fora delas."""
+    if not a.get("gravacao"):
+        return None
+    wav = Path(a["gravacao"]).resolve()
+    dentro = wav.parent == pasta_ao_vivo().resolve() or wav.parent.parent == pasta_clones().resolve()
+    return wav if dentro and wav.is_file() else None
 
 
 @app.get("/resultado", response_class=HTMLResponse)
@@ -214,6 +241,8 @@ def historico_limpar():
     # gravação ir para o banco.
     for wav in pasta_ao_vivo().glob("sessao_*.wav"):
         _apagar_sessao(wav)
+    for pasta in pasta_clones().glob("clone_*"):
+        _apagar_sessao(pasta / "frase_01.wav")
     return RedirectResponse("/historico", status_code=303)
 
 
@@ -240,6 +269,67 @@ async def api_analisar(arquivo: UploadFile = File(...)):
                          "janelas": r.janelas})
 
 
+# --- Clonar ------------------------------------------------------------------
+# O clone da demonstração, gerado na hora e analisado como arquivo (web/clonagem.py).
+from web.clonagem import (  # noqa: E402
+    FERRAMENTAS,
+    ErroClonagem,
+    clonar,
+    ferramentas_disponiveis,
+    ler_vozes,
+    pasta_clones,
+    validar_frase,
+)
+
+
+class PedidoClone(BaseModel):
+    voz: str
+    ferramenta: str = "xtts"
+    frase: str
+
+
+@app.get("/clonar", response_class=HTMLResponse)
+def pagina_clonar(request: Request):
+    vozes = ler_vozes()
+    if not vozes:
+        print("[clonar] nenhuma voz autorizada (data/vozes/vozes_autorizadas.json)")
+    return templates.TemplateResponse(request, "clonar.html", {
+        "aba": "clonar", "vozes": [v.codigo for v in vozes], "ferramentas": ferramentas_disponiveis()})
+
+
+@app.post("/api/clonar")
+def api_clonar(pedido: PedidoClone):
+    """Síncrona de propósito: roda numa thread do servidor, e a página espera."""
+    if _rodando(_sessao()):
+        raise HTTPException(409, "Pare a análise ao vivo antes de gerar um clone.")
+    voz = next((v for v in ler_vozes() if v.codigo == pedido.voz), None)
+    if voz is None:
+        raise HTTPException(400, "Essa voz não está entre as autorizadas.")
+    if pedido.ferramenta not in ferramentas_disponiveis():
+        raise HTTPException(400, "Ferramenta de clonagem indisponível neste computador.")
+    try:
+        frase = validar_frase(pedido.frase)
+    except ValueError as erro:
+        raise HTTPException(400, str(erro)) from erro
+    if _estado.get("clonando"):
+        raise HTTPException(409, "Já há um clone sendo gerado.")
+    _estado["clonando"] = True
+    try:
+        wav = clonar(voz, frase, pedido.ferramenta)
+    except ErroClonagem as erro:
+        print(f"[clonar] {erro}")
+        raise HTTPException(500, "Não foi possível gerar o clone.") from erro
+    finally:
+        _estado["clonando"] = False
+    nome = f"Clone {FERRAMENTAS[pedido.ferramenta][0]} de {voz.codigo}: {frase[:60]}"
+    try:
+        r = detector().analisar(wav, nome_original=nome)
+    except FalaCurta as erro:
+        print(f"[clonar] {wav}: {erro}")
+        raise HTTPException(422, "O clone saiu com pouca fala para analisar.") from erro
+    return {"analise_id": banco().salvar(r, detector().modelo, gravacao=str(wav.resolve()))}
+
+
 # --- Ao vivo -----------------------------------------------------------------
 # O navegador não acessa o áudio do sistema: o servidor roda o monitor.py como
 # processo filho e a página lê o JSON que ele grava. Para parar, cria o arquivo
@@ -257,8 +347,13 @@ def _sessao() -> dict | None:
 
 def _apagar_sessao(wav: Path) -> None:
     """Apaga a gravação e os arquivos da sessão (JSON, log). Só dentro da pasta
-    ao vivo, e nunca a sessão que ainda está gravando."""
+    ao vivo, e nunca a sessão que ainda está gravando. Um clone sai com a pasta dele."""
+    import shutil
+
     wav = wav.resolve()
+    if wav.parent.parent == pasta_clones().resolve() and wav.parent.name.startswith("clone_"):
+        shutil.rmtree(wav.parent, ignore_errors=True)
+        return
     if wav.parent != pasta_ao_vivo().resolve():
         return
     atual = _sessao()

@@ -188,3 +188,8 @@ code { font-family: var(--mono); background: var(--codigo); padding: 0 3px; font
                                             border-color: var(--verde); }
 :root[data-tema="escuro"] .faixa-aviso.vermelho { border-color: #4a2426; }
 :root[data-tema="escuro"] .faixa-aviso.amarelo { border-color: #4a3a1c; }
+/* Aba Clonar e o áudio da análise (clone ou sessão ao vivo). */
+.frase { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; font: inherit; font-size: 14px;
+         color: var(--texto); background: var(--caixa); border: 1px solid var(--botao-borda); resize: vertical; }
+.ouvir { padding: 10px 14px 0; }
+.ouvir audio { display: block; width: 100%; }

@@ -52,6 +52,8 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 
 ## Mapa do código
 
+A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
+
 - `src/preprocess/`: `load_audio`, `preprocess_waveform` (remove silêncio,
   normaliza pelo pico, janela de 4 s), `reamostragem.py` (FIR polifásico; o
   `soxr` apagava 7,6–8 kHz e não deve voltar ao caminho do modelo),
@@ -82,7 +84,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   caminho das réguas; o ao vivo (`monitor.py --xlsr`) frase por frase
   (`src/capture/frases.py`), com o limiar da frase. Na tela, o score
   aparece na escala centrada no limiar (`centrado` em `src/limiares.py`): o
-  limiar fica em 0,50; a decisão continua no score do modelo.
+  limiar fica em 0,50; a decisão continua no score do modelo. Aba Clonar
+  (`web/clonagem.py`): roda o `clonar_xtts.py` no ambiente conda da ferramenta,
+  offline primeiro, só com as vozes de `data/vozes/vozes_autorizadas.json`; o
+  clone é analisado como arquivo e apagado com o registro. Não clona com o ao
+  vivo ligado (o Chatterbox ocupa ~3,4 GB da GPU).
 - `scripts/`: avaliação, robustez, calibração, canal real, demonstração
   (`montar_demo.py`), voz própria (`gerar_sintetico.py`, `avaliar_arquivos.py`;
   o teste real contra clone: `gravar_frases.py`, `limiar_fusao.py`,

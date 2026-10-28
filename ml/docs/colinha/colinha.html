@@ -89,7 +89,7 @@ código é salvo. Útil para desenvolver; na apresentação, use o comando sem <
 Rode <b>só um</b> dos dois.</p>
 </div>
 
-<h3>As quatro abas</h3>
+<h3>As abas</h3>
 <table>
   <tr><th style="width:22%">Aba</th><th>O que faz</th></tr>
   <tr><td>Enviar arquivo</td><td>Analisa um áudio (WAV, MP3, M4A, FLAC, OGG, Opus, AAC, até 25 MB).
@@ -98,6 +98,9 @@ Rode <b>só um</b> dos dois.</p>
     (verde abaixo do limiar, vermelha acima, apagada = pouca fala). Botão para baixar o relatório em JSON.</td></tr>
   <tr><td>Ao vivo</td><td>Escolhe a fonte (<b>som do computador</b> ou <b>microfone</b>) e o dispositivo,
     inicia e para a captura. Ao parar, a sessão vai para o Histórico.</td></tr>
+  <tr><td>Clonar</td><td>Escolhe a voz (só as autorizadas por termo) e a ferramenta (XTTS ou Chatterbox),
+    digita a frase e gera o clone; ele toca na página e já sai analisado. Leva de 1 a 2 minutos.
+    Pare o ao vivo antes: a GPU não comporta os dois.</td></tr>
   <tr><td>Histórico</td><td>Lista as análises. Excluir uma sessão ao vivo apaga também a gravação dela;
     "Limpar todo o histórico" apaga tudo.</td></tr>
 </table>
@@ -116,11 +119,12 @@ cuda), <code>DETECTOR_BANCO</code> (arquivo do histórico), <code>DETECTOR_PASTA
 <h3>Modelo final: XLS-R congelado</h3>
 <div class="cmd">
 <pre>$env:DETECTOR_XLSR = "outputs\limiar_xlsr\limiar.json"
-$env:DETECTOR_DEVICE = "cuda"
+$env:DETECTOR_DEVICE = "cpu"
 uvicorn web.app:app</pre>
 <p class="faz"><b>O que faz:</b> sobe a interface com o modelo final. O JSON traz o limiar, a cabeça
-treinada e a pasta do XLS-R; o modelo carrega na primeira análise (uns 13 s na GPU). Enviar arquivo dá
-um score para o arquivo inteiro. O Ao vivo analisa <b>frase por frase</b>: o resultado aparece cerca de
+treinada e a pasta do XLS-R; o modelo carrega na primeira análise. Com <code>cpu</code>, o Enviar arquivo
+leva uns 3 s por áudio e deixa a GPU para o ao vivo e para a aba Clonar (o Chatterbox ocupa quase toda
+ela). Enviar arquivo dá um score para o arquivo inteiro. O Ao vivo analisa <b>frase por frase</b>: o resultado aparece cerca de
 1 s depois que a pessoa para de falar.</p>
 </div>
 <div class="cmd">
