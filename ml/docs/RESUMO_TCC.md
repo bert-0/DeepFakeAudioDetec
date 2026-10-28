@@ -4489,6 +4489,72 @@ ReplayDF de outras 10 montagens (200 da amostra do 10.2.42).
 - os pesos aprendidos das camadas;
 - a AUC por ferramenta e por ataque.
 
+**Execução (27 e 28/10/2026, pela sessão).**
+- **Extração do XLS-R:** pulados 2 arquivos do BRSpeech-DF, com menos de 0,25 s
+  depois do corte de silêncio, e o clipe do Common Voice de cabeçalho errado.
+- **Treino da cabeça:** 14 épocas; parou depois de 8 sem melhora. A escolhida
+  foi a 6 (perda média nos devs 0,179).
+  - Por dev: ASVspoof 0,083, BRSpeech-DF 0,184, salas 0,439, Common Voice 0,021,
+    ReplayDF 0,169.
+  - Depois dela, a perda no dev em salas subiu de 0,439 a 0,662.
+- **Camadas mais pesadas:** 6 (0,09), 5 (0,08), 4 (0,07), 7 (0,06), 10 e 9
+  (0,05).
+- **EER no dev da ASVspoof 5:** 3,04%.
+
+**Resultado** (`outputs/xlsr_congelado.json`). AUC:
+
+| régua | modelo final | critério | professor (camada 7) |
+|---|---|---|---|
+| eval da ASVspoof 5 | **0,975** | ≥ 0,95: sim | 0,971 |
+| 2019 LA | **0,974** | ≥ 0,95: sim | 0,998 |
+| BRSpeech-DF, teste | **0,921** | ≥ 0,90: sim | 0,776 |
+| ReplayDF, as 44 montagens | **0,968** | ≥ 0,85: sim | 0,780 |
+| ensaio 5, arquivo | **1,000** | ≥ 0,95: sim | 1,00 |
+| ensaio 5, pelo ar | **0,975** | ≥ 0,85: sim | 0,93 |
+
+**Critério: passou.**
+
+**Descritivo:**
+- **Por ferramenta:**
+  - BRSpeech-DF: Fish-Speech 0,95, ToucanTTS 0,96, YourTTS 0,96, XTTS 0,87,
+    F5-TTS 0,87;
+  - ReplayDF: Bark 0,98, VITS 0,96, XTTS v1.1 0,97, XTTS v2 0,96;
+  - eval da ASVspoof 5: todos os ataques entre 0,93 (A28) e 0,99;
+  - 2019: A04 0,94 e A06 0,91, os outros 1,00.
+- **Ensaio 5 por grupo:** XTTS e Chatterbox 1,00 pelo arquivo; pelo ar, XTTS
+  1,00 e Chatterbox 0,95. Os clones das três referências (10.2.36) também ficam
+  entre 0,94 e 1,00.
+- **Meta do ensaio 5 com o limiar das vozes reais do L02** (regra do 10.2.39,
+  limiar −0,517):
+  - reais do L01, **6 de 10**;
+  - XTTS 10 e Chatterbox 10 pelo arquivo; pelo ar, XTTS 10 e Chatterbox 9.
+  - A meta não é atingida, só pelas vozes reais.
+- **Onde ficam as vozes reais:**
+  - L01: de −1,65 a −0,02;
+  - L02: de −2,89 a −0,52;
+  - clones pelo arquivo: o menor é 1,53; pelo ar, −0,95.
+  - Pelo arquivo, um limiar entre −0,02 e 1,53 separaria tudo. Escolher esse
+    limiar olhando o L01 seria calibrar no teste, o que não se faz.
+- **Pelo limiar do dev** (−0,898): reais do L01 5 de 10; humanos do BRSpeech-DF
+  531 de 1.320.
+
+**Leitura:**
+1. **O modelo final passa em todas as réguas, inclusive onde o professor
+   falhava.**
+   - No português de audiolivro, de 0,776 para 0,921.
+   - Pelo ar, em montagens que o treino não viu, de 0,780 para 0,968.
+   - Mantém a ASVspoof (0,975) e o ensaio 5 (1,000 e 0,975).
+   - É o melhor modelo do projeto em todas as réguas ao mesmo tempo.
+2. **A ordem está resolvida; falta o ponto de corte para a voz do L01.**
+   - As vozes reais do L02 caem abaixo das do L01, e o limiar tirado delas acusa
+     4 das 10 vozes reais do L01.
+   - Uma diferença declarada antes pode pesar: o L02 gravou no modo exclusivo,
+     recuperado; o L01, no compartilhado.
+3. **Próximo passo:** calibrar com vozes reais de mais pessoas, gravadas no modo
+   atual e no microfone da banca, com a regra combinada antes. Depois, integrar
+   o modelo à interface e ao monitor, e um ensaio novo com o critério fixado
+   antes.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

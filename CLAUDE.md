@@ -215,6 +215,14 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   0,628. Pelo limiar do dev, o professor deixa passar 891 de 1.090 falsos.
   Camadas do XLS-R: a melhor muda com o canal (ASVspoof todas; audiolivro a 4;
   regravação 10 a 17), argumento para a soma ponderada do `fusion_ssl`.
+- **Modelo final** (RESUMO_TCC §10.2.43, critério antes, passou): XLS-R
+  congelado com pesos por camada (as mais pesadas, 6, 5, 4, 7 e 10) e ramo
+  LFCC (`scripts/xlsr_congelado.py`, `checkpoints/xlsr_congelado.pt`), treinado
+  com ASVspoof 5, BRSpeech-DF, salas, Common Voice e 55 montagens do ReplayDF.
+  AUC: ASVspoof 5 0,975, 2019 0,974, BRSpeech-DF 0,921, ReplayDF (44 montagens
+  fora do treino) 0,968, ensaio 5 1,000 pelo arquivo e 0,975 pelo ar. Com o
+  limiar das vozes do L02, reais do L01 só 6 de 10 (clones 39 de 40): falta
+  calibrar com mais vozes no modo atual.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

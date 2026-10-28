@@ -211,7 +211,11 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   proposta abaixo, de tirar o XLS-R, fica registrada como histórico. Primeiro
   passo, escolhido pelo grupo: o XLS-R congelado com pesos por camada e ramo
   LFCC, treinado com ASVspoof 5, BRSpeech-DF, salas, Common Voice e parte do
-  ReplayDF (§10.2.43); o ajuste completo no Kaggle fica para depois, se der tempo.
+  ReplayDF (§10.2.43); o ajuste completo no Kaggle fica para depois, se der tempo. Treinado em
+  28/10/2026: passa no critério em todas as réguas (ASVspoof 5 0,975, 2019
+  0,974, BRSpeech-DF 0,921, ReplayDF 0,968, ensaio 5 1,000 e 0,975). Falta
+  calibrar o limiar com vozes reais de mais pessoas no modo atual (com o L02,
+  só 6 de 10 vozes reais do L01 ficam do lado humano) e integrar à interface.
 - Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
   desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
   lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o
