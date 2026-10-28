@@ -86,7 +86,8 @@ que ele colar. Não rode um treino pelo terminal da sessão.
 - `scripts/`: avaliação, robustez, calibração, canal real, demonstração
   (`montar_demo.py`), voz própria (`gerar_sintetico.py`, `avaliar_arquivos.py`;
   o teste real contra clone: `gravar_frases.py`, `limiar_fusao.py`,
-  `teste_voz_propria.py`, critério em RESUMO_TCC §10.2.12; clonagem local:
+  `teste_voz_propria.py`, critério em RESUMO_TCC §10.2.12; com o modelo final,
+  `limiar_xlsr.py` e `teste_voz_propria.py --xlsr`; clonagem local:
   `preparar_referencia.py` e `clonar_xtts.py`, no ambiente conda `xtts`, ou com
   `--ferramenta chatterbox` no ambiente `chatterbox`); estudo das imperfeições,
   exploratório (`estudo_faixas.py`, `estudo_relogio.py`, `estudo_linhas.py`,

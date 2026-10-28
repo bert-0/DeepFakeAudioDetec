@@ -18,6 +18,12 @@ A meta é 8 de 10 em cada classe, nos dois caminhos. Arquivo sem janela útil
 conta como erro. Os scores de cada modelo e a comparação por frase são só
 descritivos.
 
+Com `--xlsr` (o JSON do `limiar_xlsr.py`), o modelo final (RESUMO_TCC §10.2.43):
+o caminho arquivo usa o score do Enviar arquivo e o limiar dele; o caminho
+microfone, com `--microfone frase`, o do ao vivo, frase por frase, com o limiar
+da frase, ou com `--microfone arquivo`, o arquivo inteiro. Qual vale para o
+ensaio é critério: fixar antes de rodar (RESUMO_TCC §10.2.44).
+
 Uso (de dentro de ml/):
     python scripts/teste_voz_propria.py
     python scripts/teste_voz_propria.py --pasta data/vozes/teste_proprio --device cuda
@@ -125,6 +131,45 @@ def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], de
                    checagens_falhas=falhas, logodds=resumo["logodds_medio"])
 
 
+def analisar_xlsr(caminho: Path, pasta: str, modelo, por_frases: bool) -> Analise:
+    """O modelo final, pelo caminho do Enviar arquivo ou, com `por_frases`, do ao vivo.
+    Sem fala ou sem frase achada, fica sem veredito (conta como erro)."""
+    import librosa
+
+    from src.capture.checagens import checar
+    from src.limiares import taxa_nativa
+    from src.preprocess.audio import load_audio
+    from src.xlsr_final import SR, FalaCurta
+
+    bruto = load_audio(caminho, SR)
+    try:
+        p = modelo.pontuar_por_frases(bruto) if por_frases else modelo.pontuar_wav(bruto)
+        score, logodds, n = p.score, p.logodds, len(p.janelas)
+    except FalaCurta:
+        score = logodds = None
+        n = 0
+    wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
+    falhas = [c.nome for c in checar(wav, taxa, piso_minimo=PISO_MINIMO_DB) if not c.ok]
+    return Analise(pasta=pasta, frase=caminho.stem, score=score, por_modelo=[logodds],
+                   janelas_uteis=n, taxa_nativa=taxa_nativa(caminho), duracao_s=len(bruto) / SR,
+                   checagens_falhas=falhas, logodds=logodds)
+
+
+def placar_xlsr(arquivos: dict[str, list[Path]], modelo, lim, microfone: str) -> tuple[dict, dict]:
+    """Cada caminho com o seu score e o seu limiar. Devolve (placar, análises por caminho)."""
+    caminhos = {"arquivo": (lim.arquivo_por_frase, lim.probabilidade_arquivo),
+                "microfone": (microfone == "frase",
+                              lim.probabilidade_frase if microfone == "frase" else lim.probabilidade)}
+    r, analises = {}, {}
+    for caminho, (por_frases, limiar) in caminhos.items():
+        lista = [analisar_xlsr(arq, nome, modelo, por_frases)
+                 for nome in CAMINHOS[caminho] for arq in arquivos[nome]]
+        r[caminho] = {**placar(lista, limiar)[caminho], "limiar": limiar,
+                      "unidade": "frase" if por_frases else "arquivo"}
+        analises[caminho] = lista
+    return r, analises
+
+
 def minimo_de_acertos(n: int) -> int:
     return math.ceil(META * n - 1e-9)
 
@@ -221,6 +266,11 @@ def main(argv=None) -> int:
     p.add_argument("--taxa-comum", type=int, default=None, metavar="HZ",
                    help="leva todo arquivo a esta taxa antes da do modelo (o ensaio 2 usa "
                         "48000: clone de 24 kHz e gravação de 48 kHz pela mesma conversão)")
+    p.add_argument("--xlsr", default=None, metavar="JSON",
+                   help="o modelo final, com o JSON do limiar_xlsr.py (no lugar de --limiar)")
+    p.add_argument("--microfone", choices=("frase", "arquivo"), default=None,
+                   help="com --xlsr: o caminho microfone frase por frase (o do ao vivo) ou "
+                        "pelo arquivo inteiro; obrigatório, porque é critério do ensaio")
     args = p.parse_args(argv)
 
     from src.config import load_config, resolve_device
@@ -231,6 +281,10 @@ def main(argv=None) -> int:
     if not arquivos["real"] or not (arquivos["clone"] or arquivos["clone_ar"]):
         print(f"[ERRO] faltam gravações em {pasta}: precisa de real/ e de clone/ ou clone_ar/")
         return 1
+    if args.xlsr:
+        if args.microfone is None:
+            p.error("com --xlsr, diga o caminho microfone: --microfone frase ou arquivo")
+        return main_xlsr(args, arquivos)
     escolha = carregar_limiar(Path(args.limiar))
     checkpoints = list(escolha.checkpoints)
     config = load_config(escolha.config)
@@ -251,6 +305,42 @@ def main(argv=None) -> int:
          "clones": args.clones, "clones_ar": args.clones_ar,
          "limiar_origem": str(args.limiar), "taxa_comum": args.taxa_comum,
          "checkpoints": checkpoints, "placar": r, "arquivos": [asdict(a) for a in analises]},
+        indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"\nResultado: {args.json}")
+    return 0
+
+
+def main_xlsr(args, arquivos: dict[str, list[Path]]) -> int:
+    from src.xlsr_final import ModeloFinal, ler_limiar
+
+    try:
+        lim = ler_limiar(args.xlsr)
+    except ValueError as erro:
+        raise SystemExit(f"[ERRO] {erro}") from erro
+    modelo = ModeloFinal(lim.cabeca, args.device, modelo_hf=lim.fonte_modelo)
+    r, analises = placar_xlsr(arquivos, modelo, lim, args.microfone)
+    for caminho, lista in analises.items():
+        c = r[caminho]
+        print(f"Caminho {caminho} ({c['unidade']}; limiar {c['limiar']:.4f}):")
+        for a in lista:
+            veredito = a.sintetico(c["limiar"])
+            texto = "sem fala" if veredito is None else ("sintético" if veredito else "humano")
+            aviso = f"  (checagens: {', '.join(a.checagens_falhas)})" if a.checagens_falhas else ""
+            print(f"  {a.pasta + '/' + a.frase:16s} {_f(a.logodds, '+.3f'):>8s}  {texto:9s} "
+                  f"{'certo' if a.acertou(c['limiar']) else 'ERRO'}{aviso}")
+        humanos, falsos = CAMINHOS[caminho]
+        if c["meta"] is None:
+            print(f"  não medido (sem gravações em {falsos}/)")
+        else:
+            print(f"  reais julgados humanos {c[humanos]['acertos']} de {c[humanos]['n']}, {falsos} "
+                  f"julgados sintéticos {c[falsos]['acertos']} de {c[falsos]['n']} — meta "
+                  f"{'atingida' if c['meta'] else 'não atingida'}")
+    print(f"Limiar: {lim.descricao()}")
+    Path(args.json).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.json).write_text(json.dumps(
+        {"modelo": "xlsr_congelado", "limiar_origem": str(args.xlsr), "microfone": args.microfone,
+         "clones": args.clones, "clones_ar": args.clones_ar, "placar": r,
+         "arquivos": {k: [asdict(a) for a in v] for k, v in analises.items()}},
         indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nResultado: {args.json}")
     return 0

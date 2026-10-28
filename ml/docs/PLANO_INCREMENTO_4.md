@@ -224,7 +224,11 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   Opções: (a) manter o arquivo inteiro, que é o caminho das réguas, com um
   limiar para cada caminho (o que está no código); (b) cortar a fala também no
   arquivo e na calibração, para os dois caminhos darem o mesmo score. Decidir
-  antes de calibrar com as vozes novas e antes do ensaio 6.
+  antes de calibrar com as vozes novas e antes do ensaio 6. As duas estão no
+  código (`--arquivo-por-frase` no `limiar_xlsr.py`); a medida nos devs, sem
+  critério, está no §10.2.45. Junto, o critério do ensaio 6: o caminho microfone
+  é pontuado frase por frase, como o ao vivo, ou pelo arquivo inteiro, como nos
+  ensaios 1 a 5 (`teste_voz_propria.py --xlsr ... --microfone frase|arquivo`)?
 - Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
   desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
   lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o

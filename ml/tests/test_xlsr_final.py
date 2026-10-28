@@ -401,3 +401,29 @@ def test_estudo_corte_fala_compara_os_dois_caminhos(tmp_path, monkeypatch):
                  "--json", str(saida)]) == 0
     x = json.loads(saida.read_text(encoding="utf-8"))["x"]
     assert x["n"] == 4 and x["sem_frase"] == 0 and "auc_b" in x
+
+
+def test_placar_do_ensaio_com_o_modelo_final(tmp_path, monkeypatch):
+    from scripts.teste_voz_propria import main
+    from src.xlsr_final import gravar_limiar, sigmoide
+
+    monkeypatch.setattr("src.features.xlsr.carregar_rede",
+                        lambda *a, **k: (_RedeFalsa().eval(), torch.device("cpu")))
+    pasta = tmp_path / "ensaio"
+    for sub, tom in (("real", 150), ("clone", 260), ("clone_ar", 200)):
+        (pasta / sub).mkdir(parents=True)
+        for i in range(2):
+            sf.write(pasta / sub / f"f{i + 1:02d}.wav",
+                     np.concatenate([_ruido(1.0, i), _voz(3.0, i, tom=tom + 10 * i), _ruido(1.0, 7 + i)]), SR)
+    lim = gravar_limiar(tmp_path / "l.json", str(_cabeca(tmp_path / "c.pt")), -0.5, origem="calibrado com L02",
+                        regra="r", limiar_frase=-1.0)
+    with pytest.raises(SystemExit):
+        main(["--pasta", str(pasta), "--xlsr", str(lim)])
+    saida = tmp_path / "r.json"
+    assert main(["--pasta", str(pasta), "--xlsr", str(lim), "--microfone", "frase", "--json", str(saida)]) == 0
+    r = json.loads(saida.read_text(encoding="utf-8"))
+    assert r["placar"]["arquivo"]["limiar"] == pytest.approx(sigmoide(-0.5))
+    assert r["placar"]["microfone"]["limiar"] == pytest.approx(sigmoide(-1.0))
+    assert r["placar"]["microfone"]["unidade"] == "frase" and r["placar"]["arquivo"]["unidade"] == "arquivo"
+    assert r["placar"]["arquivo"]["real"]["n"] == 2 and r["placar"]["microfone"]["clone_ar"]["n"] == 2
+    assert len(r["arquivos"]["microfone"]) == 4
