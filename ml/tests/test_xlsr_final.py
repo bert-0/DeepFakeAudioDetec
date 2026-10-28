@@ -427,3 +427,19 @@ def test_placar_do_ensaio_com_o_modelo_final(tmp_path, monkeypatch):
     assert r["placar"]["microfone"]["unidade"] == "frase" and r["placar"]["arquivo"]["unidade"] == "arquivo"
     assert r["placar"]["arquivo"]["real"]["n"] == 2 and r["placar"]["microfone"]["clone_ar"]["n"] == 2
     assert len(r["arquivos"]["microfone"]) == 4
+
+
+def test_histerese_mantem_a_fala_fraca_depois_do_comeco():
+    """Com eco e ruído, a fala cai para perto do piso entre as sílabas: depois de entrar
+    a 10 dB, ela fica enquanto passar de 5 dB."""
+    from src.capture.frases import frases_de
+
+    rng = np.random.default_rng(0)
+    t = np.arange(int(1.7 * SR)) / SR
+    tom = np.sin(2 * np.pi * 1000 * t) * np.sqrt(2)
+    forte, fraca = int(0.2 * SR), int(1.5 * SR)
+    fala = np.concatenate([0.04 * tom[:forte], 0.0224 * tom[forte:forte + fraca]])   # 12 e 7 dB acima
+    sinal = 0.01 * rng.standard_normal(int(4.7 * SR))
+    sinal[SR:SR + len(fala)] += fala
+    leituras = frases_de(_Gravador(), sinal.astype(np.float32), SR)
+    assert len(leituras) == 1 and leituras[0].instante == pytest.approx(0.7, abs=0.05)

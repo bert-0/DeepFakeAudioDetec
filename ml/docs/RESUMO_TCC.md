@@ -4638,6 +4638,67 @@ nas réguas (`scripts/estudo_corte_fala.py`).
 2019, teste do BRSpeech-DF, ReplayDF das 44 montagens e ensaio 5) não são
 medidas no caminho (b) antes da decisão.
 
+**Resultado** (28/10/2026, pela sessão; `outputs/estudo_corte_fala.json`).
+"Mesmos" são os arquivos em que o (b) achou frase.
+
+| dev | n | (b) sem frase | AUC (a) | AUC (a), mesmos | AUC (b) | EER (a), mesmos | EER (b) |
+|---|---|---|---|---|---|---|---|
+| ReplayDF, 10 montagens | 200 | 0 | 0,985 | 0,985 | 0,987 | 5,00% | 6,00% |
+| ASVspoof 5 | 1.600 | 3 | 0,996 | 0,996 | 0,996 | 3,05% | 3,22% |
+| BRSpeech-DF, validação | 2.161 | 36 | 0,997 | 0,997 | 0,996 | 2,73% | 3,15% |
+| salas | 1.600 | 320 | 0,900 | 0,907 | 0,902 | 17,51% | 18,36% |
+| Common Voice (só reais) | 399 | 1 | — | — | — | — | — |
+
+**Quanto o score muda de (a) para (b)**, nos log-odds (percentis 10 e 90; a
+mediana fica entre 0 e 0,01 em todos):
+
+| dev | reais | falsos |
+|---|---|---|
+| ReplayDF | −0,74 a +0,71 | −0,34 a +0,21 |
+| Common Voice | −0,55 a +0,48 | — |
+| ASVspoof 5 | −0,19 a +0,09 | 0,00 a +0,06 |
+| BRSpeech-DF | −0,38 a +0,77 | −0,41 a +0,40 |
+| salas | −0,51 a +1,08 | −0,67 a +1,08 |
+
+Arquivos com mais de uma frase: BRSpeech-DF 700, salas 198, ASVspoof 5 79,
+ReplayDF 27, Common Voice 7.
+
+**Leitura:**
+1. **Nos devs, cortar a fala não muda a ordem.**
+   - A AUC fica igual até ±0,005.
+   - O EER sobe de 0,2 a 1 ponto no corte.
+2. **Onde o corte muda o score, muda nos dois sentidos**, em até ±1 nos
+   log-odds. A mediana fica perto de zero porque muitos arquivos não têm margem
+   de ruído.
+   O limiar de um caminho não serve para o outro, como no 10.2.44.
+3. **Nas salas simuladas, o detector de fala falha em 20% dos arquivos.**
+   - Com eco e ruído, a regra de 10 dB acima do piso só acha uns 0,6 s de fala
+     por arquivo (mediana em 400 sem frase), menos que o mínimo de 1 s.
+   - É um risco do ao vivo numa sala com eco e ruído.
+   - Nas gravações reais quase não falha: ReplayDF 0 de 200, Common Voice 1 de
+     399.
+4. **Para a decisão, os devs não favorecem nenhum dos dois caminhos** pela
+   separação. O que pesa é a consistência entre os caminhos, a favor de (b),
+   contra a fidelidade às réguas, a favor de (a).
+
+**Ajuste do detector de fala, escolhido nos devs** (só o detector, sem o
+XLS-R). Medidas: arquivos sem frase no dev com salas e no ReplayDF, e frases
+achadas no ruído puro da sala (o trecho antes da fala de 9 gravações do L02,
+16,7 s).
+
+| variante | salas sem frase | ReplayDF sem frase | frases no ruído puro |
+|---|---|---|---|
+| atual (10 dB, mínimo 1 s) | 320 de 1.600 | 0 de 200 | 0 |
+| mínimo de 0,5 s | 177 | 0 | 0 |
+| histerese (entra a 10 dB, sai abaixo de 5 dB) | 159 | 0 | 0 |
+| histerese e mínimo de 0,5 s | 55 | 0 | 0 |
+
+- **Adotada:** a histerese com o mínimo de 1 s. Ela corta pela metade as falhas
+  nas salas, e o mínimo de 0,5 s deixaria tosse e riso virarem frase no ao vivo.
+- Nas vozes do L02, nada mudou: as mesmas frases e os mesmos limiares (arquivo
+  −0,517, frase −0,389).
+- A comparação (a) × (b) acima foi medida antes do ajuste.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

@@ -234,7 +234,10 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   ao vivo não, e o score muda nos dois sentidos (L02: −1,71 a +0,86). Por isso
   há dois limiares, das mesmas vozes: L02 arquivo −0,517, frase −0,389. A média
   das janelas não é o score do arquivo (até 0,67 de diferença). Pendente: cortar
-  a fala também no arquivo.
+  a fala também no arquivo. Nos devs (§10.2.45, sem critério), cortar a fala não
+  muda a AUC (±0,005) e sobe o EER de 0,2 a 1 pp; com salas simuladas, o detector
+  de fala falhava em 20% dos arquivos, 10% com a histerese (entra a 10 dB, sai
+  abaixo de 5 dB), sem frase no ruído puro da sala.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

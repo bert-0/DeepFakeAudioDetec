@@ -9,7 +9,9 @@ mesmo caminho do arquivo.
 A fala é achada pela regra da checagem depois de gravar (`checagens.trechos_de_fala`):
 sem graves (pancadas de teclado) e 10 dB acima do piso de ruído, aqui o percentil
 10 dos últimos 30 s. Com 10 s, uma fala longa com poucos respiros subia o piso até
-a própria fala.
+a própria fala. Depois de entrar na fala, ela só acaba abaixo de 5 dB do piso: com
+eco e ruído (o dev com salas), só a regra de 10 dB deixava 20% dos arquivos sem
+frase, e a histerese leva a 10%, sem frase no ruído puro da sala (RESUMO_TCC §10.2.45).
 """
 
 from __future__ import annotations
@@ -32,6 +34,8 @@ MAX_FRASE_S = 15.0
 #: Áudio guardado antes da fala, como a folga das frases gravadas.
 MARGEM_S = 0.3
 PISO_S = 30.0
+#: Já dentro da fala, ela continua enquanto o quadro passar disto acima do piso.
+FALA_FICA_DB = 5.0
 
 
 class DetectorDeFala:
@@ -43,6 +47,7 @@ class DetectorDeFala:
         self.sos = butter(4, FALA_PASSA_ALTAS_HZ, btype="highpass", fs=sample_rate, output="sos")
         self.zi = np.zeros((len(self.sos), 2))
         self.historico: deque[float] = deque(maxlen=int(PISO_S / QUADRO_S))
+        self.dentro = False
 
     def __call__(self, quadro: np.ndarray) -> bool:
         from scipy.signal import sosfilt
@@ -51,7 +56,9 @@ class DetectorDeFala:
         rms = float(np.sqrt(np.mean(voz ** 2)))
         self.historico.append(rms)
         piso = float(np.percentile(self.historico, 10))
-        return rms >= max(SILENCIO_RMS, piso * 10 ** (FALA_ACIMA_DO_PISO_DB / 20))
+        db = FALA_FICA_DB if self.dentro else FALA_ACIMA_DO_PISO_DB
+        self.dentro = rms >= max(SILENCIO_RMS, piso * 10 ** (db / 20))
+        return self.dentro
 
     def aquecer(self, wav: np.ndarray, quadro: int) -> None:
         """Num áudio já gravado, o piso sai do arquivo inteiro antes do primeiro quadro.
