@@ -76,7 +76,11 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   Histórico. O ao vivo roda o `monitor.py` como subprocesso, parado por arquivo
   (`--parar-com`). Com `DETECTOR_LIMIAR_FUSAO` (JSON do `limiar_fusao.py`), as
   duas abas usam os modelos, a regra e o limiar dele; Enviar arquivo usa também a
-  taxa comum de 48 kHz, como o ensaio 2. Na tela, o score
+  taxa comum de 48 kHz, como o ensaio 2. Com `DETECTOR_XLSR` (JSON do
+  `scripts/limiar_xlsr.py`), as duas abas usam o modelo final
+  (`src/xlsr_final.py`, preparo em `src/features/xlsr.py`): Enviar arquivo pelo
+  caminho das réguas; o ao vivo (`monitor.py --xlsr`) frase por frase
+  (`src/capture/frases.py`), com o limiar da frase. Na tela, o score
   aparece na escala centrada no limiar (`centrado` em `src/limiares.py`): o
   limiar fica em 0,50; a decisão continua no score do modelo.
 - `scripts/`: avaliação, robustez, calibração, canal real, demonstração
@@ -223,6 +227,13 @@ que ele colar. Não rode um treino pelo terminal da sessão.
   fora do treino) 0,968, ensaio 5 1,000 pelo arquivo e 0,975 pelo ar. Com o
   limiar das vozes do L02, reais do L01 só 6 de 10 (clones 39 de 40): falta
   calibrar com mais vozes no modo atual.
+- Integração do modelo final (RESUMO_TCC §10.2.44): o caminho do arquivo
+  reproduz os scores das réguas (diferença 0 nos 90 do ensaio 5). As gravações
+  de 12 s levam uns 5 s de ruído da sala que o `top_db` 30 não tira; a frase do
+  ao vivo não, e o score muda nos dois sentidos (L02: −1,71 a +0,86). Por isso
+  há dois limiares, das mesmas vozes: L02 arquivo −0,517, frase −0,389. A média
+  das janelas não é o score do arquivo (até 0,67 de diferença). Pendente: cortar
+  a fala também no arquivo.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

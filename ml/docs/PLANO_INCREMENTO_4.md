@@ -215,7 +215,16 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   28/10/2026: passa no critério em todas as réguas (ASVspoof 5 0,975, 2019
   0,974, BRSpeech-DF 0,921, ReplayDF 0,968, ensaio 5 1,000 e 0,975). Falta
   calibrar o limiar com vozes reais de mais pessoas no modo atual (com o L02,
-  só 6 de 10 vozes reais do L01 ficam do lado humano) e integrar à interface.
+  só 6 de 10 vozes reais do L01 ficam do lado humano). Integrado à interface e
+  ao monitor em 28/10/2026 (§10.2.44): Enviar arquivo pelo caminho das réguas;
+  ao vivo frase por frase, com limiar próprio, calibrado com as mesmas vozes.
+- **Pendente (28/10/2026): o caminho do arquivo também corta a fala?** Nas
+  gravações do microfone, o arquivo de 12 s leva uns 5 s de ruído da sala que o
+  corte de silêncio do treino não tira; a frase do ao vivo não (§10.2.44).
+  Opções: (a) manter o arquivo inteiro, que é o caminho das réguas, com um
+  limiar para cada caminho (o que está no código); (b) cortar a fala também no
+  arquivo e na calibração, para os dois caminhos darem o mesmo score. Decidir
+  antes de calibrar com as vozes novas e antes do ensaio 6.
 - Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
   desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
   lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o

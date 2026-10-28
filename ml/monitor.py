@@ -16,6 +16,9 @@ tipo de áudio (src/limiares.py); o score é indício, não veredito.
     # a fusão do teste com voz real: modelos, regra e limiar escolhidos nos devs
     python monitor.py --limiar-fusao outputs/limiar_fusao/limiar.json --fonte microfone
 
+    # o modelo final (XLS-R congelado), frase por frase, com o limiar do limiar_xlsr.py
+    python monitor.py --xlsr outputs/limiar_xlsr/limiar.json --fonte microfone
+
     # ao vivo, gravando o que ouviu (é assim que se mede o canal real)
     python monitor.py --config ... --checkpoint ... --gravar chamada.wav
 
@@ -63,6 +66,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--limiar-fusao", default=None, metavar="JSON",
                    help="modelos, regra e limiar do scripts/limiar_fusao.py "
                         "(no lugar de --checkpoint)")
+    p.add_argument("--xlsr", default=None, metavar="JSON",
+                   help="o modelo final, com o limiar do scripts/limiar_xlsr.py; analisa "
+                        "frase por frase (no lugar de --checkpoint)")
     p.add_argument("--arquivo", help="analisa um .wav em vez do áudio ao vivo")
     p.add_argument("--gravar", help="salva o áudio capturado neste .wav")
     p.add_argument("--fonte", choices=("sistema", "microfone"), default="sistema",
@@ -119,6 +125,11 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     if args.listar_dispositivos:
         return listar_dispositivos()
+    if args.xlsr:
+        if args.checkpoint or args.limiar_fusao:
+            print("[ERRO] use --xlsr sozinho, sem --checkpoint nem --limiar-fusao")
+            return 1
+        return monitorar_xlsr(args)
     fusao = None
     if args.limiar_fusao:
         if args.checkpoint:
@@ -170,23 +181,12 @@ def main(argv=None) -> int:
             verdade = "spoof" if label else "bonafide"
 
     try:
-        if args.arquivo:
-            fonte = FileSource(args.arquivo, analisador.sample_rate)
-        elif args.fonte == "microfone":
-            fonte = abrir_microfone(analisador.sample_rate, args.dispositivo_audio,
-                                    exclusivo=args.exclusivo)
-        else:
-            fonte = WasapiLoopbackSource(analisador.sample_rate,
-                                         nome_dispositivo=args.dispositivo_audio)
+        fonte = abrir(args, analisador.sample_rate)
     except CaptureError as erro:
         print(f"[ERRO] {erro}")
         return 1
 
-    origem = ("arquivo" if args.arquivo else
-              "microfone" if args.fonte == "microfone" else "saída do sistema (loopback)")
-    if getattr(fonte, "modo", None):
-        nome = getattr(fonte, "nome", None) or args.dispositivo_audio or "padrão"
-        origem += f" — {nome} (WASAPI {fonte.modo})"
+    origem = descrever_fonte(args, fonte)
     if analisador.n_modelos > 1:
         regra = "dos log-odds" if analisador.regra == "logodds" else "das probabilidades"
         print(f"Modelos: {analisador.n_modelos} em fusão (média {regra}) | dispositivo: {device}")
@@ -211,8 +211,67 @@ def main(argv=None) -> int:
     print("\n[AVISO] codec, supressão de ruído e AGC da plataforma de chamada ainda "
           "deslocam o score;\n        desligue os aprimoramentos de áudio do "
           "Windows. Trate o número como indício.\n")
+    return rodar(args, fonte, analisador, agregador, escolha, verdade)
 
 
+def abrir(args, sample_rate: int):
+    if args.arquivo:
+        return FileSource(args.arquivo, sample_rate)
+    if args.fonte == "microfone":
+        return abrir_microfone(sample_rate, args.dispositivo_audio, exclusivo=args.exclusivo)
+    return WasapiLoopbackSource(sample_rate, nome_dispositivo=args.dispositivo_audio)
+
+
+def descrever_fonte(args, fonte) -> str:
+    origem = ("arquivo" if args.arquivo else
+              "microfone" if args.fonte == "microfone" else "saída do sistema (loopback)")
+    if getattr(fonte, "modo", None):
+        nome = getattr(fonte, "nome", None) or args.dispositivo_audio or "padrão"
+        origem += f" — {nome} (WASAPI {fonte.modo})"
+    return origem
+
+
+def monitorar_xlsr(args) -> int:
+    """O modelo final, frase por frase (src/capture/frases.py)."""
+    from src.capture.frases import PAUSA_S, AnalisadorFrases
+    from src.xlsr_final import ModeloFinal, ler_limiar
+
+    try:
+        lim = ler_limiar(args.xlsr)
+    except (OSError, ValueError, KeyError) as erro:
+        print(f"[ERRO] limiar do modelo final: {erro}")
+        return 1
+    import torch
+
+    dispositivo = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    # O limiar calibrado frase por frase: o do arquivo inteiro não vale aqui (src/xlsr_final.py).
+    analisador = AnalisadorFrases(ModeloFinal(lim.cabeca, dispositivo, modelo_hf=lim.modelo_hf),
+                                  limiar=lim.probabilidade_frase)
+    # Uma leitura por frase: cada uma é uma observação independente.
+    agregador = Agregador(janela_s=1.0, passo_s=1.0, regra=analisador.regra)
+    escolha = Escolha(lim.probabilidade_frase, lim.descricao_frase())
+    try:
+        fonte = abrir(args, analisador.sample_rate)
+    except CaptureError as erro:
+        print(f"[ERRO] {erro}")
+        return 1
+    print(f"Modelo: xlsr_congelado (XLS-R congelado) | dispositivo: {dispositivo}")
+    print(f"Fonte:  {descrever_fonte(args, fonte)}")
+    if getattr(fonte, "aviso", None):
+        print(f"[AVISO] {fonte.aviso}")
+    print(f"Análise por frase: uma pausa de {PAUSA_S:.1f} s fecha a frase, que é analisada "
+          "como um arquivo.")
+    valor = lim.limiar_frase if lim.calibrado_por_frase else lim.limiar
+    print(f"Limiar: {valor:.4f} nos log-odds ({escolha.origem})")
+    if not lim.calibrado_por_frase:
+        print("[AVISO] sem limiar calibrado frase por frase: o do arquivo inteiro pode não valer "
+              "aqui; rode o scripts/limiar_xlsr.py com --real")
+    print()
+    return rodar(args, fonte, analisador, agregador, escolha, None, unidade="frase")
+
+
+def rodar(args, fonte, analisador, agregador: Agregador, escolha: Escolha, verdade: str | None,
+          unidade: str = "janela") -> int:
     gravado: list[np.ndarray] = []
     limite = args.segundos
     limiar = analisador.threshold
@@ -228,7 +287,8 @@ def main(argv=None) -> int:
         """Imprime uma leitura (do fluxo ou da janela final)."""
         agregador.adicionar(leitura)
         if args.json:
-            gravar_json(agregador, args.json, analisador.threshold, escolha.origem, ativo=True)
+            gravar_json(agregador, args.json, analisador.threshold, escolha.origem, ativo=True,
+                        unidade=unidade, duracao_s=getattr(analisador, "duracao_s", None))
         if leitura.silencio:
             print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
                   f"{'—':>6s}  {'—':>5s}  (silêncio)")
@@ -265,6 +325,10 @@ def main(argv=None) -> int:
                 _mostrar(leitura)
     except KeyboardInterrupt:
         print("\nEncerrado.")
+        if unidade == "frase":
+            # A frase em andamento quando a análise para ainda conta.
+            for leitura in analisador.finalizar():
+                _mostrar(leitura)
     finally:
         if args.gravar and gravado:
             salvar(np.concatenate(gravado), analisador.sample_rate, args.gravar)
@@ -277,7 +341,8 @@ def main(argv=None) -> int:
         relatar(agregador, args.json, analisador.canal,
                 ao_vivo=not args.arquivo, limiar=analisador.threshold,
                 verdade=verdade, origem_limiar=escolha.origem,
-                microfone=not args.arquivo and args.fonte == "microfone")
+                microfone=not args.arquivo and args.fonte == "microfone",
+                unidade=unidade, duracao_s=getattr(analisador, "duracao_s", None))
     return 0
 
 
@@ -292,7 +357,8 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
 
 
 def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None = None,
-                origem_limiar: str = "", ativo: bool = False) -> Path:
+                origem_limiar: str = "", ativo: bool = False, unidade: str = "janela",
+                duracao_s: float | None = None) -> Path:
     """Grava o histórico de scores. Chamado a cada janela durante a captura
     (`ativo=True`); escrita atômica para a aba Ao vivo não ler arquivo pela metade."""
     import time
@@ -305,6 +371,9 @@ def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None 
         "atualizado_em": time.time(),
         "limiar": limiar,
         "origem_limiar": origem_limiar,
+        # "frase" no modelo final (uma leitura por frase); "janela" nos outros.
+        "unidade": unidade,
+        "duracao_s": duracao_s,
         "resumo": agregador.resumo(),
         "leituras": [{"indice": x.indice, "instante": x.instante, "score": x.score,
                       "rms": x.rms, "silencio": x.silencio, "util": id(x) in uteis,
@@ -320,7 +389,8 @@ def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None 
 def relatar(agregador: Agregador, destino: str | None, canal=None,
             ao_vivo: bool = False, limiar: float | None = None,
             verdade: str | None = None, origem_limiar: str = "",
-            microfone: bool = False) -> None:
+            microfone: bool = False, unidade: str = "janela",
+            duracao_s: float | None = None) -> None:
     resumo = agregador.resumo()
     print("\n" + "=" * 60)
     print(f"Janelas analisadas: {resumo['janelas_total']} "
@@ -334,7 +404,8 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
         print(f"Canal: {canal.descricao()}")
     if destino and resumo["score_medio"] is None:
         # Grava mesmo sem janelas, para a aba Ao vivo saber que a sessão acabou.
-        gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
+        gravar_json(agregador, destino, limiar, origem_limiar, ativo=False, unidade=unidade,
+                    duracao_s=duracao_s)
     if resumo["score_medio"] is None:
         print("Nenhuma janela com áudio — nada a resumir.")
         if microfone and resumo["janelas_silencio"] == resumo["janelas_total"]:
@@ -374,7 +445,8 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
     print("Lembrete: score alto indica *indício* de síntese. A taxa de erro "
           "deste modelo\nem áudio de chamada ainda não foi medida.")
     if destino:
-        caminho = gravar_json(agregador, destino, limiar, origem_limiar, ativo=False)
+        caminho = gravar_json(agregador, destino, limiar, origem_limiar, ativo=False,
+                              unidade=unidade, duracao_s=duracao_s)
         print(f"Histórico: {caminho}")
 
 

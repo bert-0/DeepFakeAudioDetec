@@ -16,13 +16,13 @@
   <div class="centro" id="parado">
     <div data-fonte="sistema">
       <p><b>Analisar o som do computador.</b> O que tocar no alto-falante — uma chamada,
-        um vídeo — é analisado em janelas de 4 s.</p>
+        um vídeo — é analisado {{ 'frase por frase, a cada pausa' if por_frase else 'em janelas de 4 s' }}.</p>
       <p class="legenda">Antes de começar, desligue os aprimoramentos de áudio do Windows
         (Configurações › Som › alto-falante).</p>
     </div>
     <div data-fonte="microfone" class="oculto">
-      <p><b>Analisar a voz pelo microfone.</b> Fale perto do microfone; a voz é analisada
-        em janelas de 4 s.</p>
+      <p><b>Analisar a voz pelo microfone.</b> Fale perto do microfone; {{ 'cada frase é
+        analisada quando você faz uma pausa' if por_frase else 'a voz é analisada em janelas de 4 s' }}.</p>
       <p class="legenda">Antes de começar, desligue os aprimoramentos do microfone
         (Configurações › Som › Entrada › microfone › Aprimoramentos de áudio). Eles
         alteram a voz e deslocam o score.</p>
@@ -92,10 +92,11 @@
     var media = d.resumo.score_medio, limiar = d.limiar;
     var naTela = d.centrado_medio != null ? d.centrado_medio : media;
     var uteis = d.leituras.filter(function (x) { return x.util; });
+    var frase = d.unidade === "frase";
     var acima = media != null && limiar != null && media >= limiar;
     $("score").textContent = fmt(naTela, 2);
     $("score").className = "score " + (media == null ? "amarelo" : (acima ? "vermelho" : "verde"));
-    $("veredito").textContent = media == null ? "Aguardando fala…" : (acima ? "Indício de voz sintética" : "Sem indício de voz sintética");
+    $("veredito").textContent = media == null ? (frase ? "Aguardando uma frase…" : "Aguardando fala…") : (acima ? "Indício de voz sintética" : "Sem indício de voz sintética");
     $("legenda").textContent = limiar != null ? "0 = voz humana · 0,50 = limiar · 1 = voz sintética" : "média ponderada pela fala";
     ocultar("alerta", !acima);
 
@@ -115,7 +116,8 @@
       b.title = fmt(x.instante, 1) + " s — " + (x.util ? fmt(altura, 2) + (parcial ? " (janela parcial)" : "") : "silêncio");
       barras.appendChild(b);
     });
-    $("contagem").textContent = nAcima + " de " + uteis.length + (uteis.length === 1 ? " janela" : " janelas") + " acima do limiar";
+    var nome = frase ? (uteis.length === 1 ? " frase" : " frases") : (uteis.length === 1 ? " janela" : " janelas");
+    $("contagem").textContent = nAcima + " de " + uteis.length + nome + " acima do limiar";
     ocultar("legenda-barras", !uteis.length);
   }
 

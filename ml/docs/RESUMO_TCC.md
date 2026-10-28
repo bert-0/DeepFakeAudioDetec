@@ -4555,6 +4555,60 @@ ReplayDF de outras 10 montagens (200 da amostra do 10.2.42).
    o modelo à interface e ao monitor, e um ensaio novo com o critério fixado
    antes.
 
+### 10.2.44 Modelo final na interface e no monitor (integração)
+
+**O que mudou no código (28/10/2026):**
+- `src/features/xlsr.py`: o preparo e as representações do `estudo_ssl.py`,
+  que agora importa de lá. `src/xlsr_final.py`: a cabeça, o caminho do arquivo
+  e o JSON do limiar, que confere a impressão dos pesos da cabeça.
+- **Enviar arquivo** (`DETECTOR_XLSR=<JSON>`): o score é o do arquivo inteiro;
+  as barras por janela são só para ver onde ele sobe.
+- **Ao vivo** (`monitor.py --xlsr <JSON>`): frase por frase
+  (`src/capture/frases.py`).
+  - A fala é juntada até 0,8 s de pausa, com mínimo de 1 s de fala e máximo de
+    15 s; a frase é analisada como um arquivo.
+  - A fala é achada pela regra da checagem de fala: sem graves e 10 dB acima do
+    piso, aqui o percentil 10 dos últimos 30 s.
+- `scripts/limiar_xlsr.py`: o limiar pela regra do 10.2.39, um para cada
+  caminho, das mesmas gravações.
+
+**Conferência:**
+- Caminho do arquivo contra os scores do 10.2.43, nos 90 arquivos do ensaio 5:
+  diferença máxima 0,00000.
+- Na interface rodando, dois arquivos enviados deram os mesmos scores (4,6059 e
+  −0,0188).
+- Limiares refeitos pelo `limiar_xlsr.py`: L02 −0,5172 e dev −0,8976, os mesmos
+  do 10.2.43.
+
+**Achado: o ruído da sala nas gravações.**
+- O gravador grava 12 s por frase, e a fala ocupa uns 7 s (no L01, de 1,5 s até
+  7,7–8,7 s). O ruído da sala fica a menos de 30 dB da fala, então o corte de
+  silêncio do treino (`top_db` 30) não tira nada: o arquivo inteiro, com uns
+  5 s de ruído, entra na análise.
+- A média dos scores das janelas não é o score do arquivo: no ensaio 5, a
+  diferença chega a 0,67 nos log-odds (mediana 0,12). Por isso o ao vivo junta
+  a frase em vez de fazer a média das janelas.
+- Nas vozes do L02 (calibração), a frase cortada pelo ao vivo muda o score nos
+  dois sentidos, de −1,71 a +0,86 nos log-odds. O maior vai de −0,517
+  (arquivo) para −0,389 (frase).
+- **Conferência do ao vivo**, com três vozes reais do ensaio 5 (f01 a f03 do
+  L01, num arquivo só):
+  - as três frases foram achadas;
+  - scores −2,18, −3,36 e −2,56, contra −0,27, −1,65 e −0,26 pelo arquivo.
+- Na página de resultado da f05, as janelas das pontas (mais ruído) ficam acima
+  do limiar e as do meio (fala), abaixo.
+- Só descritivo: foi a conferência da integração, e nada foi escolhido por
+  esses números.
+
+**Leitura:**
+1. O caminho do arquivo é o do treino e das réguas, sem diferença.
+2. Arquivo e frase não dão o mesmo score nas gravações do microfone, então cada
+   caminho tem o seu limiar, calibrado pela mesma regra e com as mesmas vozes.
+   Com o L02: arquivo −0,517, frase −0,389.
+3. O ruído da sala pode estar empurrando a voz real para cima no caminho do
+   arquivo. É hipótese, não medida. Antes do ensaio 6, decidir se o caminho do
+   arquivo também corta a fala (decisão pendente no plano).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

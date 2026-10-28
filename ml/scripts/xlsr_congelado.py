@@ -53,29 +53,10 @@ def pesos_por_dominio(dominios: list[dict]) -> list[np.ndarray]:
 
 
 def criar_cabeca(n_camadas: int = 25, dim: int = 1024, dim_lfcc: int = 120, dropout: float = DROPOUT):
-    import torch
-    from torch import nn
+    """A cabeça mora em src/xlsr_final.py, que a interface usa."""
+    from src.xlsr_final import criar_cabeca as criar
 
-    class Cabeca(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.config = {"n_camadas": n_camadas, "dim": dim, "dim_lfcc": dim_lfcc, "dropout": dropout}
-            self.pesos = nn.Parameter(torch.zeros(n_camadas))
-            self.register_buffer("media", torch.zeros(n_camadas, dim))
-            self.register_buffer("escala", torch.ones(n_camadas, dim))
-            self.register_buffer("media_lfcc", torch.zeros(dim_lfcc))
-            self.register_buffer("escala_lfcc", torch.ones(dim_lfcc))
-            self.queda = nn.Dropout(dropout)
-            self.xlsr = nn.Linear(dim, 1)
-            self.ramo_lfcc = nn.Linear(dim_lfcc, 1)
-
-        def forward(self, camadas, lfcc):
-            x = (camadas - self.media) / self.escala
-            h = (torch.softmax(self.pesos, dim=0)[None, :, None] * x).sum(dim=1)
-            z = (lfcc - self.media_lfcc) / self.escala_lfcc
-            return (self.xlsr(self.queda(h)) + self.ramo_lfcc(self.queda(z))).squeeze(-1)
-
-    return Cabeca()
+    return criar(n_camadas, dim, dim_lfcc, dropout)
 
 
 def _normalizacao(treino: list[dict]):
@@ -177,13 +158,9 @@ def treinar(treino: dict[str, dict], devs: dict[str, dict], saida: Path, semente
 
 
 def carregar(caminho: Path, dispositivo: str = "cuda"):
-    import torch
+    from src.xlsr_final import carregar_cabeca
 
-    dev_t = torch.device(dispositivo if torch.cuda.is_available() or dispositivo == "cpu" else "cpu")
-    ck = torch.load(caminho, map_location=dev_t, weights_only=False)
-    cabeca = criar_cabeca(**ck["config"]).to(dev_t)
-    cabeca.load_state_dict(ck["estado"])
-    return cabeca.eval(), ck, dev_t
+    return carregar_cabeca(caminho, dispositivo)
 
 
 def pontuar(cabeca, d: dict, dispositivo, lote: int = 1024) -> np.ndarray:

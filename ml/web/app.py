@@ -5,7 +5,9 @@ Rodar (de dentro de `ml/`):
     uvicorn web.app:app --reload
 
 Variáveis de ambiente opcionais: DETECTOR_CONFIG, DETECTOR_CHECKPOINT,
-DETECTOR_DEVICE (padrão cpu), DETECTOR_BANCO (padrão outputs/web/historico.db).
+DETECTOR_DEVICE (padrão cpu), DETECTOR_BANCO (padrão outputs/web/historico.db),
+DETECTOR_LIMIAR_FUSAO e DETECTOR_XLSR (o modelo final, com HF_HOME no cache do
+XLS-R; ver web/analise.py).
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.capture import CaptureError
 from src.limiares import centrado
+from src.xlsr_final import NOME as NOME_XLSR, FalaCurta
 from web.analise import Detector, nome_dos_modelos, significativos
 from web.banco import Banco
 
@@ -125,6 +128,9 @@ async def _analisar_upload(arquivo: UploadFile):
         caminho.write_bytes(conteudo)
         try:
             resultado = detector().analisar(caminho, nome_original=nome)
+        except FalaCurta as erro:
+            print(f"[envio] {nome}: {erro}")
+            raise HTTPException(422, "Há pouca fala no áudio para analisar.") from erro
         except (CaptureError, RuntimeError) as erro:
             print(f"[envio] {nome}: {erro!r}")   # o detalhe fica no terminal, não na tela
             raise HTTPException(422, _mensagem_de_leitura(ext)) from erro
@@ -214,6 +220,9 @@ def historico_limpar():
 @app.get("/sobre", response_class=HTMLResponse)
 def sobre(request: Request):
     d = detector()
+    if d.xlsr:
+        return templates.TemplateResponse(request, "sobre.html", {
+            "modelo": d.modelo, "origem": d.limiar_xlsr.descricao(), "ensaio2": False, "xlsr": True})
     origem = d.fusao.descricao() if d.fusao else None
     # O texto do ensaio 2 só vale para o modelo do recorte no limiar do treino.
     ensaio2 = d.modelo == "fusion_lcnn_v4_asv5" and bool(origem) and "treino" in origem
@@ -279,7 +288,10 @@ def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path
     import sys
 
     fusao = os.environ.get("DETECTOR_LIMIAR_FUSAO")
-    if fusao:
+    if os.environ.get("DETECTOR_XLSR"):
+        # O modelo final analisa frase por frase, pelo mesmo caminho do arquivo.
+        modelo = ["--xlsr", os.environ["DETECTOR_XLSR"]]
+    elif fusao:
         # A fusão do teste com voz real: modelos, regra e limiar escolhidos nos devs.
         modelo = ["--limiar-fusao", fusao]
     else:
@@ -295,7 +307,8 @@ def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path
 
 @app.get("/ao-vivo", response_class=HTMLResponse)
 def ao_vivo(request: Request):
-    return templates.TemplateResponse(request, "ao_vivo.html", {"aba": "ao_vivo"})
+    return templates.TemplateResponse(request, "ao_vivo.html", {
+        "aba": "ao_vivo", "por_frase": bool(os.environ.get("DETECTOR_XLSR"))})
 
 
 @app.get("/api/ao-vivo/dispositivos")
@@ -345,7 +358,7 @@ def _salvar_sessao_no_historico(sessao: dict) -> int | None:
     r = Resultado(
         arquivo=f"Sessão ao vivo ({FONTES[sessao.get('fonte', 'sistema')]}) "
                 + time.strftime("%d/%m/%Y %H:%M", time.localtime(sessao["inicio"])),
-        duracao_s=leituras[-1]["instante"] + 4.0,
+        duracao_s=dados.get("duracao_s") or leituras[-1]["instante"] + 4.0,
         taxa_nativa=None,
         score_medio=resumo.get("score_medio"),
         score_maximo=resumo.get("score_maximo"),
@@ -361,6 +374,8 @@ def _salvar_sessao_no_historico(sessao: dict) -> int | None:
 
 
 def _modelo_ao_vivo() -> str:
+    if os.environ.get("DETECTOR_XLSR"):
+        return NOME_XLSR
     fusao = os.environ.get("DETECTOR_LIMIAR_FUSAO")
     if not fusao:
         return detector().modelo
@@ -409,6 +424,7 @@ def api_ao_vivo(ultimas: int = 40):
         return {**base, "existe": False, "erro": erro}
     limiar, resumo = dados.get("limiar"), dados.get("resumo", {})
     return {**base, "existe": True,
+            "unidade": dados.get("unidade", "janela"),
             "limiar": limiar,
             "origem_limiar": dados.get("origem_limiar", ""),
             "resumo": resumo,

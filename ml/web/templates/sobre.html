@@ -3,7 +3,17 @@
 {% block conteudo %}
 <div class="cartao texto">
   <h1>Sobre</h1>
-  {% if ensaio2 %}
+  {% if xlsr %}
+  <p>Modelo em uso: <code>{{ modelo }}</code>. O XLS-R 300M, pré-treinado pela Meta,
+  fica congelado; uma cabeça pequena aprendeu quanto pesar cada uma das 25 camadas
+  dele, com um ramo de coeficientes LFCC. Ela foi treinada com a ASVspoof 5, vozes
+  em português (BRSpeech-DF e Common Voice), salas simuladas e áudio tocado e
+  regravado (ReplayDF). Limiar: {{ origem }}.</p>
+  <p>O arquivo inteiro recebe um score. No gráfico, cada barra é uma janela de 4
+  segundos, só para mostrar onde o score sobe. Ao vivo, cada frase é analisada
+  como um arquivo quando a fala para. Na tela, o score aparece numa escala com o
+  limiar no meio: acima de 0,50, indício de síntese.</p>
+  {% elif ensaio2 %}
   <p>Modelo em uso: <code>{{ modelo }}</code>, treinado num recorte da base
   ASVspoof 5, com o {{ origem }}.
   {% elif origem %}
@@ -12,16 +22,27 @@
   <p>Modelo em uso: <code>{{ modelo }}</code>, treinado na base ASVspoof 2019 LA
   (ataques A01–A06) e avaliado nos ataques A07–A19, que ele não viu no treino.
   {% endif %}
+  {% if not xlsr %}
   O áudio é dividido em janelas de 4 segundos, com passo de 2, e cada janela
   recebe um score entre 0 (voz humana) e 1 (voz sintética). Na tela, o score
   aparece numa escala com o limiar no meio: acima de 0,50, indício de síntese.
   No gráfico, cada barra é uma janela; as apagadas têm pouca fala e pesam menos
   na média.</p>
+  {% endif %}
   <p>O arquivo enviado é apagado logo depois da análise; o histórico guarda só o
   resultado. Tudo roda neste computador.</p>
 
   <h2>O que foi medido</h2>
-  {% if ensaio2 %}
+  {% if xlsr %}
+  <p>AUC em áudios que o treino não viu (1 separa tudo; 0,5 é o acaso):</p>
+  <ul>
+    <li>ASVspoof 5, avaliação: 0,975. ASVspoof 2019 LA: 0,974.</li>
+    <li>Português, BRSpeech-DF: 0,921.</li>
+    <li>Áudio tocado e regravado, ReplayDF (44 montagens fora do treino): 0,968.</li>
+    <li>Clones da voz de um integrante, neste microfone: 1,000 pelo arquivo e
+        0,975 pelo alto-falante.</li>
+  </ul>
+  {% elif ensaio2 %}
   <ul>
     <li>Voz real gravada neste microfone contra clones feitos com o XTTS v2, um
         locutor, com o critério combinado antes: 10 de 10 gravações reais e 9 de
@@ -44,7 +65,10 @@
 
   <h2>Limitações</h2>
   <ul>
-    {% if ensaio2 %}
+    {% if xlsr %}
+    <li>A AUC mede a ordem. O ponto de corte depende do limiar, calibrado com
+        poucas vozes reais neste microfone: uma voz nova pode cair do lado errado.</li>
+    {% elif ensaio2 %}
     <li>Testado com um locutor e uma ferramenta de clonagem. Uma voz nova pode
         ficar mais perto do limiar.</li>
     {% elif not origem %}
@@ -55,9 +79,11 @@
     <li>O limiar é escolhido pela taxa de amostragem do arquivo. Um arquivo que já
         foi convertido antes de chegar aqui pode receber o limiar errado.</li>
     {% endif %}
+    {% if not xlsr %}
     <li>Um trecho sintético mais curto que 4 segundos nunca ocupa uma janela inteira.</li>
     <li>Áudio tocado por um alto-falante e captado pelo microfone não é separado de
         forma confiável: o modelo foi treinado só com áudio digital.</li>
+    {% endif %}
   </ul>
   <p>O resultado deve ser lido como indício, nunca como prova.</p>
 </div>

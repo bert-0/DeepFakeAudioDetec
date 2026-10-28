@@ -7,6 +7,10 @@ taxa nativa do arquivo (`src/limiares.py`).
 Com `DETECTOR_LIMIAR_FUSAO` (o JSON do `scripts/limiar_fusao.py`), a análise usa
 os modelos, a regra e o limiar desse arquivo, com a taxa comum de 48 kHz: o mesmo
 caminho do ensaio 2 (RESUMO_TCC §10.2.13). A aba Ao vivo lê a mesma variável.
+
+Com `DETECTOR_XLSR` (o JSON do `scripts/limiar_xlsr.py`), a análise usa o modelo
+final, o XLS-R congelado (§10.2.43), pelo caminho das réguas: o score é o do
+arquivo inteiro; as barras por janela são só para ver onde ele sobe.
 """
 
 from __future__ import annotations
@@ -66,8 +70,14 @@ class Detector:
     para o estado do canal não vazar de um arquivo para outro."""
 
     def __init__(self, config: str | None = None, checkpoint: str | None = None,
-                 device: str | None = None, limiar_fusao: str | None = None):
+                 device: str | None = None, limiar_fusao: str | None = None,
+                 xlsr: str | None = None):
         self.device = resolve_device(device or os.environ.get("DETECTOR_DEVICE", "cpu"))
+        self.xlsr = None
+        caminho_xlsr = xlsr or os.environ.get("DETECTOR_XLSR")
+        if caminho_xlsr:
+            self._iniciar_xlsr(caminho_xlsr)
+            return
         caminho_fusao = limiar_fusao or os.environ.get("DETECTOR_LIMIAR_FUSAO")
         self.fusao = ler_limiar_fusao(caminho_fusao) if caminho_fusao else None
         if self.fusao:
@@ -87,11 +97,41 @@ class Detector:
         if not self.fusao:
             self.modelo = self.config["model"]["name"]
 
+    def _iniciar_xlsr(self, caminho: str) -> None:
+        from src.xlsr_final import NOME, ModeloFinal, ler_limiar
+
+        self.limiar_xlsr = ler_limiar(caminho)
+        self.xlsr = ModeloFinal(self.limiar_xlsr.cabeca, str(self.device),
+                                modelo_hf=self.limiar_xlsr.modelo_hf)
+        self.fusao, self.limiares, self.config = None, None, None
+        self.config_path, self.checkpoint = None, self.limiar_xlsr.cabeca
+        self.checkpoints = [self.checkpoint]
+        self.modelo = NOME
+
     @property
     def regra(self) -> str:
+        if self.xlsr:
+            return "logodds"
         return self.fusao.regra if self.fusao else "probabilidade"
 
+    def _analisar_xlsr(self, caminho: str | Path, nome_original: str | None) -> Resultado:
+        from src.xlsr_final import sigmoide
+
+        p = self.xlsr.pontuar_arquivo(caminho)
+        scores = [sigmoide(z) for _, z in p.janelas]
+        n = len(scores)
+        return Resultado(
+            arquivo=nome_original or Path(caminho).name, duracao_s=p.duracao_s,
+            taxa_nativa=taxa_nativa(caminho), score_medio=p.score, score_maximo=max(scores),
+            limiar=self.limiar_xlsr.probabilidade, origem_limiar=self.limiar_xlsr.descricao(),
+            aviso_limiar=None, janelas_uteis=n,
+            janelas_independentes=Agregador().efetivas(n),
+            janelas=[{"t": round(t, 2), "score": significativos(s), "util": True, "peso": 1.0}
+                     for (t, _), s in zip(p.janelas, scores, strict=True)])
+
     def analisar(self, caminho: str | Path, nome_original: str | None = None) -> Resultado:
+        if self.xlsr:
+            return self._analisar_xlsr(caminho, nome_original)
         analisador = AnalisadorContinuo(self.config, self.checkpoints, self.device,
                                         regra=self.regra)
         agregador = Agregador(
