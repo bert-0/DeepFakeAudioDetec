@@ -144,3 +144,26 @@ def test_microfone_abre_o_padrao_sem_loopback_e_usa_o_mesmo_caminho(monkeypatch)
 
     MicrofoneSource(16000, nome_dispositivo="Headset")
     assert aberturas[-1] == ("Headset", False)
+
+
+class _GravadorMudo(_GravadorFalso):
+    """O loopback do Windows com nada tocando: record() não volta."""
+
+    def __init__(self):
+        super().__init__(np.zeros(0), avisar_em=())
+        self.liberar = threading.Event()
+
+    def record(self, numframes):
+        self.liberar.wait(5)
+        return np.zeros((numframes, 2), np.float32)
+
+
+def test_sem_nada_tocando_devolve_bloco_vazio_para_o_monitor_poder_parar(monkeypatch):
+    gravador = _GravadorMudo()
+    _soundcard_falso(monkeypatch, gravador)
+    fonte = WasapiLoopbackSource(16000)
+    inicio = time.time()
+    bloco = next(fonte.blocos())
+    assert bloco.size == 0 and time.time() - inicio < 2.0
+    gravador.liberar.set()
+    fonte.fechar()

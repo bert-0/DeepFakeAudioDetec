@@ -297,12 +297,15 @@ def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path
     else:
         d = detector()
         modelo = ["--config", d.config_path, "--checkpoint", d.checkpoint]
-    cmd = [sys.executable, str(RAIZ_ML / "monitor.py"), *modelo, "--json", str(json_path),
+    # -u: sem buffer, o registro mostra na página o motivo de uma falha.
+    cmd = [sys.executable, "-u", str(RAIZ_ML / "monitor.py"), *modelo, "--json", str(json_path),
            "--gravar", str(wav_path), "--parar-com", str(parar_path), "--fonte", fonte]
     if dispositivo:
         cmd += ["--dispositivo-audio", dispositivo]
     log = open(log_path, "w", encoding="utf-8")
-    return subprocess.Popen(cmd, cwd=RAIZ_ML, stdout=log, stderr=subprocess.STDOUT)
+    # Em UTF-8: no código de página do Windows, um acento no registro derrubava a leitura dele.
+    return subprocess.Popen(cmd, cwd=RAIZ_ML, stdout=log, stderr=subprocess.STDOUT,
+                            env={**os.environ, "PYTHONIOENCODING": "utf-8"})
 
 
 @app.get("/ao-vivo", response_class=HTMLResponse)
@@ -418,7 +421,7 @@ def api_ao_vivo(ultimas: int = 40):
         erro = None
         if not rodando:
             try:
-                erro = Path(sessao["log"]).read_text(encoding="utf-8")[-600:]
+                erro = Path(sessao["log"]).read_text(encoding="utf-8", errors="replace")[-600:]
             except OSError:
                 erro = "o monitor encerrou sem registrar nada"
         return {**base, "existe": False, "erro": erro}

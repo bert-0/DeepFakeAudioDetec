@@ -160,6 +160,10 @@ class WasapiLoopbackSource(AudioSource):
                 # Sem timeout, o get() bloqueia o Ctrl+C no Windows.
                 dados = fila.get(timeout=0.5)
             except queue.Empty:
+                # Com nada tocando, o loopback não entrega pacote nenhum: sem este bloco
+                # vazio, o monitor nunca via o pedido de parada da interface e era
+                # encerrado à força, sem salvar a gravação (28/10/2026).
+                yield np.zeros(0, np.float32)
                 continue
             if dados is None:
                 return

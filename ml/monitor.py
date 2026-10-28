@@ -307,9 +307,17 @@ def rodar(args, fonte, analisador, agregador: Agregador, escolha: Escolha, verda
               f"{texto_media:>6s}  {banda:>6s}  {leitura.peso:5.2f}  "
               f"{barra(score, None if limiar is None else 0.5)}{marca}")
 
+    capturado = 0
     try:
         with fonte:
             for bloco in fonte.blocos():
+                if capturado == 0 and args.json:
+                    # A captura começou: sem leitura ainda (por frase, só depois da
+                    # primeira pausa), a aba Ao vivo sai de "Iniciando a captura".
+                    gravar_json(agregador, args.json, analisador.threshold, escolha.origem,
+                                ativo=True, unidade=unidade,
+                                duracao_s=getattr(analisador, "duracao_s", None))
+                capturado += max(len(bloco), 1)
                 # Parada pedida pela interface web; vai pelo Ctrl+C para salvar WAV e JSON.
                 if args.parar_com and Path(args.parar_com).exists():
                     raise KeyboardInterrupt
@@ -319,6 +327,10 @@ def rodar(args, fonte, analisador, agregador: Agregador, escolha: Escolha, verda
                     _mostrar(leitura)
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
+                # Por frase, o silêncio não gera leitura: o limite conta o áudio recebido.
+                if (limite is not None and unidade == "frase"
+                        and getattr(analisador, "duracao_s", 0.0) >= limite):
+                    raise KeyboardInterrupt
             # Trecho final que não completou uma janela (comum no ASVspoof: janela de
             # 4 s, enunciados mais curtos).
             for leitura in analisador.finalizar():
@@ -407,7 +419,8 @@ def relatar(agregador: Agregador, destino: str | None, canal=None,
         gravar_json(agregador, destino, limiar, origem_limiar, ativo=False, unidade=unidade,
                     duracao_s=duracao_s)
     if resumo["score_medio"] is None:
-        print("Nenhuma janela com áudio — nada a resumir.")
+        print("Nenhuma frase achada — nada a resumir." if unidade == "frase"
+              else "Nenhuma janela com áudio — nada a resumir.")
         if microfone and resumo["janelas_silencio"] == resumo["janelas_total"]:
             print("\nTodas as janelas vieram em silêncio. Confira se o microfone está")
             print("mudo, se o Windows deu permissão de acesso ao microfone e se o")

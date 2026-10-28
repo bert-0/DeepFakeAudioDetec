@@ -443,3 +443,82 @@ def test_histerese_mantem_a_fala_fraca_depois_do_comeco():
     sinal[SR:SR + len(fala)] += fala
     leituras = frases_de(_Gravador(), sinal.astype(np.float32), SR)
     assert len(leituras) == 1 and leituras[0].instante == pytest.approx(0.7, abs=0.05)
+
+
+def test_monitor_grava_o_json_e_para_mesmo_sem_fala(limiar_xlsr, tmp_path, monkeypatch):
+    """Com o som do computador em silêncio, a fonte só devolve blocos vazios: o JSON sai
+    no primeiro (a aba sai de "Iniciando a captura") e o pedido de parada funciona."""
+    import monitor
+
+    class _FonteMuda:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def blocos(self):
+            for _ in range(200):
+                yield np.zeros(0, np.float32)
+            raise AssertionError("o monitor não parou")
+
+    vistos = []
+    original = monitor.gravar_json
+
+    def espiar(agregador, destino, *a, **k):
+        vistos.append(k.get("ativo"))
+        return original(agregador, destino, *a, **k)
+
+    monkeypatch.setattr(monitor, "abrir", lambda args, sr: _FonteMuda())
+    monkeypatch.setattr(monitor, "gravar_json", espiar)
+    parar = tmp_path / "parar"
+    parar.touch()
+    saida = tmp_path / "s.json"
+    assert monitor.main(["--xlsr", str(limiar_xlsr), "--json", str(saida), "--parar-com", str(parar),
+                         "--device", "cpu"]) == 0
+    assert vistos[0] is True, "o JSON sai antes da primeira frase"
+    dados = json.loads(saida.read_text(encoding="utf-8"))
+    assert dados["leituras"] == [] and dados["ativo"] is False
+
+
+def test_limite_de_segundos_vale_sem_fala(limiar_xlsr, tmp_path, monkeypatch):
+    import monitor
+
+    class _FonteRuido:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def blocos(self):
+            for i in range(100):
+                yield _ruido(0.1, i)
+            raise AssertionError("o limite não parou o monitor")
+
+    monkeypatch.setattr(monitor, "abrir", lambda args, sr: _FonteRuido())
+    assert monitor.main(["--xlsr", str(limiar_xlsr), "--segundos", "2", "--device", "cpu"]) == 0
+
+
+def test_monitor_da_interface_sem_buffer_e_em_utf8(limiar_xlsr, tmp_path, monkeypatch):
+    import subprocess
+    import time
+
+    monkeypatch.setenv("DETECTOR_XLSR", str(limiar_xlsr))
+    import web.app as modulo
+
+    importlib.reload(modulo)
+    capturado = {}
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: capturado.update(cmd=cmd, kw=kw))
+    modulo._iniciar_monitor(tmp_path / "s.json", tmp_path / "s.wav", tmp_path / "s.parar",
+                            tmp_path / "s.log", fonte="sistema")
+    assert capturado["cmd"][1] == "-u" and capturado["kw"]["env"]["PYTHONIOENCODING"] == "utf-8"
+
+    # Registro antigo, no código de página do Windows: a aba mostra o erro em vez de cair.
+    log = tmp_path / "velho.log"
+    log.write_bytes("Nenhuma janela com áudio".encode("cp1252"))
+    morto = SimpleNamespace(poll=lambda: 1)
+    monkeypatch.setitem(modulo._estado, "sessao", {"json": tmp_path / "nao.json", "log": log, "proc": morto,
+                                                   "inicio": time.time(), "analise_id": None, "fonte": "sistema"})
+    r = modulo.api_ao_vivo()
+    assert r["rodando"] is False and "Nenhuma janela" in r["erro"]
