@@ -57,8 +57,10 @@ nenhum deles muda um placar.
 
 **Dados**
 - `montar_recorte_asvspoof5.py`, `montar_amostra_brspeech.py`,
-  `montar_amostra_commonvoice.py`, `montar_amostra_replaydf.py`: as amostras e
-  os recortes, com a lista em `data/recortes/`.
+  `montar_amostra_commonvoice.py`, `montar_amostra_replaydf.py`,
+  `montar_amostra_inthewild.py`: as amostras e os recortes, com a lista em
+  `data/recortes/`. Os dois últimos também dividem a amostra por montagem ou
+  por pessoa (`--dividir`).
 - `importar_asvspoof2021.py`, `converter_para_wav.py`, `check_data.py`,
   `rotulo.py`: preparo e conferência das bases.
 

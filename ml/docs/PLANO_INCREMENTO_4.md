@@ -231,6 +231,10 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   só 6 de 10 vozes reais do L01 ficam do lado humano). Integrado à interface e
   ao monitor em 28/10/2026 (§10.2.44): Enviar arquivo pelo caminho das réguas;
   ao vivo frase por frase, com limiar próprio, calibrado com as mesmas vozes.
+- **Decidido pelo grupo (29/10/2026): a cabeça do modelo final treinada de
+  novo com parte do In-the-Wild**, separada por pessoa (30 no treino, 8 no dev,
+  16 na régua), com o critério no RESUMO_TCC §10.2.49 antes de rodar. Se passar,
+  ela vira o modelo final e o limiar é refeito com ela antes da calibração nova.
 - **Decidido pelo grupo (29/10/2026): opção (b).** O Enviar arquivo também
   analisa só a fala, frase por frase, e as duas abas usam o mesmo limiar, o da
   frase. Os motivos: o modelo lê trecho sem fala como sintético (RESUMO_TCC

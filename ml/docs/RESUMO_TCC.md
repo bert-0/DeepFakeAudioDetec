@@ -4838,6 +4838,77 @@ A extração do XLS-R levou 27 min (`outputs/xlsr_congelado_inthewild.json`).
 3. **Os testes soltos do 10.2.47 cabem nisso.** A narração da internet pode
    estar entre os falsos que passam; ela não entra na régua.
 
+### 10.2.49 Cabeça treinada de novo com parte do In-the-Wild (critério combinado antes)
+
+**Por quê (29/10/2026):** no In-the-Wild, cerca de 3 em cada 10 falsos passam
+como humanos (10.2.48). O grupo decidiu treinar de novo só a cabeça do modelo
+final, com uma parte da base separada por pessoa. O XLS-R continua congelado, e
+as características já extraídas no 10.2.48 são reaproveitadas.
+
+**Divisão por pessoa** (`montar_amostra_inthewild.py --dividir 30 8`, semente
+42, lista em `data/recortes/inthewild_pessoas_s42.tsv`). São os mesmos 4.469
+áudios do 10.2.48, e cada pessoa fica numa parte só.
+
+| parte | pessoas | áudios |
+|---|---|---|
+| treino | 30 | 2.486 |
+| dev | 8 | 562 |
+| régua | 16 | 1.421 |
+
+Por acaso, as três pessoas abaixo de 0,85 no 10.2.48 (Robert Kardashian, Alan
+Watts e Donald Trump) caíram na régua.
+
+**Treino:** o mesmo do 10.2.43 (cabeça, hiperparâmetros, semente e parada).
+- O In-the-Wild entra como sexto domínio, com o mesmo peso dos outros cinco.
+- O dev dele entra como sexto dev na escolha da época.
+- A saída é `checkpoints/xlsr_congelado_itw.pt`; o modelo atual fica como está.
+
+**Réguas:** as seis do 10.2.43 e o In-the-Wild das 16 pessoas da régua.
+
+**Referência:** o modelo atual nessas 16 pessoas, com os scores do 10.2.48.
+
+| medida | modelo atual |
+|---|---|
+| AUC | 0,900 |
+| reais certos, limiar do dev | 95,6% |
+| falsos pegos, limiar do dev | 63,9% |
+
+**Critério (no commit antes de rodar):** a cabeça nova substitui a atual se
+cumprir tudo:
+- **ganho no In-the-Wild** (16 pessoas da régua), com o limiar do dev da
+  cabeça nova (o ponto de EER no dev da ASVspoof 5, a regra do 10.2.48):
+  - falsos pegos ≥ 80%;
+  - reais certos ≥ 95%;
+  - AUC ≥ 0,92.
+- **sem perdas:**
+  - os mínimos do 10.2.43 nas seis réguas;
+  - nas quatro grandes, no máximo 0,02 abaixo do modelo atual. Ficam:
+    - eval da ASVspoof 5 ≥ 0,955;
+    - 2019 LA ≥ 0,954;
+    - BRSpeech-DF ≥ 0,901;
+    - ReplayDF (44 montagens) ≥ 0,948.
+
+**Descritivo:**
+- o EER e os certos por classe, com o limiar do dev, em todas as réguas;
+- a AUC por pessoa nas 16 da régua;
+- os pesos das camadas;
+- o ensaio 5 com o limiar das vozes reais do L02 (regra do 10.2.39), como no
+  10.2.43.
+
+**Limitação, passe ou não:**
+- a base deixa de ser inédita para a cabeça nova: o número dela no In-the-Wild
+  é de pessoas fora do treino, não de uma base fora do treino;
+- o 0,949 do 10.2.48 continua sendo o resultado do modelo atual numa base que
+  ele nunca viu.
+
+**Se passar:**
+- a cabeça nova vira o modelo final;
+- o limiar é refeito com ela: primeiro com as vozes atuais do L02, depois com
+  as da calibração nova (10.2.46);
+- a página Sobre passa aos números dela.
+
+**Se não passar:** a cabeça atual fica, e o resultado entra como negativo.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
