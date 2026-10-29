@@ -1,0 +1,314 @@
+# CLAUDE.md
+
+TCC de Ciência da Computação (UNIP): detecção de áudio *deepfake* com fusão de
+características, treinada na ASVspoof 2019 LA, mais um sistema de análise
+(monitor ao vivo e interface web). Todo o código fica em `ml/`.
+
+## Trabalho atual: Incremento 4
+
+**Siga `ml/docs/PLANO_INCREMENTO_4.md`.** Antes de propor ou implementar algo,
+confira se está no plano; se não estiver, diga isso e pergunte antes de seguir.
+
+- Objetivo: separar a voz real do orientador do clone dela, pelo arquivo e pelo
+  microfone. Meta do ensaio: 8 de 10 frases certas em cada classe, nos dois
+  caminhos, com locutores fora do treino.
+- Desenho 2x2: fusion_v4 (LCNN) e XLS-R 300M + LFCC, cada um treinado na 2019 LA
+  e no recorte da ASVspoof 5. As tabelas dos Incrementos 1 a 3 não mudam.
+- Ordem: ética e gravador primeiro (nenhuma gravação antes do termo de
+  consentimento), depois dados, treino, avaliação, texto e demonstração.
+- Depois da data de congelamento, nenhum experimento novo. Se a meta não for
+  atingida, o texto de reserva (TC2 atual) segue, e o Incremento 4 entra como
+  resultado parcial.
+- As decisões pendentes estão no fim do plano. Não as decida sozinho.
+
+## Idioma e estilo
+
+- Tudo em português do Brasil: nomes no código, comentários, documentos,
+  mensagens de commit e respostas.
+- Comentários curtos, só para o porquê (decisão, medida, armadilha). Nada de
+  comentário que repete o código. Siga o estilo do arquivo ao redor.
+- Interface web: cantos retos, Tahoma, números em monoespaçada, destaque verde
+  (tema escuro preto e verde, padrão; tema claro). Nada de gradiente ou brilho.
+  Textos curtos na tela; detalhe técnico (caminhos de pasta, erros internos)
+  fica no terminal.
+
+## Comandos (de dentro de `ml/`, PowerShell, ambiente conda ativo)
+
+```powershell
+python -m pytest tests -q                 # ~690 testes; rodar antes de todo commit
+ruff check --select E9,F .                # o mesmo lint do CI
+uvicorn web.app:app                       # interface em http://127.0.0.1:8000
+python monitor.py --config configs\baseline_v2.yaml --checkpoint checkpoints\baseline_lfcc_cnn_v2.pt [--fonte microfone]
+python evaluate.py --config <yaml> --checkpoint <pt> --partition eval
+python scripts\robustness_eval.py --config <yaml> --checkpoint <pt> --amostra 10000 --so clean captura_48k_fir
+python scripts\calibrar_captura.py --config <yaml> --checkpoint <pt>
+```
+
+Mais comandos explicados em `ml/docs/colinha/colinha.html` (PDF ao lado).
+
+**Treinos e avaliações longas quem roda é o usuário** (GTX 1650 local; Kaggle T4
+para o XLS-R). Prepare o comando, peça para ele rodar e analise o log ou a saída
+que ele colar. Não rode um treino pelo terminal da sessão.
+
+## Mapa do código
+
+A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
+
+- `src/preprocess/`: `load_audio`, `preprocess_waveform` (remove silêncio,
+  normaliza pelo pico, janela de 4 s), `reamostragem.py` (FIR polifásico; o
+  `soxr` apagava 7,6–8 kHz e não deve voltar ao caminho do modelo),
+  `degradacao.py` (aumento no áudio bruto, antes do pré-processamento,
+  `audio.degradacao`; o `Augmenter` antigo entra depois dele), `rawboost.py`
+  (LnL, ISD e SSI de Tak et al. 2022, com o `rng` da amostra), `codecs.py`
+  (MP3, Vorbis, Opus, G.711, GSM pelo libsndfile).
+- `src/features/`, `src/models/`: LFCC, log-mel, CNN, LCNN, fusão e atenção.
+- `src/capture/`: fontes de áudio (arquivo, loopback, microfone por WASAPI
+  compartilhado com `sounddevice`, `--exclusivo` só para diagnóstico, ou
+  `soundcard` sem ele), analisador em janelas de 4 s com passo de 2 s, peso pela
+  fração de fala; `checagens.py` (depois de gravar: saturação, cópias, fala,
+  banda, piso de ruído).
+- `docs/etica/`: rascunhos do termo de consentimento e do protocolo de gravação.
+- `src/data/asvspoof5.py` e `scripts/montar_recorte_asvspoof5.py`: protocolos da
+  ASVspoof 5 e o recorte lido direto dos `.tar` (em `D:`, pela junção
+  `ml/data/ASVspoof5`); recorte em `ml/data/ASVspoof5_recorte/`, seleção
+  versionada em `ml/data/recortes/`.
+- `src/limiares.py`: limiar por tipo de áudio (nativo 16 kHz: original; 44,1/48
+  kHz e ao vivo: o de captura, só se calibrado com o FIR e com os mesmos pesos).
+- `web/`: FastAPI + Jinja2 + SQLite. Abas Enviar arquivo, Resultado, Ao vivo e
+  Histórico. O ao vivo roda o `monitor.py` como subprocesso, parado por arquivo
+  (`--parar-com`). Com `DETECTOR_LIMIAR_FUSAO` (JSON do `limiar_fusao.py`), as
+  duas abas usam os modelos, a regra e o limiar dele; Enviar arquivo usa também a
+  taxa comum de 48 kHz, como o ensaio 2. Com `DETECTOR_XLSR` (JSON do
+  `scripts/limiar_xlsr.py`), as duas abas usam o modelo final
+  (`src/xlsr_final.py`, preparo em `src/features/xlsr.py`): as duas só com a
+  fala, frase por frase (`src/capture/frases.py`), com o limiar da frase
+  (decisão de 29/10/2026; `limiar_xlsr.py --arquivo-inteiro` volta ao caminho
+  das réguas). No Enviar arquivo, o score é a média das frases; o ao vivo
+  (`monitor.py --xlsr`) julga cada frase. Na tela, o score
+  aparece na escala centrada no limiar (`centrado` em `src/limiares.py`): o
+  limiar fica em 0,50; a decisão continua no score do modelo. Aba Clonar
+  (`web/clonagem.py`): roda o `clonar_xtts.py` no ambiente conda da ferramenta,
+  offline primeiro, só com as vozes de `data/vozes/vozes_autorizadas.json`; o
+  clone é analisado como arquivo e apagado com o registro. Não clona com o ao
+  vivo ligado (o Chatterbox ocupa ~3,4 GB da GPU). Conferência
+  (`web/conferencia.py`, `scripts/conferir.py`): roda sozinha quando o servidor
+  sobe (`DETECTOR_CONFERIR=0` desliga) e mostra a situação no cabeçalho; o
+  microfone e o som têm tempo limite, porque o driver de áudio pode travar.
+- `scripts/`: avaliação, robustez, calibração, canal real, demonstração
+  (`montar_demo.py`), voz própria (`gerar_sintetico.py`, `avaliar_arquivos.py`;
+  o teste real contra clone: `gravar_frases.py`, `limiar_fusao.py`,
+  `teste_voz_propria.py`, critério em RESUMO_TCC §10.2.12; com o modelo final,
+  `limiar_xlsr.py` e `teste_voz_propria.py --xlsr`; clonagem local:
+  `preparar_referencia.py` e `clonar_xtts.py`, no ambiente conda `xtts`, ou com
+  `--ferramenta chatterbox` no ambiente `chatterbox`); estudo das imperfeições,
+  exploratório (`estudo_faixas.py`, `estudo_relogio.py`, `estudo_linhas.py`,
+  `estudo_pente.py`, `estudo_bases.py`; RESUMO_TCC §10.2.17 em diante) e o
+  XLS-R congelado como instrumento (`estudo_ssl.py`, §10.2.22; precisa de
+  `transformers` e `HF_HOME` no cache do E:).
+- `docs/RESUMO_TCC.md`: registro de todos os experimentos e números.
+  `docs/TC2_REDACAO.md`: texto do relatório, com a fonte de cada número num
+  comentário `<!-- RESUMO_TCC §x -->`.
+
+## Regras
+
+- **Número no texto só com fonte.** Todo número da redação vem do
+  `RESUMO_TCC.md` (ou de uma saída que o usuário colou), com a seção citada.
+  Não invente nem arredonde a partir da memória.
+- **Resultado negativo é relatado** do jeito que saiu, com a limitação em 5.7.
+  Combine o critério antes de ver o resultado.
+- **Calibração nunca toca no conjunto de avaliação**: limiar no dev, efeito
+  medido depois no eval.
+- **Fora do Git:** áudio (`*.wav`, `*.flac`, `*.mp3`), `checkpoints/`,
+  `outputs/`, bases da ASVspoof e qualquer voz coletada (dado biométrico, LGPD).
+  Versione scripts, protocolos, listas do recorte e resultados.
+- **Vozes de pessoas:** só com termo de consentimento assinado; código de
+  locutor no lugar do nome; clones apagados depois da banca. Clonagem só das
+  vozes autorizadas e só para o que o termo diz.
+- **Texto do TCC:** não atribuir partes do sistema a integrantes específicos. O
+  uso de assistente de IA é declarado na metodologia.
+- **Git:** a branch principal é `claude/admiring-albattani-ehJU4`. Não abra pull
+  request nem faça push forçado sem pedido. Commits pequenos, mensagem em
+  português dizendo o que mudou e por quê.
+- Toda mudança de código vem com teste no estilo de `ml/tests/` (sem GPU, sem
+  base real: dados sintéticos e falsos de `soundcard`).
+
+## Fatos já medidos (não refaça sem motivo)
+
+- Eval 2019 LA sem silêncio: baseline_v2 18,99%, fusion_v4 20,18%, fusão de
+  scores dos dois 13,13%. Validação não prevê avaliação (0,03% → 20,18%).
+- Canal real (2021 LA, Opus): baseline_v2 29,43%, fusion_v4 32,62%; no Opus o
+  fusion_v4 satura a probabilidade em 1,0.
+- Captura com FIR, fusion_v4: 20,16% (limpo 20,25%), sem saturação; o soxr era a
+  causa. A cópia `_captura` dele (limiar 0,9984, de um dev com EER 0,13%) deixa
+  passar 50% dos sintéticos contra 44% do original: no fusion_v4 vale o limiar
+  original (RESUMO_TCC §10.2.8).
+- Captura 48 → 16 kHz: soxr 24,70%, FIR 19,41% (limpo 19,02%). Limiar de captura
+  do baseline_v2: 0,686 (original 0,654).
+- Fusão ao vivo (média) dos dois na captura FIR: EER 14,2%. Limiar escolhido no
+  dev com o alarme falso do v2 (0,3473): 10,6% de humanos acima e 16,5% de
+  sintéticos passando, contra 10,7% e 28,8% do v2. Limiares acima de 0,5 exigem
+  que os dois concordem e deixam passar 42–49% (RESUMO_TCC §10.2.9). Sem
+  `--limiar-fusao`, o monitor aplica à fusão o limiar do primeiro checkpoint.
+- Fusão dos dois fusion_v4 com degradação (RESUMO_TCC §10.2.12): na média das
+  probabilidades o modelo do recorte quase não pesa (limiar dele 0,00017); na
+  média dos log-odds, dev da ASVspoof 5 com EER 11,87% (21,48% nas
+  probabilidades). Limiar −4,437 (score 0,0117), 10% de alarme falso nos devs.
+- Ao vivo: aprimoramentos de áudio do Windows (saída e microfone) precisam estar
+  desligados; o VLC altera o áudio; reprodução pelo ar (celular → microfone)
+  não separa real de falso. Com um fone com microfone conectado, o driver
+  Realtek troca o microfone embutido ("Grupo de microfones") pelo do fone sem
+  mudar o nome; os testes de 02/10 (RESUMO_TCC §10.2.10) mediram o do fone.
+- Oclusão de 7,6–8 kHz no eval (10 mil): baseline_v2 19,02% → 25,29%,
+  fusion_v4 20,25% → 31,12% com todos os humanos em 1,0. A dependência passa
+  do critério de 2 pp: a correção entra no treino (RESUMO_TCC §10.2.11).
+  Treino completo do baseline_v2 (controle 18,14% limpo, 24,33% no corte):
+  LFCC de 0 a 4 kHz 23,34% e 23,34%; descarte aleatório 20,54% e 21,34%.
+  Nenhuma passou no critério; o grupo adotou o descarte (23/10/2026).
+- fusion_v4 treinado no recorte da ASVspoof 5 com a degradação nova: dev
+  20,56%; eval 2019 37,76% (fusion_v4 da 2019: 20,18%), Opus real da 2021
+  37,44% (32,62%). Pior em todas as réguas da 2019/2021, mas quase invariante ao
+  canal (Opus real +0,67 pp sobre a referência, contra +13,11) (RESUMO_TCC §10.7).
+- 2x2 do fusion_v4 (RESUMO_TCC §10.9): a degradação nova na 2019 custa 3,56 pp no
+  limpo e ganha 8,57 pp no Opus real (24,05%); a base ASVspoof 5 piora todas as
+  réguas, mas erra em ataques diferentes. A fusão pela média dos dois dá 18,16%
+  no Opus real e 26,7% no eval da ASVspoof 5 (exploratória, sem critério antes).
+- Voz própria com copy-synthesis (Griffin-Lim, WORLD): versões sintéticas abaixo
+  do original em 18 de 20; o modelo reage às condições de gravação, não ao
+  vocoder. É o diagnóstico que motiva o Incremento 4.
+- Teste com a voz própria contra clones do XTTS v2 local (RESUMO_TCC §10.2.12,
+  critério combinado antes): reais 10 de 10 nos dois caminhos; clones 0 de 10 no
+  arquivo e 2 de 10 pelo microfone. Meta não atingida. O modelo da 2019 inverte
+  (voz real do microfone acima do clone limpo); o do recorte separa o arquivo
+  (100% dos pares), mas pelo ar nenhum separa. Clones tocaram ~8 dB mais baixo.
+- Ensaio 2 (RESUMO_TCC §10.2.13, critério antes): `fusion_lcnn_v4_asv5` sozinho,
+  limiar do treino (−8,671 nos log-odds), caminho arquivo com `--taxa-comum
+  48000`, frases novas: reais 10 de 10, clones do XTTS 9 de 10, meta atingida.
+  Um locutor só (o mesmo do ensaio 1); a ordem é estável, o ponto de corte frágil.
+- Ensaio 3 (RESUMO_TCC §10.2.14): mesmo critério, voz nova (L02, de fora do
+  grupo), frases do conjunto 3, clones sem o ponto final: reais 10 de 10, clones
+  10 de 10. Ensaios 2 e 3 juntos: 20 de 20 e 19 de 20. O clone pelo ar segue sem
+  separação. O XTTS corta o fim, trava palavras e lê o ponto como "ponto".
+- Ensaio 4 (RESUMO_TCC §10.2.15): clones do Chatterbox Multilingual, mesmo
+  critério: L01 3 de 10, L02 9 de 10; meta não atingida. A ordem quase não erra
+  (clone acima do real do mesmo locutor em 396 de 400 pares nos ensaios 2 a 4);
+  falha o ponto de corte.
+- Ensaio 5 (RESUMO_TCC §10.2.35, critério antes): captura corrigida, referência
+  nova do L01, frases do conjunto 5. Reais 10 de 10; clones pegos pelo arquivo:
+  XTTS 7 de 10 (AUC 1,000, falha o corte), Chatterbox 0 de 10 (AUC 0,560); pelo
+  ar 0 de 10 nos dois (Chatterbox pelo ar abaixo de todos os reais). Contra os
+  ensaios 2 e 4, a queda vem da referência ou das frases: os acertos antigos
+  usaram referências com cópias.
+- Referência e candidatos no ensaio 5 (RESUMO_TCC §10.2.36): as cópias na
+  referência não explicam os acertos antigos (a queda veio das frases). A sonda
+  da camada 7 do XLS-R ordena todo clone acima das vozes reais pelo arquivo (AUC
+  1,00, XTTS e Chatterbox) e quase todos pelo ar (0,98 e 0,88), sem acertar o
+  limiar pelo ar; os alunos não (0,599 e 0,486). O detector separa o Chatterbox
+  no caminho da avaliação (0,92), não no da interface (0,560): a investigar.
+- Piloto 3 de destilação (RESUMO_TCC §10.2.37 e §10.2.38): com Common Voice
+  em português e salas do BUT ReverbDB, o aluno 3b (6 camadas, 384, 30 épocas,
+  11,4 milhões de parâmetros) dá 0,964 no eval da ASVspoof 5 (professor 0,971,
+  detector 0,659), 0,934 na 2019 e 0,785 no ensaio 5 pelo arquivo e pelo ar.
+  Critério não atingido (arquivo < 0,80); o limiar do dev pega 1 de 40 clones.
+  Salas no eval da 2019: `fusion_lcnn_v4` 20,25% → 42,53% (926 de 1.032
+  humanos em 1,0); o do recorte 37,71% → 46,12%.
+- Limiar pelo canal com outro locutor (RESUMO_TCC §10.2.39, critério antes):
+  limiar = maior score das 10 vozes reais do L02 no mesmo microfone. A sonda
+  da camada 7 do XLS-R atinge a meta pelo arquivo no ensaio 5 (reais, XTTS e
+  Chatterbox 10 de 10); pelo ar, XTTS 7 e Chatterbox 1. O aluno 3b não (o
+  limite dele é a ordem).
+- Régua em português, BRSpeech-DF (RESUMO_TCC §10.2.40; 10 leitores, 5
+  ferramentas): AUC detector 0,84, sonda no LFCC 0,880, professor (camada 7)
+  0,776, aluno 3b 0,690. O professor quase não separa XTTS (0,60) e F5-TTS
+  (0,59); a camada 4 dá 0,942. O sucesso do professor no ensaio 5 não se repete
+  com clones de audiolivro.
+- Piloto 4, aluno com vários professores (RESUMO_TCC §10.2.41): a cabeça de
+  decisão treinada com rótulos (BRSpeech-DF F5-TTS incluído) chega a 0,938 no
+  BRSpeech-DF (F5-TTS 1,00), mas decora o treino na época 1 e cai na ASVspoof
+  (eval 0,826, 2019 0,753) e no ensaio 5 (Chatterbox 0,26). Critério não
+  atingido.
+- Régua pelo ar, ReplayDF (RESUMO_TCC §10.2.42; 109 montagens, 2.180 áudios):
+  AUC professor 0,797, detector 0,741, aluno 4 0,724, LFCC 0,649, aluno 3b
+  0,628. Pelo limiar do dev, o professor deixa passar 891 de 1.090 falsos.
+  Camadas do XLS-R: a melhor muda com o canal (ASVspoof todas; audiolivro a 4;
+  regravação 10 a 17), argumento para a soma ponderada do `fusion_ssl`.
+- **Modelo final** (RESUMO_TCC §10.2.43, critério antes, passou): XLS-R
+  congelado com pesos por camada (as mais pesadas, 6, 5, 4, 7 e 10) e ramo
+  LFCC (`scripts/xlsr_congelado.py`, `checkpoints/xlsr_congelado.pt`), treinado
+  com ASVspoof 5, BRSpeech-DF, salas, Common Voice e 55 montagens do ReplayDF.
+  AUC: ASVspoof 5 0,975, 2019 0,974, BRSpeech-DF 0,921, ReplayDF (44 montagens
+  fora do treino) 0,968, ensaio 5 1,000 pelo arquivo e 0,975 pelo ar. Com o
+  limiar das vozes do L02, reais do L01 só 6 de 10 (clones 39 de 40): falta
+  calibrar com mais vozes no modo atual.
+- Integração do modelo final (RESUMO_TCC §10.2.44): o caminho do arquivo
+  reproduz os scores das réguas (diferença 0 nos 90 do ensaio 5). As gravações
+  de 12 s levam uns 5 s de ruído da sala que o `top_db` 30 não tira; a frase do
+  ao vivo não, e o score muda nos dois sentidos (L02: −1,71 a +0,86). Por isso
+  há dois limiares, das mesmas vozes: L02 arquivo −0,517, frase −0,389. A média
+  das janelas não é o score do arquivo (até 0,67 de diferença). Pendente: cortar
+  a fala também no arquivo. Nos devs (§10.2.45, sem critério), cortar a fala não
+  muda a AUC (±0,005) e sobe o EER de 0,2 a 1 pp; com salas simuladas, o detector
+  de fala falhava em 20% dos arquivos; com entrada a 6 dB e saída a 3 dB do piso,
+  5 de 1.600, sem frase no ruído puro da sala. O ao vivo avisa na tela quando há
+  som sem fala ou o microfone satura. Vozes de IA da internet (narração, Google
+  Tradutor) saíram como humanas nos testes soltos (§10.2.47). Na régua
+  In-the-Wild (§10.2.48, 4.469 áudios de 54 figuras públicas, critério antes),
+  AUC 0,949: passou; EER 11,01%. Pelo limiar do dev, 97,1% dos reais certos e
+  71,4% dos falsos pegos: falha o ponto de corte, não a ordem.
+- **Cabeça com parte do In-the-Wild** (RESUMO_TCC §10.2.49, critério antes,
+  passou): 30 pessoas no treino, 8 no dev, 16 na régua. Na régua, AUC 0,957
+  (atual 0,900), EER 7,18% (15,62%), falsos pegos 92,0% (63,9%) com 95,5% dos
+  reais certos. As outras réguas ficam dentro de 0,01. Virou o modelo final
+  (`checkpoints/xlsr_congelado_itw.pt`); a do §10.2.43 fica em
+  `xlsr_congelado.pt`. Limiares com ela: L02 frase −1,158, dev −1,854. Com o
+  limiar do dev, mais reais da ASVspoof 5 erram (72,7% certos, antes 81,2%).
+  Ensaio 5 frase por frase com o limiar do L02 (descritivo): reais 10 de 10,
+  XTTS 10 e 10, Chatterbox 10 pelo arquivo e 9 pelo ar.
+- Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
+  com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
+  blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
+  bits e sem o ganho do Windows (+40 dB). Está em todas as gravações reais, nas
+  referências da clonagem, nos clones pelo ar e no ao vivo. Nada se perde:
+  `diagnostico_captura.py reparar` apaga as cópias (`data/vozes/reparadas/`). O
+  modo compartilhado não tem o defeito e virou o padrão (26/10/2026), com a
+  checagem de cópias depois de gravar. Ele aplica o ganho do Windows: com o
+  nível de 26/10, a fala do embutido (pico −25 dBFS no exclusivo) saturaria. Os
+  placares dos ensaios não mudam sem as cópias; o pente de 9,09 Hz e os
+  "estalos a 110 ms" eram elas.
+- Microfone embutido na sala: ruído 16–25 dB abaixo da fala na distância normal;
+  o teste aceita 15 dB (`--piso-minimo 15`). Tecla e mão no notebook viram
+  pancadas graves que a checagem de fala ignora (passa-altas de 150 Hz).
+- Imperfeições dos sintéticos (RESUMO_TCC §10.2.17 a §10.2.20, exploratório):
+  - O detector vê o sintético espalhado em 2–5 kHz e lê espectro incompleto como
+    sintético.
+  - Cada gerador deixa linhas fixas próprias, nos dois locutores (XTTS 6.078 Hz,
+    Chatterbox 7.850 Hz). Elas somem na janela de 25 ms do modelo.
+  - A captura põe um pente de 9,09 Hz (as cópias de 110 ms, §10.2.34) em todas
+    as gravações reais e em nenhum clone. É um atalho: característica nova se
+    confere em humanos de outra origem.
+  - Nas bases ASVspoof (§10.2.21), as linhas e os pentes aparecem só em parte
+    dos geradores modernos: A14 com pente de 62,5 Hz (AUC 0,97), A13 e A07 com
+    linhas. Nenhum aparece na 2019 LA. Não são uma marca universal.
+  - Parte 7 (§10.2.23): a linha do gerador fica nas pausas, como zumbido do
+    vocoder, e não separa o gerador da sala.
+- XLS-R congelado como instrumento (RESUMO_TCC §10.2.22): sonda linear na camada
+  7, treinada no treino do recorte. No dev (ataques não vistos), EER 0,21%,
+  contra 20,75% do `fusion_lcnn_v4_asv5` nos mesmos arquivos. Pega o A12 (AUC
+  1,000; o detector dá 0,113) e transfere para a 2019 LA (0,998). Por quê:
+  - a convolução de entrada e o LFCC falham (AUC 0,60 e 0,85);
+  - a evidência fica em 0–500 Hz e 1–2 kHz;
+  - embaralhar a ordem dos quadros derruba a AUC para 0,39.
+
+  É a dinâmica da voz no tempo. Camadas 10–18 invertem nos ensaios (canal).
+- Partes 8 e 9 (§10.2.24, §10.2.25), critérios não atingidos: nem medidas de
+  dinâmica feitas à mão (pYIN, vozeação, energia por faixa) nem estatísticas
+  temporais dos quadros locais reproduzem a pista. Ela precisa de um modelo de
+  contexto aprendido; trocar o pooling não basta.
+- Parte 10 (§10.2.26, §10.2.27): a perda do pré-treino do XLS-R (a "surpresa",
+  sem nunca ver um falso) separa os falsos com AUC 0,886 no dev (A12 0,99) e
+  0,766 na 2019.
+  - Somada ao detector: 0,983 no dev e 0,849 na 2019.
+  - Nos ensaios se inverte (real pelo microfone, clone limpo); sem as cópias da
+    captura e no celular, a inversão diminui, mas fica (§10.2.34).
+  - Com o mesmo canal nas duas classes, segue separando (0,82–0,85 no dev).
+  - A proposta de um modelo de naturalidade próprio está no plano, como
+    decisão pendente.

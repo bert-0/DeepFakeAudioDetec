@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block titulo %}Conferir — Análise de Autenticidade de Voz{% endblock %}
+{% block conteudo %}
+<div class="cartao">
+  <div class="linha-arquivo">
+    <span class="nome">Conferência do sistema</span><span class="duracao" id="quando"></span>
+  </div>
+  <div class="centro">
+    <div class="veredito" id="resumo">Conferindo…</div>
+    <div class="legenda">Roda sozinha quando o servidor abre: modelo, limiar, GPU, microfone, som, clonagem e disco.</div>
+  </div>
+  <table class="conferencia-itens" id="itens"></table>
+  <div class="acoes">
+    <button type="button" class="verde" id="de-novo">Conferir de novo</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var ROTULO = {ok: "ok", atencao: "atenção", falha: "falha", lembrete: "conferir"};
+  function desenhar(d) {
+    $("de-novo").disabled = !!d.rodando;
+    $("quando").textContent = d.quando ? "às " + d.quando : "";
+    $("resumo").textContent = d.rodando ? "Conferindo… (leva alguns segundos)" : (d.resumo || "Ainda não conferido.");
+    var t = $("itens"); t.innerHTML = "";
+    (d.itens || []).forEach(function (i) {
+      var tr = document.createElement("tr");
+      var a = document.createElement("td"); a.className = "estado " + i.estado; a.textContent = ROTULO[i.estado] || i.estado;
+      var b = document.createElement("td"); b.className = "item"; b.textContent = i.nome;
+      var c = document.createElement("td");
+      c.textContent = i.detalhe;
+      if (i.acao) { var s = document.createElement("div"); s.className = "legenda"; s.textContent = i.acao; c.appendChild(s); }
+      tr.appendChild(a); tr.appendChild(b); tr.appendChild(c); t.appendChild(tr);
+    });
+    var sit = $("situacao-conferencia");
+    if (sit) {
+      sit.className = "sobre conferencia " + (d.rodando ? "rodando" : (d.situacao || ""));
+      sit.textContent = d.rodando ? "Conferindo…" : ({ok: "Pronto", atencao: "Atenção", falha: "Falha"}[d.situacao] || "Conferir");
+    }
+    if (d.rodando) setTimeout(atualizar, 1500);
+  }
+  function atualizar() {
+    fetch("/api/conferir").then(function (r) { return r.json(); }).then(desenhar).catch(function () {});
+  }
+  $("de-novo").addEventListener("click", function () {
+    fetch("/api/conferir", {method: "POST"}).then(function () { atualizar(); });
+  });
+  atualizar();
+})();
+</script>
+{% endblock %}

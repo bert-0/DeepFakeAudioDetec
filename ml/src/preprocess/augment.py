@@ -1,18 +1,8 @@
 """Aumentação e perturbação de áudio no domínio do tempo.
 
-Usado em dois contextos:
-
-- **Treino** — aumentação ALEATÓRIA (`Augmenter`), que melhora a generalização e
-  a robustez a ruído (TC1 §5.5). Aplicada após o pré-processamento, antes da
-  extração de características.
-- **Avaliação de robustez** — perturbação DETERMINÍSTICA com nível fixo
-  (`make_perturbation`), usada por `scripts/robustness_eval.py` para medir a
-  degradação do modelo sob ruído/ganho controlados.
-
-Observação: como o extrator normaliza cada feature por instância (média 0,
-desvio 1), a aumentação de **ganho** tem efeito pequeno nas features — o ganho
-real está em treinar para ser invariante a ela. A aumentação de **ruído** é a
-mais impactante para a robustez.
+`Augmenter` faz a aumentação aleatória do treino (TC1 §5.5); `make_perturbation`
+aplica um nível fixo para o `scripts/robustness_eval.py`. Com features
+normalizadas por instância, o ganho quase não muda nada; o ruído é o que pesa.
 """
 
 from __future__ import annotations
@@ -39,9 +29,9 @@ def time_shift(wav: np.ndarray, shift: int) -> np.ndarray:
 
 
 class Augmenter:
-    """Aumentação aleatória configurável (aplicar apenas no conjunto de treino).
+    """Aumentação aleatória configurável, só para o treino.
 
-    Exemplo de configuração (em `audio.augment` no YAML)::
+    Exemplo (em `audio.augment` no YAML)::
 
         augment:
           enabled: true
@@ -49,15 +39,8 @@ class Augmenter:
           gain:  {prob: 0.5, gain_db: [-6, 6]}
           shift: {prob: 0.5, max_fraction: 0.1}
 
-    Cada transformação é aplicada com a sua própria probabilidade.
-
-    **O gerador aleatório vem de fora, por amostra.** Guardar um `rng` como
-    estado do objeto não funciona com `DataLoader(num_workers>0)`: cada worker
-    recebe uma *cópia* do dataset com o mesmo estado inicial, então todos
-    produziriam a mesma sequência de aumentação — e, como os workers são
-    recriados a cada época, a sequência ainda se repetiria época após época.
-    Recebendo o `rng` derivado de (semente, época, índice), cada amostra tem
-    aumentação própria, reprodutível e diferente a cada época.
+    O `rng` vem de fora, por amostra: um gerador guardado no objeto se repetiria
+    em cada worker do DataLoader e a cada época.
     """
 
     def __init__(self, cfg: dict | None, seed: int | None = None):
@@ -68,8 +51,7 @@ class Augmenter:
                  rng: np.random.Generator | None = None) -> np.ndarray:
         if not self.cfg.get("enabled", False):
             return wav
-        # Sem rng externo (uso avulso, fora do DataLoader), cai num gerador
-        # derivado da semente — determinístico, porém sem variação por época.
+        # Uso avulso: gerador da semente, determinístico e sem variar por época.
         if rng is None:
             rng = np.random.default_rng(self.seed)
 
@@ -93,27 +75,11 @@ class Augmenter:
 
 
 class Perturbation:
-    """Perturbação determinística de nível fixo, para a avaliação de robustez.
+    """Perturbação determinística de nível fixo, com a assinatura do `Augmenter`.
 
-    Assinatura `(wav, rng=None) -> wav`, igual à do `Augmenter`, para que o
-    dataset use os dois de forma intercambiável.
-
-    kind: 'clean' | 'noise' (level = SNR em dB) | 'gain' (level = dB) |
-          'shift' (level = nº de amostras).
-
-    **É uma classe, e não uma closure.** A versão anterior devolvia `lambda`, que
-    o pickle não serializa — e o dataset inteiro é serializado para os workers do
-    DataLoader (no Windows, `spawn` faz isso sempre). Por isso a robustez rodava
-    presa a `num_workers=0`: um único processo extraindo features de 71.237
-    áudios, seis vezes (uma por condição), sem poder usar cache — a aumentação
-    muda as features, então elas têm mesmo de ser recalculadas.
-
-    **O ruído passa a ser derivado do `rng` da amostra.** Antes, um único gerador
-    era compartilhado por todas as chamadas, então a perturbação de cada áudio
-    dependia da *ordem* em que ele era processado. Com vários workers essa ordem
-    deixa de existir, e o resultado passaria a variar com o nº de workers. Usando
-    o gerador que o dataset deriva de (semente, época, índice), cada áudio recebe
-    sempre o mesmo ruído — reprodutível com 0, 2 ou 8 workers.
+    `kind`: 'clean', 'noise' (level = SNR em dB), 'gain' (dB) ou 'shift'
+    (amostras). É classe, e não lambda, para o pickle levar o dataset aos
+    workers; o ruído sai do `rng` da amostra e não depende do nº de workers.
     """
 
     def __init__(self, kind: str, level: float | None, seed: int = 0):
@@ -131,10 +97,10 @@ class Perturbation:
             return apply_gain(wav, self.level)
         if self.kind == "shift":
             return time_shift(wav, int(self.level))
-        # Sem `rng` (uso avulso, fora do DataLoader) cai na semente própria.
+        # Uso avulso, sem `rng`: usa a semente própria.
         return add_noise(wav, self.level, rng or np.random.default_rng(self.seed))
 
 
 def make_perturbation(kind: str, level: float, seed: int = 0) -> Perturbation:
-    """Atalho para `Perturbation` (mantido pelo nome já usado nos scripts)."""
+    """Atalho para `Perturbation`, com o nome que os scripts usam."""
     return Perturbation(kind, level, seed)

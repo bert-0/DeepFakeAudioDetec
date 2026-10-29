@@ -1,12 +1,12 @@
-# EXTRA — Fusao multi-resolucao: dois ramos LFCC (n_filter 20 e 70).
+# EXTRA — Fusão multi-resolução: dois ramos LFCC (n_filter 20 e 70).
 #
-# Motivacao empirica: a analise por ataque mostrou que baixa resolucao vence
-# no nucleo duro (A10/A12/A18) e alta resolucao vence nos ataques semelhantes
-# ao treino. A fusao de scores entre essas duas resolucoes levou o EER de
-# 18,99% para 15,84%. Aqui a mesma complementaridade e explorada DENTRO de um
-# unico modelo, treinado ponta a ponta.
+# Motivação empírica: a análise por ataque mostrou que baixa resolução vence
+# no núcleo duro (A10/A12/A18) e alta resolução vence nos ataques semelhantes
+# ao treino. A fusão de scores entre essas duas resoluções levou o EER de
+# 18,99% para 15,84%. Aqui a mesma complementaridade é explorada DENTRO de um
+# único modelo, treinado ponta a ponta.
 #
-# Complementa (nao substitui) o fusion_v4, que segue o TC1 com LFCC+espectrograma.
+# Complementa (não substitui) o fusion_v4, que segue o TC1 com LFCC+espectrograma.
 
 experiment:
   name: fusion_multires

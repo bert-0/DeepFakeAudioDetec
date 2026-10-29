@@ -1,11 +1,7 @@
-"""Testes do portão de qualidade do canal.
+"""Portão de qualidade do canal (src/capture/qualidade.py).
 
-Contexto medido (`robustness_eval.py`, eval completo): o codec Opus custa +1,90
-pp de EER ao `fusion_v4`, mas perder a banda alta custa +5,35 pp.
-
-O ponto central destes testes é a **assimetria**: presença de alta frequência
-prova que o canal a transmite; ausência não prova nada, porque uma vogal
-sustentada também não tem alta frequência.
+Presença de alta frequência prova que o canal a transmite; ausência não prova
+nada, porque uma vogal sustentada também não tem alta frequência.
 """
 
 import sys
@@ -30,8 +26,7 @@ T = np.arange(SR * 4) / SR
 
 
 def _vogal(seed=0):
-    """Vogal sustentada: harmônicos com formantes e queda espectral.
-    Não tem energia acima de 4 kHz — como um canal de banda estreita."""
+    """Vogal sustentada: harmônicos com formantes, sem energia acima de 4 kHz."""
     rng = np.random.default_rng(seed)
     s = np.zeros_like(T)
     for n in range(1, 60):
@@ -67,11 +62,8 @@ def _fala(seed=0):
 
 
 # --------------------------------------------------------------------------- #
-# A medição por janela: p90 dos quadros, não a média
-#
-# Regressão: a primeira versão usava a média da janela. Fala real dava 5,40% e
-# vogal sustentada 0,00% — indistinguível de banda estreita. O p90 leva a fala
-# real a 81%, porque pergunta "algum quadro teve alta frequência?".
+# Medição por janela: p90 dos quadros, não a média
+# (com a média, fala real dava 5,40%, perto da banda estreita; com o p90, 81%)
 # --------------------------------------------------------------------------- #
 def test_fala_real_mostra_alta_frequencia():
     assert fracao_energia_alta(_fala(), SR) > 10 * FRACAO_MINIMA
@@ -91,7 +83,7 @@ def test_banda_estreita_zera():
 
 
 def test_vogal_e_banda_estreita_sao_indistinguiveis_numa_janela():
-    """A justificativa do desenho: por isso o veredito é de sessão."""
+    """Por isso o veredito é da sessão, não de uma janela."""
     vogal = fracao_energia_alta(_vogal(), SR)
     estreita = fracao_energia_alta(limitar_banda(_fala(), SR, 8000), SR)
     assert vogal < FRACAO_MINIMA and estreita < FRACAO_MINIMA
@@ -127,8 +119,7 @@ def test_comeca_indeterminado_e_nao_acusa_cedo_demais():
 
 
 def test_uma_fricativa_tardia_recupera_o_veredito():
-    """Regressão: a primeira versão reprovaria as vogais iniciais como banda
-    estreita, e o score dessas janelas seria descartado sem motivo."""
+    """Regressão: vogais iniciais não podem condenar o canal como banda estreita."""
     e = _rodar([_vogal(seed=i) for i in range(3)] + [_fala(0)])
     assert e.veredito == EstadoDoCanal.LARGA
 

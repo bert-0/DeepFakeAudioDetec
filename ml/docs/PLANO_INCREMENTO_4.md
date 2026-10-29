@@ -1,0 +1,320 @@
+# Plano do Incremento 4
+
+Versão de 02/10/2026 (cópia do documento do grupo). Datas e decisões pendentes
+no fim.
+
+## Objetivo e critério de sucesso
+
+Entregar a versão final do TCC com o Incremento 4 no corpo do trabalho e mostrar
+à banca o sistema separando a voz real do orientador do clone dela, pelo arquivo
+e pelo microfone.
+
+- **Meta do ensaio:** no equipamento e na sala da apresentação, com locutores
+  fora do treino, pelo menos 8 de 10 frases corretas em cada classe (real e
+  sintética), nos dois caminhos.
+- **Data de congelamento:** nenhum experimento novo depois dela. A definir, de 7
+  a 10 dias antes da entrega.
+- **Versão de reserva:** o TC2 como está hoje, marcado com uma tag antes de o
+  Incremento 4 mexer no texto (a `tc2-resultados` é mais antiga). Se a meta não
+  for atingida, ela segue como texto final, e o Incremento 4 entra como
+  resultado parcial e trabalho futuro.
+
+## Decisões já tomadas
+
+O Incremento 4 ataca os três problemas que os sete modelos revelaram: a
+validação não prevê a avaliação, a decisão depende da faixa de 7,6 a 8 kHz e o
+modelo reage às condições de gravação.
+
+| decisão | motivo |
+|---|---|
+| Incremento 4 no corpo do texto (seção 4.7); tabelas dos Incrementos 1 a 3 inalteradas | segue o ciclo incremental do TC1; os sete modelos viram o diagnóstico que motiva o incremento |
+| Desenho 2x2: fusion_v4 (LCNN) e XLS-R, cada um treinado na 2019 LA e no recorte da ASVspoof 5 | isola o ganho do front-end do ganho da base |
+| Front-end wav2vec 2.0 XLS-R 300M, em fusão com um ramo LFCC; atenção sobre as camadas do XLS-R | com fine-tuning o XLS-R supera o front-end congelado (Wang e Yamagishi, 2022) |
+| Treino no recorte da ASVspoof 5 (cerca de 59 mil áudios, 11 GB); validação no dev, com ataques inéditos (A09 a A16) | a validação passa a medir generalização, e não o 0,03% que escolheu os checkpoints |
+| Avaliação em: 2019 sem silêncio; Opus real da 2021 LA (10 mil); ASVspoof 5 estratificada (10 mil); controle pareado com vozes reais | mesmas réguas para os quatro modelos do 2x2 |
+| Degradação de canal (codec, RawBoost, conversão de taxa, resposta ao impulso) aplicada antes do pré-processamento | hoje ela atinge o trecho já sem silêncio e normalizado |
+| Sem dependência de 7,6 a 8 kHz: descarte aleatório da banda alta no treino (corte entre 4 e 7,9 kHz em metade das amostras), escolhido pelo grupo em 23/10/2026 | a faixa some nos codecs e na telefonia (com o soxr, sumia também na captura); no teste, o LFCC de 0 a 4 kHz custou 5,20 pp no limpo e o descarte 2,40 pp, com −2,99 pp no corte (RESUMO_TCC §10.2.11) |
+| Toda condição de captura aparece nas duas classes, no treino e na demonstração | evita um detector de microfone em vez de um detector de síntese |
+| Microfone por WASAPI compartilhado (sounddevice), 48 kHz e o FIR do projeto, com os aprimoramentos do Windows desligados e a checagem de cópias depois de gravar; loopback só para chamada; arquivos analisados sem captura. Trocado do exclusivo em 26/10/2026 | neste notebook, o exclusivo insere cópias de trechos recentes, entrega 16 bits e não aplica o ganho do Windows (RESUMO_TCC §10.2.34) |
+| Aba Gravar na interface, com espectrograma e energia por faixa | coleta e demonstração pelo mesmo caminho; cobre a visualização ao operador (RF10) |
+| Treino na nuvem: Kaggle (T4, fp16), uma conta por integrante; Colab como reserva; GTX 1650 para avaliação e XLS-R congelado | cerca de 30 h de GPU por semana por conta |
+| Áudios fora do GitHub; versionar scripts, protocolos, listas do recorte e resultados | tamanho, licença da ASVspoof 5 e privacidade das vozes |
+
+## Tarefas por frente
+
+Cronograma de 4 semanas a partir de 05/10/2026. A ética e o gravador vêm
+primeiro: nenhuma gravação começa antes deles.
+
+**Ética e coleta**
+- Combinar com o orientador a mudança de escopo e perguntar se a UNIP exige
+  parecer do Comitê de Ética em Pesquisa.
+- Termo de consentimento: gravação, uso no treino e, para o orientador,
+  autorização explícita para sintetizar a voz só na demonstração.
+- Protocolo de gravação: lista de frases, 8 a 10 locutores, equipamento, sala e
+  nível de entrada.
+- Pseudonimização: código de locutor no lugar do nome; regra de armazenamento e
+  exclusão dos clones depois da banca.
+
+**Captura e gravador**
+- Fonte de microfone com `sounddevice` em WASAPI exclusivo, 48 kHz, FIR para
+  16 kHz; modo compartilhado com aviso se o driver recusar. Em 26/10/2026 o
+  padrão passou ao compartilhado; o exclusivo ficou como `--exclusivo`, para
+  diagnóstico (RESUMO_TCC §10.2.34).
+- Aba Gravar: gravar e parar, análise do arquivo inteiro, espectrograma, energia
+  em 0–4, 4–7,6 e 7,6–8 kHz e score por janela.
+- Checagens logo após gravar: saturação, fração de fala, banda estreita, piso de
+  ruído nas pausas e, desde 26/10/2026, trechos de 10 ms repetidos (cópias).
+- Botão "salvar no conjunto de dados" com metadados: locutor, frase, termo,
+  dispositivo e modo de captura.
+- Testar o microfone da coleta: mesma frase em modo compartilhado e exclusivo, e
+  com ruído constante ao fundo, para detectar processamento no hardware.
+
+**Dados**
+- Baixar treino e dev da ASVspoof 5 (57,5 GB) e montar o recorte: 19 mil
+  humanos, cerca de 5 mil falsos por ataque, trechos de 6 s em int16
+  (`scripts/montar_recorte_asvspoof5.py`, lê os `.tar` sem extrair). Recorte de
+  treino montado em 21/10/2026 (58.797 áudios, 6,07 GB); dev em 22/10/2026
+  (amostra estratificada de 9.999).
+- Avaliação estratificada da ASVspoof 5 (10 mil). Decidido em 23/10/2026: um
+  `.tar` do eval por vez no SATA, tirar a amostra e apagar (ler em fluxo também
+  baixaria os 85 GB, numa conexão instável); estratificada também por codec.
+- `src/data/asvspoof5.py` para o protocolo da trilha 1 (10 campos separados
+  por espaço, apesar do `.tsv`; README do Zenodo). Feito em 14/10/2026.
+- Subir o recorte como dataset privado no Kaggle.
+- Gravar o grupo e os voluntários com a aba Gravar.
+- Gerar os falsos com 2 ou 3 ferramentas de clonagem, deixando uma fora do treino.
+- Coloração de microfone e sala nos falsos (resposta ao impulso e equalização), e
+  alguns falsos regravados pelo alto-falante.
+
+**Modelos e treino**
+- Gancho de degradação logo depois do `load_audio`, antes do
+  `preprocess_waveform`. Feito em 21/10/2026 (`src/preprocess/degradacao.py`,
+  `audio.degradacao` no config): Opus, banda estreita, ida e volta da captura
+  e ruído no áudio bruto; o RawBoost entra como mais um tipo.
+- RawBoost, codecs e ida e volta 16, 48 e 16 kHz no treino. RawBoost feito em
+  22/10/2026 (`src/preprocess/rawboost.py`, tipo `rawboost` do gancho); a ida
+  e volta já existe (`captura_fir`). Codecs em 22/10/2026 (`src/preprocess/
+  codecs.py`, tipo `codec`): MP3, Vorbis, Opus, G.711 e GSM pelo libsndfile;
+  AMR, Speex, AAC e Encodec ficam como não vistos no treino (RESUMO_TCC §10.7).
+- LFCC com `f_min` e `f_max` no config; experimento com CMN.
+- Tipo de característica `waveform` e modelo `fusion_ssl` (XLS-R com soma
+  ponderada das camadas, ramo LFCC, fusão tardia).
+- Retomada do treino a partir do último checkpoint (`--resume`).
+- Medir uma época de fine-tuning no Kaggle antes de fechar o cronograma.
+- fusion_v4 no recorte da ASVspoof 5, na GTX 1650. Config pronto em 23/10/2026
+  (`configs/fusion_v4_asv5.yaml`); treinado em 24/10/2026 (31 épocas, dev
+  20,56%, RESUMO_TCC §10.7).
+- XLS-R na 2019 LA e no recorte da ASVspoof 5, no Kaggle.
+- Três sementes nos modelos finalistas.
+- Latência na CPU com o `bench_latencia.py`; truncar camadas do XLS-R se não
+  couber em tempo real.
+
+**Avaliação**
+- Os quatro modelos do 2x2 nas quatro réguas, com EER e min t-DCF. Linha do
+  fusion_v4 medida em 24/10/2026 (RESUMO_TCC §10.9), sem o min t-DCF; falta o
+  XLS-R.
+- Cruzamento entre bases: treinado na 2019 e testado na ASVspoof 5, e o contrário.
+  Feito para o fusion_v4 (RESUMO_TCC §10.9).
+- Controle pareado com locutores fora do treino, nos caminhos arquivo e microfone.
+  Ensaio com a voz de um integrante preparado em 24/10/2026: gravador
+  (`gravar_frases.py`), limiar da fusão nos devs (`limiar_fusao.py`) e placar
+  (`teste_voz_propria.py`), com o critério em RESUMO_TCC §10.2.12. Rodado no
+  mesmo dia com clones do XTTS v2 local: reais 10 de 10 nos dois caminhos,
+  clones 0 de 10 no arquivo e 2 de 10 pelo microfone; meta não atingida.
+  Ensaio 2 (§10.2.13), só o arquivo, com o modelo do recorte sozinho no limiar
+  do treino: reais 10 de 10, clones 9 de 10, meta atingida nesse caminho, com um
+  locutor só. Falta uma voz que o sistema nunca viu: ensaio 3 com o L02,
+  voluntário de fora do grupo, critério fixado em 25/10/2026 (§10.2.14).
+  Rodado no mesmo dia: reais 10 de 10, clones 10 de 10, meta atingida no
+  caminho arquivo com uma voz nova. Falta a voz do orientador. Ensaio 4
+  (§10.2.15), clones do Chatterbox: L01 3 de 10, L02 9 de 10, meta não
+  atingida; o detector pega o XTTS, mas não com folga uma ferramenta mais nova.
+  Ensaio 5 (§10.2.35), critério fixado em 26/10/2026: os dois caminhos de novo
+  com a captura corrigida (modo compartilhado), referência e clones novos do L01.
+  Rodado no mesmo dia: reais 10 de 10; clones pegos pelo arquivo XTTS 7 de 10 e
+  Chatterbox 0 de 10, pelo ar 0 de 10 nos dois. Meta não atingida.
+- Ablação de ramos e oclusão da banda alta, só com avaliação. Oclusão: condições
+  `oclusao_*` do `robustness_eval.py` e critério em RESUMO_TCC §10.2.11
+  (22/10/2026). Medido no mesmo dia: tirar 7,6–8 kHz custa +6,27 pp no
+  baseline_v2 e +10,87 pp no fusion_v4; a correção entra no treino.
+- Fusão ao vivo dos dois modelos (média das probabilidades, como no monitor) na
+  captura FIR, com o limiar da fusão escolhido no dev
+  (`scripts/fusao_ao_vivo.py`). Acrescentado em 02/10/2026, depois que o
+  fusion_v4 deixou de saturar com o FIR (RESUMO_TCC §10.2.8). Medido no
+  mesmo dia (§10.2.9). Em 24/10/2026, para os dois fusion_v4 com degradação, a
+  regra passou à média dos log-odds e o monitor usa o limiar da fusão com
+  `--limiar-fusao` (RESUMO_TCC §10.2.12).
+- Limiar calibrado no caminho da demonstração, com o `calibrar_captura.py`.
+
+**Texto do TCC**
+- Guardar a versão de reserva.
+- Esqueleto das seções novas com marcas `[PENDENTE]`: 3.4, 4.7, 4.8, 4.9, 4.10,
+  4.12, 5.3 a 5.7, nova seção de vozes reais, 6 e 7.1.
+- Preencher os números até a data de congelamento.
+- Reescrever Resumo, Abstract e Conclusão com o resultado final.
+- Referências novas: Tak et al. (2022), Wang e Yamagishi (2022), ASVspoof 5.
+
+**Demonstração**
+- Roteiro: playlist da ASVspoof pelo som do computador; orientador ao vivo; clone
+  dele; tela de espectrograma e faixas.
+- Aba Clonar na interface (pedido do grupo, 28/10/2026): o clone gerado na hora,
+  sem comando no terminal, e analisado como arquivo. XTTS e Chatterbox, carregados
+  a cada clone (nunca deixados prontos, para não faltar GPU); só vozes da lista
+  de autorizadas (`data/vozes/vozes_autorizadas.json`, fora do Git), ligada voz a
+  voz depois de conferir o termo e o anexo da demonstração. Medido: XTTS 55 s e
+  Chatterbox 90 s com a interface na CPU; os dois funcionam sem internet.
+- Conferência antes da apresentação (pedido do grupo, 29/10/2026): roda sozinha
+  quando a interface abre (modelo e limiar, GPU, microfone, som, clonagem,
+  disco) e mostra a situação no cabeçalho; também `scripts/conferir.py`. Na
+  primeira vez, pegou o áudio do Windows travado (o microfone não abria).
+- Teste cruzado: voz real também como arquivo, clone também pelo microfone.
+- Ensaio no equipamento da banca, com a meta de 8 de 10 em cada classe.
+- Plano B: vídeo de um ensaio bem-sucedido e o resultado pareado documentado.
+
+**Repositório**
+- Merge da branch `claude/jolly-cerf-is46h9` na principal.
+- `soundcard` e `sounddevice` no `web/requirements.txt`.
+- `.gitignore` para os áudios coletados e gerados.
+- Organização (decidido em 28/10/2026): o mapa do código já está em
+  `docs/MAPA_DO_CODIGO.md`; mover os scripts para subpastas por etapa só depois
+  da pré-banca, para os comandos da colinha não mudarem antes da apresentação.
+
+## Riscos e mitigação
+
+O maior risco é o parecer de ética consumir o mês; por isso a conversa com o
+orientador é a primeira tarefa.
+
+| risco | efeito | mitigação |
+|---|---|---|
+| A UNIP exige parecer do Comitê de Ética | a coleta não termina no mês | reduzir a coleta às vozes do grupo e do orientador, com termo assinado |
+| Fila ou cota esgotada no Kaggle | treinos do XLS-R atrasam | uma conta por integrante; Colab como reserva; medir uma época antes de planejar |
+| XLS-R lento demais na CPU | a análise ao vivo não acompanha | truncar camadas, rodar na GPU ou usar o XLS-R só no envio de arquivo |
+| O modelo não acerta a voz do orientador | a demonstração falha diante da banca | ensaio com meta antes da data de congelamento; plano B com vídeo e o resultado pareado |
+| O modelo aprende o canal, e não a síntese | acerta pelo motivo errado, e o teste cruzado derruba | toda condição de captura nas duas classes; teste cruzado arquivo e microfone |
+| O microfone faz processamento no hardware | as gravações mudam de forma imprevisível | testar antes da coleta; trocar de microfone ou usar interface USB com ASIO |
+| Experimentos atrasam e o texto fica sem números | entrega com marcas de pendência | data de congelamento fixa; versão de reserva pronta |
+
+## Decisões pendentes do grupo
+
+Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
+
+- Como a demonstração vai acontecer: orientador ao vivo no microfone, arquivos
+  gravados antes ou clone tocando numa chamada? Proposta do grupo (24/10/2026):
+  voz real ao vivo no microfone; clone gerado na hora pelo XTTS e analisado como
+  arquivo; clone tocado pelo alto-falante como limitação medida (RESUMO_TCC
+  §10.2.12 e §10.2.13). Clonar a voz de alguém da banca só com termo assinado
+  antes. A mudança da meta ainda passa pelo orientador.
+- Datas de entrega do texto e da banca, e a data de congelamento.
+- Quem cuida de cada frente.
+- Qual microfone será usado na coleta (na banca, o embutido do notebook, junto
+  da webcam, informado em 02/10/2026), e se há uma interface USB com
+  ASIO disponível.
+- **Modo da captura (26/10/2026).** O exclusivo, neste notebook, insere cópias
+  de trechos recentes, entrega 16 bits e não aplica o ganho do Windows
+  (RESUMO_TCC §10.2.34). Decidido no mesmo dia: o padrão passou ao
+  compartilhado, com a checagem de cópias depois de gravar. O compartilhado
+  passa pelo mixer do Windows (os aprimoramentos precisam estar desligados) e
+  aplica o ganho dele: o nível do microfone no Windows tem de ser ajustado com
+  uma frase de teste. Falta decidir: regravar as vozes reais e os clones pelo ar
+  no modo novo ou usar as gravações recuperadas.
+- **Decidido pelo grupo (27/10/2026): o modelo final usa o XLS-R, melhorado
+  pelos treinos.** É o que mais reduz o risco de falhar na pré-banca e na banca:
+  ele é o melhor pelo ar (ReplayDF 0,797) e, com o limiar calibrado no canal,
+  atinge a meta pelo arquivo no ensaio 5 (RESUMO_TCC §10.2.39 a §10.2.42). A
+  proposta abaixo, de tirar o XLS-R, fica registrada como histórico. Primeiro
+  passo, escolhido pelo grupo: o XLS-R congelado com pesos por camada e ramo
+  LFCC, treinado com ASVspoof 5, BRSpeech-DF, salas, Common Voice e parte do
+  ReplayDF (§10.2.43); o ajuste completo no Kaggle fica para depois, se der tempo. Treinado em
+  28/10/2026: passa no critério em todas as réguas (ASVspoof 5 0,975, 2019
+  0,974, BRSpeech-DF 0,921, ReplayDF 0,968, ensaio 5 1,000 e 0,975). Falta
+  calibrar o limiar com vozes reais de mais pessoas no modo atual (com o L02,
+  só 6 de 10 vozes reais do L01 ficam do lado humano). Integrado à interface e
+  ao monitor em 28/10/2026 (§10.2.44): Enviar arquivo pelo caminho das réguas;
+  ao vivo frase por frase, com limiar próprio, calibrado com as mesmas vozes.
+- **Decidido pelo grupo (29/10/2026): a cabeça do modelo final treinada de
+  novo com parte do In-the-Wild**, separada por pessoa (30 no treino, 8 no dev,
+  16 na régua), com o critério no RESUMO_TCC §10.2.49 antes de rodar. Se passar,
+  ela vira o modelo final e o limiar é refeito com ela antes da calibração nova.
+  Rodado no mesmo dia: passou (na régua, falsos pegos de 63,9% a 92,0%, reais
+  95,5%; as outras réguas dentro de 0,01). É o modelo final desde então
+  (`checkpoints/xlsr_congelado_itw.pt`), com os limiares refeitos.
+- **Decidido pelo grupo (29/10/2026): opção (b).** O Enviar arquivo também
+  analisa só a fala, frase por frase, e as duas abas usam o mesmo limiar, o da
+  frase. Os motivos: o modelo lê trecho sem fala como sintético (RESUMO_TCC
+  §10.2.47) e as gravações levam uns 5 s de ruído da sala; nos devs, a ordem não
+  muda (§10.2.45). É o padrão do `limiar_xlsr.py` (`--arquivo-inteiro` volta à
+  opção a). As réguas seguem pelo arquivo inteiro, como foram medidas. O texto
+  da pendência fica abaixo, como histórico.
+- **Ensaio 6, caminho microfone (29/10/2026): frase por frase**
+  (`teste_voz_propria.py --xlsr ... --microfone frase`). O grupo deixou a escolha
+  para a sessão, que seguiu a opção (b): os dois caminhos do ensaio passam pelo
+  mesmo corte da fala e pelo mesmo limiar da interface.
+- **Pendente (28/10/2026): o caminho do arquivo também corta a fala?** Nas
+  gravações do microfone, o arquivo de 12 s leva uns 5 s de ruído da sala que o
+  corte de silêncio do treino não tira; a frase do ao vivo não (§10.2.44).
+  Opções: (a) manter o arquivo inteiro, que é o caminho das réguas, com um
+  limiar para cada caminho (o que está no código); (b) cortar a fala também no
+  arquivo e na calibração, para os dois caminhos darem o mesmo score. Decidir
+  antes de calibrar com as vozes novas e antes do ensaio 6. As duas estão no
+  código (`--arquivo-por-frase` no `limiar_xlsr.py`); a medida nos devs, sem
+  critério, está no §10.2.45. Junto, o critério do ensaio 6: o caminho microfone
+  é pontuado frase por frase, como o ao vivo, ou pelo arquivo inteiro, como nos
+  ensaios 1 a 5 (`teste_voz_propria.py --xlsr ... --microfone frase|arquivo`)?
+- Proposta do grupo (26/10/2026), a confirmar com o orientador: tirar o XLS-R do
+  desenho 2x2 (um modelo pré-treinado pela Meta seria uma caixa-preta) e pôr no
+  lugar um estudo das imperfeições dos áudios sintéticos: onde o detector vê o
+  sintético, que marcas os geradores deixam (vocoder, ritmo dos quadros, fase,
+  ruído) e se elas valem para ferramentas que o treino não viu (RESUMO_TCC
+  §10.2.17 em diante). Dado novo para essa decisão (26/10/2026, §10.2.36, descritivo):
+  no ensaio 5, a sonda da camada 7 do XLS-R ordena todos os clones acima das
+  vozes reais pelo arquivo (AUC 1,00 nas duas ferramentas, com o Chatterbox que
+  o detector não separa) e quase todos pelo ar (0,98 e 0,88); os alunos
+  destilados não reproduzem isso. Com o limiar calibrado só com as vozes reais
+  do L02 no mesmo microfone (§10.2.39), o professor atinge a meta pelo arquivo
+  no ensaio 5 (reais, XTTS e Chatterbox 10 de 10); pelo ar, XTTS 7 e Chatterbox 1.
+- **Proposta de modelo próprio (26/10/2026), a decidir com o orientador.** Ela
+  sai do estudo das imperfeições (RESUMO_TCC §10.2.22 a §10.2.26):
+  - **O que se descobriu:**
+    - o XLS-R separa ataques que nunca viu pela dinâmica da voz no tempo;
+    - medidas feitas à mão e estatísticas dos quadros não reproduzem isso;
+    - a surpresa de um modelo só de fala natural, somada ao nosso detector,
+      sobe a AUC de 0,835 para 0,983 no dev e de 0,682 para 0,849 na 2019.
+  - **Proposta:** um "modelo de naturalidade" nosso, pequeno. É um transformer
+    sobre quadros de LFCC ou log-mel, treinado só com fala humana (recorte da
+    ASVspoof 5) para prever trechos escondidos, com as degradações de canal do
+    treino atual. A surpresa dele entra como pista ao lado do `fusion_v4`. Não
+    usa pesos da Meta e não precisa conhecer os geradores.
+  - **Risco medido:** no microfone dos ensaios, a surpresa do XLS-R se inverte,
+    porque o real passou pelo microfone e o clone é arquivo limpo. Com o mesmo
+    canal nas duas classes, inclusive o ruído do nosso microfone, ela segue
+    separando (§10.2.27). O teste de aceite seria o clone pelo ar, com o nível
+    igualado ao da voz real. Parte da inversão eram as cópias da captura; sem
+    elas, e no celular, ela diminui, mas continua (§10.2.34).
+  - **Custo:** treino novo, rodado pelo grupo (GTX 1650); cabe antes da data de
+    congelamento?
+  - **Alternativa mais curta:** um modelo de sequência (transformer) sobre os
+    quadros das LCNN, no lugar do pooling de média e desvio, treinado
+    supervisionado como hoje.
+  - **Descartada (26/10/2026):** a verificação da identidade da pessoa. Só
+    protege quem foi cadastrado, e o clone é feito para imitar essa identidade.
+  - **Piloto decidido pelo grupo (26/10/2026):** destilar a camada 7 do XLS-R
+    num aluno pequeno sobre LFCC e log-mel (RESUMO_TCC §10.2.29). O XLS-R entra
+    só como professor no treino; o detector final é o aluno. O treino do piloto é
+    rodado pelo grupo. O treino completo depende do resultado e do orientador.
+    Piloto 3 (26/10/2026, pedido do L01; critério em RESUMO_TCC §10.2.38): os
+    alunos imitam mal o professor no áudio de microfone e sala (§10.2.37); o
+    aluno é treinado de novo com o Common Voice em português e salas simuladas
+    do BUT ReverbDB, sem tocar nada em casa. Rodado em 27/10/2026, nenhum braço passou
+    (§10.2.38). O 3b (11,4 milhões de parâmetros) chega a 0,964 no eval da
+    ASVspoof 5 (professor 0,971, detector 0,659), mas no ensaio 5 fica em 0,785
+    pelo arquivo e pelo ar, e o limiar do dev não transfere para o nosso canal.
+- Quais ferramentas de clonagem usar, e qual fica fora do treino. Para a
+  demonstração e os ensaios: XTTS v2 no próprio computador (24/10/2026), sem
+  internet e sem a voz sair da máquina. Se ele entra no treino segue aberto; se o
+  ensaio 2 falhar, a reserva é o XLS-R.
+  Proposta do L01 (26/10/2026), para depois do ensaio 5: acrescentar o
+  Chatterbox ajustado para o português do Brasil. O multilíngue usado nos
+  ensaios 4 e 5 soa como português de Portugal (RESUMO_TCC §10.2.35), e um clone
+  convincente da voz brasileira é peça central da demonstração. Precisa baixar
+  o modelo (com aprovação), conferir se o `clonar_xtts.py` o carrega e fixar o
+  critério antes de gerar.

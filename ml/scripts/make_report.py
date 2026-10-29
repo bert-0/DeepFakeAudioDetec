@@ -1,13 +1,7 @@
 """Consolida os resultados de `outputs/` em tabelas e gráficos para o relatório.
 
-Cada experimento deixa em `outputs/` um punhado de JSONs soltos (métricas, EER
-por ataque, robustez, histórico por época). Compará-los a olho, copiar número por
-número para o texto e refazer isso a cada rodada é onde o erro entra — um EER
-desatualizado numa tabela não dá nenhum sinal de que está errado.
-
-Este script lê tudo o que existe, monta as tabelas comparativas em três formatos
-(Markdown para conferir, LaTeX para colar no documento, CSV para a planilha) e
-gera as figuras de comparação entre os incrementos.
+Lê os JSONs de cada experimento e gera as tabelas comparativas em Markdown,
+LaTeX e CSV, mais as figuras de comparação entre os incrementos.
 
 Uso:
     python scripts/make_report.py                       # tudo que houver em outputs/
@@ -182,12 +176,7 @@ def tabela_comparativa(experimentos: list[dict]) -> tuple[list[str], list[list[s
 
 
 def tabela_por_ataque(experimentos: list[dict]):
-    """Matriz ataque x experimento — mostra ONDE cada modelo falha.
-
-    O EER global esconde a distribuição: 20% pode ser 20% em todos os ataques ou
-    0% em doze e 90% em um. Lado a lado, também revela complementaridade entre
-    configurações — foi assim que a fusão de scores foi motivada.
-    """
+    """Matriz ataque x experimento: mostra onde cada modelo falha."""
     com_dados = [e for e in experimentos if e["per_attack"]]
     if not com_dados:
         return None, None
@@ -304,7 +293,7 @@ def main() -> int:
         print("Rode evaluate.py (ou scripts/run_pipeline.py) antes.")
         return 1
 
-    # Melhor primeiro: é a ordem em que a tabela é lida no texto.
+    # Melhor primeiro.
     experimentos.sort(key=lambda e: e["metrics"].get("eer", float("inf")))
 
     dest = Path(args.dest) if args.dest else outputs / "report"

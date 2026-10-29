@@ -1,4 +1,4 @@
-# EXTRA — Multi-resolucao + atencao. Igual ao fusion_multires, mas com
+# EXTRA — Multi-resolução + atenção. Igual ao fusion_multires, mas com
 # Attentive Statistics Pooling ponderando os frames de cada ramo.
 
 experiment:

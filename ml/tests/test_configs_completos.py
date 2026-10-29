@@ -1,8 +1,6 @@
 """Todo config precisa das chaves que os scripts leem sem `.get()`.
 
-Motivo: uma edição de config removeu `train.device` por acidente. Os 278 testes
-unitários passaram e só o smoke ponta a ponta pegou — `KeyError: 'device'` na
-linha 290 do train.py, depois de todo o carregamento de dados.
+Sem este teste, a falta só aparecia no smoke, como KeyError no train.py.
 """
 
 from pathlib import Path

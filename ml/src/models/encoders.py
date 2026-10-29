@@ -1,10 +1,4 @@
-"""Fábrica de encoders convolucionais compartilhada pelos três incrementos.
-
-- `cnn`  — CNN convencional; é o baseline exigido pelo TC1 §4.7 e a referência
-           dos resultados já medidos. Mantido inalterado.
-- `lcnn` — Light CNN com Max-Feature-Map, arquitetura de referência da
-           literatura para detecção de spoofing com features LFCC.
-"""
+"""Fábrica de encoders: `cnn` (baseline do TC1 §4.7) ou `lcnn` (Light CNN com MFM)."""
 
 from __future__ import annotations
 

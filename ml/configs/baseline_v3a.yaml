@@ -1,5 +1,5 @@
-# Incremento 1 (v3a) — ABLACAO: v2 + apenas n_filter 20->70.
-# Isola o efeito da resolucao espectral, sem mexer na arquitetura.
+# Incremento 1 (v3a) — ABLAÇÃO: v2 + apenas n_filter 20->70.
+# Isola o efeito da resolução espectral, sem mexer na arquitetura.
 # Compare com baseline_v2.yaml (mesma arquitetura) e baseline_v3.yaml.
 
 experiment:

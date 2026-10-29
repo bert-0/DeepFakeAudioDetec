@@ -70,10 +70,8 @@ def test_class_weights_sqrt_is_milder():
 
 
 # --------------------------------------------------------------------------- #
-# Cronômetro por época
-#
-# A separação entre "espera por dados" e "cálculo" é o que decide qual
-# otimização vale a pena. Se ela medir errado, aponta para o lado errado.
+# Cronômetro por época: separar espera por dados de cálculo diz qual
+# otimização vale a pena
 # --------------------------------------------------------------------------- #
 def test_timer_separates_waiting_from_computing():
     import time
@@ -92,10 +90,8 @@ def test_timer_separates_waiting_from_computing():
         with cronometro.medindo("calculo"):
             time.sleep(CALCULO)  # tempo da "GPU"
 
-    # Limites só por baixo, com folga por cima: `time.sleep` garante dormir *no
-    # mínimo* o pedido, e no Windows a granularidade do timer é de ~15 ms. Uma
-    # tolerância simétrica apertada torna o teste intermitente sob carga — o que
-    # de fato aconteceu aqui. O que importa é a *separação* das duas parcelas.
+    # Folga só por cima: `sleep` dorme no mínimo o pedido e o timer do Windows
+    # tem ~15 ms; tolerância apertada deixava o teste intermitente sob carga.
     assert cronometro.dados >= N * ESPERA * 0.9
     assert cronometro.calculo >= N * CALCULO * 0.9
     assert cronometro.dados < N * ESPERA + 0.5

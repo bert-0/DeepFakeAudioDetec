@@ -1,8 +1,7 @@
 """Testes da consolidação de resultados para o relatório.
 
-O risco aqui não é o script quebrar — é ele montar uma tabela *plausível* com o
-número errado. Um EER trocado de coluna, um experimento faltando em silêncio ou
-um `_` não escapado que quebra o LaTeX só aparecem na leitura do documento.
+O risco é uma tabela plausível com número errado: EER na coluna trocada,
+experimento faltando ou `_` sem escape no LaTeX.
 """
 
 import json

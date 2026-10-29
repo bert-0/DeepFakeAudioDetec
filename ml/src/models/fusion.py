@@ -1,8 +1,6 @@
-"""Incremento 2 — Fusão de características: LFCC + espectrograma (TC1 §4.7).
+"""Incremento 2: fusão tardia de LFCC + espectrograma (TC1 §4.7).
 
-Dois ramos convolucionais independentes (um por representação) cujas saídas,
-após o pooling, são concatenadas e classificadas — fusão tardia (late fusion).
-A ideia é explorar informações complementares das duas representações.
+Dois ramos convolucionais independentes, concatenados após o pooling.
 """
 
 from __future__ import annotations
@@ -15,11 +13,10 @@ from .pooling import build_pooling
 
 
 class FeatureFusionNet(nn.Module):
-    """Fusão tardia de dois ramos. Ver `pooling`/`encoder` em BaselineCNN.
+    """Fusão tardia de dois ramos.
 
-    `branches` escolhe **quais** features alimentam cada ramo. O padrão segue o
-    TC1 (LFCC + espectrograma), mas aceita qualquer par presente em
-    `features.types` — inclusive dois LFCC de resoluções diferentes.
+    `branches` escolhe a feature de cada ramo: qualquer par de `features.types`,
+    inclusive dois LFCC de resoluções diferentes.
     """
 
     def __init__(self, n_classes: int = 2, dropout: float = 0.3, pooling: str = "avg",
@@ -28,8 +25,7 @@ class FeatureFusionNet(nn.Module):
                  branches: tuple[str, str] = ("lfcc", "spectrogram")):
         super().__init__()
         self.branches = tuple(branches)
-        # Nomes históricos dos submódulos (lfcc_branch/spec_branch) preservados
-        # para manter a compatibilidade das chaves do state_dict.
+        # Nomes lfcc_branch/spec_branch mantidos pelas chaves do state_dict.
         self.lfcc_branch = build_encoder(encoder, in_ch=1, channels=channels)
         self.spec_branch = build_encoder(encoder, in_ch=1, channels=channels)
         self.lfcc_pool, dim_a = build_pooling(

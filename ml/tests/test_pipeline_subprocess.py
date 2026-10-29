@@ -1,7 +1,6 @@
-"""Testes do ambiente que o pipeline entrega aos subprocessos.
+"""Ambiente que o pipeline entrega aos subprocessos.
 
-São testes de *execução*, não de lógica: rodam um Python filho de verdade,
-porque o defeito que eles cobrem só existe na fronteira pai/filho.
+Rodam um Python filho de verdade: o defeito só aparece na fronteira pai/filho.
 """
 
 import os
@@ -71,8 +70,7 @@ def test_child_env_sobrepoe_um_locale_conflitante(monkeypatch):
 def test_run_step_entrega_o_env_ao_processo_filho(monkeypatch):
     """Regressão: sem `env=` no Popen o filho herda o padrão do sistema.
 
-    O filho imprime o que ele próprio vê, então o teste falha se alguém
-    remover o argumento `env` — nenhum mock envolvido.
+    O próprio filho imprime o que vê, sem mock.
     """
     monkeypatch.delenv("PYTHONIOENCODING", raising=False)
     monkeypatch.delenv("PYTHONUNBUFFERED", raising=False)
@@ -93,11 +91,9 @@ def test_run_step_entrega_o_env_ao_processo_filho(monkeypatch):
 
 
 def test_run_step_preserva_acentos_no_log():
-    """`época`/`acurácia` precisam sobreviver à viagem até o log.
+    """Acentos chegam intactos ao log.
 
-    Sem PYTHONIOENCODING no Windows o filho emite cp1252, o pai decodifica
-    UTF-8 e cada acento vira U+FFFD — perda irreversível, já que o log grava
-    o caractere de substituição.
+    Sem PYTHONIOENCODING, no Windows o filho emite cp1252 e cada acento vira U+FFFD.
     """
     log = LogCronometrado()
     ok, _ = run_step("acentos", _py(
@@ -112,9 +108,7 @@ def test_run_step_preserva_acentos_no_log():
 def test_run_step_transmite_a_saida_progressivamente(monkeypatch):
     """Regressão: um treino de horas não pode ficar mudo até o fim.
 
-    `bufsize=1` no Popen configura o *pai*. Quem decide se o filho segura a
-    saída é o buffer dele: com stdout em pipe, o Python usa buffer de bloco
-    (~8 KB) e nada sai até o processo terminar.
+    Com stdout em pipe o filho usa buffer de bloco (~8 KB); `bufsize=1` só afeta o pai.
     """
     monkeypatch.delenv("PYTHONUNBUFFERED", raising=False)
 
@@ -141,7 +135,7 @@ def test_run_step_relata_falha_do_filho():
 
 
 # --------------------------------------------------------------------------- #
-# Prova de que o defeito é real: o mesmo filho, sem o env, segura a saída.
+# Controle: sem a variável, o mesmo filho segura a saída
 # --------------------------------------------------------------------------- #
 def test_o_python_realmente_bufferiza_sem_a_variavel(monkeypatch):
     """Sem isto, os testes acima poderiam estar passando por acidente."""

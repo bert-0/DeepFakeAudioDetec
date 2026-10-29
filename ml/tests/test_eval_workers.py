@@ -1,9 +1,7 @@
-"""Todo DataLoader do projeto precisa limitar as threads BLAS dos workers.
+"""Todo DataLoader do projeto precisa de `worker_init_fn=seed_worker`.
 
-Sem `worker_init_fn=seed_worker`, cada worker abre uma thread de BLAS por
-núcleo e eles disputam CPU entre si — 3,3x mais lento no estágio de dados,
-medido e documentado em `src/config.py`. O treino já fazia isso; os scripts
-de avaliação, que percorrem os 71.237 áudios do eval, não faziam.
+Sem ele, cada worker abre uma thread BLAS por núcleo e o estágio de dados fica
+3,3x mais lento (ver `src/config.py`).
 """
 
 import ast

@@ -21,8 +21,8 @@ SR = 16000
 
 @pytest.fixture
 def wav():
-    """Ruído rosa: energia em todas as bandas, como a fala. Um tom puro
-    comprimiria a quase nada e não exercitaria o codec."""
+    """Ruído rosa, com energia em todas as bandas como a fala (um tom puro
+    mal exercitaria o codec)."""
     rng = np.random.default_rng(0)
     branco = rng.standard_normal(SR * 2)
     espectro = np.fft.rfft(branco)
@@ -33,9 +33,8 @@ def wav():
 
 
 # --------------------------------------------------------------------------- #
-# Comprimento — a perturbação roda DEPOIS do preprocess_waveform, quando o sinal
-# já tem o tamanho que define o shape das features. Mudá-lo derrubaria a
-# inferência no meio de uma avaliação de horas.
+# Comprimento — a degradação roda depois do preprocess_waveform; mudar o
+# tamanho quebraria o shape das features
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("kind,level", [("opus", 0.5), ("opus", 1.0), ("band", 8000)])
 def test_comprimento_preservado(wav, kind, level):
@@ -151,9 +150,7 @@ def test_ignora_o_rng(wav):
 
 
 # --------------------------------------------------------------------------- #
-# Picklable — no Windows o dataset inteiro é serializado para cada worker
-# (`spawn`). Uma closure prenderia a robustez a num_workers=0, que já foi um
-# problema real neste projeto.
+# Picklable — no Windows (`spawn`) o dataset é serializado para cada worker
 # --------------------------------------------------------------------------- #
 def test_degradacao_e_picklavel(wav):
     import pickle
@@ -185,3 +182,25 @@ def test_channel_nao_e_importado_pelo_caminho_de_treino():
             assert "channel" not in modulo, (
                 f"{arquivo} importa o módulo de canal — a fronteira que impede "
                 "a medição de robustez de afetar treino/avaliação foi rompida")
+
+
+def test_captura_apaga_so_o_topo_da_banda():
+    """Ida e volta 16 -> 48 -> 16 kHz: preserva até 7,3 kHz e apaga 7,7-8 kHz."""
+    import numpy as np
+    from scipy.signal import welch
+
+    from src.preprocess.channel import ChannelDegradation
+
+    sr = 16000
+    x = np.random.default_rng(0).standard_normal(sr * 4).astype(np.float32) * 0.1
+    y = ChannelDegradation("captura", 48000, sr)(x)
+    assert y.size == x.size
+    f, px = welch(x, sr, nperseg=1024)
+    _, py = welch(y, sr, nperseg=1024)
+
+    def db(lo, hi):
+        m = (f >= lo) & (f < hi)
+        return 10 * np.log10(py[m].mean() / px[m].mean())
+
+    assert abs(db(1000, 7300)) < 0.5
+    assert db(7700, 7900) < -20

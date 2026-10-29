@@ -33,15 +33,40 @@ def resolve_device(requested: str = "cuda") -> torch.device:
 
 
 def output_name(config: dict, smoke: bool = False) -> str:
-    """Nome-base dos artefatos de um experimento (checkpoints, JSONs, gráficos).
+    """Nome-base dos artefatos do experimento (checkpoints, JSONs, gráficos).
 
-    Execuções `--smoke` recebem o sufixo `_smoke`. Sem isso, um teste rápido de
-    30 segundos com áudio sintético sobrescreve o checkpoint e os resultados de
-    um treino real de horas — e como `checkpoints/` e `outputs/` estão no
-    `.gitignore`, a perda é irrecuperável.
+    O sufixo `_smoke` impede que um teste rápido sobrescreva um treino real.
     """
     nome = config["experiment"]["name"]
     return f"{nome}_smoke" if smoke else nome
+
+
+def config_derivado(base: dict, sufixo: str, protocolo_eval: str | Path,
+                    audio_eval: str | Path, ext: str = ".flac") -> dict[str, Any]:
+    """Config para avaliar um modelo já treinado em outro conjunto de áudio.
+
+    O nome ganha um sufixo e o cache é desligado, para não sobrescrever os
+    resultados nem o cache de features do `eval` original.
+    """
+    import copy
+
+    cfg = copy.deepcopy(base)
+    sufixo = "".join(c if c.isalnum() or c in "-_" else "_" for c in sufixo)
+    cfg["experiment"]["name"] = f"{base['experiment']['name']}__{sufixo}"
+    cfg.setdefault("data", {}).setdefault("protocols", {})["eval"] = str(protocolo_eval)
+    cfg["data"].setdefault("audio_dir", {})["eval"] = str(audio_eval)
+    if ext != ".flac":
+        cfg["data"]["file_ext"] = ext
+    cfg.setdefault("train", {})["cache_features"] = False
+    return cfg
+
+
+def salvar_config(cfg: dict, destino: str | Path) -> Path:
+    destino = Path(destino)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True),
+                       encoding="utf-8")
+    return destino
 
 
 def make_generator(seed: int) -> torch.Generator:
@@ -52,19 +77,10 @@ def make_generator(seed: int) -> torch.Generator:
 
 
 def seed_worker(worker_id: int) -> None:  # noqa: ARG001 - assinatura exigida pelo DataLoader
-    """Prepara cada worker do DataLoader: semente + limite de threads.
+    """Semeia o worker do DataLoader e limita suas threads a uma.
 
-    **Semente** — reprodutibilidade com `num_workers > 0`.
-
-    **Threads** — cada worker é um processo separado, e o OpenBLAS/OpenMP abre
-    por padrão uma thread por núcleo *em cada um deles*. Com 4 workers numa
-    máquina de 4 núcleos são 16 threads disputando 4 núcleos: o tempo se perde
-    em espera ativa, não em cálculo. As matrizes aqui (banco de filtros × STFT)
-    são pequenas demais para compensar a paralelização interna.
-
-    Medido neste projeto: **3,3× mais rápido** no estágio de dados
-    (14,1 s → 4,3 s para 512 áudios; 36 → 120 amostras/s), sem qualquer
-    alteração numérica.
+    Sem o limite, cada worker abre uma thread BLAS por núcleo e eles disputam
+    a CPU; com ele o estágio de dados ficou ~3,3x mais rápido.
     """
     worker_seed = torch.initial_seed() % 2 ** 32
     np.random.seed(worker_seed)
@@ -79,20 +95,15 @@ def _limit_worker_threads() -> None:
 
         threadpool_limits(1)
     except ImportError:
-        # Sem threadpoolctl, as variáveis de ambiente só valem se definidas
-        # antes do import do numpy — então aqui resta limitar o próprio torch.
+        # Aqui já é tarde para variáveis de ambiente; resta limitar o torch.
         pass
     torch.set_num_threads(1)
 
 
 def memoria_total_gb() -> float | None:
-    """RAM física da máquina, em GB. `None` se não der para descobrir.
+    """RAM física da máquina em GB, ou `None` se não der para descobrir.
 
-    Sem `psutil` (não é dependência do projeto) e sem depender do SO: no Windows
-    a informação vem da API Win32, no Linux/macOS de `sysconf`. Serve para o
-    treino avisar *antes* de começar quando a configuração não cabe na máquina —
-    no Windows, estourar a RAM não dá `MemoryError`, dá paginação, e a máquina
-    trava a ponto de exigir desligamento no botão.
+    Sem `psutil`: usa a API Win32 no Windows e `sysconf` no Linux/macOS.
     """
     import ctypes
     import os
@@ -120,10 +131,7 @@ def memoria_total_gb() -> float | None:
         return None
 
 
-# Custo medido de um processo worker no Windows: 512 MB. O `spawn` do Windows
-# recria o processo do zero, reimportando torch e librosa em cada um — no Linux,
-# com `fork`, essas páginas seriam compartilhadas com o pai e o custo real seria
-# uma fração disto.
+# Medido no Windows (spawn): ~512 MB por worker. Com fork, no Linux, é bem menos.
 RAM_POR_WORKER_GB = 0.5
 RAM_PROCESSO_PRINCIPAL_GB = 1.5   # inclui o contexto CUDA
 RAM_SISTEMA_GB = 3.0              # Windows + serviços, sem navegador
