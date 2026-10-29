@@ -4773,6 +4773,36 @@ Google Tradutor. Não são régua: nada foi escolhido por eles.
 2. **O modelo lê trecho sem fala como sintético.** No ao vivo, o corte por frase
    protege; no Enviar arquivo, não.
 
+### 10.2.48 Régua da internet: In-the-Wild (critério combinado antes de rodar)
+
+**Por quê (28/10/2026):** as vozes de IA da internet não estão em nenhuma régua
+(10.2.47). O grupo decidiu medir antes de mudar qualquer coisa; se não der certo,
+a base entra no texto como trabalho futuro.
+
+**Base:** In-the-Wild (Müller et al., Interspeech 2022): falsos e reais de 58
+figuras públicas, tirados de vídeos da internet, em inglês; 37,9 h; CC BY-SA 4.0
+(`release_in_the_wild.zip`, 8,16 GB, em `D:\InTheWild`).
+
+**Amostra:** até 50 reais e 50 falsos por pessoa, semente 42
+(`scripts/montar_amostra_inthewild.py`, lista em
+`data/recortes/inthewild_50_s42.tsv`).
+
+**Caminho:** o das réguas: `estudo_ssl.py extrair` e o modelo final sem mudança
+(`xlsr_congelado.py avaliar`), com o limiar do dev da ASVspoof 5.
+
+**Critério (no commit antes de rodar):** o modelo final generaliza para as
+vozes da internet se a AUC for ≥ 0,85, o mesmo critério do ReplayDF no 10.2.43.
+
+**Descritivo:**
+- o EER;
+- com o limiar do dev (−0,898) e o do arquivo do L02 (−0,517): quantos reais e
+  quantos falsos ficam do lado certo;
+- a AUC por pessoa: a mediana e quantas ficam abaixo de 0,85.
+
+**Se não passar:** limitação no texto e a base como trabalho futuro. Treinar de
+novo a cabeça com parte dela, separada por pessoa, fica para o grupo decidir,
+com critério antes.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
