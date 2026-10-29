@@ -363,6 +363,7 @@ def test_enviar_arquivo_por_frase_usa_o_limiar_da_frase(tmp_path, monkeypatch):
 
 
 def test_modelo_local_acha_a_pasta_no_cache_sem_readme(tmp_path):
+    pytest.importorskip("huggingface_hub")   # o CI não instala (sem ele, modelo_local dá None)
     from src.xlsr_final import modelo_local
 
     raiz = tmp_path / "models--org--xlsr"

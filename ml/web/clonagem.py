@@ -67,14 +67,19 @@ def python_do_ambiente(ambiente: str) -> Path | None:
     escolhido = os.environ.get(f"DETECTOR_PYTHON_{ambiente.upper()}")
     if escolhido:
         return Path(escolhido) if Path(escolhido).is_file() else None
-    atual = Path(sys.executable).resolve()
-    nome = "python.exe" if os.name == "nt" else "bin/python"
-    # No ambiente base, os outros ficam em envs/; dentro de um deles, ao lado.
-    for pasta in (atual.parent / "envs" / ambiente, atual.parent.parent / ambiente,
-                  atual.parent.parent.parent / ambiente):
-        if (pasta / nome).is_file():
-            return pasta / nome
+    for candidato in candidatos(Path(sys.executable).resolve(), ambiente, os.name == "nt"):
+        if candidato.is_file():
+            return candidato
     return None
+
+
+def candidatos(atual: Path, ambiente: str, windows: bool) -> list[Path]:
+    """Onde o conda põe o Python do ambiente, a partir do Python atual. No Windows ele
+    fica na raiz do ambiente; no Linux, em bin/ (o CI quebrou sem isso, 29/10/2026)."""
+    raiz = atual.parent if windows else atual.parent.parent
+    nome = "python.exe" if windows else "bin/python"
+    # No ambiente base, os outros ficam em envs/; dentro de um deles, ao lado.
+    return [raiz / "envs" / ambiente / nome, raiz.parent / ambiente / nome]
 
 
 def ferramentas_disponiveis() -> dict[str, str]:

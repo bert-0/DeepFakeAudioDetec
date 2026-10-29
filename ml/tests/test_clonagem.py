@@ -76,6 +76,21 @@ def test_acha_o_python_de_cada_ambiente(tmp_path, monkeypatch):
     assert "chatterbox" in clonagem.ferramentas_disponiveis()
 
 
+@pytest.mark.parametrize("windows", [True, False])
+def test_candidatos_nas_duas_organizacoes_do_conda(windows):
+    """Windows: Miniconda/python.exe e envs/x/python.exe; Linux: bin/python nos dois."""
+    from pathlib import PurePosixPath
+
+    from web.clonagem import candidatos
+
+    py = "python.exe" if windows else "bin/python"
+    base = PurePosixPath("/conda")
+    do_base = candidatos(base / py, "xtts", windows)
+    de_outro = candidatos(base / "envs" / "chatterbox" / py, "xtts", windows)
+    assert base / "envs" / "xtts" / py in do_base
+    assert base / "envs" / "xtts" / py in de_outro
+
+
 def test_clonar_chama_o_script_e_devolve_o_wav(tmp_path, monkeypatch):
     from web import clonagem
 
