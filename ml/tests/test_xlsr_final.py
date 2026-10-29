@@ -602,3 +602,20 @@ def test_monitor_e_interface_mostram_o_aviso(limiar_xlsr, tmp_path, monkeypatch)
     monkeypatch.setitem(modulo._estado, "sessao", {"json": saida, "log": tmp_path / "s.log", "proc": vivo,
                                                    "inicio": time.time(), "analise_id": None, "fonte": "microfone"})
     assert "nenhuma fala" in modulo.api_ao_vivo()["aviso"]
+
+
+def test_xlsr_so_carrega_do_cache(monkeypatch):
+    """Nada de download escondido: sem o modelo no cache, erro claro."""
+    transformers = pytest.importorskip("transformers")
+    from src.features import xlsr
+
+    pedidos = []
+
+    def from_pretrained(modelo, **kw):
+        pedidos.append(kw)
+        raise OSError("não achou")
+
+    monkeypatch.setattr(transformers.Wav2Vec2Model, "from_pretrained", staticmethod(from_pretrained))
+    with pytest.raises(OSError, match="HF_HOME"):
+        xlsr.carregar_rede("cpu", "org/modelo")
+    assert pedidos == [{"local_files_only": True}]

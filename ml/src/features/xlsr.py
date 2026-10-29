@@ -54,12 +54,19 @@ def janelas(wav: np.ndarray) -> list[np.ndarray]:
 
 
 def carregar_rede(dispositivo: str = "cuda", modelo: str = MODELO_HF):
+    """Só do cache: o HF_HUB_OFFLINE ligado depois de importar o transformers não valia,
+    e sem o HF_HOME o modelo foi baixado de novo para o C: (28/10/2026)."""
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
     import torch
     from transformers import Wav2Vec2Model
 
-    os.environ.setdefault("HF_HUB_OFFLINE", "1")
     dev = torch.device(dispositivo if torch.cuda.is_available() or dispositivo == "cpu" else "cpu")
-    return Wav2Vec2Model.from_pretrained(modelo).eval().to(dev), dev
+    try:
+        rede = Wav2Vec2Model.from_pretrained(modelo, local_files_only=True)
+    except OSError as erro:
+        raise OSError(f"o XLS-R ({modelo}) não está no cache: confira o HF_HOME "
+                      "(E:/Computaria/cache/huggingface neste computador)") from erro
+    return rede.eval().to(dev), dev
 
 
 def carregar_xlsr(dispositivo: str = "cuda", modelo: str = MODELO_HF):
