@@ -38,6 +38,7 @@
     <div class="barras" id="barras"></div>
     <p class="legenda-barras oculto" id="legenda-barras"><span id="contagem"></span>
       <span class="chave"><i class="amostra abaixo"></i>abaixo<i class="amostra acima"></i>acima<i class="amostra abaixo parcial"></i>pouca fala</span></p>
+    <div class="faixa-aviso amarelo oculto" id="aviso-som" role="status"></div>
     <div class="faixa-aviso vermelho oculto" id="alerta">Média acima do limiar — indício de síntese, não prova.</div>
   </div>
 
@@ -99,6 +100,8 @@
     $("veredito").textContent = media == null ? (frase ? "Aguardando uma frase…" : "Aguardando fala…") : (acima ? "Indício de voz sintética" : "Sem indício de voz sintética");
     $("legenda").textContent = limiar != null ? "0 = voz humana · 0,50 = limiar · 1 = voz sintética" : "média ponderada pela fala";
     ocultar("alerta", !acima);
+    ocultar("aviso-som", !d.aviso);
+    if (d.aviso) $("aviso-som").textContent = d.aviso;
 
     var barras = $("barras"); barras.innerHTML = "";
     if (limiar != null) {

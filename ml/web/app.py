@@ -438,6 +438,12 @@ def api_ao_vivo_iniciar(pedido: PedidoAoVivo | None = None):
     return {"ok": True}
 
 
+def _texto_aviso(codigo: str | None) -> str | None:
+    from src.capture.frases import AVISOS
+
+    return AVISOS.get(codigo) if codigo else None
+
+
 def _ler_json_sessao(sessao: dict) -> dict | None:
     try:
         return json.loads(Path(sessao["json"]).read_text(encoding="utf-8"))
@@ -523,6 +529,7 @@ def api_ao_vivo(ultimas: int = 40):
     limiar, resumo = dados.get("limiar"), dados.get("resumo", {})
     return {**base, "existe": True,
             "unidade": dados.get("unidade", "janela"),
+            "aviso": _texto_aviso(dados.get("aviso")) if rodando else None,
             "limiar": limiar,
             "origem_limiar": dados.get("origem_limiar", ""),
             "resumo": resumo,

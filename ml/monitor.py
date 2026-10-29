@@ -283,12 +283,18 @@ def rodar(args, fonte, analisador, agregador: Agregador, escolha: Escolha, verda
     else:
         print("          score = P(síntese): 0,00 = voz humana | 1,00 = sintético")
     print("-" * 78)
+    estado = {"aviso": None}
+
+    def _json() -> None:
+        if args.json:
+            gravar_json(agregador, args.json, analisador.threshold, escolha.origem, ativo=True,
+                        unidade=unidade, duracao_s=getattr(analisador, "duracao_s", None),
+                        aviso=estado["aviso"])
+
     def _mostrar(leitura) -> None:
         """Imprime uma leitura (do fluxo ou da janela final)."""
         agregador.adicionar(leitura)
-        if args.json:
-            gravar_json(agregador, args.json, analisador.threshold, escolha.origem, ativo=True,
-                        unidade=unidade, duracao_s=getattr(analisador, "duracao_s", None))
+        _json()
         if leitura.silencio:
             print(f"{leitura.instante:7.1f}s  {'—':>6s}  {'—':>6s}  "
                   f"{'—':>6s}  {'—':>5s}  (silêncio)")
@@ -311,12 +317,10 @@ def rodar(args, fonte, analisador, agregador: Agregador, escolha: Escolha, verda
     try:
         with fonte:
             for bloco in fonte.blocos():
-                if capturado == 0 and args.json:
+                if capturado == 0:
                     # A captura começou: sem leitura ainda (por frase, só depois da
                     # primeira pausa), a aba Ao vivo sai de "Iniciando a captura".
-                    gravar_json(agregador, args.json, analisador.threshold, escolha.origem,
-                                ativo=True, unidade=unidade,
-                                duracao_s=getattr(analisador, "duracao_s", None))
+                    _json()
                 capturado += max(len(bloco), 1)
                 # Parada pedida pela interface web; vai pelo Ctrl+C para salvar WAV e JSON.
                 if args.parar_com and Path(args.parar_com).exists():
@@ -327,6 +331,14 @@ def rodar(args, fonte, analisador, agregador: Agregador, escolha: Escolha, verda
                     _mostrar(leitura)
                     if limite is not None and leitura.instante >= limite:
                         raise KeyboardInterrupt
+                aviso = getattr(analisador, "aviso", None)
+                if aviso != estado["aviso"]:
+                    estado["aviso"] = aviso
+                    if aviso:
+                        from src.capture.frases import AVISOS
+
+                        print(f"[AVISO] {AVISOS[aviso]}")
+                    _json()
                 # Por frase, o silêncio não gera leitura: o limite conta o áudio recebido.
                 if (limite is not None and unidade == "frase"
                         and getattr(analisador, "duracao_s", 0.0) >= limite):
@@ -370,7 +382,7 @@ def salvar(wav: np.ndarray, sample_rate: int, destino: str) -> None:
 
 def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None = None,
                 origem_limiar: str = "", ativo: bool = False, unidade: str = "janela",
-                duracao_s: float | None = None) -> Path:
+                duracao_s: float | None = None, aviso: str | None = None) -> Path:
     """Grava o histórico de scores. Chamado a cada janela durante a captura
     (`ativo=True`); escrita atômica para a aba Ao vivo não ler arquivo pela metade."""
     import time
@@ -386,6 +398,8 @@ def gravar_json(agregador: Agregador, destino: str | Path, limiar: float | None 
         # "frase" no modelo final (uma leitura por frase); "janela" nos outros.
         "unidade": unidade,
         "duracao_s": duracao_s,
+        # "sem_fala" ou "saturado" (src/capture/frases.py), enquanto valer.
+        "aviso": aviso,
         "resumo": agregador.resumo(),
         "leituras": [{"indice": x.indice, "instante": x.instante, "score": x.score,
                       "rms": x.rms, "silencio": x.silencio, "util": id(x) in uteis,

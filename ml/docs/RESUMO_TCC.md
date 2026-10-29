@@ -4699,6 +4699,20 @@ achadas no ruído puro da sala (o trecho antes da fala de 9 gravações do L02,
   −0,517, frase −0,389).
 - A comparação (a) × (b) acima foi medida antes do ajuste.
 
+**Segundo ajuste (28/10/2026, à noite), a entrada da fala**, nos mesmos devs:
+
+| entra / sai (dB acima do piso) | salas sem frase | ReplayDF sem frase | frases do L02 | frases no ruído puro |
+|---|---|---|---|---|
+| 10 / 5 (o de cima) | 159 de 1.600 | 0 de 200 | 1 por arquivo | 0 |
+| 8 / 4 | 52 | 0 | 1 por arquivo | 0 |
+| 6 / 3 | 5 | 0 | 1 por arquivo | 0 |
+
+- **Adotada:** 6 / 3. Os limiares do L02 não mudaram (arquivo −0,517, frase
+  −0,389).
+- Junto, avisos na tela do ao vivo: som sem fala reconhecida (6 dB acima do piso
+  na faixa inteira, por 3 s, fora de frase) e microfone saturando. No ruído puro
+  da sala e nas vozes do L02, nenhum aviso.
+
 ### 10.2.46 Calibração do modelo final com vozes no modo atual (regra registrada antes de gravar)
 
 **Por quê (28/10/2026):** com o limiar das vozes do L02, gravadas no modo
@@ -4728,6 +4742,36 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
 - o maior score de cada locutor, nos dois caminhos;
 - o ensaio 5 (L01) com os limiares novos, só para comparar com o 10.2.43. O
   teste com critério é o ensaio 6.
+
+### 10.2.47 Testes soltos do ao vivo com vozes de IA da internet (descritivo)
+
+**O que foi feito (28/10/2026):** três sessões do ao vivo, sem critério antes,
+com o limiar da frase do L02 (−0,389). Dois áudios de IA tirados da internet:
+uma narração de "histórias do Reddit", de ferramenta desconhecida, e a voz do
+Google Tradutor. Não são régua: nada foi escolhido por eles.
+
+**O que saiu:**
+- **Som do computador (digital):** a narração saiu como voz humana em todas as
+  janelas, de −1,0 a −7,6 nos log-odds; o arquivo inteiro deu −3,88. No fim da
+  sessão, provavelmente o Google Tradutor, algumas janelas subiram a +2,9 e +3,2,
+  mas as frases saíram humanas.
+- **Microfone, sessão 1:** as frases achadas eram a voz real, julgadas humanas.
+  Entre elas, os trechos que o modelo marca como sintéticos (até +5,9) não têm
+  fala: depois do passa-altas de 150 Hz, ficam 0,5 dB acima do ruído, e só os
+  graves (vibração) sobem. O modelo lê esse "som sem fala" como sintético, como
+  no 10.2.44; o corte por frase o deixa de fora.
+- **Microfone, sessão 2:** a reprodução saturou o microfone (pico em 0 dBFS,
+  468 amostras no teto em 1 s), e as frases saíram humanas.
+
+**Leitura:**
+1. **As vozes de IA da internet não estão em nenhuma régua.** As réguas cobrem
+   XTTS, Chatterbox, F5-TTS, os ataques da ASVspoof e afins. É o problema "in
+   the wild": detectores bons nas bases caem nos áudios da internet. A base
+   In-the-Wild (Müller et al., 2022; 58 figuras públicas, em inglês, 8,16 GB,
+   CC BY-SA 4.0) mede isso: régua nova, com critério antes, ou citação como
+   trabalho futuro.
+2. **O modelo lê trecho sem fala como sintético.** No ao vivo, o corte por frase
+   protege; no Enviar arquivo, não.
 
 ### 10.3 Bases públicas que já trazem canal
 

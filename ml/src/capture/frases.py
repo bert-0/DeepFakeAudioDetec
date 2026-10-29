@@ -6,12 +6,13 @@ o mesmo número: no ensaio 5 ela se afasta do score do arquivo em até 0,67 nos
 log-odds. Por isso o ao vivo junta a fala até uma pausa e analisa a frase pelo
 mesmo caminho do arquivo.
 
-A fala é achada pela regra da checagem depois de gravar (`checagens.trechos_de_fala`):
-sem graves (pancadas de teclado) e 10 dB acima do piso de ruído, aqui o percentil
-10 dos últimos 30 s. Com 10 s, uma fala longa com poucos respiros subia o piso até
-a própria fala. Depois de entrar na fala, ela só acaba abaixo de 5 dB do piso: com
-eco e ruído (o dev com salas), só a regra de 10 dB deixava 20% dos arquivos sem
-frase, e a histerese leva a 10%, sem frase no ruído puro da sala (RESUMO_TCC §10.2.45).
+A fala é achada sem graves (pancadas de teclado), como na checagem depois de gravar
+(`checagens.trechos_de_fala`), acima do piso de ruído: o percentil 10 dos últimos
+30 s (com 10 s, uma fala longa com poucos respiros subia o piso até a própria fala).
+Ela começa a 6 dB acima do piso e acaba abaixo de 3 dB, escolhidos nos devs
+(RESUMO_TCC §10.2.45): com eco e ruído (o dev com salas), os 10 dB da checagem
+deixavam 20% dos arquivos sem frase, e um clone tocado baixo no alto-falante, a uns
+9 dB do ruído, sumia; com 6 e 3 dB, 5 de 1.600, sem frase no ruído puro da sala.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from collections import deque
 import numpy as np
 
 from .analyzer import SILENCIO_RMS, Leitura
-from .checagens import FALA_ACIMA_DO_PISO_DB, FALA_PASSA_ALTAS_HZ
+from .checagens import FALA_PASSA_ALTAS_HZ
 from .qualidade import EstadoDoCanal, avaliar
 
 QUADRO_S = 0.02
@@ -34,8 +35,20 @@ MAX_FRASE_S = 15.0
 #: Áudio guardado antes da fala, como a folga das frases gravadas.
 MARGEM_S = 0.3
 PISO_S = 30.0
-#: Já dentro da fala, ela continua enquanto o quadro passar disto acima do piso.
-FALA_FICA_DB = 5.0
+#: A fala começa a tanto acima do piso e, já dentro dela, continua até cair abaixo disto.
+FALA_ENTRA_DB = 6.0
+FALA_FICA_DB = 3.0
+#: Avisos na tela. Sem eles, um clone tocado baixo no alto-falante (9 dB acima do ruído)
+#: era descartado em silêncio, e o veredito saía só da voz real (28/10/2026).
+AVISO_S = 3.0
+#: O som do aviso é medido na faixa inteira: um trecho só de graves (vibração na mesa)
+#: não é fala, mas o operador precisa saber que o microfone ouviu algo.
+SOM_ACIMA_DO_PISO_DB = 6.0
+#: Depois do FIR, o teto de 48 kHz chega a 16 kHz um pouco abaixo de 1.
+SATURACAO_16K = 0.98
+SATURACAO_SEGUIDAS = 3
+AVISOS = {"sem_fala": "Há som, mas nenhuma fala reconhecida: aproxime a fonte do microfone ou aumente o volume.",
+          "saturado": "Som alto demais: o microfone está saturando. Baixe o volume."}
 
 
 class DetectorDeFala:
@@ -47,7 +60,9 @@ class DetectorDeFala:
         self.sos = butter(4, FALA_PASSA_ALTAS_HZ, btype="highpass", fs=sample_rate, output="sos")
         self.zi = np.zeros((len(self.sos), 2))
         self.historico: deque[float] = deque(maxlen=int(PISO_S / QUADRO_S))
+        self.historico_cheio: deque[float] = deque(maxlen=int(PISO_S / QUADRO_S))
         self.dentro = False
+        self.som = False
 
     def __call__(self, quadro: np.ndarray) -> bool:
         from scipy.signal import sosfilt
@@ -56,8 +71,12 @@ class DetectorDeFala:
         rms = float(np.sqrt(np.mean(voz ** 2)))
         self.historico.append(rms)
         piso = float(np.percentile(self.historico, 10))
-        db = FALA_FICA_DB if self.dentro else FALA_ACIMA_DO_PISO_DB
+        db = FALA_FICA_DB if self.dentro else FALA_ENTRA_DB
         self.dentro = rms >= max(SILENCIO_RMS, piso * 10 ** (db / 20))
+        cheio = float(np.sqrt(np.mean(quadro.astype(np.float64) ** 2)))
+        self.historico_cheio.append(cheio)
+        piso_cheio = float(np.percentile(self.historico_cheio, 10))
+        self.som = cheio >= max(SILENCIO_RMS, piso_cheio * 10 ** (SOM_ACIMA_DO_PISO_DB / 20))
         return self.dentro
 
     def aquecer(self, wav: np.ndarray, quadro: int) -> None:
@@ -91,10 +110,23 @@ class AnalisadorFrases:
         self._frase: list[np.ndarray] | None = None
         self._inicio = self._t = self._n = 0
         self._fala = self._pausa = 0
+        #: Quadros recentes fora de frase com som acima do ruído (True) ou não.
+        self._som_sem_fala: deque[bool] = deque(maxlen=int(AVISO_S / QUADRO_S))
+        self._saturado_ate = 0
 
     @property
     def duracao_s(self) -> float:
         return self._t / self.sample_rate
+
+    @property
+    def aviso(self) -> str | None:
+        """"saturado", "sem_fala" (som sem fala reconhecida por uns 3 s) ou None."""
+        if self._t < self._saturado_ate:
+            return "saturado"
+        cheio = len(self._som_sem_fala) == self._som_sem_fala.maxlen
+        if self._frase is None and cheio and np.mean(self._som_sem_fala) >= 0.5:
+            return "sem_fala"
+        return None
 
     def processar(self, bloco: np.ndarray):
         x = np.concatenate([self._resto, np.asarray(bloco, np.float32).reshape(-1)])
@@ -112,12 +144,18 @@ class AnalisadorFrases:
                 yield leitura
 
     def _quadro(self, q: np.ndarray) -> Leitura | None:
+        from .checagens import _maior_sequencia
+
         fala = self.fala(q)
         t, self._t = self._t, self._t + len(q)
+        if _maior_sequencia(np.abs(q) >= SATURACAO_16K) >= SATURACAO_SEGUIDAS:
+            self._saturado_ate = self._t + int(AVISO_S * self.sample_rate)
         if self._frase is None:
+            self._som_sem_fala.append(self.fala.som and not fala)
             if not fala:
                 self._antes.append(q)
                 return None
+            self._som_sem_fala.clear()
             self._frase = list(self._antes)
             self._antes.clear()
             self._inicio = t - sum(len(a) for a in self._frase)

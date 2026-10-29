@@ -522,3 +522,83 @@ def test_monitor_da_interface_sem_buffer_e_em_utf8(limiar_xlsr, tmp_path, monkey
                                                    "inicio": time.time(), "analise_id": None, "fonte": "sistema"})
     r = modulo.api_ao_vivo()
     assert r["rodando"] is False and "Nenhuma janela" in r["erro"]
+
+
+def _tom(segundos, rms, hz=1000.0):
+    t = np.arange(int(segundos * SR)) / SR
+    return (rms * np.sqrt(2) * np.sin(2 * np.pi * hz * t)).astype(np.float32)
+
+
+def _alimentar(analisador, sinal, bloco=1600):
+    avisos = []
+    for i in range(0, len(sinal), bloco):
+        list(analisador.processar(sinal[i:i + bloco]))
+        avisos.append(analisador.aviso)
+    return avisos
+
+
+def test_aviso_quando_ha_som_mas_nenhuma_fala():
+    """Som só de graves (vibração na mesa, abaixo do passa-altas da fala), 10 dB acima
+    do ruído: não vira frase, e a tela avisa em vez de calar (28/10/2026)."""
+    from src.capture.frases import AnalisadorFrases
+
+    rng = np.random.default_rng(0)
+    ruido = lambda s: (0.003 * rng.standard_normal(int(s * SR))).astype(np.float32)  # noqa: E731
+    fraco = lambda s: ruido(s) + _tom(s, 0.009, hz=80.0)  # noqa: E731
+    a = AnalisadorFrases(_Gravador())
+    avisos = _alimentar(a, np.concatenate([ruido(3.0), fraco(4.0)]))
+    assert avisos[25] is None and avisos[-1] == "sem_fala"
+    assert _alimentar(a, ruido(4.0))[-1] is None, "o aviso some quando o som some"
+
+
+def test_aviso_de_saturacao_dura_uns_segundos():
+    from src.capture.frases import AnalisadorFrases
+
+    rng = np.random.default_rng(1)
+    estouro = np.clip(1.5 * np.sin(2 * np.pi * 200 * np.arange(SR // 2) / SR), -1, 1).astype(np.float32)
+    a = AnalisadorFrases(_Gravador())
+    avisos = _alimentar(a, np.concatenate([(0.003 * rng.standard_normal(SR)).astype(np.float32), estouro]))
+    assert avisos[-1] == "saturado"
+    assert _alimentar(a, (0.003 * rng.standard_normal(4 * SR)).astype(np.float32))[-1] is None
+
+
+def test_monitor_e_interface_mostram_o_aviso(limiar_xlsr, tmp_path, monkeypatch):
+    import time
+
+    import monitor
+
+    rng = np.random.default_rng(2)
+
+    class _Fonte:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def blocos(self):
+            sinal = np.concatenate([(0.003 * rng.standard_normal(3 * SR)).astype(np.float32),
+                                    (0.003 * rng.standard_normal(6 * SR)).astype(np.float32) + _tom(6.0, 0.009, hz=80.0)])
+            for i in range(0, len(sinal), 1600):
+                yield sinal[i:i + 1600]
+
+    vistos = []
+    original = monitor.gravar_json
+    monkeypatch.setattr(monitor, "gravar_json", lambda *a, **k: vistos.append(k.get("aviso")) or original(*a, **k))
+    monkeypatch.setattr(monitor, "abrir", lambda args, sr: _Fonte())
+    saida = tmp_path / "s.json"
+    assert monitor.main(["--xlsr", str(limiar_xlsr), "--json", str(saida), "--device", "cpu"]) == 0
+    assert "sem_fala" in vistos
+
+    # A aba lê o código no JSON e mostra o texto, só enquanto a sessão roda.
+    monkeypatch.setenv("DETECTOR_XLSR", str(limiar_xlsr))
+    import web.app as modulo
+
+    importlib.reload(modulo)
+    dados = json.loads(saida.read_text(encoding="utf-8"))
+    dados["aviso"] = "sem_fala"
+    saida.write_text(json.dumps(dados), encoding="utf-8")
+    vivo = SimpleNamespace(poll=lambda: None)
+    monkeypatch.setitem(modulo._estado, "sessao", {"json": saida, "log": tmp_path / "s.log", "proc": vivo,
+                                                   "inicio": time.time(), "analise_id": None, "fonte": "microfone"})
+    assert "nenhuma fala" in modulo.api_ao_vivo()["aviso"]

@@ -242,8 +242,10 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   das janelas não é o score do arquivo (até 0,67 de diferença). Pendente: cortar
   a fala também no arquivo. Nos devs (§10.2.45, sem critério), cortar a fala não
   muda a AUC (±0,005) e sobe o EER de 0,2 a 1 pp; com salas simuladas, o detector
-  de fala falhava em 20% dos arquivos, 10% com a histerese (entra a 10 dB, sai
-  abaixo de 5 dB), sem frase no ruído puro da sala.
+  de fala falhava em 20% dos arquivos; com entrada a 6 dB e saída a 3 dB do piso,
+  5 de 1.600, sem frase no ruído puro da sala. O ao vivo avisa na tela quando há
+  som sem fala ou o microfone satura. Vozes de IA da internet (narração, Google
+  Tradutor) saíram como humanas nos testes soltos (§10.2.47): fora das réguas.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
