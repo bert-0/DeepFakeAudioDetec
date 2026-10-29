@@ -137,6 +137,26 @@ def test_limiar_pela_maior_voz_real(tmp_path):
     assert locutores["L02"]["n"] == 3 and locutores["L02"]["n_frases"] == 3
 
 
+def test_calibracao_corta_a_fala_por_padrao(tmp_path, monkeypatch):
+    """Decisão de 29/10/2026 (opção b): o Enviar arquivo usa o limiar da frase."""
+    from scripts.limiar_xlsr import main
+    from src.xlsr_final import ler_limiar
+
+    monkeypatch.setattr("src.features.xlsr.carregar_rede",
+                        lambda *a, **k: (_RedeFalsa().eval(), torch.device("cpu")))
+    pasta = tmp_path / "L03"
+    pasta.mkdir()
+    for i in range(2):
+        sf.write(pasta / f"f{i}.wav", np.concatenate([_ruido(0.5, i), _voz(3.0, semente=i), _ruido(1.0, 10 + i)]), SR)
+    comum = ["--cabeca", str(_cabeca(tmp_path / "c.pt")), "--real", f"L03={pasta}", "--dispositivo", "cpu"]
+    assert main(comum + ["--saida", str(tmp_path / "b.json")]) == 0
+    b = ler_limiar(tmp_path / "b.json")
+    assert b.arquivo_por_frase and b.probabilidade_arquivo == b.probabilidade_frase
+    assert main(comum + ["--saida", str(tmp_path / "a.json"), "--arquivo-inteiro"]) == 0
+    a = ler_limiar(tmp_path / "a.json")
+    assert not a.arquivo_por_frase and a.probabilidade_arquivo == a.probabilidade
+
+
 def test_limiar_do_dev_grava_o_json(tmp_path):
     from scripts.limiar_xlsr import main
     from src.xlsr_final import ler_limiar
@@ -359,7 +379,33 @@ def test_enviar_arquivo_por_frase_usa_o_limiar_da_frase(tmp_path, monkeypatch):
     sf.write(arq, np.concatenate([_ruido(1.0), _voz(3.0), _ruido(1.5, 2), _voz(4.0, 3, tom=170), _ruido(1.0, 4)]), SR)
     r = analise.Detector(xlsr=str(lim)).analisar(arq)
     assert r.limiar == pytest.approx(sigmoide(-1.0)) and "frase por frase" in r.origem_limiar
-    assert len(r.janelas) == 2
+    assert len(r.janelas) == 2 and all(j["unidade"] == "frase" for j in r.janelas)
+
+
+def test_pagina_do_arquivo_por_frase(tmp_path, monkeypatch):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("multipart")
+    from fastapi.testclient import TestClient
+
+    from src.xlsr_final import gravar_limiar
+
+    monkeypatch.setattr("src.features.xlsr.carregar_rede",
+                        lambda *a, **k: (_RedeFalsa().eval(), torch.device("cpu")))
+    lim = gravar_limiar(tmp_path / "l.json", str(_cabeca(tmp_path / "c.pt")), -0.5, origem="calibrado com L02",
+                        regra="r", limiar_frase=-1.0, arquivo_por_frase=True)
+    monkeypatch.setenv("DETECTOR_XLSR", str(lim))
+    monkeypatch.setenv("DETECTOR_BANCO", str(tmp_path / "h.db"))
+    import web.app as modulo
+
+    importlib.reload(modulo)
+    cliente = TestClient(modulo.app)
+    arq = tmp_path / "v.wav"
+    sf.write(arq, np.concatenate([_ruido(1.0), _voz(3.0), _ruido(1.5, 2), _voz(4.0, 3, tom=170), _ruido(1.0, 4)]), SR)
+    with open(arq, "rb") as fh:
+        dados = cliente.post("/api/analisar", files={"arquivo": ("v.wav", fh, "audio/wav")}).json()
+    pagina = cliente.get(f"/analises/{dados['id']}").text
+    assert "média das frases" in pagina and "de 2 frases acima" in pagina
+    assert "Só a fala é analisada" in cliente.get("/sobre").text
 
 
 def test_modelo_local_acha_a_pasta_no_cache_sem_readme(tmp_path):

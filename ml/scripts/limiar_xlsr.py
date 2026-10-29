@@ -8,6 +8,9 @@ Duas origens:
   (`src/xlsr_final.py`, Enviar arquivo) e o da frase cortada pelo ao vivo
   (`src/capture/frases.py`). Nas gravações do microfone os dois scores diferem:
   o arquivo leva segundos de ruído da sala que o corte de silêncio não tira.
+  Decidido em 29/10/2026 (opção b, RESUMO_TCC §10.2.45): o Enviar arquivo também
+  analisa só a fala, frase por frase, com o limiar da frase. `--arquivo-inteiro`
+  volta à opção (a), o arquivo inteiro com o limiar dele.
 - `--dev NPZ`: o ponto de EER no dev (um .npz do `estudo_ssl.py extrair`), sem canal
   e sem calibração por frase.
 
@@ -97,12 +100,10 @@ def main(argv=None) -> int:
     origem.add_argument("--dev", metavar="NPZ", help="ponto de EER neste dev")
     p.add_argument("--saida", default=SAIDA_PADRAO)
     p.add_argument("--dispositivo", default="cuda")
-    p.add_argument("--arquivo-por-frase", action="store_true",
-                   help="opção (b) da decisão pendente (RESUMO_TCC §10.2.44): o Enviar arquivo "
-                        "também frase por frase, com o limiar da frase")
+    p.add_argument("--arquivo-inteiro", action="store_true",
+                   help="opção (a): o Enviar arquivo pelo arquivo inteiro, com o limiar dele "
+                        "(o padrão, desde 29/10/2026, é só a fala, frase por frase)")
     args = p.parse_args(argv)
-    if args.arquivo_por_frase and args.dev:
-        p.error("--arquivo-por-frase precisa das vozes reais (--real)")
 
     if args.dev:
         limiar = limiar_do_dev(args.cabeca, args.dev, args.dispositivo)
@@ -121,6 +122,9 @@ def main(argv=None) -> int:
         pastas[nome] = Path(pasta)
     modelo = ModeloFinal(args.cabeca, args.dispositivo)
     limiar, limiar_frase, locutores = limiar_por_reais(pontuar_pastas(modelo, pastas))
+    por_frase = not args.arquivo_inteiro
+    if por_frase and limiar_frase is None:
+        p.error("nenhuma frase achada nas vozes de calibração: confira as gravações")
     for nome, x in locutores.items():
         inteiros = [s["arquivo"] for s in x["scores"].values()]
         frase = "—" if x["maximo_frase"] is None else f"{x['maximo_frase']:.3f}"
@@ -130,11 +134,11 @@ def main(argv=None) -> int:
     destino = gravar_limiar(args.saida, args.cabeca, limiar, regra="maior voz real (§10.2.39)",
                             origem="calibrado com as vozes reais de " + ", ".join(locutores) + " (maior score)",
                             locutores=locutores, limiar_frase=limiar_frase,
-                            arquivo_por_frase=args.arquivo_por_frase)
+                            arquivo_por_frase=por_frase)
     frase = "—" if limiar_frase is None else f"{limiar_frase:.4f}"
-    print(f"Limiar do arquivo {limiar:.4f}; da frase (ao vivo) {frase} -> {destino}")
-    if args.arquivo_por_frase:
-        print("Enviar arquivo também frase por frase, com o limiar da frase.")
+    print(f"Limiar do arquivo inteiro {limiar:.4f}; da frase {frase} -> {destino}")
+    print("Enviar arquivo e ao vivo frase por frase, com o limiar da frase." if por_frase
+          else "Enviar arquivo pelo arquivo inteiro (opção a); ao vivo com o limiar da frase.")
     return 0
 
 

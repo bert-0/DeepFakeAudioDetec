@@ -9,10 +9,17 @@
   dele, com um ramo de coeficientes LFCC. Ela foi treinada com a ASVspoof 5, vozes
   em português (BRSpeech-DF e Common Voice), salas simuladas e áudio tocado e
   regravado (ReplayDF). Limiar: {{ origem }}.</p>
+  {% if por_frase %}
+  <p>Só a fala é analisada: o áudio é cortado em frases nas pausas, e cada frase
+  recebe um score. O score do arquivo é a média das frases; ao vivo, cada frase é
+  julgada quando a fala para. O mesmo limiar vale para os dois. Na tela, o score
+  aparece numa escala com o limiar no meio: acima de 0,50, indício de síntese.</p>
+  {% else %}
   <p>O arquivo inteiro recebe um score. No gráfico, cada barra é uma janela de 4
   segundos, só para mostrar onde o score sobe. Ao vivo, cada frase é analisada
   como um arquivo quando a fala para. Na tela, o score aparece numa escala com o
   limiar no meio: acima de 0,50, indício de síntese.</p>
+  {% endif %}
   {% elif ensaio2 %}
   <p>Modelo em uso: <code>{{ modelo }}</code>, treinado num recorte da base
   ASVspoof 5, com o {{ origem }}.

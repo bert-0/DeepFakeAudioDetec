@@ -15,7 +15,7 @@ torch = pytest.importorskip("torch")
 from web import conferencia as C  # noqa: E402
 
 
-def _limiar(tmp_path, locutores=None, frase=-1.0, pasta=None):
+def _limiar(tmp_path, locutores=None, frase=-1.0, pasta=None, por_frase=None):
     import json
 
     from src.xlsr_final import criar_cabeca, gravar_limiar
@@ -24,7 +24,8 @@ def _limiar(tmp_path, locutores=None, frase=-1.0, pasta=None):
     ck = tmp_path / "c.pt"
     torch.save({"estado": c.state_dict(), "config": c.config}, ck)
     caminho = gravar_limiar(tmp_path / "l.json", str(ck), -0.5, origem="x", regra="r",
-                            locutores=locutores or {}, limiar_frase=frase)
+                            locutores=locutores or {}, limiar_frase=frase,
+                            arquivo_por_frase=frase is not None if por_frase is None else por_frase)
     if pasta is not None:
         d = json.loads(caminho.read_text(encoding="utf-8"))
         d["modelo_local"] = str(pasta)
@@ -44,6 +45,11 @@ def test_modelo_sem_xlsr_e_com_limiar_de_uma_ou_duas_vozes(tmp_path):
     dois = C.modelo_final(_limiar(tmp_path, {"L02": {}, "L03": {}}, pasta=tmp_path / "sumiu"))
     assert _estados(dois) == {"Limiar": "ok", "XLS-R no disco": "atencao"}
     assert _estados(C.modelo_final(_limiar(tmp_path, frase=None)))["Limiar"] == "falha"
+
+
+def test_enviar_arquivo_pelo_arquivo_inteiro_pede_atencao(tmp_path):
+    itens = C.modelo_final(_limiar(tmp_path, {"L02": {}, "L03": {}}, pasta=tmp_path, por_frase=False))
+    assert _estados(itens)["Enviar arquivo"] == "atencao"
 
 
 def test_carga_do_modelo_ok_ou_falha(tmp_path):

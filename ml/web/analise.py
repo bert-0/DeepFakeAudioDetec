@@ -141,7 +141,8 @@ class Detector:
             origem_limiar=lim.descricao_frase() if lim.arquivo_por_frase else lim.descricao(),
             aviso_limiar=None, janelas_uteis=n,
             janelas_independentes=Agregador().efetivas(n),
-            janelas=[{"t": round(t, 2), "score": significativos(s), "util": True, "peso": 1.0}
+            janelas=[{"t": round(t, 2), "score": significativos(s), "util": True, "peso": 1.0,
+                      "unidade": p.unidade}
                      for (t, _), s in zip(p.janelas, scores, strict=True)])
 
     def analisar(self, caminho: str | Path, nome_original: str | None = None) -> Resultado:

@@ -231,6 +231,13 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   só 6 de 10 vozes reais do L01 ficam do lado humano). Integrado à interface e
   ao monitor em 28/10/2026 (§10.2.44): Enviar arquivo pelo caminho das réguas;
   ao vivo frase por frase, com limiar próprio, calibrado com as mesmas vozes.
+- **Decidido pelo grupo (29/10/2026): opção (b).** O Enviar arquivo também
+  analisa só a fala, frase por frase, e as duas abas usam o mesmo limiar, o da
+  frase. Os motivos: o modelo lê trecho sem fala como sintético (RESUMO_TCC
+  §10.2.47) e as gravações levam uns 5 s de ruído da sala; nos devs, a ordem não
+  muda (§10.2.45). É o padrão do `limiar_xlsr.py` (`--arquivo-inteiro` volta à
+  opção a). As réguas seguem pelo arquivo inteiro, como foram medidas. O texto
+  da pendência fica abaixo, como histórico.
 - **Pendente (28/10/2026): o caminho do arquivo também corta a fala?** Nas
   gravações do microfone, o arquivo de 12 s leva uns 5 s de ruído da sala que o
   corte de silêncio do treino não tira; a frase do ao vivo não (§10.2.44).

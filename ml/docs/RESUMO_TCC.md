@@ -4713,6 +4713,16 @@ achadas no ruído puro da sala (o trecho antes da fala de 9 gravações do L02,
   na faixa inteira, por 3 s, fora de frase) e microfone saturando. No ruído puro
   da sala e nas vozes do L02, nenhum aviso.
 
+**Decisão do grupo (29/10/2026): opção (b).**
+- O Enviar arquivo também analisa só a fala, frase por frase, e as duas abas usam
+  o mesmo limiar, o da frase.
+- Motivo: o modelo lê trecho sem fala como sintético (10.2.47), e as gravações do
+  microfone levam uns 5 s de ruído da sala. Nos devs, a ordem não muda (tabela
+  acima).
+- As réguas seguem pelo arquivo inteiro, o caminho em que foram medidas.
+- O limiar em uso foi refeito no modo novo com as mesmas vozes do L02. Ele não
+  muda: frase −0,389, agora nas duas abas.
+
 ### 10.2.46 Calibração do modelo final com vozes no modo atual (regra registrada antes de gravar)
 
 **Por quê (28/10/2026):** com o limiar das vozes do L02, gravadas no modo
@@ -4737,6 +4747,9 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   o arquivo inteiro (Enviar arquivo) e a frase do ao vivo;
 - sai do `scripts/limiar_xlsr.py`, com todas as pastas novas;
 - as gravações antigas do L02, do modo exclusivo, ficam de fora.
+- **Atualização (29/10/2026), antes de gravar:** com a opção (b) do 10.2.45, o
+  limiar das duas abas é o da frase, o maior score entre as frases de
+  calibração. O do arquivo inteiro fica no JSON, só como descritivo.
 
 **Descritivo, depois:**
 - o maior score de cada locutor, nos dois caminhos;

@@ -261,8 +261,10 @@ def historico_limpar():
 def sobre(request: Request):
     d = detector()
     if d.xlsr:
+        lim = d.limiar_xlsr
         return templates.TemplateResponse(request, "sobre.html", {
-            "modelo": d.modelo, "origem": d.limiar_xlsr.descricao(), "ensaio2": False, "xlsr": True})
+            "modelo": d.modelo, "origem": lim.descricao_frase() if lim.arquivo_por_frase else lim.descricao(),
+            "ensaio2": False, "xlsr": True, "por_frase": lim.arquivo_por_frase})
     origem = d.fusao.descricao() if d.fusao else None
     # O texto do ensaio 2 só vale para o modelo do recorte no limiar do treino.
     ensaio2 = d.modelo == "fusion_lcnn_v4_asv5" and bool(origem) and "treino" in origem

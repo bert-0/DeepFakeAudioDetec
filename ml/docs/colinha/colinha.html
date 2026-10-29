@@ -127,8 +127,8 @@ uvicorn web.app:app</pre>
 <p class="faz"><b>O que faz:</b> sobe a interface com o modelo final. O JSON traz o limiar, a cabeça
 treinada e a pasta do XLS-R; o modelo carrega na primeira análise. Com <code>cpu</code>, o Enviar arquivo
 leva uns 3 s por áudio e deixa a GPU para o ao vivo e para a aba Clonar (o Chatterbox ocupa quase toda
-ela). Enviar arquivo dá um score para o arquivo inteiro. O Ao vivo analisa <b>frase por frase</b>: o resultado aparece cerca de
-1 s depois que a pessoa para de falar.</p>
+ela). As duas abas analisam só a fala, <b>frase por frase</b>, com o mesmo limiar: no Enviar arquivo, o
+score é a média das frases; no Ao vivo, o resultado aparece cerca de 1 s depois que a pessoa para de falar.</p>
 </div>
 <div class="cmd">
 <pre>python monitor.py --xlsr outputs\limiar_xlsr\limiar.json --fonte microfone</pre>
@@ -143,7 +143,7 @@ de cada uma. Só com o termo de consentimento assinado antes.</p>
 <div class="cmd">
 <pre>python scripts\limiar_xlsr.py --real L02=data\vozes\calibracao\L02 --real L03=data\vozes\calibracao\L03</pre>
 <p class="faz"><b>O que faz:</b> refaz o JSON do limiar com as vozes reais: o limiar é o maior score
-delas. Sai um limiar para o arquivo inteiro e outro para a frase do ao vivo. Reinicie o servidor depois.</p>
+das frases delas, e vale para as duas abas. Reinicie o servidor depois.</p>
 </div>
 
 <h2>3. Monitor no terminal (sem a página)</h2>

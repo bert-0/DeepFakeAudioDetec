@@ -80,9 +80,11 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   duas abas usam os modelos, a regra e o limiar dele; Enviar arquivo usa também a
   taxa comum de 48 kHz, como o ensaio 2. Com `DETECTOR_XLSR` (JSON do
   `scripts/limiar_xlsr.py`), as duas abas usam o modelo final
-  (`src/xlsr_final.py`, preparo em `src/features/xlsr.py`): Enviar arquivo pelo
-  caminho das réguas; o ao vivo (`monitor.py --xlsr`) frase por frase
-  (`src/capture/frases.py`), com o limiar da frase. Na tela, o score
+  (`src/xlsr_final.py`, preparo em `src/features/xlsr.py`): as duas só com a
+  fala, frase por frase (`src/capture/frases.py`), com o limiar da frase
+  (decisão de 29/10/2026; `limiar_xlsr.py --arquivo-inteiro` volta ao caminho
+  das réguas). No Enviar arquivo, o score é a média das frases; o ao vivo
+  (`monitor.py --xlsr`) julga cada frase. Na tela, o score
   aparece na escala centrada no limiar (`centrado` em `src/limiares.py`): o
   limiar fica em 0,50; a decisão continua no score do modelo. Aba Clonar
   (`web/clonagem.py`): roda o `clonar_xtts.py` no ambiente conda da ferramenta,

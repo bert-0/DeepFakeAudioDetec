@@ -6,9 +6,11 @@
 {% set n_acima = (uteis | selectattr('score', 'ge', a.limiar) | list | length) if a.limiar is not none else 0 %}
 {% set acima = not pouca_fala and a.limiar is not none and a.score_medio >= a.limiar %}
 {% set cor = 'amarelo' if pouca_fala else ('vermelho' if acima else 'verde') %}
-{# Modelo final: o score é o do arquivo; ao vivo, cada leitura é uma frase. #}
+{# Modelo final: ao vivo, cada leitura é uma frase; o arquivo enviado também, se o
+   limiar foi calibrado só com a fala (decisão de 29/10/2026). #}
 {% set final = a.modelo == 'xlsr_congelado' %}
-{% set unidade = 'frase' if final and a.gravacao else 'janela' %}
+{% set por_frase = final and a.janelas and a.janelas[0].unidade == 'frase' %}
+{% set unidade = 'frase' if final and (a.gravacao or por_frase) else 'janela' %}
 <div class="cartao">
   <div class="linha-arquivo">
     <span class="nome">{{ a.arquivo }}</span><span class="duracao">{{ a.duracao_s | mmss }}</span>
@@ -46,7 +48,7 @@
     <table>
       <tr><th>Analisado em</th><td>{{ a.criado_em | data }}</td></tr>
       {% if a.taxa_nativa %}<tr><th>Taxa do arquivo</th><td>{{ '%g' % (a.taxa_nativa / 1000) }} kHz</td></tr>{% endif %}
-      <tr><th>{{ 'Score do arquivo' if final and not a.gravacao else 'Score médio do modelo' }}</th><td>{{ a.score_medio | br(4) }}</td></tr>
+      <tr><th>{% if final and not a.gravacao %}Score do arquivo{% if por_frase %} (média das frases){% endif %}{% else %}Score médio do modelo{% endif %}</th><td>{{ a.score_medio | br(4) }}</td></tr>
       <tr><th>Score máximo numa {{ unidade }}</th><td>{{ a.score_maximo | br(3) }}</td></tr>
       <tr><th>Limiar</th><td>{{ a.limiar | br(4) }} — {{ a.origem_limiar }}</td></tr>
       {% if unidade == 'frase' %}<tr><th>Frases</th><td>{{ a.janelas_uteis }}</td></tr>

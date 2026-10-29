@@ -61,6 +61,9 @@ def modelo_final(caminho_json: str | None, carregar=None) -> list[Item]:
                           "Limiar de uma voz só é frágil: calibre com mais pessoas."))
     else:
         itens.append(Item("Limiar", "ok", detalhe))
+    if lim.calibrado_por_frase and not lim.arquivo_por_frase:
+        itens.append(Item("Enviar arquivo", "atencao", "analisa o arquivo inteiro, com o ruído da sala",
+                          "O combinado (29/10/2026) é só a fala: refaça o limiar com o scripts/limiar_xlsr.py."))
     pasta = Path(lim.fonte_modelo)
     if pasta.is_dir():
         itens.append(Item("XLS-R no disco", "ok", "a pasta do modelo está no lugar (não depende de internet)"))
