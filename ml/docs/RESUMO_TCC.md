@@ -4786,6 +4786,15 @@ Google Tradutor. Não são régua: nada foi escolhido por eles.
 2. **O modelo lê trecho sem fala como sintético.** No ao vivo, o corte por frase
    protege; no Enviar arquivo, não.
 
+**As gravações dessas três sessões se perderam (29/10/2026).**
+- Um teste da interface limpava o histórico usando a pasta real do ao vivo, e
+  cada rodada da suíte apagava os `sessao_*.wav` dela. Corrigido no `conftest`.
+- Ficaram os registros do histórico: os scores de cada frase, com a cabeça do
+  10.2.43.
+- Refazer com a cabeça do 10.2.49 pedia tocar os áudios de novo. No mesmo dia,
+  o áudio do Windows estava travado: a reprodução do Google Tradutor não andava
+  e a captura do som do computador não começava.
+
 ### 10.2.48 Régua da internet: In-the-Wild (critério combinado antes de rodar)
 
 **Por quê (28/10/2026):** as vozes de IA da internet não estão em nenhuma régua
