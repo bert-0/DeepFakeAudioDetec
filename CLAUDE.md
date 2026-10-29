@@ -88,7 +88,10 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   (`web/clonagem.py`): roda o `clonar_xtts.py` no ambiente conda da ferramenta,
   offline primeiro, só com as vozes de `data/vozes/vozes_autorizadas.json`; o
   clone é analisado como arquivo e apagado com o registro. Não clona com o ao
-  vivo ligado (o Chatterbox ocupa ~3,4 GB da GPU).
+  vivo ligado (o Chatterbox ocupa ~3,4 GB da GPU). Conferência
+  (`web/conferencia.py`, `scripts/conferir.py`): roda sozinha quando o servidor
+  sobe (`DETECTOR_CONFERIR=0` desliga) e mostra a situação no cabeçalho; o
+  microfone e o som têm tempo limite, porque o driver de áudio pode travar.
 - `scripts/`: avaliação, robustez, calibração, canal real, demonstração
   (`montar_demo.py`), voz própria (`gerar_sintetico.py`, `avaliar_arquivos.py`;
   o teste real contra clone: `gravar_frases.py`, `limiar_fusao.py`,

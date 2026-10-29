@@ -13,6 +13,7 @@ XLS-R; ver web/analise.py).
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 import re
 import tempfile
 import unicodedata
@@ -34,6 +35,7 @@ from fastapi.responses import (
     RedirectResponse,
 )
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from fastapi.templating import Jinja2Templates
 
 from src.capture import CaptureError
@@ -46,7 +48,13 @@ AQUI = Path(__file__).resolve().parent
 EXTENSOES = {".wav", ".flac", ".mp3", ".m4a", ".ogg", ".opus", ".aac"}
 TAMANHO_MAXIMO = 25 * 1024 * 1024   # 25 MB: ~2 min de WAV a 48 kHz estéreo
 
-app = FastAPI(title="Detector de áudio sintético")
+@asynccontextmanager
+async def _ciclo(_app):
+    _conferir_ao_iniciar()   # definida mais abaixo; roda quando o servidor sobe
+    yield
+
+
+app = FastAPI(title="Detector de áudio sintético", lifespan=_ciclo)
 app.mount("/static", StaticFiles(directory=AQUI / "static"), name="static")
 templates = Jinja2Templates(directory=AQUI / "templates")
 
@@ -133,7 +141,10 @@ async def _analisar_upload(arquivo: UploadFile):
         caminho = Path(pasta) / f"envio{ext}"
         caminho.write_bytes(conteudo)
         try:
-            resultado = detector().analisar(caminho, nome_original=nome)
+            # Numa thread: a análise leva segundos, e o servidor seguia parado (a aba Ao
+            # vivo congelava).
+            d = await run_in_threadpool(detector)
+            resultado = await run_in_threadpool(d.analisar, caminho, nome_original=nome)
         except FalaCurta as erro:
             print(f"[envio] {nome}: {erro}")
             raise HTTPException(422, "Há pouca fala no áudio para analisar.") from erro
@@ -267,6 +278,61 @@ async def api_analisar(arquivo: UploadFile = File(...)):
                          "origem_limiar": r.origem_limiar,
                          "indicio_de_sintese": r.indicio_de_sintese,
                          "janelas": r.janelas})
+
+
+# --- Conferir -----------------------------------------------------------------
+# O que pode falhar na frente da banca (web/conferencia.py). Roda sozinha quando o
+# servidor sobe (e carrega o modelo final antes da primeira análise); o cabeçalho
+# mostra a situação, e a página tem o "Conferir de novo". DETECTOR_CONFERIR=0 desliga.
+
+
+def _conferir_ao_iniciar() -> None:
+    if os.environ.get("DETECTOR_CONFERIR", "1") != "0":
+        _iniciar_conferencia()
+
+
+def _iniciar_conferencia() -> bool:
+    import threading
+
+    if (_estado.get("conferencia") or {}).get("rodando"):
+        return False
+    _estado["conferencia"] = {"rodando": True, "quando": None, "resumo": None, "situacao": None, "itens": []}
+    threading.Thread(target=_rodar_conferencia, name="conferencia", daemon=True).start()
+    return True
+
+
+def _rodar_conferencia() -> None:
+    from web.conferencia import como_dicts, conferir_tudo, resumo, situacao
+
+    try:
+        d = detector()
+        itens = conferir_tudo(os.environ.get("DETECTOR_XLSR"), carregar=d.modelo_final if d.xlsr else None,
+                              rodando=_rodando(_sessao()))
+        final = {"resumo": resumo(itens), "situacao": situacao(itens), "itens": como_dicts(itens)}
+    except Exception as erro:
+        print(f"[conferir] {erro!r}")
+        final = {"resumo": "a conferência não terminou", "situacao": "falha", "itens": []}
+    _estado["conferencia"] = {"rodando": False, "quando": time.strftime("%H:%M"), **final}
+
+
+templates.env.globals["conferencia"] = lambda: _estado.get("conferencia")
+
+
+@app.get("/conferir", response_class=HTMLResponse)
+def pagina_conferir(request: Request):
+    return templates.TemplateResponse(request, "conferir.html", {"aba": "conferir"})
+
+
+@app.get("/api/conferir")
+def api_conferir_estado():
+    return _estado.get("conferencia") or {"rodando": False, "itens": []}
+
+
+@app.post("/api/conferir")
+def api_conferir():
+    if not _iniciar_conferencia():
+        raise HTTPException(409, "A conferência já está rodando.")
+    return _estado["conferencia"]
 
 
 # --- Clonar ------------------------------------------------------------------

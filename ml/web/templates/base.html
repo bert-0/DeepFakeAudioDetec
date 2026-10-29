@@ -18,6 +18,9 @@
       <button type="button" class="interruptor" id="tema" role="switch" aria-label="Modo escuro">
         <span class="estrela e1"></span><span class="estrela e2"></span><span class="bolinha"></span>
       </button>
+      {% set c = conferencia() %}
+      <a href="/conferir" class="sobre conferencia {{ (c.situacao if c and not c.rodando else 'rodando') if c else '' }}"
+         id="situacao-conferencia">{% if not c %}Conferir{% elif c.rodando %}Conferindo…{% elif c.situacao == 'ok' %}Pronto{% elif c.situacao == 'atencao' %}Atenção{% else %}Falha{% endif %}</a>
       <a href="/sobre" class="sobre">Sobre</a>
     </div>
     <nav class="abas">

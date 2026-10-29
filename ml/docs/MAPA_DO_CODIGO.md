@@ -45,7 +45,7 @@ nenhum deles muda um placar.
 |---|---|---|
 | `src/` | a biblioteca: tudo que a interface, o monitor e os scripts importam | sim |
 | `scripts/` | um comando por tarefa (lista abaixo) | sim |
-| `web/` | a interface: rotas (`app.py`), análise (`analise.py`), clonagem (`clonagem.py`), histórico (`banco.py`), telas | sim |
+| `web/` | a interface: rotas (`app.py`), análise (`analise.py`), clonagem (`clonagem.py`), conferência (`conferencia.py`), histórico (`banco.py`), telas | sim |
 | `tests/` | um arquivo por módulo, com dados sintéticos, sem GPU e sem base real | sim |
 | `configs/` | um YAML por modelo treinado (`baseline_v2`, `fusion_v4`, ...) | sim |
 | `docs/` | `RESUMO_TCC.md` (todos os números), `PLANO_INCREMENTO_4.md`, `TC2_REDACAO.md`, ética e colinha | sim |
@@ -112,6 +112,7 @@ nenhum deles muda um placar.
 | mudar como um arquivo é analisado | `web/analise.py` e `src/xlsr_final.py` |
 | mudar o corte das frases do ao vivo | `src/capture/frases.py` |
 | pôr ou tirar uma voz da aba Clonar | `data/vozes/vozes_autorizadas.json`, só com o termo |
+| conferir tudo antes de apresentar | a página Conferir, ou `scripts/conferir.py` |
 | mudar a checagem depois de gravar | `src/capture/checagens.py` |
 | registrar um experimento | `docs/RESUMO_TCC.md`, com o critério antes de rodar |
 

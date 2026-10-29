@@ -163,6 +163,10 @@ primeiro: nenhuma gravação começa antes deles.
   de autorizadas (`data/vozes/vozes_autorizadas.json`, fora do Git), ligada voz a
   voz depois de conferir o termo e o anexo da demonstração. Medido: XTTS 55 s e
   Chatterbox 90 s com a interface na CPU; os dois funcionam sem internet.
+- Conferência antes da apresentação (pedido do grupo, 29/10/2026): roda sozinha
+  quando a interface abre (modelo e limiar, GPU, microfone, som, clonagem,
+  disco) e mostra a situação no cabeçalho; também `scripts/conferir.py`. Na
+  primeira vez, pegou o áudio do Windows travado (o microfone não abria).
 - Teste cruzado: voz real também como arquivo, clone também pelo microfone.
 - Ensaio no equipamento da banca, com a meta de 8 de 10 em cada classe.
 - Plano B: vídeo de um ensaio bem-sucedido e o resultado pareado documentado.

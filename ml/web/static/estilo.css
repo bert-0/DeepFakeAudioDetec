@@ -193,3 +193,18 @@ code { font-family: var(--mono); background: var(--codigo); padding: 0 3px; font
          color: var(--texto); background: var(--caixa); border: 1px solid var(--botao-borda); resize: vertical; }
 .ouvir { padding: 10px 14px 0; }
 .ouvir audio { display: block; width: 100%; }
+/* Conferência: a situação no cabeçalho e a lista de itens. */
+.cabecalho .sobre + .sobre { margin-left: 12px; }
+.conferencia.ok { color: var(--verde); }
+.conferencia.atencao { color: var(--amarelo); }
+.conferencia.falha { color: var(--vermelho); font-weight: bold; }
+.conferencia.rodando { color: var(--suave); }
+.conferencia-itens { width: 100%; border-collapse: collapse; font-size: 13px; }
+.conferencia-itens td { padding: 6px 14px; border-top: 1px solid var(--borda-clara); vertical-align: top; }
+.conferencia-itens .estado { width: 72px; font-family: var(--mono); font-weight: bold; }
+.conferencia-itens .estado.ok { color: var(--verde); }
+.conferencia-itens .estado.atencao { color: var(--amarelo); }
+.conferencia-itens .estado.falha { color: var(--vermelho); }
+.conferencia-itens .estado.lembrete { color: var(--suave); }
+.conferencia-itens .item { width: 170px; font-weight: bold; }
+@media (max-width: 560px) { .conferencia-itens .item { width: auto; } }
