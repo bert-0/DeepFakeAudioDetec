@@ -263,7 +263,7 @@ def test_enviar_arquivo_com_o_modelo_final(limiar_xlsr, tmp_path, monkeypatch):
     pagina = cliente.get(f"/analises/{dados['id']}").text
     assert "xlsr_congelado" in pagina and "Score do arquivo" in pagina
     sobre = cliente.get("/sobre").text
-    assert "XLS-R 300M" in sobre and "0,921" in sobre and "18,99%" not in sobre
+    assert "XLS-R 300M" in sobre and "0,931" in sobre and "18,99%" not in sobre
     assert "frase por frase" in cliente.get("/ao-vivo").text
 
     with open(tmp_path / "curto.wav", "wb") as fh:

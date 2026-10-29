@@ -254,6 +254,15 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   In-the-Wild (§10.2.48, 4.469 áudios de 54 figuras públicas, critério antes),
   AUC 0,949: passou; EER 11,01%. Pelo limiar do dev, 97,1% dos reais certos e
   71,4% dos falsos pegos: falha o ponto de corte, não a ordem.
+- **Cabeça com parte do In-the-Wild** (RESUMO_TCC §10.2.49, critério antes,
+  passou): 30 pessoas no treino, 8 no dev, 16 na régua. Na régua, AUC 0,957
+  (atual 0,900), EER 7,18% (15,62%), falsos pegos 92,0% (63,9%) com 95,5% dos
+  reais certos. As outras réguas ficam dentro de 0,01. Virou o modelo final
+  (`checkpoints/xlsr_congelado_itw.pt`); a do §10.2.43 fica em
+  `xlsr_congelado.pt`. Limiares com ela: L02 frase −1,158, dev −1,854. Com o
+  limiar do dev, mais reais da ASVspoof 5 erram (72,7% certos, antes 81,2%).
+  Ensaio 5 frase por frase com o limiar do L02 (descritivo): reais 10 de 10,
+  XTTS 10 e 10, Chatterbox 10 pelo arquivo e 9 pelo ar.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

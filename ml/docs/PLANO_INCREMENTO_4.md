@@ -235,6 +235,9 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   novo com parte do In-the-Wild**, separada por pessoa (30 no treino, 8 no dev,
   16 na régua), com o critério no RESUMO_TCC §10.2.49 antes de rodar. Se passar,
   ela vira o modelo final e o limiar é refeito com ela antes da calibração nova.
+  Rodado no mesmo dia: passou (na régua, falsos pegos de 63,9% a 92,0%, reais
+  95,5%; as outras réguas dentro de 0,01). É o modelo final desde então
+  (`checkpoints/xlsr_congelado_itw.pt`), com os limiares refeitos.
 - **Decidido pelo grupo (29/10/2026): opção (b).** O Enviar arquivo também
   analisa só a fala, frase por frase, e as duas abas usam o mesmo limiar, o da
   frase. Os motivos: o modelo lê trecho sem fala como sintético (RESUMO_TCC
@@ -242,6 +245,10 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   muda (§10.2.45). É o padrão do `limiar_xlsr.py` (`--arquivo-inteiro` volta à
   opção a). As réguas seguem pelo arquivo inteiro, como foram medidas. O texto
   da pendência fica abaixo, como histórico.
+- **Ensaio 6, caminho microfone (29/10/2026): frase por frase**
+  (`teste_voz_propria.py --xlsr ... --microfone frase`). O grupo deixou a escolha
+  para a sessão, que seguiu a opção (b): os dois caminhos do ensaio passam pelo
+  mesmo corte da fala e pelo mesmo limiar da interface.
 - **Pendente (28/10/2026): o caminho do arquivo também corta a fala?** Nas
   gravações do microfone, o arquivo de 12 s leva uns 5 s de ruído da sala que o
   corte de silêncio do treino não tira; a frase do ao vivo não (§10.2.44).

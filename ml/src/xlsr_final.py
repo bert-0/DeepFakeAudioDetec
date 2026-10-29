@@ -19,7 +19,9 @@ import numpy as np
 
 from src.features.xlsr import MIN_AMOSTRAS, MODELO_HF, SR, inicios, janelas, lfcc_medio, por_janela, preparar_wav
 
-CABECA_PADRAO = "checkpoints/xlsr_congelado.pt"
+# Com parte do In-the-Wild no treino (RESUMO_TCC §10.2.49, passou em 29/10/2026);
+# a do §10.2.43 fica em checkpoints/xlsr_congelado.pt.
+CABECA_PADRAO = "checkpoints/xlsr_congelado_itw.pt"
 NOME = "xlsr_congelado"
 
 

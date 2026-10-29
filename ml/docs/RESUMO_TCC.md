@@ -4909,6 +4909,99 @@ cumprir tudo:
 
 **Se não passar:** a cabeça atual fica, e o resultado entra como negativo.
 
+**Execução (29/10/2026, pela sessão):**
+- 27 épocas; parou depois de 8 sem melhora. A escolhida foi a 19 (perda média
+  nos seis devs 0,156).
+- Por dev: ASVspoof 0,093, BRSpeech-DF 0,132, salas 0,502, Common Voice 0,025,
+  ReplayDF 0,122, In-the-Wild 0,064.
+- EER no dev da ASVspoof 5: 3,04%, como no 10.2.43. Limiar do dev: −1,854
+  (antes, −0,898).
+- Camadas mais pesadas: 6 e 5 (0,15 cada), 4 (0,09), 10 e 18 (0,05).
+- Resultado em `outputs/xlsr_congelado_itw.json`; a conferência do critério
+  usou os scores dele.
+
+**Resultado.** AUC:
+
+| régua | cabeça nova | modelo atual | mínimo do critério | passou |
+|---|---|---|---|---|
+| eval da ASVspoof 5 | **0,975** | 0,975 | 0,955 | sim |
+| 2019 LA | **0,967** | 0,974 | 0,954 | sim |
+| BRSpeech-DF, teste | **0,931** | 0,921 | 0,901 | sim |
+| ReplayDF, as 44 montagens | **0,977** | 0,968 | 0,948 | sim |
+| ensaio 5, arquivo | **1,000** | 1,000 | 0,95 | sim |
+| ensaio 5, pelo ar | **0,970** | 0,975 | 0,85 | sim |
+| In-the-Wild, 16 pessoas da régua | **0,957** | 0,900 | 0,92 | sim |
+
+**In-the-Wild com o limiar do dev**, nas 16 pessoas da régua:
+
+| medida | cabeça nova | modelo atual | mínimo | passou |
+|---|---|---|---|---|
+| reais certos | **95,5%** (679 de 711) | 95,6% | 95% | sim |
+| falsos pegos | **92,0%** (653 de 710) | 63,9% | 80% | sim |
+
+**Critério: passou.**
+
+**Descritivo:**
+- **In-the-Wild, régua:**
+  - EER 7,18% (modelo atual 15,62%);
+  - AUC por pessoa, mediana 1,000 (atual 0,967);
+  - abaixo de 0,85, só o Robert Kardashian, 0,701 (atual 0,624). O Alan Watts
+    foi de 0,707 a 0,983 e o Donald Trump, de 0,818 a 0,850;
+  - medianas do score: reais −8,20 e falsos +6,66 (atual −5,86 e +0,09).
+- **Com o limiar do dev nas outras réguas** (certos, cabeça nova contra atual):
+
+  | régua | reais | falsos |
+  |---|---|---|
+  | eval da ASVspoof 5 | 72,7% (81,2%) | 99,5% (99,0%) |
+  | 2019 LA | 92,5% (97,0%) | 88,0% (85,8%) |
+  | BRSpeech-DF | 42,4% (40,2%) | 99,8% (99,6%) |
+  | ReplayDF | 86,6% (89,5%) | 96,8% (94,1%) |
+
+  O limiar do dev desceu, então mais vozes reais da ASVspoof ficam acima dele.
+  Na demonstração vale o limiar calibrado no microfone, não esse.
+- **Ensaio 5 pela regra do 10.2.39** (limiar do arquivo das vozes do L02,
+  −1,060, antes −0,517):
+  - reais do L01, 7 de 10 (antes 6);
+  - clones 79 de 80 (antes 79).
+- **Ensaio 5 como a interface julga agora** (opção b do 10.2.45). É frase por
+  frase, com o limiar da frase das mesmas vozes do L02 (−1,158), nos dois
+  caminhos (`outputs/ensaio5_itw_frase_*.json`):
+
+  | grupo | arquivo | pelo ar |
+  |---|---|---|
+  | reais do L01 | 10 de 10 | 10 de 10 |
+  | XTTS | 10 de 10 | 10 de 10 |
+  | Chatterbox | 10 de 10 | 9 de 10 |
+
+  - Reais do L01 de −5,91 a −1,86, abaixo do limiar.
+  - Clones: XTTS de +1,48 a +8,49. Chatterbox pelo ar de −2,25 a +3,67; o que
+    erra é a f03.
+  - Só descritivo: o ensaio 5 já foi medido muitas vezes, e o limiar vem das
+    gravações antigas do L02, do modo exclusivo. O teste com critério é o
+    ensaio 6.
+
+**Leitura:**
+1. **A cabeça nova resolve o ponto de corte nas vozes da internet sem perder
+   nas outras réguas.**
+   - Nas 16 pessoas fora do treino, os falsos pegos vão de 63,9% a 92,0%, com
+     os reais no mesmo nível.
+   - As outras réguas ficam dentro de 0,01, para cima ou para baixo.
+2. **O ganho vem de afastar as classes, não só de mover o limiar.**
+   - O EER cai à metade (15,62% → 7,18%).
+   - A mediana dos falsos sobe de +0,09 a +6,66.
+3. **Custo:** com o limiar do dev, mais vozes reais da ASVspoof 5 ficam do lado
+   sintético (81,2% → 72,7% certas). Por isso o limiar da demonstração continua
+   sendo o calibrado no microfone (10.2.46).
+4. **Limitação:** a base In-the-Wild deixou de ser inédita. O 0,957 é de pessoas
+   fora do treino; o 0,949 do 10.2.48 segue como o número da base nunca vista.
+5. **Feito, como combinado:**
+   - a cabeça nova virou o modelo final (`checkpoints/xlsr_congelado_itw.pt`,
+     padrão do `src/xlsr_final.py`);
+   - os limiares foram refeitos com ela: L02 frase −1,158, dev −1,854; os
+     antigos ficaram em `outputs/limiar_xlsr/*_cabeca_10.2.43.json`;
+   - a página Sobre mostra os números dela;
+   - falta a calibração nova (10.2.46).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

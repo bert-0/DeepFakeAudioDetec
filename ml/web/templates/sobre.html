@@ -7,8 +7,8 @@
   <p>Modelo em uso: <code>{{ modelo }}</code>. O XLS-R 300M, pré-treinado pela Meta,
   fica congelado; uma cabeça pequena aprendeu quanto pesar cada uma das 25 camadas
   dele, com um ramo de coeficientes LFCC. Ela foi treinada com a ASVspoof 5, vozes
-  em português (BRSpeech-DF e Common Voice), salas simuladas e áudio tocado e
-  regravado (ReplayDF). Limiar: {{ origem }}.</p>
+  em português (BRSpeech-DF e Common Voice), salas simuladas, áudio tocado e
+  regravado (ReplayDF) e vozes da internet (In-the-Wild). Limiar: {{ origem }}.</p>
   {% if por_frase %}
   <p>Só a fala é analisada: o áudio é cortado em frases nas pausas, e cada frase
   recebe um score. O score do arquivo é a média das frases; ao vivo, cada frase é
@@ -43,11 +43,12 @@
   {% if xlsr %}
   <p>AUC em áudios que o treino não viu (1 separa tudo; 0,5 é o acaso):</p>
   <ul>
-    <li>ASVspoof 5, avaliação: 0,975. ASVspoof 2019 LA: 0,974.</li>
-    <li>Português, BRSpeech-DF: 0,921.</li>
-    <li>Áudio tocado e regravado, ReplayDF (44 montagens fora do treino): 0,968.</li>
+    <li>ASVspoof 5, avaliação: 0,975. ASVspoof 2019 LA: 0,967.</li>
+    <li>Português, BRSpeech-DF: 0,931.</li>
+    <li>Áudio tocado e regravado, ReplayDF (44 montagens fora do treino): 0,977.</li>
+    <li>Vozes da internet, In-the-Wild (16 pessoas fora do treino): 0,957.</li>
     <li>Clones da voz de um integrante, neste microfone: 1,000 pelo arquivo e
-        0,975 pelo alto-falante.</li>
+        0,970 pelo alto-falante.</li>
   </ul>
   {% elif ensaio2 %}
   <ul>
