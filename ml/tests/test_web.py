@@ -197,6 +197,15 @@ def test_excluir_alguns_e_limpar_tudo(cliente, tmp_path):
     assert "Nenhuma análise ainda" in cliente.get("/resultado").text
 
 
+def test_limpar_nos_testes_nao_apaga_as_gravacoes_reais(cliente):
+    """O conftest põe as pastas da interface no tmp: a limpeza não chega a outputs/."""
+    import web.app as modulo
+
+    real = (Path(__file__).resolve().parent.parent / "outputs").resolve()
+    for pasta in (modulo.pasta_ao_vivo(), modulo.pasta_clones()):
+        assert real not in pasta.resolve().parents and pasta.resolve() != real
+
+
 def test_excluir_sem_selecao_nao_quebra(cliente):
     assert cliente.post("/historico/excluir", data={}).status_code == 200
 
