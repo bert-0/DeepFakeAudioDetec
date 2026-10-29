@@ -4803,6 +4803,28 @@ vozes da internet se a AUC for ≥ 0,85, o mesmo critério do ReplayDF no 10.2.4
 novo a cabeça com parte dela, separada por pessoa, fica para o grupo decidir,
 com critério antes.
 
+**Execução (28 e 29/10/2026, pela sessão):** a amostra saiu com 4.469 áudios
+(2.225 reais e 2.244 falsos) de 54 pessoas; as outras 4 não têm as duas classes.
+A extração do XLS-R levou 27 min (`outputs/xlsr_congelado_inthewild.json`).
+
+**Resultado:**
+- **AUC 0,949: passou no critério (≥ 0,85).** EER 11,01%.
+- **Com o limiar do dev (−0,898):** reais certos 97,1%, falsos pegos 71,4%.
+- **Com o limiar do arquivo do L02 (−0,517):** reais certos 97,5%, falsos
+  pegos 67,2%.
+- **Por pessoa** (54): mediana 0,988; 3 abaixo de 0,85: Robert Kardashian
+  0,624, Alan Watts 0,707, Donald Trump 0,818.
+- **Medianas do score:** reais −6,49, falsos +0,78.
+
+**Leitura:**
+1. **O modelo final ordena bem as vozes da internet**, numa base que nenhuma
+   parte do treino viu: 0,949, perto do eval da ASVspoof 5 (0,975).
+2. **O que falha é o ponto de corte, como nos ensaios.** Os reais ficam bem
+   abaixo dos limiares, e os falsos, perto deles: cerca de 3 em cada 10 falsos
+   passam como humanos.
+3. **Os testes soltos do 10.2.47 cabem nisso.** A narração da internet pode
+   estar entre os falsos que passam; ela não entra na régua.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |

@@ -245,7 +245,10 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   de fala falhava em 20% dos arquivos; com entrada a 6 dB e saída a 3 dB do piso,
   5 de 1.600, sem frase no ruído puro da sala. O ao vivo avisa na tela quando há
   som sem fala ou o microfone satura. Vozes de IA da internet (narração, Google
-  Tradutor) saíram como humanas nos testes soltos (§10.2.47): fora das réguas.
+  Tradutor) saíram como humanas nos testes soltos (§10.2.47). Na régua
+  In-the-Wild (§10.2.48, 4.469 áudios de 54 figuras públicas, critério antes),
+  AUC 0,949: passou; EER 11,01%. Pelo limiar do dev, 97,1% dos reais certos e
+  71,4% dos falsos pegos: falha o ponto de corte, não a ordem.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
