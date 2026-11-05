@@ -71,7 +71,9 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
 - `src/data/asvspoof5.py` e `scripts/montar_recorte_asvspoof5.py`: protocolos da
   ASVspoof 5 e o recorte lido direto dos `.tar` (em `D:`, pela junção
   `ml/data/ASVspoof5`); recorte em `ml/data/ASVspoof5_recorte/`, seleção
-  versionada em `ml/data/recortes/`.
+  versionada em `ml/data/recortes/`. Os `.tar` e os pacotes originais das outras
+  bases foram apagados em 05/11/2026; ficaram as amostras usadas
+  (`ml/data/README.md`, seção 4).
 - `src/limiares.py`: limiar por tipo de áudio (nativo 16 kHz: original; 44,1/48
   kHz e ao vivo: o de captura, só se calibrado com o FIR e com os mesmos pesos).
 - `web/`: FastAPI + Jinja2 + SQLite. Abas Enviar arquivo, Resultado, Ao vivo e
