@@ -4750,6 +4750,10 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
 - **Atualização (29/10/2026), antes de gravar:** com a opção (b) do 10.2.45, o
   limiar das duas abas é o da frase, o maior score entre as frases de
   calibração. O do arquivo inteiro fica no JSON, só como descritivo.
+- **Situação (04/11/2026):** nenhuma voz de calibração foi gravada, e o grupo
+  decidiu não fazer a calibração nem o ensaio 6 antes da entrega do documento
+  (08/11/2026). O limiar em uso continua o das gravações antigas do L02
+  (10.2.49).
 
 **Descritivo, depois:**
 - o maior score de cada locutor, nos dois caminhos;

@@ -231,6 +231,14 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   só 6 de 10 vozes reais do L01 ficam do lado humano). Integrado à interface e
   ao monitor em 28/10/2026 (§10.2.44): Enviar arquivo pelo caminho das réguas;
   ao vivo frase por frase, com limiar próprio, calibrado com as mesmas vozes.
+- **Decidido pelo grupo (04/11/2026): sem ensaio 6 antes da entrega.** O
+  documento é entregue em 08/11/2026, e a banca vem depois. A calibração com
+  vozes novas (RESUMO_TCC §10.2.46) e o ensaio 6 não cabem no prazo, e fazer o
+  ensaio diante da banca seria arriscado e não entraria no texto. Como o plano
+  prevê, o Incremento 4 entra como resultado parcial: os trechos pendentes do
+  ensaio 6 passam a dizer que ele não foi feito, e ele fica como trabalho futuro
+  (`docs/TC2_AJUSTES_FINAIS.md`). O treino completo no Kaggle também fica para
+  depois.
 - **Decidido pelo grupo (29/10/2026): a cabeça do modelo final treinada de
   novo com parte do In-the-Wild**, separada por pessoa (30 no treino, 8 no dev,
   16 na régua), com o critério no RESUMO_TCC §10.2.49 antes de rodar. Se passar,
