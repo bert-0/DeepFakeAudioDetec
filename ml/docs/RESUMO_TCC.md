@@ -5117,6 +5117,71 @@ cumprir tudo:
    - a página Sobre mostra os números dela;
    - falta a calibração nova (10.2.46).
 
+### 10.2.50 Testes da demonstração com o limiar calibrado (descritivo, 06/11/2026)
+
+**Por quê:** ver, antes da banca, onde o sistema acerta e onde erra no roteiro
+da demonstração, com a cabeça do 10.2.49 e o limiar da frase do 10.2.46
+(−0,581). Sem critério: nada aqui muda o modelo nem o limiar, e nada entra no
+texto entregue em 08/11. Rodado pela sessão; resultados em `outputs/testes_demo/`.
+
+**1. Clones variados da voz do L05, pela aba Clonar.** Oito frases digitadas
+(curta, pergunta, números, o golpe do "pix", longa), nas duas ferramentas.
+- **16 de 16 julgados sintéticos**; o menor score foi +3,32 (Chatterbox, "Bom
+  dia a todos").
+- Tempo para gerar cada clone: XTTS de 40 a 59 s, Chatterbox de 44 a 64 s.
+- As frases curtas têm pouca fala: "Bom dia a todos" 1,70 s (XTTS) e 1,34 s
+  (Chatterbox); "Olá, tudo bem com vocês" 2,88 e 1,48 s.
+
+**2. Sessão do ao vivo simulada.** As 10 frases lidas do L01 em sequência
+(120 s), pelo monitor, como no ao vivo.
+- As 10 frases saíram humanas.
+- **Uma "frase" a mais, em 57,8 s, saiu sintética** (0,98 na escala da tela). Ela
+  junta barulhos baixos entre duas leituras, 8 a 10 dB acima do ruído da sala,
+  com 1,0 s de "fala", o mínimo atual, e só 14% dos quadros com tom de voz.
+- **Exigir tom de voz na frase não serve.** As frases lidas têm de 40% a 81% de
+  quadros com tom, mas os clones tocados pelo ar têm de 0% a 39% (mediana de 18%
+  a 35%), e deixariam de ser julgados.
+- **Segundos de fala por frase:** frases lidas e fala livre de 4,4 s para cima;
+  clones pelo ar de 2,1 s; clones como arquivo de 3,2 s; frases curtas
+  digitadas na aba Clonar de 1,3 s.
+- Proposta para o grupo decidir, sem nada mudado: subir o mínimo de fala só no
+  ao vivo, para uns 1,5 s. O barulho (1,0 s) sai; leituras e clones pelo ar
+  (2,1 s ou mais) ficam. No arquivo, o mínimo de 1 s continua, para as frases
+  curtas da aba Clonar.
+
+**3. Réguas pelo caminho da interface (frase por frase)**, numa amostra com
+semente 42: BRSpeech-DF (150 reais, 100 falsos do teste) e In-the-Wild (300 das
+16 pessoas da régua).
+
+| amostra | caminho | reais certos | falsos pegos | sem frase achada |
+|---|---|---|---|---|
+| BRSpeech-DF | frase | 56,0% | 99,0% | 9 |
+| BRSpeech-DF | arquivo inteiro | 57,3% | 100% | 0 |
+| In-the-Wild | frase | 87,1% | 86,9% | 31 |
+| In-the-Wild | arquivo inteiro | 97,5% | 91,2% | 0 |
+
+- No In-the-Wild, os 31 sem frase são clipes de 0,8 a 1,8 s (mediana 1,1 s),
+  sem 1 s de fala; ficam sem veredito e contam como erro acima.
+- Só nos arquivos em que a frase é achada: In-the-Wild, reais 142 de 142 e
+  falsos 119 de 127 pelos dois caminhos; BRSpeech-DF, reais 84 de 142 e falsos
+  99 de 99.
+
+**4. A fala livre do L03.** A voz dele já é a mais perto do lado sintético
+lendo: mediana das frases lidas −2,50, contra −5,68 a −8,63 das outras vozes da
+calibração e do L01. As falas livres dele também foram mais curtas (4,4 a 6,0 s
+de fala, contra 5,0 a 7,3 s lendo).
+
+**Leitura:**
+1. **O roteiro da banca deve funcionar:** voz lida no microfone do lado humano e
+   clone da mesma voz do lado sintético, com folga dos dois lados.
+2. **Riscos e o que fazer:**
+   - um barulho entre as frases pode virar um falso alarme no ao vivo: ficar
+     quieto entre as leituras, ou adotar o mínimo maior no ao vivo;
+   - voz real de estúdio ou de audiolivro cai do lado sintético em quase metade
+     das vezes: para mostrar voz real, usar a do microfone;
+   - clipes de 1 a 2 s ficam sem veredito: enviar áudios de alguns segundos;
+   - uma voz como a do L03 pode passar do limiar falando solto: ler frases.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
