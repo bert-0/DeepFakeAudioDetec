@@ -4816,6 +4816,18 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
      mas mostra o risco.
   3. Para a banca, a fala ao vivo mais segura é a leitura de frases, como na
      calibração. A fala livre fica como limitação medida.
+- **Clonagem autorizada (06/11/2026):** todas as pessoas autorizaram os clones,
+  com a condição de serem apagados até **19/11/2026**
+  (`data/vozes/vozes_autorizadas.json`, `apagar_clones_ate`).
+  - Ligada só a voz do L01, a única com referência boa: a do ensaio 5, no modo
+    compartilhado. A do L02 é a antiga, do modo exclusivo, com as cópias; o L03 e
+    o L04 não gravaram referência.
+  - Teste pelo caminho da aba Clonar, com uma frase nova, analisada como no
+    Enviar arquivo e com o limiar novo:
+    - XTTS v2, 63 s para gerar: **+3,40**, sintético;
+    - Chatterbox, 85 s: **+6,08**, sintético.
+  - Descritivo: uma frase por ferramenta. Os clones ficam em
+    `outputs/clones_teste/` para ouvir, e saem até 19/11/2026.
 - **Quem (06/11/2026):** L01 a L05 assinam o termo; o L01 e o L02 com o item das
   gravações de outubro. Pela regra acima, o L01 fica fora da calibração; ela
   usa o L02, numa sessão nova, o L03, o L04 e o L05, menos quem for testado.

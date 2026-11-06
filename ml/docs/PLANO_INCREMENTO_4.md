@@ -162,7 +162,10 @@ primeiro: nenhuma gravação começa antes deles.
   a cada clone (nunca deixados prontos, para não faltar GPU); só vozes da lista
   de autorizadas (`data/vozes/vozes_autorizadas.json`, fora do Git), ligada voz a
   voz depois de conferir o termo e o anexo da demonstração. Medido: XTTS 55 s e
-  Chatterbox 90 s com a interface na CPU; os dois funcionam sem internet.
+  Chatterbox 90 s com a interface na CPU; os dois funcionam sem internet. Em
+  06/11/2026, todas as pessoas autorizaram os clones, para apagar até
+  **19/11/2026**; ligado o L01, com o teste pegando os dois clones (RESUMO_TCC
+  §10.2.46).
 - Conferência antes da apresentação (pedido do grupo, 29/10/2026): roda sozinha
   quando a interface abre (modelo e limiar, GPU, microfone, som, clonagem,
   disco) e mostra a situação no cabeçalho; também `scripts/conferir.py`. Na
