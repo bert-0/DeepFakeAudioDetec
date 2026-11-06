@@ -4816,6 +4816,17 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   - Ensaio 5 (o L05) frase por frase com o limiar novo: reais 10 de 10; XTTS 10 de 10 nos
     dois caminhos; Chatterbox 10 de 10 pelo arquivo e 9 de 10 pelo ar, o mesmo do
     10.2.49 (`outputs/ensaio5_calib06-11_frase_*.json`).
+  - Nas réguas da cabeça do 10.2.49, com o limiar novo. É aproximado: as réguas
+    são pelo arquivo inteiro e o limiar é da frase.
+
+    | régua | reais certos | falsos pegos |
+    |---|---|---|
+    | In-the-Wild, 16 pessoas | 97,6% | 91,5% |
+    | ReplayDF, 44 montagens | 93,6% | 91,8% |
+    | BRSpeech-DF, teste | 53,9% | 99,6% |
+
+    Com o limiar do dev (−1,854), eram 95,5% e 92,0%; 86,6% e 96,8%; 42,4% e
+    99,8%.
 - **Leitura:**
   1. O limiar vem do L03, cuja voz lida pontua mais alto que a das outras duas
      pessoas; pelo arquivo inteiro, ela chega a +2,3.
