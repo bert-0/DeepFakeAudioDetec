@@ -4,7 +4,7 @@ Cada item sai como "ok", "atencao" (funciona, mas vale olhar), "falha" (precisa
 resolver) ou "lembrete" (não dá para medir daqui: conferir à mão). A página
 `/conferir` e o `scripts/conferir.py` usam as mesmas funções.
 
-O microfone é aberto como no ao vivo (WASAPI compartilhado) e escuta 1,5 s da
+O microfone é aberto como no ao vivo (WASAPI compartilhado) e escuta 3 s da
 sala, sem gravar nada; o modelo final é carregado, e a primeira análise da
 apresentação já não espera por ele.
 """
@@ -19,9 +19,15 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 RAIZ_ML = Path(__file__).resolve().parent.parent
-#: Abaixo disto, o microfone está mudo ou sem permissão; acima, a sala está barulhenta
-#: (o ruído do embutido fica perto de −50 dBFS no modo compartilhado).
-MUDO_DBFS, BARULHO_DBFS = -85.0, -35.0
+#: Abaixo disto, o microfone está mudo ou sem permissão.
+MUDO_DBFS = -85.0
+#: Ruído constante acima disto: com a fala no nível do protocolo (os trechos mais
+#: fortes perto de −26 dBFS nas frases de outubro), a gravação fica a menos dos 15 dB
+#: que o gravador exige. Em casa, em outubro, o piso ficava de −44 a −50 dBFS.
+BARULHO_DBFS = -40.0
+#: O piso é o percentil 10 de trechos de 50 ms: conversa e passos na sala não o sobem,
+#: como subiam a média, que dava "sala barulhenta" a cada voz (06/11/2026).
+TRECHO_PISO_S, PERCENTIL_PISO = 0.05, 10
 #: Medido em 28/10/2026: o Chatterbox chega a 3,44 GB da GPU; o XLS-R do ao vivo, ~1,2 GB.
 GPU_CLONAGEM_GB, GPU_AO_VIVO_GB = 3.45, 1.5
 DISCO_MINIMO_GB, DISCO_FOLGA_GB = 2.0, 5.0
@@ -127,7 +133,7 @@ def _com_limite(funcao, tempo_maximo_s: float, nome: str) -> Item:
     return resultado["item"]
 
 
-def microfone(abrir=None, segundos: float = 1.5, tempo_maximo_s: float = MICROFONE_MAXIMO_S) -> Item:
+def microfone(abrir=None, segundos: float = 3.0, tempo_maximo_s: float = MICROFONE_MAXIMO_S) -> Item:
     """Abre o microfone padrão como o ao vivo e mede o ruído da sala, com tempo limite."""
     return _com_limite(lambda: _microfone(abrir, segundos), tempo_maximo_s, "Microfone")
 
@@ -154,19 +160,31 @@ def _microfone(abrir, segundos: float) -> Item:
         print(f"[conferir] microfone: {erro!r}")
         return Item("Microfone", "falha", "o microfone abriu, mas não entregou áudio",
                     "Feche outros programas que usam o microfone e confira de novo.")
-    wav = np.concatenate(blocos) if blocos else np.zeros(1, np.float32)
-    db = float(20 * np.log10(np.sqrt(np.mean(wav.astype(np.float64) ** 2)) + 1e-12))
+    wav = np.concatenate(blocos).astype(np.float64) if blocos else np.zeros(1)
+    db = piso_de_ruido(wav, 16000)
     nome = getattr(fonte, "nome", None) or "microfone padrão"
     modo = getattr(fonte, "modo", None) or "compartilhado"
-    detalhe = f"{nome}, modo {modo}; ruído da sala {db:.0f} dBFS"
+    detalhe = f"{nome}, modo {modo}; ruído constante da sala {db:.0f} dBFS"
     if db < MUDO_DBFS:
         return Item("Microfone", "falha", detalhe, "Está mudo: confira o volume e a permissão do microfone.")
     if modo != "compartilhado":
         return Item("Microfone", "atencao", detalhe, "O exclusivo insere cópias de trechos: use o compartilhado.")
     if db > BARULHO_DBFS:
         return Item("Microfone", "atencao", detalhe,
-                    "Sala barulhenta ou alguém falando: confira em silêncio.")
+                    "Ruído constante alto para gravar: desligue o ar-condicionado ou troque de sala.")
     return Item("Microfone", "ok", detalhe)
+
+
+def piso_de_ruido(wav, sample_rate: int) -> float:
+    """O ruído que fica o tempo todo, em dBFS: o percentil 10 dos trechos de 50 ms."""
+    import numpy as np
+
+    q = max(1, int(TRECHO_PISO_S * sample_rate))
+    n = len(wav) // q
+    if n == 0:
+        return float(20 * np.log10(np.sqrt(np.mean(np.square(wav))) + 1e-12))
+    rms = np.sqrt(np.mean(np.square(np.asarray(wav[:n * q], np.float64).reshape(n, q)), axis=1))
+    return float(20 * np.log10(np.percentile(rms, PERCENTIL_PISO) + 1e-12))
 
 
 def saida_de_som(listar=None, tempo_maximo_s: float = MICROFONE_MAXIMO_S) -> Item:

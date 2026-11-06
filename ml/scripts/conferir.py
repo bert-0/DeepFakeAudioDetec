@@ -1,6 +1,6 @@
 """Conferência antes da apresentação, pelo terminal: a mesma da página /conferir.
 
-Confere o modelo final e o limiar, a GPU, o microfone (escuta 1,5 s da sala, sem
+Confere o modelo final e o limiar, a GPU, o microfone (escuta 3 s da sala, sem
 gravar), a saída de som, a clonagem e o disco, e lembra o que não dá para medir.
 Sai com código 1 se houver falha.
 

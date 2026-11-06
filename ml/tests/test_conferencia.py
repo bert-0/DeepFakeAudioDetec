@@ -91,6 +91,32 @@ def test_microfone(nivel, modo, esperado):
     assert item.estado == esperado and "dBFS" in item.detalhe
 
 
+class _FonteComConversa(_Fonte):
+    """Sala quieta (~ −50 dBFS) com alguém falando metade do tempo."""
+
+    def blocos(self):
+        rng = np.random.default_rng(1)
+        for k in range(10_000):
+            fala = 0.2 * rng.standard_normal(1600) if k % 2 else 0.0
+            yield (self.nivel * rng.standard_normal(1600) + fala).astype(np.float32)
+
+
+def test_conversa_na_sala_nao_conta_como_ruido():
+    """06/11/2026: pela média, cada voz na sala dava "sala barulhenta"; o piso não sobe."""
+    item = C.microfone(lambda sr: _FonteComConversa(0.003))
+    import re
+
+    piso = int(re.search(r"(-\d+) dBFS", item.detalhe).group(1))
+    assert item.estado == "ok" and -53 <= piso <= -48, item.detalhe
+
+
+def test_ruido_constante_que_nao_deixa_gravar():
+    """−35 dBFS o tempo todo: a fala do protocolo fica a menos de 15 dB dele."""
+    item = C.microfone(lambda sr: _Fonte(0.018))
+    assert item.estado == "atencao" and "ar-condicionado" in item.acao
+    assert C.piso_de_ruido(np.zeros(16000), 16000) < C.MUDO_DBFS
+
+
 def test_microfone_que_nao_abre():
     def nao_abre(sr):
         raise RuntimeError("sem permissão")
