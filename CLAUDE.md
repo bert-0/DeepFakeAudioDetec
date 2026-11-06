@@ -136,6 +136,12 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
 
 ## Fatos já medidos (não refaça sem motivo)
 
+- **Códigos dos locutores (06/11/2026):** L01 a L04 são as pessoas gravadas em
+  06/11 (termos assinados com esses códigos). As pessoas de outubro passaram a
+  L05 (o L01 de antes, integrante do grupo) e L06 (o L02 de antes, voluntário).
+  Em tudo o que vem antes, inclusive nesta lista e no RESUMO até o §10.2.49,
+  L01 quer dizer L05 e L02 quer dizer L06.
+
 - Eval 2019 LA sem silêncio: baseline_v2 18,99%, fusion_v4 20,18%, fusão de
   scores dos dois 13,13%. Validação não prevê avaliação (0,03% → 20,18%).
 - Canal real (2021 LA, Opus): baseline_v2 29,43%, fusion_v4 32,62%; no Opus o

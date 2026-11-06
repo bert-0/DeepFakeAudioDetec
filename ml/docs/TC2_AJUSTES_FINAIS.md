@@ -68,9 +68,10 @@ realizado"
 > em vozes de outras pessoas, não coube no prazo e é o primeiro dos trabalhos
 > futuros.
 
-### 1.5 Consentimento do L01 e do L02 (seções 5.7 e 7.1)
+### 1.5 Consentimento das pessoas de outubro (seções 5.7 e 7.1)
 
-Os dois concordaram de boca em outubro e assinam o termo antes da entrega, com
+As duas pessoas de outubro (no texto, L01 e L02; a partir de agora, L05 e L06,
+item 1.6) concordaram de boca em outubro e assinam o termo antes da entrega, com
 o item que cobre as gravações já feitas. O texto dizia que gravaram "com termo
 de consentimento assinado", o que não era o caso na época.
 
@@ -92,6 +93,20 @@ próprio e opcional para a geração de clones da voz."
 
 (Só usar depois que os dois assinarem. Se algum não autorizar, os resultados
 dele saem do texto, como o termo promete.)
+
+### 1.6 Códigos dos locutores no texto inteiro: L01 → L05 e L02 → L06
+
+Em 06/11/2026, as pessoas novas assinaram os termos como L01 a L04. As duas
+pessoas de outubro, que o texto chama de L01 (integrante do grupo) e L02
+(voluntário), passam a **L05** e **L06**, para cada código ser de uma pessoa só.
+O texto do TCC só fala das pessoas de outubro, então a troca é global:
+
+1. No Google Doc: Editar → Localizar e substituir, com "Diferenciar maiúsculas e
+   minúsculas".
+2. Primeiro **L01 → L05**, "Substituir tudo"; depois **L02 → L06**, "Substituir
+   tudo". Nessa ordem, uma troca não pega a outra.
+3. Conferir a Tabela 15, a seção 5.8 ("vozes reais do L02"), a 5.9 e a 7.1
+   ("(L01, L02)").
 
 ---
 

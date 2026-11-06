@@ -4754,6 +4754,13 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   decidiu não fazer a calibração nem o ensaio 6 antes da entrega do documento
   (08/11/2026). O limiar em uso continua o das gravações antigas do L02
   (10.2.49).
+- **Códigos dos locutores (06/11/2026).** As pessoas gravadas em 06/11/2026
+  assinaram os termos como **L01, L02, L03 e L04**. As pessoas de outubro, que
+  eram o L01 e o L02 até aqui, passaram a **L05** (o L01 de outubro, integrante
+  do grupo) e **L06** (o L02 de outubro, voluntário). **Nas seções anteriores,
+  da 10.2.12 à 10.2.49, L01 quer dizer L05 e L02 quer dizer L06**; os nomes das
+  pastas antigas (`ensaio5/`, `reparadas/L01_*`, `L02/`) ficam como estão. Nas
+  entradas abaixo, de 06/11, L01 a L04 são as pessoas novas.
 - **Acréscimo (06/11/2026), antes de gravar: fala livre, fora do limiar.** Na
   banca, quem fala ao vivo provavelmente fala solto, não lê, e o score da fala
   espontânea pode não ficar onde fica o da leitura.
@@ -4775,8 +4782,8 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   - Agora a checagem usa o mesmo detector do modelo, a 16 kHz pelo FIR (`medir_frases`).
     Continua pedindo para regravar sem frase, com menos de 4 s de fala, com mais de uma
     frase (só na leitura de pessoas) ou com a fala encostada nas bordas.
-  - Conferido: as 10 leituras do L01 do ensaio 5 e os 20 clones pelo ar dele passam.
-    Nas reparadas do L02, 9 de 10 (a f02 encosta no começo).
+  - Conferido: as 10 leituras do L05 no ensaio 5 e os 20 clones pelo ar dele passam.
+    Nas reparadas do L06, 9 de 10 (a f02 encosta no começo).
   - Só o `f01` do L01 tinha sido gravado com a régua antiga, e foi apagado.
 - **Gravações e volume (06/11/2026), sala do trabalho, microfone embutido em modo
   compartilhado:**
@@ -4786,17 +4793,18 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   - O L02 gravou as 10 frases em 78. A f02 e a f03 saturaram (27 e 11 amostras
     seguidas no teto) e foram regravadas com o volume em **70**; as outras oito
     ficaram em 78. Desvio da regra do volume único, registrado como aconteceu.
-  - De agora em diante, 70 para todos (L03 a L05) e na banca. É o lembrete da
+  - De agora em diante, 70 para todos (L03 e L04) e na banca. É o lembrete da
     conferência (`VOLUME_MICROFONE`).
-- **Resultado da calibração (06/11/2026, pela sessão).** Gravaram o L02 (sessão
-  nova), o L03 e o L04; o L05 não gravou. Fala livre só do L01 e do L03.
+- **Resultado da calibração (06/11/2026, pela sessão).** Calibraram o L02, o L03 e
+  o L04; o L01 gravou como teste, fora do limiar. Os quatro são pessoas novas.
+  Fala livre só do L01 e do L03.
   - A f08 do L04 reprovou no piso de ruído (menos de 15 dB) e ficou salva. Pela
     regra, ela teria sido regravada; foi posta de lado
     (`data/vozes/descartadas/`) antes de ver qualquer score.
   - Maior score de frase: L02 −5,903, L03 **−0,581**, L04 −3,384. **Limiar da
-    frase, o das duas abas: −0,581** (antes, −1,158, das gravações antigas do L02).
+    frase, o das duas abas: −0,581** (antes, −1,158, das gravações antigas do L06).
   - Arquivo inteiro, só descritivo: L02 −3,005, L03 +2,335, L04 +0,054.
-  - Limiar em `outputs/limiar_xlsr/limiar.json`; o anterior ficou em
+  - Limiar em `outputs/limiar_xlsr/limiar.json`; o anterior, do L06, ficou em
     `limiar_L02_reparadas_29-10.json`; os scores descritivos, em
     `descritivo_06-11.json`.
 - **Descritivo, depois da calibração (06/11/2026):**
@@ -4805,7 +4813,7 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   - Fala livre do L01: as 2 válidas abaixo (−9,33 e −4,76); a f01 saturou e fica
     fora.
   - Fala livre do L03: **as 3 acima do limiar** (−0,38, +0,66 e −0,19).
-  - Ensaio 5 frase por frase com o limiar novo: reais 10 de 10; XTTS 10 de 10 nos
+  - Ensaio 5 (o L05) frase por frase com o limiar novo: reais 10 de 10; XTTS 10 de 10 nos
     dois caminhos; Chatterbox 10 de 10 pelo arquivo e 9 de 10 pelo ar, o mesmo do
     10.2.49 (`outputs/ensaio5_calib06-11_frase_*.json`).
 - **Leitura:**
@@ -4816,21 +4824,26 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
      mas mostra o risco.
   3. Para a banca, a fala ao vivo mais segura é a leitura de frases, como na
      calibração. A fala livre fica como limitação medida.
-- **Clonagem autorizada (06/11/2026):** todas as pessoas autorizaram os clones,
-  com a condição de serem apagados até **19/11/2026**
-  (`data/vozes/vozes_autorizadas.json`, `apagar_clones_ate`).
-  - Ligada só a voz do L01, a única com referência boa: a do ensaio 5, no modo
-    compartilhado. A do L02 é a antiga, do modo exclusivo, com as cópias; o L03 e
-    o L04 não gravaram referência.
+- **Clonagem autorizada (06/11/2026):** as pessoas gravadas em 06/11 (L01 a L04)
+  autorizaram os clones, com a condição de serem apagados até **19/11/2026**
+  (`data/vozes/vozes_autorizadas.json`, `apagar_clones_ate`). Elas não gravaram
+  referência para a clonagem.
+  - A única referência boa é a do ensaio 5, do **L05** (o L01 de outubro), no modo
+    compartilhado; a do L06 é a antiga, do modo exclusivo, com as cópias.
+  - O teste abaixo usou a voz do L05, antes de se saber que os códigos se
+    repetiam. A autorização dele para clones novos ainda não foi confirmada, e a
+    voz dele foi desligada na aba Clonar.
   - Teste pelo caminho da aba Clonar, com uma frase nova, analisada como no
     Enviar arquivo e com o limiar novo:
     - XTTS v2, 63 s para gerar: **+3,40**, sintético;
     - Chatterbox, 85 s: **+6,08**, sintético.
   - Descritivo: uma frase por ferramenta. Os clones ficam em
     `outputs/clones_teste/` para ouvir, e saem até 19/11/2026.
-- **Quem (06/11/2026):** L01 a L05 assinam o termo; o L01 e o L02 com o item das
-  gravações de outubro. Pela regra acima, o L01 fica fora da calibração; ela
-  usa o L02, numa sessão nova, o L03, o L04 e o L05, menos quem for testado.
+- **Quem (06/11/2026):** L01 a L04, as pessoas de 06/11, assinaram o termo. O L05 e
+  o L06, as pessoas de outubro, assinam com o item das gravações feitas antes do
+  termo. A regra acima tirava da calibração o L05 (então L01), cuja voz já tinha
+  sido vista; ele não gravou de novo. Ficou fora também o L01 de 06/11, gravado
+  como teste.
 
 **Descritivo, depois:**
 - o maior score de cada locutor, nos dois caminhos;
