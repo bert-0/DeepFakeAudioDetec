@@ -22,14 +22,19 @@ vozes novas e do ensaio 6.\]"
 
 **Novo:**
 
-> Duas etapas, com regras registradas antes, não couberam no prazo deste
-> trabalho. A primeira é a calibração do limiar com vozes de mais pessoas,
-> gravadas no modo de captura atual e no microfone embutido do notebook, em que o
-> limiar é o maior score das vozes reais de calibração e quem será testado fica
-> de fora. A segunda é um sexto ensaio, com um locutor fora da calibração e o
-> critério da seção 5.7. Sem elas, o limiar do modelo final continua tirado das
-> dez vozes de um único voluntário, gravadas noutro modo de captura, e a meta do
-> incremento com o modelo final não teve um teste com critério fixado antes.
+> Duas etapas tinham regras registradas antes. A primeira, a calibração do limiar
+> com vozes de mais pessoas, gravadas no modo de captura atual e no microfone
+> embutido do notebook, foi feita depois do fechamento dos resultados deste
+> texto, para a demonstração; nela, o limiar é o maior score das vozes reais de
+> calibração, e quem será testado fica de fora. A segunda, um sexto ensaio, com
+> um locutor fora da calibração e o critério da seção 5.7, não coube no prazo.
+> Os resultados deste texto usam, portanto, o limiar tirado das dez vozes de um
+> único voluntário, gravadas noutro modo de captura, e a meta do incremento com
+> o modelo final não teve um teste com critério fixado antes.
+
+(Atualizado em 06/11/2026: a calibração com três pessoas foi feita nesse dia,
+RESUMO_TCC §10.2.46. Este trecho não põe os números dela no texto; se o grupo
+quiser incluí-los, eles estão lá, com o achado da fala livre.)
 
 ### 1.2 Quadro 3, última linha, coluna "situação"
 
@@ -59,8 +64,8 @@ realizado"
 
 **Novo (trocar só a marca pelo período abaixo):**
 
-> O teste com critério do modelo final, com o limiar calibrado em vozes de várias
-> pessoas e um locutor novo, não coube no prazo e é o primeiro dos trabalhos
+> O teste com critério do modelo final, com um locutor novo e o limiar calibrado
+> em vozes de outras pessoas, não coube no prazo e é o primeiro dos trabalhos
 > futuros.
 
 ### 1.5 Consentimento do L01 e do L02 (seções 5.7 e 7.1)

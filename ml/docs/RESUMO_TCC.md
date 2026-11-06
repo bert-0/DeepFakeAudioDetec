@@ -4788,6 +4788,34 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
     ficaram em 78. Desvio da regra do volume único, registrado como aconteceu.
   - De agora em diante, 70 para todos (L03 a L05) e na banca. É o lembrete da
     conferência (`VOLUME_MICROFONE`).
+- **Resultado da calibração (06/11/2026, pela sessão).** Gravaram o L02 (sessão
+  nova), o L03 e o L04; o L05 não gravou. Fala livre só do L01 e do L03.
+  - A f08 do L04 reprovou no piso de ruído (menos de 15 dB) e ficou salva. Pela
+    regra, ela teria sido regravada; foi posta de lado
+    (`data/vozes/descartadas/`) antes de ver qualquer score.
+  - Maior score de frase: L02 −5,903, L03 **−0,581**, L04 −3,384. **Limiar da
+    frase, o das duas abas: −0,581** (antes, −1,158, das gravações antigas do L02).
+  - Arquivo inteiro, só descritivo: L02 −3,005, L03 +2,335, L04 +0,054.
+  - Limiar em `outputs/limiar_xlsr/limiar.json`; o anterior ficou em
+    `limiar_L02_reparadas_29-10.json`; os scores descritivos, em
+    `descritivo_06-11.json`.
+- **Descritivo, depois da calibração (06/11/2026):**
+  - L01, as 10 frases lidas no mesmo dia e na mesma sala (volume em 78): todas
+    abaixo do limiar, de −4,86 a −10,44.
+  - Fala livre do L01: as 2 válidas abaixo (−9,33 e −4,76); a f01 saturou e fica
+    fora.
+  - Fala livre do L03: **as 3 acima do limiar** (−0,38, +0,66 e −0,19).
+  - Ensaio 5 frase por frase com o limiar novo: reais 10 de 10; XTTS 10 de 10 nos
+    dois caminhos; Chatterbox 10 de 10 pelo arquivo e 9 de 10 pelo ar, o mesmo do
+    10.2.49 (`outputs/ensaio5_calib06-11_frase_*.json`).
+- **Leitura:**
+  1. O limiar vem do L03, cuja voz lida pontua mais alto que a das outras duas
+     pessoas; pelo arquivo inteiro, ela chega a +2,3.
+  2. Na fala livre, a mesma pessoa passa do limiar nas três falas. O limiar tirado
+     da leitura não cobre a fala espontânea dela, e no L01 cobre. É uma pessoa só,
+     mas mostra o risco.
+  3. Para a banca, a fala ao vivo mais segura é a leitura de frases, como na
+     calibração. A fala livre fica como limitação medida.
 - **Quem (06/11/2026):** L01 a L05 assinam o termo; o L01 e o L02 com o item das
   gravações de outubro. Pela regra acima, o L01 fica fora da calibração; ela
   usa o L02, numa sessão nova, o L03, o L04 e o L05, menos quem for testado.
