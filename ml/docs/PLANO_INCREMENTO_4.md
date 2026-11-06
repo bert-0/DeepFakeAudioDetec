@@ -165,8 +165,8 @@ primeiro: nenhuma gravação começa antes deles.
   Chatterbox 90 s com a interface na CPU; os dois funcionam sem internet. Em
   06/11/2026, as pessoas gravadas nesse dia (L01 a L04) autorizaram os clones,
   para apagar até **19/11/2026**, mas não gravaram referência. O teste pegou os
-  dois clones com a voz do L05 (o L01 de outubro), cuja autorização para clones
-  novos falta confirmar (RESUMO_TCC §10.2.46).
+  dois clones com a voz do L05 (o L01 de outubro), que autorizou clones novos no
+  mesmo dia e é a voz ligada na aba Clonar (RESUMO_TCC §10.2.46).
 - Conferência antes da apresentação (pedido do grupo, 29/10/2026): roda sozinha
   quando a interface abre (modelo e limiar, GPU, microfone, som, clonagem,
   disco) e mostra a situação no cabeçalho; também `scripts/conferir.py`. Na

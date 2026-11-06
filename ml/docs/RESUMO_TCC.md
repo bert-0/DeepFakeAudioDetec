@@ -4831,8 +4831,9 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   - A única referência boa é a do ensaio 5, do **L05** (o L01 de outubro), no modo
     compartilhado; a do L06 é a antiga, do modo exclusivo, com as cópias.
   - O teste abaixo usou a voz do L05, antes de se saber que os códigos se
-    repetiam. A autorização dele para clones novos ainda não foi confirmada, e a
-    voz dele foi desligada na aba Clonar.
+    repetiam. O L05 confirmou no mesmo dia a autorização para clones novos, com o
+    mesmo prazo, e a voz dele é a única ligada na aba Clonar. O L06 fica
+    desligado: a referência dele tem as cópias.
   - Teste pelo caminho da aba Clonar, com uma frase nova, analisada como no
     Enviar arquivo e com o limiar novo:
     - XTTS v2, 63 s para gerar: **+3,40**, sintético;
