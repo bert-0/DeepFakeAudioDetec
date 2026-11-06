@@ -63,6 +63,31 @@ realizado"
 > pessoas e um locutor novo, não coube no prazo e é o primeiro dos trabalhos
 > futuros.
 
+### 1.5 Consentimento do L01 e do L02 (seções 5.7 e 7.1)
+
+Os dois concordaram de boca em outubro e assinam o termo antes da entrega, com
+o item que cobre as gravações já feitas. O texto dizia que gravaram "com termo
+de consentimento assinado", o que não era o caso na época.
+
+**Seção 5.7, primeira frase. Atual:** "[...] gravadas para este trabalho com
+termo de consentimento (seção 7.1)."
+
+**Novo:** "[...] gravadas para este trabalho com o consentimento dos locutores
+(seção 7.1)."
+
+**Seção 7.1, segundo parágrafo, primeira frase. Atual:** "As vozes reais dos
+ensaios foram gravadas com termo de consentimento assinado, que inclui um item
+próprio e opcional para a geração de clones da voz."
+
+**Novo:**
+
+> Os locutores dos ensaios consentiram verbalmente antes de gravar e depois
+> assinaram um termo de consentimento que cobre também essas gravações e inclui
+> um item próprio e opcional para a geração de clones da voz.
+
+(Só usar depois que os dois assinarem. Se algum não autorizar, os resultados
+dele saem do texto, como o termo promete.)
+
 ---
 
 ## 2. Outras marcas pendentes
