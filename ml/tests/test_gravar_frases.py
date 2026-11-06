@@ -63,6 +63,13 @@ def test_cada_ensaio_tem_frases_novas(novo):
     assert min(palavras) >= 15 and max(palavras) <= 22, "mesmo tamanho do ensaio 1"
 
 
+def test_temas_da_fala_livre():
+    """A fala livre (RESUMO_TCC §10.2.46, 06/11/2026) usa o mesmo gravador: um tema por
+    linha, e cada um lembra de não citar nomes."""
+    temas = ler_frases(RAIZ / "docs/etica/temas_fala_livre.txt")
+    assert len(temas) == 3 and all("sem citar nomes" in t for t in temas)
+
+
 def test_grava_sem_o_comeco_e_avisa_no_instante_certo(monkeypatch):
     sinal = _cena(3.0)
     _sounddevice_falso(monkeypatch, sinal)

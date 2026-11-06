@@ -4754,6 +4754,20 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   decidiu não fazer a calibração nem o ensaio 6 antes da entrega do documento
   (08/11/2026). O limiar em uso continua o das gravações antigas do L02
   (10.2.49).
+- **Acréscimo (06/11/2026), antes de gravar: fala livre, fora do limiar.** Na
+  banca, quem fala ao vivo provavelmente fala solto, não lê, e o score da fala
+  espontânea pode não ficar onde fica o da leitura.
+  - Além das 10 frases, até 3 gravações de fala livre por pessoa, com os temas
+    de `docs/etica/temas_fala_livre.txt`, pelo mesmo `gravar_frases.py voz`, nas
+    mesmas condições, em `data/vozes/fala_livre/<código>/`.
+  - Elas **não entram no limiar**: a regra acima não muda.
+  - Descritivo, depois: quantas frases da fala livre de cada pessoa ficam acima
+    do limiar tirado das frases lidas.
+  - Termo atualizado no mesmo dia (item 2, opcional, sem nomes nem dados
+    pessoais).
+- **Quem (06/11/2026):** L01 a L05 assinam o termo; o L01 e o L02 com o item das
+  gravações de outubro. Pela regra acima, o L01 fica fora da calibração; ela
+  usa o L02, numa sessão nova, o L03, o L04 e o L05, menos quem for testado.
 
 **Descritivo, depois:**
 - o maior score de cada locutor, nos dois caminhos;

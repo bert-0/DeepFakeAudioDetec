@@ -30,7 +30,11 @@ com vozes reais em português, precisamos de gravações de pessoas lendo frases
 
 - Ler em voz alta 10 frases, de cerca de 20 palavras cada, no microfone do
   notebook do grupo. Cada frase é gravada em 12 segundos, com um pouco de
-  silêncio antes e depois. Leva cerca de 15 minutos.
+  silêncio antes e depois.
+- Se quiser, falar livremente, por uns 8 segundos cada, sobre três temas
+  simples (por exemplo, uma comida de que você gosta). Não cite nomes nem dados
+  pessoais, seus ou de outras pessoas.
+- Leva cerca de 20 minutos.
 - Local: ________________________________________________
 - Você pode pedir para regravar, pular frases ou parar a qualquer momento.
 

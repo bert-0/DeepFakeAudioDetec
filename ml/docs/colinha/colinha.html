@@ -141,6 +141,11 @@ fecha a frase.</p>
 de cada uma. Só com o termo de consentimento assinado antes.</p>
 </div>
 <div class="cmd">
+<pre>python scripts\gravar_frases.py voz --frases docs\etica\temas_fala_livre.txt --piso-minimo 15 --saida data\vozes\fala_livre\L03</pre>
+<p class="faz"><b>O que faz:</b> a fala livre, opcional: três temas, uns 8 s cada, sem nomes. Fica numa
+pasta separada e não entra no limiar; serve para ver se a fala solta passa dele.</p>
+</div>
+<div class="cmd">
 <pre>python scripts\limiar_xlsr.py --real L02=data\vozes\calibracao\L02 --real L03=data\vozes\calibracao\L03</pre>
 <p class="faz"><b>O que faz:</b> refaz o JSON do limiar com as vozes reais: o limiar é o maior score
 das frases delas, e vale para as duas abas. Reinicie o servidor depois.</p>
