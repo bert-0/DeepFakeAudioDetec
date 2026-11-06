@@ -69,7 +69,8 @@ def test_grava_sem_o_comeco_e_avisa_no_instante_certo(monkeypatch):
     instantes = []
     wav, taxa, modo, _ = gravar(3.0, avisos=((1.0, lambda: instantes.append(1.0)),))
     assert (taxa, modo, len(wav)) == (SR, "compartilhado", 3 * SR)
-    np.testing.assert_allclose(wav, sinal[SR // 2:SR // 2 + 3 * SR], atol=1e-6)
+    inicio = int(DESCARTE_S * SR)
+    np.testing.assert_allclose(wav, sinal[inicio:inicio + 3 * SR], atol=1e-6)
     assert instantes == [1.0]
 
 

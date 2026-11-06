@@ -221,8 +221,10 @@ class MicrofoneWasapiSource(AudioSource):
     """
 
     def __init__(self, sample_rate: int | None, nome_dispositivo: str | None = None,
-                 bloco_ms: int | None = None, exclusivo: bool = False):
+                 bloco_ms: int | None = None, exclusivo: bool = False, acomodacao_s: float = 0.0):
         self.nome_dispositivo = nome_dispositivo
+        #: Segundos descartados logo depois de abrir (ver ACOMODACAO_S).
+        self._acomodacao_s = float(acomodacao_s)
         # None: os pacotes no tamanho do driver (480 no Realtek). A emenda áspera dos
         # blocos fixos de 100 ms eram as cópias do modo exclusivo (RESUMO_TCC §10.2.34).
         self._bloco_ms = None if bloco_ms is None else int(bloco_ms)
@@ -299,6 +301,7 @@ class MicrofoneWasapiSource(AudioSource):
                 extra_settings=self._extra, callback=callback)
         except Exception as erro:
             raise CaptureError(f"não foi possível abrir o microfone '{self.nome}': {erro}") from erro
+        restante = int(self._acomodacao_s * self.taxa_dispositivo)
         with fluxo:
             while not self._parar.is_set():
                 try:
@@ -308,12 +311,23 @@ class MicrofoneWasapiSource(AudioSource):
                         raise CaptureError(f"a captura do microfone '{self.nome}' parou") from None
                     continue
                 mono = dados.mean(axis=1) if dados.ndim > 1 else dados
+                if restante:
+                    corte = min(restante, len(mono))
+                    mono, restante = mono[corte:], restante - corte
+                    if not len(mono):
+                        continue
                 yield conversor(np.ascontiguousarray(mono, dtype=np.float32))
 
     def fechar(self) -> None:
         parar = getattr(self, "_parar", None)
         if parar is not None:
             parar.set()
+
+
+#: O microfone embutido, aberto depois de um tempo parado, começa com um pico acima do
+#: máximo (+8 dBFS) que se acalma em ~0,7 s (medido em 06/11/2026). Na conferência,
+#: ele aparecia como "ruído da sala em −1 dBFS"; no ao vivo, entrava no começo da sessão.
+ACOMODACAO_S = 1.0
 
 
 def abrir_microfone(sample_rate: int, nome_dispositivo: str | None = None,
@@ -328,7 +342,8 @@ def abrir_microfone(sample_rate: int, nome_dispositivo: str | None = None,
         fonte.aviso = ("sem o pacote sounddevice o microfone abre pelo soundcard, fora do "
                        "caminho medido: pip install sounddevice")
         return fonte
-    return MicrofoneWasapiSource(sample_rate, nome_dispositivo, exclusivo=exclusivo)
+    return MicrofoneWasapiSource(sample_rate, nome_dispositivo, exclusivo=exclusivo,
+                                 acomodacao_s=ACOMODACAO_S)
 
 
 def _importar_sounddevice():

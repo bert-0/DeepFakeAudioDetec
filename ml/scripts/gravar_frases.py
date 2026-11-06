@@ -37,8 +37,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.capture.checagens import checar  # noqa: E402
 from src.capture.sources import CaptureError, MicrofoneWasapiSource  # noqa: E402
 
-#: O começo é descartado: pega o clique da tecla (RESUMO_TCC §10.2.10).
-DESCARTE_S = 0.5
+#: O começo é descartado: pega o clique da tecla (RESUMO_TCC §10.2.10) e o pico de
+#: quando o microfone abre, que leva ~0,7 s para se acalmar (06/11/2026; era 0,5 s).
+DESCARTE_S = 1.0
 #: Silêncio antes e depois da fala, que a checagem de fala exige (0,5 s no mínimo).
 MARGEM_S = 1.0
 #: Cada clone toca com o mesmo pico: as ferramentas entregam níveis diferentes (XTTS

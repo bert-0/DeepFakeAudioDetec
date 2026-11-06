@@ -226,6 +226,23 @@ def test_qualquer_tamanho_de_pacote_da_o_mesmo_sinal_a_16_khz(monkeypatch, pacot
     np.testing.assert_allclose(capturado, referencia[: len(capturado)], atol=1e-4)
 
 
+def test_ao_vivo_descarta_o_pico_de_quando_o_microfone_abre(monkeypatch):
+    """06/11/2026: o embutido abre com um pico acima do máximo que dura ~0,7 s; a
+    conferência o lia como "ruído da sala em −1 dBFS"."""
+    from src.capture.sources import ACOMODACAO_S
+
+    rng = np.random.default_rng(9)
+    pico = np.linspace(3.0, 0.0, int(0.7 * 48000))
+    sinal = np.concatenate([pico, np.zeros(int((ACOMODACAO_S - 0.7) * 48000)),
+                            rng.standard_normal(48000 * 2) * 0.01])
+    _sounddevice_falso(monkeypatch, sinal)
+    ao_vivo = _coletar(abrir_microfone(16000), 30)
+    assert np.abs(ao_vivo).max() < 0.1, "o pico ficou de fora"
+    _sounddevice_falso(monkeypatch, sinal)
+    cru = _coletar(MicrofoneWasapiSource(None), 30)
+    np.testing.assert_array_equal(cru, sinal[:len(cru)].astype(np.float32))
+
+
 def test_bloco_fixo_ainda_pode_ser_pedido(monkeypatch):
     sd = _sounddevice_falso(monkeypatch, np.zeros(48000))
     _coletar(MicrofoneWasapiSource(None, bloco_ms=100), 2)
