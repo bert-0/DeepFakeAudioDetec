@@ -123,7 +123,8 @@ def analisar(caminho: Path, pasta: str, config: dict, checkpoints: list[str], de
         por_modelo = [float(v) for v in np.average(matriz, axis=0, weights=pesos)]
     # Checagens na taxa em que o arquivo foi gravado, como logo depois de gravar.
     wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
-    falhas = [c.nome for c in checar(wav, taxa, piso_minimo=PISO_MINIMO_DB) if not c.ok]
+    falhas = [c.nome for c in checar(wav, taxa, piso_minimo=PISO_MINIMO_DB, uma_frase=pasta == "real")
+              if not c.ok]
     resumo = agregador.resumo()
     return Analise(pasta=pasta, frase=caminho.stem, score=resumo["score_medio"],
                    por_modelo=por_modelo, janelas_uteis=len(uteis),
@@ -149,7 +150,8 @@ def analisar_xlsr(caminho: Path, pasta: str, modelo, por_frases: bool) -> Analis
         score = logodds = None
         n = 0
     wav, taxa = librosa.load(str(caminho), sr=None, mono=True)
-    falhas = [c.nome for c in checar(wav, taxa, piso_minimo=PISO_MINIMO_DB) if not c.ok]
+    falhas = [c.nome for c in checar(wav, taxa, piso_minimo=PISO_MINIMO_DB, uma_frase=pasta == "real")
+              if not c.ok]
     return Analise(pasta=pasta, frase=caminho.stem, score=score, por_modelo=[logodds],
                    janelas_uteis=n, taxa_nativa=taxa_nativa(caminho), duracao_s=len(bruto) / SR,
                    checagens_falhas=falhas, logodds=logodds)

@@ -4765,6 +4765,19 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
     do limiar tirado das frases lidas.
   - Termo atualizado no mesmo dia (item 2, opcional, sem nomes nem dados
     pessoais).
+- **Checagem de fala do gravador (06/11/2026), antes de gravar a calibração.** Na
+  sala do trabalho, com o ruído uns 10 dB acima do de casa, a primeira frase do L01
+  reprovou três vezes (3,8 a 4,6 s de fala, ou "encosta"), enquanto o detector de
+  frases do modelo final usava a frase inteira (10 s).
+  - Causa: duas réguas. A checagem contava como fala só o que ficava 10 dB acima do
+    ruído; o detector do modelo entra a 6 dB e sai a 3 dB (10.2.45). A leitura
+    terminava ~15 dB mais baixa, entre as duas réguas.
+  - Agora a checagem usa o mesmo detector do modelo, a 16 kHz pelo FIR (`medir_frases`).
+    Continua pedindo para regravar sem frase, com menos de 4 s de fala, com mais de uma
+    frase (só na leitura de pessoas) ou com a fala encostada nas bordas.
+  - Conferido: as 10 leituras do L01 do ensaio 5 e os 20 clones pelo ar dele passam.
+    Nas reparadas do L02, 9 de 10 (a f02 encosta no começo).
+  - Só o `f01` do L01 tinha sido gravado com a régua antiga, e foi apagado.
 - **Quem (06/11/2026):** L01 a L05 assinam o termo; o L01 e o L02 com o item das
   gravações de outubro. Pela regra acima, o L01 fica fora da calibração; ela
   usa o L02, numa sessão nova, o L03, o L04 e o L05, menos quem for testado.

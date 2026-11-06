@@ -132,12 +132,14 @@ def trechos_de_fala(wav: np.ndarray, sample_rate: int,
 
 
 def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
-           piso_minimo: float | None = None) -> list[Checagem]:
+           piso_minimo: float | None = None, uma_frase: bool = True) -> list[Checagem]:
     """As checagens do protocolo: saturação, cópias, fala, banda e piso de ruído.
 
     `piso_minimo`: distância mínima entre fala e ruído, em dB (padrão: o corte de
     silêncio mais a margem, 35 dB). O teste com a voz própria usa 15, a margem do
     microfone embutido na sala (RESUMO_TCC §10.2.12).
+    `uma_frase`: uma pessoa lendo a frase deve dar uma frase só. Num clone tocado pelo
+    ar, não: o XTTS faz pausas longas no meio, e regravar não muda o clone.
     """
     import librosa
 
@@ -162,17 +164,27 @@ def checar(wav: np.ndarray, sample_rate: int, top_db: float = TOP_DB,
     rms = librosa.feature.rms(y=wav)[0]
     distancia = _db(np.percentile(rms, 95)) - _db(np.percentile(rms, 10))
 
-    trechos = trechos_de_fala(wav, sample_rate, top_db)
-    fala_s = float(sum(f - i for i, f in trechos)) / sample_rate
-    borda = int(BORDA_S * sample_rate)
-    cortada = len(trechos) > 0 and (trechos[0][0] < borda or trechos[-1][1] > len(wav) - borda)
-    if fala_s < FALA_MINIMA_S:
+    # A fala pelo mesmo detector de frases do modelo final: o que passa aqui é o que
+    # entra no limiar. A régua antiga (10 dB acima do ruído) reprovava, numa sala mais
+    # barulhenta, frases que o modelo usava inteiras (06/11/2026).
+    from .frases import medir_frases
+
+    frases = medir_frases(wav, sample_rate)
+    fala_s = float(sum(f for _, _, f in frases))
+    duracao_s = len(wav) / sample_rate
+    if not frases:
+        motivo = "nenhuma frase achada: fale mais perto ou mais alto"
+    elif uma_frase and len(frases) > 1:
+        motivo = (f"{len(frases)} frases: uma pausa longa no meio, ou alguém falou antes ou "
+                  "depois; leia sem parar e sem conversa por perto")
+    elif fala_s < FALA_MINIMA_S:
         motivo = f"menos de {FALA_MINIMA_S:.0f} s de fala: a frase não ocupa uma janela"
-    elif cortada:
+    elif frases[0][0] < BORDA_S or frases[-1][1] > duracao_s - BORDA_S:
         motivo = "a fala encosta no início ou no fim: deixe um silêncio antes e depois"
     else:
         motivo = None
-    saida.append(Checagem("fala", motivo is None, f"{fala_s:.1f} s", motivo))
+    valor = f"{fala_s:.1f} s" + (f" em {len(frases)} frases" if len(frases) > 1 else "")
+    saida.append(Checagem("fala", motivo is None, valor, motivo))
 
     alta = fracao_energia_alta(wav, sample_rate)
     saida.append(Checagem("banda", alta >= FRACAO_MINIMA, f"{100 * alta:.0f}% acima de 4 kHz",

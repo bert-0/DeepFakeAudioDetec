@@ -95,8 +95,9 @@ def salvar(destino: Path, wav: np.ndarray, taxa: int) -> None:
     sf.write(destino, wav, taxa, subtype="PCM_24")
 
 
-def relatar_checagens(wav: np.ndarray, taxa: int, piso_minimo: float | None = None) -> bool:
-    resultado = checar(wav, taxa, piso_minimo=piso_minimo)
+def relatar_checagens(wav: np.ndarray, taxa: int, piso_minimo: float | None = None,
+                      uma_frase: bool = True) -> bool:
+    resultado = checar(wav, taxa, piso_minimo=piso_minimo, uma_frase=uma_frase)
     for c in resultado:
         print(f"    {'ok' if c.ok else 'REGRAVAR':8s} {c.nome:14s} {c.valor}"
               + (f" — {c.motivo}" if c.motivo else ""))
@@ -162,7 +163,7 @@ def modo_pelo_ar(clones: Path, saida: Path, dispositivo: str | None, sem_pausa: 
                 (MARGEM_S, lambda: sd.play(clone, taxa_clone)),), bloco_ms, exclusivo)
             sd.stop()
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
-            relatar_checagens(wav, taxa, piso_minimo)
+            relatar_checagens(wav, taxa, piso_minimo, uma_frase=False)
             if _seguir(sem_pausa):
                 salvar(destino, wav, taxa)
                 break

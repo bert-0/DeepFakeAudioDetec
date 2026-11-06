@@ -5,6 +5,7 @@ acima de 4 kHz nas fricativas.
 """
 
 import numpy as np
+import pytest
 from scipy.signal import butter, sosfilt
 
 from src.capture.checagens import checar, checar_copias, energia_por_faixa
@@ -48,8 +49,13 @@ def test_frase_curta_nao_ocupa_uma_janela():
 
 
 def test_frase_cortada_no_inicio():
-    r = _por_nome(checar(_gravacao(fala_s=6.0, silencio_s=0.1), SR))
+    rng = np.random.default_rng(4)
+    wav = (rng.standard_normal(SR * 9) * 1e-4).astype(np.float32)
+    wav[int(0.1 * SR):int(6.1 * SR)] += (rng.standard_normal(SR * 6) * 0.1).astype(np.float32)
+    r = _por_nome(checar(wav, SR))
     assert not r["fala"].ok and "encosta" in r["fala"].motivo
+    # Quase toda fala, sem silêncio para medir o ruído: o modelo não acha frase.
+    assert not _por_nome(checar(_gravacao(fala_s=6.0, silencio_s=0.1), SR))["fala"].ok
 
 
 def test_banda_estreita():
@@ -104,6 +110,54 @@ def test_fala_que_vai_ate_o_fim_da_gravacao_com_ruido():
     wav[int(1.5 * SR):] += (rng.standard_normal(SR * 8 - int(1.5 * SR)) * 0.1).astype(np.float32)
     r = _por_nome(checar(wav, SR, piso_minimo=15))
     assert not r["fala"].ok and "encosta" in r["fala"].motivo
+
+
+def test_fim_da_frase_mais_baixo_ainda_e_fala():
+    """06/11/2026, sala do trabalho: a leitura começou forte e terminou ~15 dB mais
+    baixa, a uns 10 dB do ruído. A régua antiga contava só a parte forte (3,8 s) e
+    pedia para regravar; o modelo usava a frase inteira. Agora a checagem vê o que o
+    modelo vê."""
+    rng = np.random.default_rng(5)
+    wav = (rng.standard_normal(SR * 12) * 0.005).astype(np.float32)
+    wav[int(1.5 * SR):int(4.5 * SR)] += (rng.standard_normal(SR * 3) * 0.1).astype(np.float32)
+    wav[int(4.5 * SR):int(8.5 * SR)] += (rng.standard_normal(SR * 4) * 0.015).astype(np.float32)
+    r = _por_nome(checar(wav, SR, piso_minimo=15))
+    assert r["fala"].ok, r["fala"].motivo
+    assert abs(float(r["fala"].valor.split()[0]) - 7.0) < 0.3
+
+
+def test_duas_frases_pedem_regravar():
+    """Uma pausa longa no meio, ou alguém falando depois da leitura, vira outra frase."""
+    rng = np.random.default_rng(6)
+    wav = (rng.standard_normal(SR * 12) * 1e-3).astype(np.float32)
+    for a, b in ((1.5, 5.0), (7.0, 10.0)):
+        wav[int(a * SR):int(b * SR)] += (rng.standard_normal(int((b - a) * SR)) * 0.1).astype(np.float32)
+    r = _por_nome(checar(wav, SR, piso_minimo=15))
+    assert not r["fala"].ok and "2 frases" in r["fala"].motivo and "em 2 frases" in r["fala"].valor
+    # Clone tocado pelo ar: o XTTS faz pausas longas no meio, e regravar não muda o clone.
+    assert _por_nome(checar(wav, SR, piso_minimo=15, uma_frase=False))["fala"].ok
+
+
+def test_a_checagem_mede_as_frases_que_o_modelo_analisa():
+    """Mesmo detector: as frases medidas são as que o ao vivo e o limiar usam."""
+    from src.capture.frases import frases_de, medir_frases
+    from src.preprocess.reamostragem import para_taxa
+    from src.xlsr_final import Pontuacao
+
+    class _Nulo:
+        def pontuar_wav(self, wav, sample_rate=16000):
+            return Pontuacao(logodds=0.0, duracao_s=len(wav) / sample_rate, silencio_s=0.0)
+
+    rng = np.random.default_rng(7)
+    wav = (rng.standard_normal(SR * 12) * 1e-3).astype(np.float32)
+    for a, b in ((1.5, 4.0), (6.0, 9.5)):
+        wav[int(a * SR):int(b * SR)] += (rng.standard_normal(int((b - a) * SR)) * 0.1).astype(np.float32)
+    medidas = medir_frases(wav, SR)
+    leituras = frases_de(_Nulo(), para_taxa(wav, SR, 16000).astype(np.float32), 16000)
+    assert len(medidas) == len(leituras) == 2
+    for (inicio, fim, fala), leitura in zip(medidas, leituras, strict=True):
+        assert inicio - leitura.instante == pytest.approx(0.3, abs=0.03), "a margem antes da fala"
+        assert fim > inicio and fala <= fim - inicio + 0.02
 
 
 def test_pancada_do_teclado_na_borda_nao_e_fala():

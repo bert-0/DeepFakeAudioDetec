@@ -6,9 +6,10 @@ o mesmo número: no ensaio 5 ela se afasta do score do arquivo em até 0,67 nos
 log-odds. Por isso o ao vivo junta a fala até uma pausa e analisa a frase pelo
 mesmo caminho do arquivo.
 
-A fala é achada sem graves (pancadas de teclado), como na checagem depois de gravar
-(`checagens.trechos_de_fala`), acima do piso de ruído: o percentil 10 dos últimos
-30 s (com 10 s, uma fala longa com poucos respiros subia o piso até a própria fala).
+A fala é achada sem graves (pancadas de teclado), acima do piso de ruído: o
+percentil 10 dos últimos 30 s (com 10 s, uma fala longa com poucos respiros subia o
+piso até a própria fala). Desde 06/11/2026, a checagem do gravador usa este mesmo
+detector (`medir_frases`).
 Ela começa a 6 dB acima do piso e acaba abaixo de 3 dB, escolhidos nos devs
 (RESUMO_TCC §10.2.45): com eco e ruído (o dev com salas), os 10 dB da checagem
 deixavam 20% dos arquivos sem frase, e um clone tocado baixo no alto-falante, a uns
@@ -113,6 +114,9 @@ class AnalisadorFrases:
         #: Quadros recentes fora de frase com som acima do ruído (True) ou não.
         self._som_sem_fala: deque[bool] = deque(maxlen=int(AVISO_S / QUADRO_S))
         self._saturado_ate = 0
+        #: (início da fala, fim da fala, segundos de fala) de cada frase analisada.
+        self.trechos: list[tuple[float, float, float]] = []
+        self._inicio_fala = self._fim_fala = 0
 
     @property
     def duracao_s(self) -> float:
@@ -159,10 +163,12 @@ class AnalisadorFrases:
             self._frase = list(self._antes)
             self._antes.clear()
             self._inicio = t - sum(len(a) for a in self._frase)
+            self._inicio_fala = t
             self._fala = self._pausa = 0
         self._frase.append(q)
         if fala:
             self._fala, self._pausa = self._fala + 1, 0
+            self._fim_fala = self._t
         else:
             self._pausa += 1
         if self._pausa * QUADRO_S >= PAUSA_S or self._t - self._inicio >= MAX_FRASE_S * self.sample_rate:
@@ -180,6 +186,8 @@ class AnalisadorFrases:
             p = self.modelo.pontuar_wav(wav, self.sample_rate)
         except FalaCurta:
             return None
+        self.trechos.append((self._inicio_fala / self.sample_rate, self._fim_fala / self.sample_rate,
+                             self._fala * QUADRO_S))
         qualidade = avaliar(wav, self.sample_rate)
         self.canal.observar(qualidade)
         leitura = Leitura(indice=self._n, instante=self._inicio / self.sample_rate, score=p.score,
@@ -200,3 +208,32 @@ def frases_de(modelo, wav: np.ndarray, sample_rate: int = 16000, bloco: int = 16
         a.fala.aquecer(wav, a.quadro)
     leituras = [x for i in range(0, len(wav), bloco) for x in a.processar(wav[i:i + bloco])]
     return leituras + list(a.finalizar())
+
+
+class _SemModelo:
+    """Mede as frases sem pontuar: as checagens do gravador não carregam o XLS-R."""
+
+    def pontuar_wav(self, wav, sample_rate: int = 16000):
+        from src.xlsr_final import Pontuacao
+
+        return Pontuacao(logodds=0.0, duracao_s=len(wav) / sample_rate, silencio_s=0.0)
+
+
+def medir_frases(wav: np.ndarray, sample_rate: int) -> list[tuple[float, float, float]]:
+    """(início da fala, fim da fala, segundos de fala) de cada frase que o modelo final
+    analisaria neste áudio, pelo mesmo detector e a 16 kHz pelo mesmo FIR. É o que a
+    checagem do gravador confere: antes, ela usava outra régua (10 dB acima do ruído) e
+    reprovava frases que o modelo usaria inteiras (06/11/2026)."""
+    from src.preprocess.reamostragem import para_taxa
+
+    wav = np.asarray(wav, np.float32).reshape(-1)
+    if sample_rate != 16000:
+        wav = para_taxa(wav, sample_rate, 16000).astype(np.float32)
+    a = AnalisadorFrases(_SemModelo(), sample_rate=16000)
+    a.fala.aquecer(wav, a.quadro)
+    for i in range(0, len(wav), 1600):
+        for _ in a.processar(wav[i:i + 1600]):
+            pass
+    for _ in a.finalizar():
+        pass
+    return a.trechos
