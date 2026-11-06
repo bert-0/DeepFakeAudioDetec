@@ -117,6 +117,12 @@ def test_ruido_constante_que_nao_deixa_gravar():
     assert C.piso_de_ruido(np.zeros(16000), 16000) < C.MUDO_DBFS
 
 
+def test_lembra_o_volume_da_calibracao():
+    """06/11/2026: a calibração foi gravada com o volume do microfone em 70."""
+    volume = {i.nome: i for i in C.lembretes()}["Volume do microfone"]
+    assert volume.estado == "lembrete" and str(C.VOLUME_MICROFONE) in volume.detalhe
+
+
 def test_microfone_que_nao_abre():
     def nao_abre(sr):
         raise RuntimeError("sem permissão")

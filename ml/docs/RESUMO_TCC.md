@@ -4778,6 +4778,16 @@ exclusivo e recuperadas, só 6 de 10 vozes reais do L01 ficam do lado humano
   - Conferido: as 10 leituras do L01 do ensaio 5 e os 20 clones pelo ar dele passam.
     Nas reparadas do L02, 9 de 10 (a f02 encosta no começo).
   - Só o `f01` do L01 tinha sido gravado com a régua antiga, e foi apagado.
+- **Gravações e volume (06/11/2026), sala do trabalho, microfone embutido em modo
+  compartilhado:**
+  - O L01 gravou as 10 frases e as 3 falas livres com o volume do microfone do
+    Windows em 78. As frases foram para `data/vozes/teste/L01`, fora da calibração;
+    a f01 da fala livre saturou.
+  - O L02 gravou as 10 frases em 78. A f02 e a f03 saturaram (27 e 11 amostras
+    seguidas no teto) e foram regravadas com o volume em **70**; as outras oito
+    ficaram em 78. Desvio da regra do volume único, registrado como aconteceu.
+  - De agora em diante, 70 para todos (L03 a L05) e na banca. É o lembrete da
+    conferência (`VOLUME_MICROFONE`).
 - **Quem (06/11/2026):** L01 a L05 assinam o termo; o L01 e o L02 com o item das
   gravações de outubro. Pela regra acima, o L01 fica fora da calibração; ela
   usa o L02, numa sessão nova, o L03, o L04 e o L05, menos quem for testado.

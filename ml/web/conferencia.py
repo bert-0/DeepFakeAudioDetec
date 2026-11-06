@@ -28,6 +28,10 @@ BARULHO_DBFS = -40.0
 #: O piso é o percentil 10 de trechos de 50 ms: conversa e passos na sala não o sobem,
 #: como subiam a média, que dava "sala barulhenta" a cada voz (06/11/2026).
 TRECHO_PISO_S, PERCENTIL_PISO = 0.05, 10
+#: O volume de entrada do microfone no Windows com que a calibração foi gravada (a
+#: partir da f02 e da f03 do L02, 06/11/2026; antes, 78, que saturava). Mudar o volume
+#: muda o canal do limiar.
+VOLUME_MICROFONE = 70
 #: Medido em 28/10/2026: o Chatterbox chega a 3,44 GB da GPU; o XLS-R do ao vivo, ~1,2 GB.
 GPU_CLONAGEM_GB, GPU_AO_VIVO_GB = 3.45, 1.5
 DISCO_MINIMO_GB, DISCO_FOLGA_GB = 2.0, 5.0
@@ -245,7 +249,8 @@ def lembretes() -> list[Item]:
              "Configurações › Som › dispositivo › Aprimoramentos de áudio."),
         Item("Fone", "lembrete", "sem fone com microfone conectado",
              "Com fone, o driver troca o microfone embutido sem mudar o nome."),
-        Item("Volume do microfone", "lembrete", "o mesmo da frase de teste e da calibração"),
+        Item("Volume do microfone", "lembrete", f"{VOLUME_MICROFONE} no Windows, o da calibração",
+             "Configurações › Sistema › Som › Grupo de microfones › Volume de entrada."),
     ]
 
 
