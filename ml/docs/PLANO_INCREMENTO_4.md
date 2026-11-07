@@ -167,6 +167,13 @@ primeiro: nenhuma gravação começa antes deles.
   para apagar até **19/11/2026**, mas não gravaram referência. O teste pegou os
   dois clones com a voz do L05 (o L01 de outubro), que autorizou clones novos no
   mesmo dia e é a voz ligada na aba Clonar (RESUMO_TCC §10.2.46).
+  - Referência a partir das frases já gravadas (pedido do grupo, 06/11/2026):
+    `preparar_referencia.py` aceita várias gravações e junta só a fala de cada
+    uma. Assim entram vozes femininas na aba: L03 e L04 (as frases da
+    calibração) e L06 (termo assinado; regrava a referência e as frases no
+    modo atual).
+    Ligar uma voz continua à mão, depois de conferir o termo em papel. Gravar a
+    referência pela própria aba fica para depois da entrega do texto (08/11).
 - Conferência antes da apresentação (pedido do grupo, 29/10/2026): roda sozinha
   quando a interface abre (modelo e limiar, GPU, microfone, som, clonagem,
   disco) e mostra a situação no cabeçalho; também `scripts/conferir.py`. Na
