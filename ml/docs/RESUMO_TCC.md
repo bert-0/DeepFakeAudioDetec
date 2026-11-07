@@ -5212,6 +5212,30 @@ da L03 e da L04 (10.2.46). É uma voz fora do treino e fora da calibração.
 Nos clones da L03 e da L04, só o lado do clone é teste: as vozes reais delas
 calibraram o limiar.
 
+**Resultado (passou nas três vozes).** Scores nos log-odds do modelo, pelo
+caminho do Enviar arquivo (média das frases); limiar −0,581. Em
+`outputs/testes_demo/clones_vozes_novas.json`; os clones ficam em
+`outputs/clones_teste/vozes_novas/` e saem até 19/11/2026.
+
+| voz | reais abaixo | clones XTTS acima | clones Chatterbox acima |
+|---|---|---|---|
+| L06 | **10 de 10** (−5,593 a −1,069) | 4 de 4 (+3,898 a +6,872) | 4 de 4 (−0,007 a +6,058) |
+| L03 | (calibração) | 4 de 4 (+6,164 a +12,871) | 4 de 4 (+0,791 a +4,755) |
+| L04 | (calibração) | 4 de 4 (+2,200 a +8,349) | 3 de 4 (−0,999 a +2,648) |
+
+- Clones: 23 de 24 pegos. O que passou foi o Chatterbox da L04 no golpe do
+  "pix" (−0,999).
+- As menores folgas são do Chatterbox e da frase curta: "Olá, tudo bem com
+  vocês" do L06 deu −0,007, 0,57 acima do limiar. O XTTS fica acima de +2,2 em
+  todas as vozes.
+- A voz real do L06 mais perto do limiar ficou 0,49 abaixo dele (f10).
+- Tempo para gerar cada clone: XTTS de 37 a 73 s, Chatterbox de 59 a 104 s (os
+  primeiros rodaram junto com a suíte de testes).
+
+**Leitura:** a voz que o sistema nunca viu, nem no treino nem na calibração,
+ficou toda do lado humano, e os clones dela, todos do lado sintético. Para a
+banca, as folgas maiores estão no XTTS e nas frases com mais de 4 s de fala.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
