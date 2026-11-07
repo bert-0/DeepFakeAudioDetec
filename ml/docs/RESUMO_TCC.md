@@ -5166,9 +5166,9 @@ semente 42: BRSpeech-DF (150 reais, 100 falsos do teste) e In-the-Wild (300 das
   falsos 119 de 127 pelos dois caminhos; BRSpeech-DF, reais 84 de 142 e falsos
   99 de 99.
 
-**4. A fala livre do L03.** A voz dele já é a mais perto do lado sintético
+**4. A fala livre da L03.** A voz dela já é a mais perto do lado sintético
 lendo: mediana das frases lidas −2,50, contra −5,68 a −8,63 das outras vozes da
-calibração e do L01. As falas livres dele também foram mais curtas (4,4 a 6,0 s
+calibração e do L01. As falas livres dela também foram mais curtas (4,4 a 6,0 s
 de fala, contra 5,0 a 7,3 s lendo).
 
 **Leitura:**
@@ -5181,6 +5181,36 @@ de fala, contra 5,0 a 7,3 s lendo).
      das vezes: para mostrar voz real, usar a do microfone;
    - clipes de 1 a 2 s ficam sem veredito: enviar áudios de alguns segundos;
    - uma voz como a do L03 pode passar do limiar falando solto: ler frases.
+
+### 10.2.51 Vozes femininas na aba Clonar e o L06 fora do limiar (06/11/2026)
+
+**Por quê:** a aba Clonar só tinha a voz do L05. O grupo pediu vozes femininas
+para a demonstração: L03 e L04 (termos de 06/11/2026) e L06 (termo assinado,
+voz regravada no modo compartilhado em 06/11/2026). Nada muda o modelo nem o
+limiar, e nada entra no texto entregue em 08/11.
+
+**Referências da clonagem.**
+- L03 e L04 não gravaram o texto de referência. O `preparar_referencia.py`
+  passou a aceitar várias gravações e junta só a fala de cada uma, medida pelo
+  detector de frases do modelo: 75,0 s (L03) e 68,6 s (L04), das 10 e 9 frases
+  da calibração.
+- L06 leu o texto de referência de novo: 61,2 s de 90 s. O gravador pedia para
+  regravar porque a checagem exigia uma frase só, e a leitura tem pausas;
+  corrigido (uma frase só vale para gravações de até 15 s, o `MAX_FRASE_S`).
+- Sem cópias da captura nas três referências.
+
+**L06 fora do limiar.** As 10 frases novas do L06 (o conjunto do ensaio 5, as
+mesmas da calibração) não entram no limiar: ele segue −0,581, das vozes do L02,
+da L03 e da L04 (10.2.46). É uma voz fora do treino e fora da calibração.
+
+**Critério, registrado antes de ver os resultados** (a meta do plano, 8 de
+10):
+- reais do L06: pelo menos 8 de 10 abaixo do limiar;
+- clones: pelo menos 80% acima do limiar em cada voz (7 de 8: 4 frases
+  digitadas na aba Clonar, XTTS e Chatterbox).
+
+Nos clones da L03 e da L04, só o lado do clone é teste: as vozes reais delas
+calibraram o limiar.
 
 ### 10.3 Bases públicas que já trazem canal
 
