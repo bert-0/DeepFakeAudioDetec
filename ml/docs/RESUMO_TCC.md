@@ -5253,6 +5253,37 @@ menos 80% dos clones acima do limiar em cada voz e ferramenta (16 de 20).
 Também olhar: as frases curtas e a diferença entre as duas sementes da mesma
 frase.
 
+**Resultado (passou em todas as vozes e ferramentas).** 156 de 160 clones
+acima do limiar. Em `outputs/testes_demo/clones_sementes.json`; os clones ficam
+em `outputs/clones_teste/sementes/` e saem até 19/11/2026.
+
+| voz | XTTS acima | mediana (mínimo) | Chatterbox acima | mediana (mínimo) |
+|---|---|---|---|---|
+| L03 | 20 de 20 | +7,80 (+2,94) | 20 de 20 | +4,41 (+0,64) |
+| L04 | 19 de 20 | +5,41 (−0,85) | **17 de 20** | +1,40 (−1,95) |
+| L05 | 20 de 20 | +6,92 (+3,13) | 20 de 20 | +6,88 (+3,42) |
+| L06 | 20 de 20 | +6,01 (+0,89) | 20 de 20 | +4,81 (+2,24) |
+
+- **Os 4 que passaram são todos da L04:** Chatterbox no "Bom dia, tudo bem?"
+  (−1,242), no golpe do banco (−1,879) e no código numérico (−1,952); XTTS no
+  código numérico (−0,852). No 10.2.51, o único clone que passou também era
+  dela (Chatterbox). A causa não foi medida.
+- **A semente muda o veredito:** na mesma frase, voz e ferramenta, as duas
+  sementes diferem em 1,45 na mediana (até 6,63). Em 4 dos 80 pares, uma
+  semente passa e a outra não, todos da L04; o XTTS no código numérico dá
+  −0,852 com uma e +5,776 com a outra.
+- **Frases curtas:** nenhuma ficou sem veredito. "Bom dia, tudo bem?" tem
+  2,2 s na mediana e foi pega em 15 de 16; "Alô, quem está falando?", em 16 de
+  16.
+- Em lote, com o modelo carregado uma vez: XTTS de 9 a 11 s por clone,
+  Chatterbox de 23 a 28 s.
+- A aba Clonar gera cada clone numa pasta nova, sempre com a semente 1: a mesma
+  frase na mesma voz dá o mesmo clone.
+
+**Leitura:** com 20 clones por voz e ferramenta, a L04 é o ponto fraco, sobretudo
+no Chatterbox (mediana +1,40, contra +4,41 a +6,88 nas outras vozes). Para a
+banca, as vozes mais seguras são L03, L05 e L06.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
