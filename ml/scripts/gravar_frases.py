@@ -35,6 +35,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.capture.checagens import checar  # noqa: E402
+from src.capture.frases import MAX_FRASE_S  # noqa: E402
 from src.capture.sources import CaptureError, MicrofoneWasapiSource  # noqa: E402
 
 #: O começo é descartado: pega o clique da tecla (RESUMO_TCC §10.2.10) e o pico de
@@ -127,7 +128,9 @@ def modo_voz(frases: list[str], saida: Path, segundos: float, dispositivo: str |
                 (MARGEM_S, "leia agora"), (segundos - MARGEM_S, "silêncio até o fim")),
                 bloco_ms, exclusivo)
             print(f"    {nome} (WASAPI {modo}, {taxa // 1000} kHz)")
-            relatar_checagens(wav, taxa, piso_minimo)
+            # O texto de referência (90 s) tem pausas entre as frases; uma frase só
+            # cabe em até MAX_FRASE_S, o maior trecho que o modelo julga de uma vez.
+            relatar_checagens(wav, taxa, piso_minimo, uma_frase=segundos <= MAX_FRASE_S)
             if _seguir(sem_pausa):
                 salvar(destino, wav, taxa)
                 break

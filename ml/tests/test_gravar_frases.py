@@ -207,3 +207,24 @@ def test_pelo_ar_toca_todo_clone_com_o_mesmo_pico(monkeypatch, tmp_path):
         sf.write(clones / f"{nome}.wav", np.clip(rng.standard_normal(2 * 24000) * ganho / 4, -1, 1), 24000)
     assert main(["pelo-ar", "--clones", str(clones), "--saida", str(tmp_path / "ar"), "--sem-pausa"]) == 0
     assert picos == pytest.approx([10 ** (PICO_TOCADO_DB / 20)] * 2, rel=1e-4)
+
+
+def _duas_falas(segundos, pausa_s=2.0, seed=0):
+    """Fala entre as margens, com uma pausa longa no meio."""
+    wav = _cena(segundos, seed)
+    rng = np.random.default_rng(seed + 1)
+    meio = DESCARTE_S + segundos / 2
+    ini, fim = int((meio - pausa_s / 2) * SR), int((meio + pausa_s / 2) * SR)
+    wav[ini:fim] = (rng.standard_normal(fim - ini) * 0.002).astype(np.float32)
+    return wav
+
+
+@pytest.mark.parametrize(("segundos", "regravar"), [(12.0, True), (20.0, False)])
+def test_texto_de_referencia_aceita_pausas_entre_as_frases(monkeypatch, tmp_path, capsys,
+                                                           segundos, regravar):
+    """06/11/2026: a leitura do texto de referência (90 s) saiu em 5 frases e o
+    gravador pedia para regravar. Uma frase só vale para as gravações curtas."""
+    _sounddevice_falso(monkeypatch, _duas_falas(segundos))
+    assert main(["voz", "--frases", str(_frases(tmp_path, 1)), "--saida", str(tmp_path / "a"),
+                 "--segundos", str(segundos), "--sem-pausa"]) == 0
+    assert ("REGRAVAR fala" in capsys.readouterr().out) == regravar
