@@ -1,9 +1,7 @@
 """Testes das proteções de memória e de queda do treino.
 
-Contexto: num notebook de 16 GB o treino travava a máquina a ponto de exigir
-desligamento no botão. A causa era o loader de dev herdar `num_workers` e
-`persistent_workers` do treino — 8 processos de ~512 MB vivos ao mesmo tempo,
-4 deles ociosos durante todo o treino.
+Num notebook de 16 GB o loader de dev herdava os workers persistentes do treino
+(8 processos de ~512 MB) e travava a máquina.
 """
 
 import sys
@@ -29,8 +27,7 @@ CONFIGS = Path(__file__).resolve().parent.parent / "configs"
 # Estimativa de RAM
 # --------------------------------------------------------------------------- #
 def test_workers_de_dev_entram_no_pico():
-    """Regressão: o custo dos workers de dev era invisível justamente por eles
-    ficarem ociosos — mas ocupam RAM o tempo todo mesmo assim."""
+    """Regressão: workers de dev ficam ociosos, mas ocupam RAM o tempo todo."""
     com_dev = estimativa_ram_gb(4, 4)["pico"]
     sem_dev = estimativa_ram_gb(4, 0)["pico"]
     assert com_dev - sem_dev == 4 * RAM_POR_WORKER_GB
@@ -96,16 +93,15 @@ def test_nenhum_tmp_sobra_apos_gravar(tmp_path):
 
 
 def test_queda_no_meio_da_escrita_preserva_o_checkpoint_anterior(tmp_path, monkeypatch):
-    """Regressão: `torch.save` direto no destino deixa um .pt truncado.
+    """Regressão: `torch.save` direto no destino deixava um .pt truncado.
 
-    É o cenário real deste projeto — a máquina travava por falta de RAM e o
-    usuário desligava no botão. Perder o `best.pt` custa o treino inteiro.
+    Perder o `best.pt` numa queda custa o treino inteiro.
     """
     destino = tmp_path / "m.pt"
     save_checkpoint({"epoca": 1}, destino)
 
     def morre_no_meio(payload, caminho, *a, **k):
-        """Escreve parte dos bytes e some — é o que a queda de energia faz."""
+        """Grava parte dos bytes e falha, como numa queda de energia."""
         Path(caminho).write_bytes(b"PK\x03\x04 bytes pela metade")
         raise OSError("a máquina foi desligada no botão")
 
@@ -113,8 +109,7 @@ def test_queda_no_meio_da_escrita_preserva_o_checkpoint_anterior(tmp_path, monke
     with pytest.raises(OSError):
         save_checkpoint({"epoca": 2}, destino)
 
-    # Sem a gravação atômica, `destino` agora seriam os bytes truncados acima e
-    # o torch.load abaixo estouraria — perdendo o treino inteiro.
+    # Sem a gravação atômica, este load leria os bytes truncados.
     assert torch.load(destino, weights_only=False) == {"epoca": 1}, \
         "o checkpoint bom foi destruído por uma escrita interrompida"
 
@@ -130,7 +125,8 @@ def test_cria_o_diretorio_se_faltar(tmp_path):
 # --------------------------------------------------------------------------- #
 def test_configs_v4_cabem_em_16gb():
     """Os dois configs que serão treinados precisam caber na máquina real."""
-    for nome in ("fusion_v4.yaml", "attention_v4.yaml"):
+    for nome in ("fusion_v4.yaml", "attention_v4.yaml", "fusion_v4_asv5.yaml",
+                 "fusion_v4_2019_degr.yaml"):
         cfg = yaml.safe_load((CONFIGS / nome).read_text(encoding="utf-8"))["train"]
         pico = estimativa_ram_gb(cfg["num_workers"], cfg.get("dev_num_workers", 0))["pico"]
         assert pico <= 16.0 - 2.0, f"{nome}: pico de {pico:.1f} GB não deixa folga"

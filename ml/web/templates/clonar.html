@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block titulo %}Clonar — Análise de Autenticidade de Voz{% endblock %}
+{% block conteudo %}
+<form class="cartao" id="form">
+  {% if not vozes %}
+  <div class="centro">
+    <p><b>Nenhuma voz autorizada.</b> Só vozes com termo de consentimento assinado,
+      com a clonagem autorizada, aparecem aqui.</p>
+  </div>
+  {% elif not ferramentas %}
+  <div class="centro">
+    <p><b>Nenhuma ferramenta de clonagem instalada neste computador.</b></p>
+  </div>
+  {% else %}
+  <div class="escolha-fonte">
+    <label for="voz">Voz</label>
+    <select id="voz" name="voz">
+      {% for v in vozes %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </select>
+    {% for f, nome in ferramentas.items() %}
+    <label><input type="radio" name="ferramenta" value="{{ f }}" {{ 'checked' if loop.first }}> {{ nome }}</label>
+    {% endfor %}
+  </div>
+  <div class="centro" id="campos">
+    <label for="frase" class="legenda">Frase que o clone vai falar (8 palavras ou mais)</label>
+    <textarea id="frase" name="frase" rows="3" maxlength="300" required class="frase"></textarea>
+  </div>
+  <div class="centro oculto" id="gerando">
+    <div class="veredito">Gerando o clone…</div>
+    <div class="legenda">Leva de 1 a 2 minutos. Depois, o clone é analisado como arquivo.</div>
+  </div>
+  <div class="faixa-aviso amarelo oculto" id="falha" role="alert"></div>
+  <div class="acoes" id="acoes">
+    <button type="submit" class="verde" id="gerar">Gerar e analisar</button>
+  </div>
+  <div class="nota">O clone fica neste computador e é apagado junto com o registro no Histórico.</div>
+  {% endif %}
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById("form"), $ = function (id) { return document.getElementById(id); };
+  if (!$("gerar")) return;
+  function ocupado(sim) {
+    $("gerando").classList.toggle("oculto", !sim);
+    $("campos").classList.toggle("oculto", sim);
+    $("gerar").disabled = sim;
+  }
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("falha").classList.add("oculto");
+    ocupado(true);
+    fetch("/api/clonar", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({voz: $("voz").value, frase: $("frase").value,
+        ferramenta: document.querySelector("input[name=ferramenta]:checked").value})})
+      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, d: d}; }); })
+      .then(function (x) {
+        if (x.ok) { window.location = "/analises/" + x.d.analise_id; return; }
+        $("falha").textContent = x.d.detail || "Não foi possível gerar o clone.";
+        $("falha").classList.remove("oculto"); ocupado(false);
+      })
+      .catch(function () {
+        $("falha").textContent = "Não foi possível falar com o servidor.";
+        $("falha").classList.remove("oculto"); ocupado(false);
+      });
+  });
+})();
+</script>
+{% endblock %}

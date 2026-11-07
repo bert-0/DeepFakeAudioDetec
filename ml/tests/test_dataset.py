@@ -78,11 +78,9 @@ def test_cache_fingerprint_stable_for_same_config(audio_cfg, feat_cfg):
 
 
 def test_cache_fingerprint_ignores_augment_and_random_crop(audio_cfg, feat_cfg):
-    """Configs iguais salvo aumentação/recorte devem COMPARTILHAR o cache.
+    """Aumentação e recorte não mudam o fingerprint: com eles o cache fica desligado.
 
-    Esses parâmetros não podem alterar o conteúdo cacheado: quando ativos, o
-    cache é desligado para aquele dataset, e dev/eval nunca os recebem. Incluí-los
-    no fingerprint duplicaria pastas idênticas (~11 GB cada, no ASVspoof LA).
+    Incluí-los duplicaria pastas idênticas (~11 GB cada no ASVspoof LA).
     """
     from src.data.dataset import _config_fingerprint
 
@@ -128,12 +126,8 @@ def test_augmenter_applied_in_smoke(audio_cfg, feat_cfg):
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: set_epoch precisa alcançar workers PERSISTENTES.
-#
-# Com persistent_workers=True os workers recebem uma cópia do dataset e nunca
-# mais a atualizam. Se a época fosse um int comum, o recorte aleatório e a
-# aumentação ficariam congelados na época em que o worker nasceu — repetindo o
-# mesmo trecho de áudio em todas as épocas, sem nenhum aviso.
+# Regressão: com workers persistentes, uma época int ficava congelada na cópia
+# do dataset, e recorte e aumentação se repetiam em toda época
 # --------------------------------------------------------------------------- #
 def test_epoch_counter_lives_in_shared_memory(audio_cfg, feat_cfg):
     import torch

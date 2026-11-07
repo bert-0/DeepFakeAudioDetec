@@ -28,11 +28,7 @@ def test_ranks_are_normalized():
 
 
 def test_rank_rule_is_immune_to_calibration_scale():
-    """Dois modelos com a MESMA ordenação, mas escalas muito diferentes.
-
-    A média simples é dominada pelo modelo de escala maior; a regra de posto
-    trata os dois igualmente. É a vantagem prática do 'rank'.
-    """
+    """Mesma ordenação em escalas diferentes: o 'rank' trata os dois modelos igualmente."""
     ordenacao = np.array([0.1, 0.4, 0.6, 0.9])
     comprimido = ordenacao * 0.01          # mesmo ranking, escala 100x menor
     labels = np.array([0, 0, 1, 1])
@@ -49,10 +45,7 @@ def test_rank_rule_is_immune_to_calibration_scale():
 
 
 def test_fusion_of_complementary_models_beats_both():
-    """Cada modelo acerta metade das amostras; juntos acertam tudo.
-
-    Reproduz a complementaridade medida entre as configurações reais.
-    """
+    """Cada modelo acerta metade das amostras; juntos acertam tudo."""
     labels = np.array([0, 0, 1, 1])
     # modelo A separa as duas primeiras, erra as últimas
     a = np.array([0.1, 0.2, 0.3, 0.9])
@@ -98,10 +91,8 @@ def test_cli_collects_multiple_models(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: empates precisam receber o posto médio.
-#
-# O softmax satura em exatamente 1.0 para muitas amostras. Desempatar pela
-# ordem do array inventaria uma ordenação que o modelo não produziu.
+# Regressão: empates recebem o posto médio. O softmax satura em 1.0, e desempatar
+# pela ordem do array inventaria uma ordenação que o modelo não produziu.
 # --------------------------------------------------------------------------- #
 def test_ranks_give_equal_scores_the_same_rank():
     r = to_ranks(np.array([0.5, 0.5, 0.5, 0.9]))
@@ -125,3 +116,22 @@ def test_ranks_do_not_launder_nan_into_finite_values():
     """NaN não pode virar posto finito e escapar da proteção de compute_eer."""
     r = to_ranks(np.array([0.1, np.nan, 0.9]))
     assert not np.isfinite(r).all()
+
+
+def test_rank_rule_uses_logodds_when_given():
+    """Com o softmax saturado, só os log-odds preservam a separação do modelo."""
+    from src.metrics import compute_eer
+
+    labels = np.array([0] * 20 + [1] * 20)
+    probs = [np.ones(40), np.ones(40)]
+    logodds = [np.r_[np.full(20, 20.0), np.full(20, 30.0)],
+               np.r_[np.full(20, 18.0), np.full(20, 25.0)]]
+    assert compute_eer(labels, combine(probs, "rank")) >= 0.4
+    assert compute_eer(labels, combine(probs, "rank", logodds)) == 0.0
+
+
+def test_mean_rule_stays_on_probabilities():
+    """`mean` é a conta do monitor ao vivo — continua sobre a probabilidade."""
+    probs = [np.array([0.2, 0.4]), np.array([0.6, 0.8])]
+    logodds = [np.array([-9.0, 9.0]), np.array([-9.0, 9.0])]
+    np.testing.assert_allclose(combine(probs, "mean", logodds), [0.4, 0.6])

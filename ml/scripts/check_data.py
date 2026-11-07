@@ -1,11 +1,7 @@
-"""Verificação da base ASVspoof 2019 LA antes do treino.
+"""Verifica a base ASVspoof 2019 LA antes do treino.
 
-Confere, para cada partição (train/dev/eval):
-  - se o arquivo de protocolo existe e é legível;
-  - a contagem de amostras bonafide vs. spoof (e o balanceamento);
-  - se o diretório de áudio existe;
-  - se uma amostra dos arquivos .flac referenciados existe no disco e abre;
-  - duração média de alguns arquivos.
+Para cada partição confere protocolo, contagem por classe, diretório de áudio
+e se uma amostra dos .flac existe e abre.
 
 Uso:
     python scripts/check_data.py --config configs/baseline.yaml
@@ -21,7 +17,6 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-# Permite rodar a partir de ml/ (importar o pacote src).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import load_config  # noqa: E402
@@ -45,9 +40,8 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-# Contagens oficiais do ASVspoof 2019 LA. Servem para detectar um protocolo
-# truncado: o parser ignora linhas malformadas em silêncio, então um download
-# interrompido produziria uma partição menor sem nenhum sinal.
+# Contagens oficiais: o parser descarta linhas malformadas em silêncio, então
+# um protocolo truncado só aparece aqui.
 CONTAGENS_OFICIAIS = {"train": 25380, "dev": 24844, "eval": 71237}
 
 
@@ -94,24 +88,16 @@ def check_partition(
         return False
     print(f"{OK} diretório de áudio: {audio_path}")
 
-    # Teste de existência/leitura em uma amostra dos arquivos.
     ok = _check_sample(items, audio_path, sample, file_ext, deep) and ok
     return ok
 
 
 def _check_sample(items, audio_path: Path, sample: int, file_ext: str,
                   deep: bool = False) -> bool:
-    """Verifica existência e legibilidade de uma amostra (ou de tudo, com `deep`).
+    """Verifica se uma amostra dos arquivos (ou todos, com `deep`) existe e abre.
 
-    **`deep` importa mais do que parece.** Sem ele a checagem usa `sf.info()`,
-    que lê apenas o cabeçalho STREAMINFO — e o cabeçalho de um FLAC continua
-    íntegro mesmo que o arquivo tenha sido cortado no meio do download. Medido:
-    um FLAC com 10% dos bytes reporta "frames=64000, dur=4.00s" e passa como
-    `[ OK ]`, mas `sf.read()` estoura com `flac decoder lost sync`. Ou seja, a
-    verificação que existe para evitar surpresas não pega o caso mais provável.
-
-    Com `deep`, cada arquivo é **decodificado** de verdade e todos são
-    percorridos. Leva minutos; um treino perdido leva horas.
+    Sem `deep` só lê o cabeçalho, que continua íntegro num FLAC truncado; com
+    `deep` decodifica cada arquivo.
     """
     import soundfile as sf
 
@@ -122,9 +108,7 @@ def _check_sample(items, audio_path: Path, sample: int, file_ext: str,
         sampled = items[::step][:sample] if sample else items
     missing, unreadable, durations = [], [], []
 
-    # Em modo raso são ~20 arquivos e a varredura é instantânea; em modo deep
-    # são dezenas de milhares e demora minutos. Sem este sinal de vida, quem
-    # roda não distingue "decodificando" de "travado".
+    # No modo deep a varredura leva minutos; o progresso mostra que não travou.
     passo_aviso = 5000 if deep else 0
 
     for i, (file_name, _) in enumerate(sampled):

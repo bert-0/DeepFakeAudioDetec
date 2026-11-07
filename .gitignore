@@ -10,9 +10,27 @@ venv/
 ml/checkpoints/
 ml/outputs/
 ml/data/cache/
+ml/data/cache_asvspoof5/
 
 # Base ASVspoof (grande demais para versionar — baixar localmente)
 ml/data/LA/
+# ASVspoof 2021: o áudio já cairia no *.flac abaixo, mas as chaves
+# (trial_metadata.txt, vários MB) e os scores do baseline são texto e
+# entrariam num `git add -A`.
+ml/data/ASVspoof2021_LA/
+# ASVspoof 5: os protocolos (.tsv, vários MB) são texto e entrariam num `git add -A`.
+ml/data/ASVspoof5/
+# Recorte montado (FLAC e o protocolo.txt da pasta); a seleção versionada fica
+# em ml/data/recortes/.
+ml/data/ASVspoof5_recorte/
+# Common Voice (termos: não redistribuir) e BUT ReverbDB, no D: pelos atalhos;
+# a seleção da amostra fica em ml/data/recortes/.
+ml/data/CommonVoice_pt/
+ml/data/BUT_ReverbDB/
+# BRSpeech-DF (CC BY 4.0) e ReplayDF (CC BY-NC 4.0, só pesquisa), no D:.
+ml/data/BRSpeech-DF/
+ml/data/ReplayDF/
+ml/data/InTheWild/
 
 # Amostras de voluntarios — voz e dado biometrico sensivel (LGPD): NUNCA versionar
 ml/data/volunteers/
@@ -22,6 +40,21 @@ ml/data/volunteers/
 *.flac
 *.wav
 *.mp3
+# Formatos de navegador, celular e ferramentas de clonagem (Incremento 4)
+*.m4a
+*.ogg
+*.opus
+*.webm
+*.aac
+*.aiff
+*.wma
+
+# Coleta do Incremento 4: vozes, clones e termos assinados (LGPD). A tabela
+# código de locutor -> nome também fica fora, guardada por um responsável.
+ml/data/vozes/
+ml/data/clones/
+ml/data/termos/
+*locutores_nomes*
 
 # Sistema operacional / editores
 .DS_Store

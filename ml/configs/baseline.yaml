@@ -7,11 +7,11 @@ experiment:
 audio:
   sample_rate: 16000      # Hz
   duration: 4.0           # segundos (recorte/padding para tamanho fixo)
-  trim_silence: true      # remocao de silencio (RF02)
-  top_db: 30              # limiar de silencio (librosa.effects.trim)
-  peak_normalize: true    # normalizacao de amplitude (RF02)
-  random_crop: false     # recorte temporal aleatorio no treino (anti-overfitting)
-  augment:                # aumentacao no treino (desativada p/ comparacao justa entre incrementos)
+  trim_silence: true      # remoção de silêncio (RF02)
+  top_db: 30              # limiar de silêncio (librosa.effects.trim)
+  peak_normalize: true    # normalização de amplitude (RF02)
+  random_crop: false     # recorte temporal aleatório no treino (anti-overfitting)
+  augment:                # aumentação no treino (desativada p/ comparação justa entre incrementos)
     enabled: false
     noise: {prob: 0.5, snr_db: [10, 30]}
     gain:  {prob: 0.5, gain_db: [-6, 6]}
@@ -26,7 +26,7 @@ features:
     hop_length: 160       # 10 ms @ 16 kHz
     n_filter: 20          # filtros lineares
     deltas: true          # adiciona delta e delta-delta -> 60 canais
-  spectrogram:            # ignorado no baseline (usado na fusao/atencao)
+  spectrogram:            # ignorado no baseline (usado na fusão/atenção)
     n_fft: 512
     win_length: 400
     hop_length: 160
@@ -34,7 +34,7 @@ features:
 
 model:
   name: baseline_cnn
-  pooling: avg            # avg | stats (media + desvio temporais)
+  pooling: avg            # avg | stats (média + desvio temporais)
   channels: [16, 32, 64]  # canais por bloco conv (mais/maiores = encoder mais profundo)
   n_classes: 2
   dropout: 0.3
@@ -45,19 +45,19 @@ train:
   lr: 0.001
   weight_decay: 0.0001
   num_workers: 4
-  device: cuda            # cai para cpu automaticamente se nao houver GPU
+  device: cuda            # cai para cpu automaticamente se não houver GPU
   cache_features: true
-  class_weights: auto     # auto (compensacao total) | sqrt (mais suave) | none
-  calibrate_threshold: false   # reporta metricas no corte do EER (calibrado no dev)
-  amp: true               # mixed precision (ativa so em GPU)
+  class_weights: auto     # auto (compensação total) | sqrt (mais suave) | none
+  calibrate_threshold: false   # reporta métricas no corte do EER (calibrado no dev)
+  amp: true               # mixed precision (ativa só em GPU)
   grad_clip: 0            # 0 = desligado; >0 limita a norma do gradiente
-  early_stopping_patience: 7   # para se o EER de validacao nao melhorar por N epocas (0 = desativado)
+  early_stopping_patience: 7   # para se o EER de validação não melhorar por N épocas (0 = desativado)
   scheduler:
     enabled: true
     factor: 0.5           # multiplica o LR por este fator ao estagnar
-    patience: 3           # epocas sem melhora no EER antes de reduzir o LR
+    patience: 3           # épocas sem melhora no EER antes de reduzir o LR
 
-# Numeros pequenos usados apenas no modo --smoke
+# Números pequenos usados apenas no modo --smoke
 smoke:
   n_train: 240
   n_dev: 80

@@ -1,4 +1,4 @@
-# Incremento 3 (v3) — fusao + atencao com features e encoder do v3.
+# Incremento 3 (v3) — fusão + atenção com features e encoder do v3.
 
 experiment:
   name: attention_fusion_v3

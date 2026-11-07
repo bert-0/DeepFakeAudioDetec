@@ -1,4 +1,4 @@
-# Incremento 2 (v2) — Fusao com as melhorias anti-overfitting ligadas.
+# Incremento 2 (v2) — Fusão com as melhorias anti-overfitting ligadas.
 
 experiment:
   name: fusion_lfcc_spec_v2

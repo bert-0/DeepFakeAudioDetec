@@ -39,10 +39,9 @@ def test_skip_train_removes_only_training():
 
 
 def test_smoke_name_matches_the_suffix_the_scripts_use():
-    """Os scripts acrescentam `_smoke` aos artefatos; o pipeline precisa seguir.
+    """O pipeline usa o mesmo sufixo `_smoke` dos scripts.
 
-    Sem isso o pipeline treinaria `x_smoke.pt` e procuraria `x.pt` — todas as
-    análises falhariam com FileNotFoundError.
+    Senão treinaria `x_smoke.pt` e as análises procurariam `x.pt`.
     """
     assert experiment_name("configs/fusion_v4.yaml") == "fusion_lcnn_v4"
     assert experiment_name("configs/fusion_v4.yaml", smoke=True) == "fusion_lcnn_v4_smoke"

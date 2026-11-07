@@ -1,4 +1,4 @@
-# Incremento 2 (v3) — fusao com features e encoder do v3.
+# Incremento 2 (v3) — fusão com features e encoder do v3.
 
 experiment:
   name: fusion_lfcc_spec_v3

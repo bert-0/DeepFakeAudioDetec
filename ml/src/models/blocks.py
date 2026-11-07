@@ -5,9 +5,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-# Piso da variância antes do sqrt. Precisa ser representável em float16 caso o
-# tensor chegue em meia precisão (o menor normal do fp16 é ~6e-5), por isso
-# 1e-4 em vez de valores como 1e-8, que virariam zero.
+# Piso da variância antes do sqrt; 1e-8 viraria zero em fp16 (menor normal ~6e-5).
 EPS_VAR = 1e-4
 
 
@@ -22,10 +20,9 @@ def conv_block(in_ch: int, out_ch: int) -> nn.Sequential:
 
 
 class CNNEncoder(nn.Module):
-    """Pilha de blocos convolucionais que extrai mapas de características 2D.
+    """Pilha de blocos conv 3x3 + BN + ReLU + MaxPool.
 
-    Entrada:  (B, in_ch, freq, frames)
-    Saída:    (B, channels[-1], freq', frames')
+    (B, in_ch, freq, frames) -> (B, channels[-1], freq', frames')
     """
 
     def __init__(self, in_ch: int = 1, channels: tuple[int, ...] = (16, 32, 64)):
@@ -43,14 +40,9 @@ class CNNEncoder(nn.Module):
 
 
 class StatsPool(nn.Module):
-    """Pooling estatístico: concatena média e desvio-padrão no eixo temporal.
+    """Média e desvio-padrão no tempo: (B, C, freq, frames) -> (B, 2*C).
 
-    O pooling por média global (`AdaptiveAvgPool2d((1,1))`) descarta a *variação*
-    do sinal ao longo do tempo — justamente onde ficam os artefatos transientes
-    da síntese de voz. Guardar também o desvio-padrão preserva essa informação
-    e dobra a dimensão do vetor de saída (2*C em vez de C).
-
-    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2*C)
+    O desvio guarda a variação temporal (artefatos transientes) que a média perde.
     """
 
     def __init__(self, channels: int):
@@ -58,10 +50,8 @@ class StatsPool(nn.Module):
         self.out_dim = 2 * channels
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Estatísticas sempre em float32: sob AMP (fp16) a variância é uma soma
-        # de quadrados que estoura facilmente o alcance do tipo (máx. ~65504),
-        # virando inf -> NaN. O NaN então contamina as estatísticas do BatchNorm
-        # e o modelo passa a produzir NaN para sempre em modo eval.
+        # Em float32: sob AMP a soma de quadrados estoura o fp16 (máx. ~65504) e
+        # o NaN contamina o BatchNorm de vez.
         with torch.amp.autocast(x.device.type, enabled=False):
             x = x.float().mean(dim=2)           # média na frequência -> (B, C, T)
             mean = x.mean(dim=-1)
@@ -71,23 +61,15 @@ class StatsPool(nn.Module):
 
 
 class FreqStatsPool(nn.Module):
-    """Pooling estatístico que **preserva a estrutura em frequência**.
+    """Como o StatsPool, mas mantém `freq_bins` faixas de frequência em vez de 1.
 
-    O `StatsPool` faz `mean(dim=2)`, ou seja, calcula a média ao longo da
-    frequência e descarta onde no espectro cada padrão ocorreu. Como os
-    artefatos de síntese são específicos de faixas de frequência, essa média
-    joga fora justamente o que distingue as classes.
-
-    Aqui a frequência é reduzida a um número fixo de bins (não a 1) e então
-    achatada nos canais, de modo que cada par (canal, faixa de frequência) vira
-    uma característica própria. As estatísticas são calculadas só no tempo.
-
-    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2 * C * freq_bins)
+    Os artefatos de síntese dependem da faixa, e a média na frequência os apaga.
+    (B, C, freq, frames) -> (B, 2 * C * freq_bins)
     """
 
     def __init__(self, channels: int, freq_bins: int = 4):
         super().__init__()
-        # None no eixo temporal = mantém o comprimento original.
+        # None: mantém o eixo temporal.
         self.freq = nn.AdaptiveAvgPool2d((freq_bins, None))
         self.out_dim = 2 * channels * freq_bins
 
@@ -103,15 +85,9 @@ class FreqStatsPool(nn.Module):
 
 
 class MFM(nn.Module):
-    """Max-Feature-Map (Wu et al.) — ativação competitiva usada na LCNN.
+    """Max-Feature-Map (Wu et al.): máximo entre as duas metades dos canais.
 
-    Divide os canais em duas metades e devolve o máximo elemento a elemento.
-    Diferente da ReLU, que zera valores negativos, a MFM faz uma *seleção* de
-    características: das duas respostas concorrentes, sobrevive a mais forte.
-    É o componente central das arquiteturas LCNN, que estão entre as mais
-    eficazes em detecção de spoofing com features LFCC.
-
-    Reduz o número de canais pela metade: (B, 2n, ...) -> (B, n, ...).
+    Ativação da LCNN; (B, 2n, ...) -> (B, n, ...).
     """
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -120,12 +96,7 @@ class MFM(nn.Module):
 
 
 class TemporalAttentionPool(nn.Module):
-    """Pooling com atenção sobre o eixo temporal (mecanismo de atenção).
-
-    Reduz o mapa (B, C, freq, frames) a um vetor (B, C), ponderando os frames
-    pela sua relevância em vez de fazer uma média simples. É o componente que
-    diferencia o Incremento 3.
-    """
+    """Média dos frames ponderada por atenção: (B, C, freq, frames) -> (B, C)."""
 
     def __init__(self, channels: int):
         super().__init__()
@@ -139,17 +110,10 @@ class TemporalAttentionPool(nn.Module):
 
 
 class AttentiveFreqStatsPool(nn.Module):
-    """Attentive Statistics Pooling que **preserva a frequência**.
+    """Attentive Statistics Pooling mantendo `freq_bins` faixas de frequência.
 
-    Combina as duas ideias: a frequência é reduzida a um número fixo de faixas
-    (em vez de mediada até virar um único valor, como no `AttentiveStatsPool`) e
-    a atenção pondera os frames de cada par (canal, faixa).
-
-    É o que `pooling: freq_stats` deve produzir no Incremento 3 — sem isso, o
-    modelo de atenção descartaria o eixo espectral enquanto a fusão o preserva,
-    e a comparação entre os incrementos deixaria de isolar a atenção.
-
-    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2 * C * freq_bins)
+    É o `freq_stats` do Incremento 3, para não perder o eixo espectral que a
+    fusão mantém. (B, C, freq, frames) -> (B, 2 * C * freq_bins)
     """
 
     def __init__(self, channels: int, freq_bins: int = 4):
@@ -172,13 +136,9 @@ class AttentiveFreqStatsPool(nn.Module):
 
 
 class AttentiveStatsPool(nn.Module):
-    """Attentive Statistics Pooling: média E desvio-padrão ponderados por atenção.
+    """Attentive Statistics Pooling (Okabe et al., 2018): média e desvio ponderados.
 
-    Une as duas ideias anteriores — a atenção escolhe quais frames importam, e a
-    estatística preserva tanto o nível médio quanto a variação temporal desses
-    frames. Técnica consagrada em tarefas de voz (Okabe et al., 2018).
-
-    Entrada: (B, C, freq, frames)  ->  Saída: (B, 2*C)
+    (B, C, freq, frames) -> (B, 2*C)
     """
 
     def __init__(self, channels: int):
@@ -188,8 +148,7 @@ class AttentiveStatsPool(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         weights = torch.softmax(self.score(x.mean(dim=2)), dim=-1)  # (B, 1, T)
-        # Mesma proteção do StatsPool: a soma de quadrados sai do alcance do
-        # fp16 sob AMP, então as estatísticas são calculadas em float32.
+        # Em float32, como no StatsPool.
         with torch.amp.autocast(x.device.type, enabled=False):
             x = x.float().mean(dim=2)                   # (B, C, T)
             w = weights.float()
