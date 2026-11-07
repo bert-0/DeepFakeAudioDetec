@@ -5236,6 +5236,23 @@ caminho do Enviar arquivo (média das frases); limiar −0,581. Em
 ficou toda do lado humano, e os clones dela, todos do lado sintético. Para a
 banca, as folgas maiores estão no XTTS e nas frases com mais de 4 s de fala.
 
+### 10.2.52 Mais clones por voz, com sementes diferentes (06/11/2026)
+
+**Por quê:** o 10.2.51 teve 4 clones por voz e ferramenta; o grupo pediu uns 20
+de cada ferramenta, para ver quanto o resultado varia. Nada muda o modelo nem o
+limiar, e nada entra no texto entregue em 08/11.
+
+**Como:** as 4 vozes da aba Clonar (L03, L04, L05, L06), 10 frases novas
+(curtas, golpes, números, longas, sem nomes), cada uma com 2 sementes (1 a 10 e
+101 a 110): 20 clones por voz e ferramenta, 160 no total. Gerados em lote pelo
+`clonar_xtts.py` (o mesmo gerador da aba, com o modelo carregado uma vez) e
+analisados como no Enviar arquivo, com o limiar −0,581.
+
+**Critério, registrado antes de ver os resultados:** o mesmo do 10.2.51, pelo
+menos 80% dos clones acima do limiar em cada voz e ferramenta (16 de 20).
+Também olhar: as frases curtas e a diferença entre as duas sementes da mesma
+frase.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
