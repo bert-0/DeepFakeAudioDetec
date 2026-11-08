@@ -19,7 +19,6 @@ from src.capture.analyzer import (  # noqa: E402
     Agregador,
     Leitura,
 )
-from src.capture.sources import resample_mono  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -108,23 +107,6 @@ def test_file_source_arquivo_corrompido_da_erro_de_captura(tmp_path):
 def test_context_manager_fecha(tmp_path):
     with FileSource(_wav(tmp_path / "a.wav"), 16000) as fonte:
         assert fonte.sample_rate == 16000
-
-
-# --------------------------------------------------------------------------- #
-# Reamostragem
-# --------------------------------------------------------------------------- #
-def test_resample_sem_efeito_quando_as_taxas_batem():
-    wav = np.arange(10, dtype=np.float32)
-    assert np.array_equal(resample_mono(wav, 16000, 16000), wav)
-
-
-def test_resample_48k_para_16k_reduz_a_um_terco():
-    wav = np.random.default_rng(0).standard_normal(48000).astype(np.float32)
-    assert abs(len(resample_mono(wav, 48000, 16000)) - 16000) <= 100
-
-
-def test_resample_de_vazio_nao_quebra():
-    assert resample_mono(np.zeros(0, dtype=np.float32), 48000, 16000).size == 0
 
 
 # --------------------------------------------------------------------------- #

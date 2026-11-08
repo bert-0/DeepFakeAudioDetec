@@ -428,19 +428,6 @@ def _conversor(origem: int, destino: int):
     return fluxo.resample_chunk
 
 
-def resample_mono(wav: np.ndarray, origem: int, destino: int) -> np.ndarray:
-    """Reamostra um sinal mono. Sem efeito quando as taxas coincidem.
-
-    Isolada aqui porque a reamostragem 48 -> 16 kHz faz parte do desvio de domínio.
-    """
-    if origem == destino or wav.size == 0:
-        return wav.astype(np.float32)
-    import librosa
-
-    return librosa.resample(wav.astype(np.float32), orig_sr=origem,
-                            target_sr=destino).astype(np.float32)
-
-
 def abrir_fonte(origem: str | Path | None, sample_rate: int,
                 dispositivo: str | None = None) -> AudioSource:
     """Escolhe a fonte: um arquivo quando `origem` é dado, o sistema quando não."""

@@ -1,4 +1,4 @@
-"""Simulação de descontinuidades (scripts/simular_perdas.py)."""
+"""Simulação de descontinuidades (scripts/simular_caminho.py --efeito perdas)."""
 
 import sys
 from pathlib import Path
@@ -9,7 +9,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.simular_perdas import main, remover_trechos  # noqa: E402
+from scripts.simular_caminho import main, remover_trechos  # noqa: E402
 
 SR = 16000
 
@@ -39,7 +39,7 @@ def test_gera_sessao_avaliavel(tmp_path, capsys):
         linhas.append(f"LA_0099 {aid} - {'-' if rot == 'bonafide' else 'A10'} {rot}")
     (origem / "protocolo_canal_real.txt").write_text("\n".join(linhas) + "\n", encoding="utf-8")
 
-    assert main(["--pasta", str(tmp_path / "canal"), "--destino", "perdas",
+    assert main(["--pasta", str(tmp_path / "canal"), "--destino", "perdas", "--efeito", "perdas",
                  "--ms", "20", "--n", "2"]) == 0
     destino = tmp_path / "canal" / "perdas"
     for i in range(2):
