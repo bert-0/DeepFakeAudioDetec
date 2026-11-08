@@ -1,5 +1,9 @@
 # Roteiro do teste ao vivo
 
+> Roteiro de 30/09/2026, com os detectores dos Incrementos 1 a 3 e janelas de
+> 4 s. O ao vivo do modelo final vai frase por frase (`monitor.py --xlsr`;
+> `MAPA_DO_CODIGO.md`).
+
 Passo a passo para rodar o monitor numa chamada real (Meet ou Teams) com áudios
 de rótulo conhecido, e sair com números comparáveis e uma figura para o texto.
 Tempo total: **1 a 2 horas**, contando a preparação. As chamadas em si duram

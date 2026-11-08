@@ -13,12 +13,12 @@ TTS e Voice Conversion, usando a base **ASVspoof 2019 LA**.
 
 ## Organização do repositório
 
-O projeto é um monorepo dividido em três áreas, alinhadas ao cronograma do TCC:
+O projeto é um monorepo dividido em duas áreas, alinhadas ao cronograma do TCC:
 
 | Pasta  | Fase            | Conteúdo                                                        |
 |--------|-----------------|----------------------------------------------------------------|
 | `ml/`  | TC1 + Férias    | Pipeline de IA: pré-processamento → extração → modelo → métricas |
-| `ml/web/` | TC2 (Ago–Out) | Interface web (FastAPI + Jinja2): análise, resultado, histórico |
+| `ml/web/` | TC2 (Ago–Nov) | Interface web (FastAPI + Jinja2): análise, ao vivo, clonagem, histórico |
 
 A interface web fica dentro de `ml/` porque usa o mesmo código de análise do
 monitor. Foi feita com FastAPI e páginas renderizadas no servidor (Jinja2), em
@@ -34,6 +34,15 @@ para instruções de uso.
 
 Cada incremento tem um arquivo de configuração em `ml/configs/` e pode ser
 treinado/avaliado de forma independente para comparação (TC1 §5.3).
+
+4. **Voz real contra clone** — o modelo final: o XLS-R 300M congelado, com uma
+   cabeça que pesa as camadas dele e junta o LFCC, treinada com a ASVspoof 5,
+   bases em português, salas simuladas, regravações e parte do In-the-Wild. O
+   áudio é analisado frase por frase, no arquivo e ao vivo, com o limiar
+   calibrado com vozes reais gravadas com termo de consentimento.
+
+O caminho de um áudio no modelo final e o mapa de cada script estão em
+[`ml/docs/MAPA_DO_CODIGO.md`](ml/docs/MAPA_DO_CODIGO.md).
 
 ## Início rápido
 

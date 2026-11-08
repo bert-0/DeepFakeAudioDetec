@@ -1,5 +1,9 @@
 # Notas de implementação
 
+> Notas dos detectores dos Incrementos 1 a 3 (`baseline_v2`, `fusion_v4`), até
+> 30/09/2026. O modelo final (XLS-R congelado, frase por frase) está no
+> `MAPA_DO_CODIGO.md`.
+
 Explicações que saíram dos comentários do código ao enxugá-los. Os números e
 as decisões continuam valendo; o lugar deles é aqui e no `RESUMO_TCC.md`, não
 dentro das funções.

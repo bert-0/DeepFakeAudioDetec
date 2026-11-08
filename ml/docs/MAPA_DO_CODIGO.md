@@ -20,24 +20,47 @@ Cada etapa abaixo usa a anterior.
 | 7. Limiar | escolhido no dev ou calibrado com vozes reais | `src/limiares.py`, `scripts/limiar_xlsr.py` |
 | 8. Captura | microfone, som do computador, janelas, frases, checagens | `src/capture/`, `monitor.py` |
 | 9. Vozes e clones | gravar, clonar e o placar dos ensaios (Incremento 4) | `scripts/gravar_frases.py`, `scripts/clonar_xtts.py`, `scripts/teste_voz_propria.py` |
-| 10. Interface | Enviar arquivo, Resultado, Ao vivo, Clonar, Histórico | `web/` |
+| 10. Interface | Enviar arquivo, Resultado, Ao vivo, Clonar, Histórico e a página Conferir | `web/` |
 
 Os estudos (`scripts/estudo_*.py`) ficam fora da linha: são exploratórios, e
 nenhum deles muda um placar.
 
 ## O caminho de um áudio no modelo final
 
-1. `src/preprocess/audio.py` `load_audio`: lê e leva a 16 kHz pelo FIR
-   (`reamostragem.py`; o `soxr` apagava 7,6–8 kHz).
-2. `src/features/xlsr.py` `preparar_wav`: tira o silêncio das pontas e normaliza
-   pelo pico; `janelas`: 4 s com passo de 2 s.
-3. `src/features/xlsr.py` `por_janela`: as 25 camadas do XLS-R, a média de cada
-   uma no tempo; `lfcc_medio`: o LFCC do arquivo.
-4. `src/xlsr_final.py` `ModeloFinal.pontuar_wav`: a cabeça pesa as camadas e dá
-   o log-odds.
-5. `src/xlsr_final.py` `ler_limiar`: o limiar do JSON (`outputs/limiar_xlsr/`),
-   um para o arquivo e outro para a frase do ao vivo.
-6. Ao vivo, antes do passo 2: `src/capture/frases.py` junta a fala até a pausa.
+As duas abas, Enviar arquivo e Ao vivo, seguem o mesmo caminho, frase por frase
+(decisão (b), §10.2.45). A cabeça em uso é `checkpoints/xlsr_congelado_itw.pt`
+(§10.2.49).
+
+1. **Ler.** `src/preprocess/audio.py` `load_audio` lê o arquivo e leva a 16 kHz
+   pelo FIR (`reamostragem.py`; o `soxr` apagava 7,6–8 kHz). Ao vivo, o
+   microfone passa pelo mesmo FIR (`src/capture/sources.py`).
+2. **Achar as frases.** `src/capture/frases.py` `AnalisadorFrases` junta a fala
+   até uma pausa de 0,8 s:
+   - a fala é medida sem graves (passa-altas de 150 Hz);
+   - ela começa a 6 dB acima do piso de ruído (o percentil 10 dos últimos 30 s)
+     e acaba abaixo de 3 dB;
+   - menos de 1 s de fala não vira frase, e uma frase passa de no máximo 15 s.
+
+   No arquivo, quem chama é `ModeloFinal.pontuar_por_frases`; ao vivo, o
+   `monitor.py --xlsr`.
+3. **Preparar cada frase.** `src/features/xlsr.py` `preparar_wav` tira o
+   silêncio das pontas e normaliza pelo pico; `janelas` corta 4 s com passo de
+   2 s.
+4. **Representar.** `por_janela` tira as 25 camadas do XLS-R congelado, com a
+   média de cada uma no tempo; `lfcc_medio` tira o LFCC.
+5. **Pontuar.** `src/xlsr_final.py` `ModeloFinal.pontuar_wav`: a cabeça pesa as
+   camadas, junta o LFCC e dá o log-odds da frase.
+6. **Decidir.**
+   - No arquivo, o score é a média dos log-odds das frases; ao vivo, cada frase
+     tem o seu veredito.
+   - O limiar vem de `ler_limiar` (`outputs/limiar_xlsr/limiar.json`): o da
+     frase, calibrado com as vozes reais (`scripts/limiar_xlsr.py`).
+   - Na tela, o score aparece na escala centrada (`centrado` em
+     `src/limiares.py`), com o limiar em 0,50; a decisão é a mesma.
+
+Os modelos antigos (`baseline_v2`, `fusion_v4`) seguem pelo outro caminho:
+janelas de 4 s com passo de 2 s no áudio todo, pesadas pela fração de fala
+(`src/capture/analyzer.py`).
 
 ## Pastas
 
@@ -84,13 +107,14 @@ nenhum deles muda um placar.
 **Captura**
 - `testar_microfone.py`, `diagnostico_captura.py` (pacotes repetidos, e o
   `reparar`), `diagnosticar_captura.py` (deformação no tempo),
-  `comparar_sessoes.py`, `comparar_espectro.py`, `simular_caminho.py`,
-  `simular_perdas.py`.
+  `comparar_sessoes.py`, `comparar_espectro.py`, `simular_caminho.py` (o
+  `simular_perdas.py` virou `--efeito perdas`, 08/11/2026).
 
 **Vozes e clones**
 - `gravar_frases.py`: grava as frases, com as checagens.
-- `preparar_referencia.py`, `clonar_xtts.py`: a referência e o clone (XTTS ou
-  Chatterbox, cada um no seu ambiente conda).
+- `preparar_referencia.py`, `clonar_xtts.py`: a referência (da leitura do texto
+  ou das frases já gravadas) e o clone (XTTS ou Chatterbox, cada um no seu
+  ambiente conda).
 - `teste_voz_propria.py`: o placar dos ensaios (`--xlsr` para o modelo final).
 - `avaliar_arquivos.py`, `gerar_sintetico.py`, `ensaio_canal_igualado.py`,
   `montar_demo.py`.
@@ -118,16 +142,18 @@ nenhum deles muda um placar.
 | mudar a checagem depois de gravar | `src/capture/checagens.py` |
 | registrar um experimento | `docs/RESUMO_TCC.md`, com o critério antes de rodar |
 
-## Depois da pré-banca: as pastas
+## Depois da banca: as pastas
 
 Combinado com o grupo (28/10/2026): o mapa agora; mover os arquivos só depois
-da pré-banca, para os comandos da colinha não mudarem antes da apresentação. O
-plano é pôr os scripts em subpastas com os nomes das etapas acima
-(`scripts/dados/`, `treino/`, `avaliacao/`, `limiares/`, `captura/`, `vozes/`,
-`estudos/`) e, junto:
+da apresentação, para os comandos da colinha não mudarem antes dela. Não houve
+pré-banca, então a mudança fica para depois da banca. O plano é pôr os scripts
+em subpastas com os nomes das etapas acima (`scripts/dados/`, `treino/`,
+`avaliacao/`, `limiares/`, `captura/`, `vozes/`, `estudos/`) e, junto:
 - trocar os nomes parecidos (`diagnostico_captura.py` e
   `diagnosticar_captura.py`) e os que estão em inglês (`check_*`);
-- tirar `simular_perdas.py`, que hoje é só um atalho para o
-  `simular_caminho.py`;
 - atualizar os imports (`scripts.x` vira `scripts.etapa.x`), os testes, a
   colinha e o CLAUDE.md. O RESUMO_TCC fica como está, com os caminhos da época.
+
+Já feito, sem mudar comando da colinha (08/11/2026): o `simular_perdas.py` saiu
+(era só um atalho para o `simular_caminho.py`), e a `resample_mono` de
+`src/capture/sources.py`, sem uso e com o `soxr` que apagava 7,6–8 kHz, também.

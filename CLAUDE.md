@@ -35,7 +35,7 @@ confira se está no plano; se não estiver, diga isso e pergunte antes de seguir
 ## Comandos (de dentro de `ml/`, PowerShell, ambiente conda ativo)
 
 ```powershell
-python -m pytest tests -q                 # ~690 testes; rodar antes de todo commit
+python -m pytest tests -q                 # ~1150 testes; rodar antes de todo commit
 ruff check --select E9,F .                # o mesmo lint do CI
 uvicorn web.app:app                       # interface em http://127.0.0.1:8000
 python monitor.py --config configs\baseline_v2.yaml --checkpoint checkpoints\baseline_lfcc_cnn_v2.pt [--fonte microfone]
@@ -252,8 +252,8 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   de 12 s levam uns 5 s de ruído da sala que o `top_db` 30 não tira; a frase do
   ao vivo não, e o score muda nos dois sentidos (L02: −1,71 a +0,86). Por isso
   há dois limiares, das mesmas vozes: L02 arquivo −0,517, frase −0,389. A média
-  das janelas não é o score do arquivo (até 0,67 de diferença). Pendente: cortar
-  a fala também no arquivo. Nos devs (§10.2.45, sem critério), cortar a fala não
+  das janelas não é o score do arquivo (até 0,67 de diferença). Feito: as duas
+  abas vão frase por frase (decisão (b), 29/10/2026). Nos devs (§10.2.45, sem critério), cortar a fala não
   muda a AUC (±0,005) e sobe o EER de 0,2 a 1 pp; com salas simuladas, o detector
   de fala falhava em 20% dos arquivos; com entrada a 6 dB e saída a 3 dB do piso,
   5 de 1.600, sem frase no ruído puro da sala. O ao vivo avisa na tela quando há
@@ -271,6 +271,12 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   limiar do dev, mais reais da ASVspoof 5 erram (72,7% certos, antes 81,2%).
   Ensaio 5 frase por frase com o limiar do L02 (descritivo): reais 10 de 10,
   XTTS 10 e 10, Chatterbox 10 pelo arquivo e 9 pelo ar.
+- **Limiar em uso** (RESUMO_TCC §10.2.46, 06/11/2026): frase −0,581, o maior
+  score das vozes reais de L02, L03 e L04, nas duas abas. Testes da
+  demonstração (§10.2.50 a §10.2.52): a voz real do L06, fora do treino e da
+  calibração, 10 de 10 abaixo do limiar; clones da aba Clonar (L03 a L06, 20
+  por voz e ferramenta), 156 de 160 pegos. Os 4 que passaram são da L04; o
+  Chatterbox fica mais perto do limiar.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16

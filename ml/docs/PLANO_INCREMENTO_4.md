@@ -189,6 +189,9 @@ primeiro: nenhuma gravação começa antes deles.
 - Organização (decidido em 28/10/2026): o mapa do código já está em
   `docs/MAPA_DO_CODIGO.md`; mover os scripts para subpastas por etapa só depois
   da pré-banca, para os comandos da colinha não mudarem antes da apresentação.
+  Não houve pré-banca: a mudança fica para depois da banca. Em 08/11/2026 saíram
+  só o atalho `simular_perdas.py` e uma função sem uso, sem mudar comando da
+  colinha.
 
 ## Riscos e mitigação
 

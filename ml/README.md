@@ -4,10 +4,19 @@
 
 Pipeline de detecção de deepfakes em áudio (pré-processamento → extração de
 características → modelo → métricas), construído nos três incrementos descritos
-no TC1.
+no TC1, e o sistema de análise (monitor ao vivo e interface web).
 
-Para se achar no código (a linha de raciocínio, as pastas e cada script por etapa):
-[`docs/MAPA_DO_CODIGO.md`](docs/MAPA_DO_CODIGO.md).
+**Modelo final (Incremento 4):** o XLS-R 300M congelado, com uma cabeça que pesa
+as camadas dele e junta o LFCC (`src/xlsr_final.py`, treinada pelo
+`scripts/xlsr_congelado.py`). O áudio é analisado frase por frase, no arquivo e
+ao vivo, com o limiar calibrado com vozes reais (`scripts/limiar_xlsr.py`). As
+seções abaixo, do treino ao monitor, são dos detectores dos Incrementos 1 a 3
+(`baseline_v2`, `fusion_v4`), que seguem nas tabelas do relatório.
+
+Para se achar no código (a linha de raciocínio, o caminho de um áudio no modelo
+final, as pastas e cada script por etapa):
+[`docs/MAPA_DO_CODIGO.md`](docs/MAPA_DO_CODIGO.md). Os números de cada
+experimento: [`docs/RESUMO_TCC.md`](docs/RESUMO_TCC.md).
 
 ## Instalação
 
@@ -16,6 +25,7 @@ cd ml
 python -m venv .venv && source .venv/bin/activate   # opcional
 pip install -r requirements.txt
 pip install -r requirements-dev.txt   # opcional: para rodar os testes
+pip install -r requirements-xlsr.txt  # o modelo final (XLS-R); o modelo vem do cache (HF_HOME)
 ```
 
 > **GPU:** o pipeline detecta CUDA automaticamente e cai para CPU se não houver.
@@ -485,31 +495,38 @@ WAV, MP3, FLAC, OGG e Opus abrem direto. **M4A e AAC precisam do FFmpeg** no
 computador (no Windows: `winget install Gyan.FFmpeg`, depois reabrir o terminal);
 sem ele, a página avisa e pede outro formato. Na demonstração, prefira WAV.
 
-Abas: **Enviar arquivo** (arrastar ou selecionar), **Resultados** (histórico e,
-por análise: score médio, veredito pelo limiar, uma barra por janela de 4 s
-com a cor do lado do limiar, detalhes e relatório em JSON) e **Ao vivo**: o
-botão "Iniciar análise" abre o `monitor.py` como processo do servidor (o
-navegador não tem acesso ao áudio do sistema), o monitor grava o estado a cada
-janela e a página lê a cada 2 s. "Parar análise" cria o arquivo que o monitor
-vigia (`--parar-com`) — no Windows não dá para mandar Ctrl+C a outro processo —
-e a sessão encerrada vai para Resultados. A aba mostra só a sessão atual.
-Janelas parciais (pouca fala, completadas por repetição) aparecem apagadas: pesam
-pouco na média e costumam ter score alto. `POST /api/analisar` devolve o
-resultado em JSON; `GET /api/ao-vivo`, a sessão.
+Com o modelo final (o JSON do `scripts/limiar_xlsr.py`), no PowerShell:
 
-A estrutura (abas, envio, resultado, ao vivo) segue o protótipo do docx
-"Outras partes da UI"; o visual foi trocado por um de ferramenta técnica
-(fundo claro, cantos retos, números em fonte monoespaçada, sem ícones), e os
-elementos de maquete saíram: barras de onda decorativas viraram uma barra por janela real, o
-"nível de confiança em %" virou o score (0 = humano, 1 = sintético, que não é
-uma confiança), e barra de progresso inventada, seletor de estados e botões
-sem função saíram. O caminho de análise é o do monitor, que dá o mesmo score do
-`infer.py` (`tests/test_monitor_consistencia.py`), e o limiar é escolhido pelo
-tipo de áudio. O arquivo enviado é apagado ao fim da análise; o histórico
-(SQLite em `outputs/web/historico.db`) guarda só o resultado.
+```powershell
+$env:DETECTOR_XLSR = "outputs\limiar_xlsr\limiar.json"
+$env:DETECTOR_DEVICE = "cpu"   # deixa a GPU para o ao vivo e a clonagem
+uvicorn web.app:app
+```
 
-Variáveis opcionais: `DETECTOR_CONFIG`, `DETECTOR_CHECKPOINT` (padrão:
-`baseline_v2`), `DETECTOR_DEVICE` (padrão `cpu`), `DETECTOR_BANCO`.
+Abas:
+- **Enviar arquivo:** analisa um áudio frase por frase; o score é a média das
+  frases.
+- **Resultado:** o veredito pelo limiar e uma barra por frase.
+- **Ao vivo:** abre o `monitor.py` como processo do servidor (o navegador não
+  tem acesso ao áudio do sistema), com veredito por frase. "Parar" cria o
+  arquivo que o monitor vigia (`--parar-com`): no Windows não dá para mandar
+  Ctrl+C a outro processo.
+- **Clonar:** gera o clone de uma voz autorizada por termo
+  (`data/vozes/vozes_autorizadas.json`) e o analisa como arquivo.
+- **Histórico:** as análises e sessões; o arquivo enviado é apagado ao fim da
+  análise, e o banco (SQLite em `outputs/web/historico.db`) guarda só o
+  resultado.
+
+A **Conferir**, no cabeçalho, roda sozinha quando o servidor sobe (modelo,
+limiar, GPU, microfone, som, clonagem, disco). Na tela, o score aparece na
+escala centrada no limiar (o limiar fica em 0,50). Tema escuro (preto e verde)
+por padrão, com o claro num botão.
+
+Variáveis: `DETECTOR_XLSR` (o modelo final), `DETECTOR_LIMIAR_FUSAO` (a fusão
+dos `fusion_v4`), `DETECTOR_CONFIG` e `DETECTOR_CHECKPOINT` (um detector
+antigo; padrão `baseline_v2`), `DETECTOR_DEVICE` (padrão `cpu`),
+`DETECTOR_BANCO`, `DETECTOR_PASTA_AO_VIVO`, `DETECTOR_PASTA_CLONES`,
+`DETECTOR_VOZES` e `DETECTOR_CONFERIR` (`0` desliga a conferência).
 
 ## Inferência em um único áudio (RF05/RF06/RF07)
 
@@ -815,39 +832,5 @@ modelo já treinado avalia nela sem nenhuma mudança.
 
 ## Estrutura
 
-```
-ml/
-├── configs/              # baseline.yaml, fusion.yaml, attention.yaml
-├── src/
-│   ├── config.py         # carga de YAML + utilidades (seed, device)
-│   ├── metrics.py        # accuracy, precision, recall, F1, EER, matriz
-│   ├── scores.py         # scores salvos/reaproveitados entre as análises
-│   ├── data/
-│   │   ├── dataset.py    # ASVspoofDataset + SmokeDataset
-│   │   └── cache.py      # cache de features em arquivo mapeado em memória
-│   ├── preprocess/
-│   │   ├── audio.py      # PreProcessador: resample, mono, fix-length, silêncio
-│   │   └── augment.py    # aumentação (treino) e perturbações (robustez)
-│   ├── features/
-│   │   ├── lfcc.py       # LFCC + delta/delta-delta
-│   │   ├── spectrogram.py# log-mel espectrograma
-│   │   ├── deltas.py
-│   │   └── extractor.py  # ExtratorCaracteristicas (orquestra as features)
-│   └── models/
-│       ├── blocks.py     # blocos CNN compartilhados
-│       ├── baseline_cnn.py
-│       ├── fusion.py     # Incremento 2
-│       ├── attention.py  # Incremento 3
-│       └── registry.py   # build_model(config)
-├── scripts/
-│   ├── check_data.py     # valida a estrutura/conteúdo da base antes do treino
-│   ├── run_pipeline.py   # encadeia treino + avaliação + análises
-│   ├── per_attack_eval.py# EER por algoritmo de síntese (TC1 §5.4)
-│   ├── score_fusion.py   # fusão de scores entre modelos treinados
-│   ├── make_report.py    # tabelas e figuras do relatório
-│   └── robustness_eval.py# avaliação de robustez sob ruído/ganho (TC1 §5.5)
-├── tests/                # suíte pytest (métricas, features, modelos, etc.)
-├── train.py
-├── evaluate.py
-└── infer.py
-```
+As pastas, o que vai para o Git e cada script por etapa estão no
+[`docs/MAPA_DO_CODIGO.md`](docs/MAPA_DO_CODIGO.md).
