@@ -4,10 +4,11 @@ Rodar (de dentro de `ml/`):
     pip install -r web/requirements.txt
     uvicorn web.app:app --reload
 
-Variáveis de ambiente opcionais: DETECTOR_CONFIG, DETECTOR_CHECKPOINT,
-DETECTOR_DEVICE (padrão cpu), DETECTOR_BANCO (padrão outputs/web/historico.db),
-DETECTOR_LIMIAR_FUSAO e DETECTOR_XLSR (o modelo final, com HF_HOME no cache do
-XLS-R; ver web/analise.py).
+O modelo final (XLS-R congelado) é o padrão; ver `caminho_xlsr` em web/analise.py.
+Variáveis de ambiente opcionais: DETECTOR_XLSR (outro limiar; 0 desliga),
+DETECTOR_CONFIG, DETECTOR_CHECKPOINT, DETECTOR_LIMIAR_FUSAO (os detectores
+antigos), DETECTOR_DEVICE (padrão cpu), DETECTOR_BANCO (padrão
+outputs/web/historico.db).
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ from fastapi.templating import Jinja2Templates
 from src.capture import CaptureError
 from src.limiares import centrado
 from src.xlsr_final import NOME as NOME_XLSR, FalaCurta
-from web.analise import Detector, nome_dos_modelos, significativos
+from web.analise import Detector, caminho_xlsr, nome_dos_modelos, significativos
 from web.banco import Banco
 
 AQUI = Path(__file__).resolve().parent
@@ -308,7 +309,7 @@ def _rodar_conferencia() -> None:
 
     try:
         d = detector()
-        itens = conferir_tudo(os.environ.get("DETECTOR_XLSR"), carregar=d.modelo_final if d.xlsr else None,
+        itens = conferir_tudo(caminho_xlsr(), carregar=d.modelo_final if d.xlsr else None,
                               rodando=_rodando(_sessao()))
         final = {"resumo": resumo(itens), "situacao": situacao(itens), "itens": como_dicts(itens)}
     except Exception as erro:
@@ -358,11 +359,14 @@ class PedidoClone(BaseModel):
 
 @app.get("/clonar", response_class=HTMLResponse)
 def pagina_clonar(request: Request):
+    from web.referencia import texto_referencia, vozes_para_gravar
+
     vozes = ler_vozes()
     if not vozes:
         print("[clonar] nenhuma voz autorizada (data/vozes/vozes_autorizadas.json)")
     return templates.TemplateResponse(request, "clonar.html", {
-        "aba": "clonar", "vozes": [v.codigo for v in vozes], "ferramentas": ferramentas_disponiveis()})
+        "aba": "clonar", "vozes": [v.codigo for v in vozes], "ferramentas": ferramentas_disponiveis(),
+        "vozes_gravar": vozes_para_gravar(), "texto_referencia": texto_referencia()})
 
 
 @app.post("/api/clonar")
@@ -370,6 +374,8 @@ def api_clonar(pedido: PedidoClone):
     """Síncrona de propósito: roda numa thread do servidor, e a página espera."""
     if _rodando(_sessao()):
         raise HTTPException(409, "Pare a análise ao vivo antes de gerar um clone.")
+    if gravador_referencia().gravando():
+        raise HTTPException(409, "Espere a gravação da referência terminar.")
     voz = next((v for v in ler_vozes() if v.codigo == pedido.voz), None)
     if voz is None:
         raise HTTPException(400, "Essa voz não está entre as autorizadas.")
@@ -396,6 +402,49 @@ def api_clonar(pedido: PedidoClone):
         print(f"[clonar] {wav}: {erro}")
         raise HTTPException(422, "O clone saiu com pouca fala para analisar.") from erro
     return {"analise_id": banco().salvar(r, detector().modelo, gravacao=str(wav.resolve()))}
+
+
+# --- Referência da clonagem ---------------------------------------------------
+# Grava pelo microfone do servidor, como o ao vivo, numa thread (web/referencia.py).
+
+class PedidoReferencia(BaseModel):
+    voz: str
+
+
+def gravador_referencia():
+    from web.referencia import Gravador
+
+    if "gravador" not in _estado:
+        _estado["gravador"] = Gravador()
+    return _estado["gravador"]
+
+
+@app.post("/api/referencia/gravar")
+def api_referencia_gravar(pedido: PedidoReferencia):
+    from web.referencia import vozes_para_gravar
+
+    if _rodando(_sessao()):
+        raise HTTPException(409, "Pare a análise ao vivo antes de gravar.")
+    if _estado.get("clonando"):
+        raise HTTPException(409, "Espere o clone terminar.")
+    if pedido.voz not in vozes_para_gravar():
+        raise HTTPException(400, "Essa voz não está entre as autorizadas.")
+    try:
+        gravador_referencia().iniciar(pedido.voz)
+    except RuntimeError as erro:
+        raise HTTPException(409, "Já há uma gravação em andamento.") from erro
+    return {"ok": True}
+
+
+@app.post("/api/referencia/parar")
+def api_referencia_parar():
+    gravador_referencia().parar()
+    return {"ok": True}
+
+
+@app.get("/api/referencia")
+def api_referencia():
+    return gravador_referencia().estado()
 
 
 # --- Ao vivo -----------------------------------------------------------------
@@ -451,9 +500,9 @@ def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path
     import sys
 
     fusao = os.environ.get("DETECTOR_LIMIAR_FUSAO")
-    if os.environ.get("DETECTOR_XLSR"):
+    if caminho_xlsr():
         # O modelo final analisa frase por frase, pelo mesmo caminho do arquivo.
-        modelo = ["--xlsr", os.environ["DETECTOR_XLSR"]]
+        modelo = ["--xlsr", caminho_xlsr()]
     elif fusao:
         # A fusão do teste com voz real: modelos, regra e limiar escolhidos nos devs.
         modelo = ["--limiar-fusao", fusao]
@@ -474,7 +523,7 @@ def _iniciar_monitor(json_path: Path, wav_path: Path, parar_path: Path, log_path
 @app.get("/ao-vivo", response_class=HTMLResponse)
 def ao_vivo(request: Request):
     return templates.TemplateResponse(request, "ao_vivo.html", {
-        "aba": "ao_vivo", "por_frase": bool(os.environ.get("DETECTOR_XLSR"))})
+        "aba": "ao_vivo", "por_frase": bool(caminho_xlsr())})
 
 
 @app.get("/api/ao-vivo/dispositivos")
@@ -494,6 +543,8 @@ def api_ao_vivo_iniciar(pedido: PedidoAoVivo | None = None):
     pedido = pedido or PedidoAoVivo()
     if _rodando(_sessao()):
         raise HTTPException(409, "Já há uma sessão ao vivo em andamento.")
+    if gravador_referencia().gravando():
+        raise HTTPException(409, "Espere a gravação da referência terminar.")
     pasta = pasta_ao_vivo()
     pasta.mkdir(parents=True, exist_ok=True)
     marca = time.strftime("%Y%m%d_%H%M%S")
@@ -546,7 +597,7 @@ def _salvar_sessao_no_historico(sessao: dict) -> int | None:
 
 
 def _modelo_ao_vivo() -> str:
-    if os.environ.get("DETECTOR_XLSR"):
+    if caminho_xlsr():
         return NOME_XLSR
     fusao = os.environ.get("DETECTOR_LIMIAR_FUSAO")
     if not fusao:

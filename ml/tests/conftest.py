@@ -24,13 +24,17 @@ def _roda_de_dentro_de_ml(monkeypatch):
 def _interface_fora_das_pastas_reais(tmp_path, monkeypatch):
     """A limpeza do histórico varre a pasta do ao vivo e a dos clones. Sem isto, um
     teste apagou as gravações reais de outputs/ao_vivo (29/10/2026). Também não deixa
-    o modelo do terminal (DETECTOR_XLSR de quem subiu a interface) vazar para os testes."""
+    o modelo do terminal (DETECTOR_XLSR de quem subiu a interface) vazar para os testes,
+    e desliga o modelo final padrão: ele só existe na máquina que calibrou o limiar."""
     monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(tmp_path / "ao_vivo"))
     monkeypatch.setenv("DETECTOR_PASTA_CLONES", str(tmp_path / "clones"))
     monkeypatch.setenv("DETECTOR_BANCO", str(tmp_path / "historico.db"))
+    # O gravador da referência escreve na lista de vozes e grava em data/vozes.
+    monkeypatch.setenv("DETECTOR_VOZES", str(tmp_path / "vozes_autorizadas.json"))
+    monkeypatch.setenv("DETECTOR_PASTA_VOZES", str(tmp_path / "vozes"))
     monkeypatch.setenv("DETECTOR_CONFERIR", "0")
-    for nome in ("DETECTOR_XLSR", "DETECTOR_LIMIAR_FUSAO"):
-        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.setenv("DETECTOR_XLSR", "0")
+    monkeypatch.delenv("DETECTOR_LIMIAR_FUSAO", raising=False)
 
 
 @pytest.fixture

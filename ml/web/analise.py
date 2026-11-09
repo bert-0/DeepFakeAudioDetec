@@ -8,9 +8,10 @@ Com `DETECTOR_LIMIAR_FUSAO` (o JSON do `scripts/limiar_fusao.py`), a análise us
 os modelos, a regra e o limiar desse arquivo, com a taxa comum de 48 kHz: o mesmo
 caminho do ensaio 2 (RESUMO_TCC §10.2.13). A aba Ao vivo lê a mesma variável.
 
-Com `DETECTOR_XLSR` (o JSON do `scripts/limiar_xlsr.py`), a análise usa o modelo
-final, o XLS-R congelado (§10.2.43), pelo caminho das réguas: o score é o do
-arquivo inteiro; as barras por janela são só para ver onde ele sobe.
+O modelo final, o XLS-R congelado (§10.2.43, §10.2.49), é o padrão desde
+09/11/2026: sem nenhuma variável de modelo, a interface usa o limiar calibrado em
+`outputs/limiar_xlsr/limiar.json`. `DETECTOR_XLSR` aponta outro JSON do
+`scripts/limiar_xlsr.py`, e `DETECTOR_XLSR=0` volta aos detectores antigos.
 """
 
 from __future__ import annotations
@@ -32,6 +33,9 @@ from src.limiares import (
     taxa_nativa,
 )
 
+RAIZ_ML = Path(__file__).resolve().parent.parent
+#: O limiar do modelo final calibrado com as vozes reais (scripts/limiar_xlsr.py).
+XLSR_PADRAO = RAIZ_ML / "outputs" / "limiar_xlsr" / "limiar.json"
 CONFIG_PADRAO = "configs/baseline_v2.yaml"
 CHECKPOINT_PADRAO = "checkpoints/baseline_lfcc_cnn_v2.pt"
 #: A do ensaio 2: clone de 24 kHz e gravação de 48 kHz pela mesma conversão final.
@@ -65,6 +69,21 @@ def nome_dos_modelos(checkpoints: list[str] | tuple[str, ...]) -> str:
     return nomes[0] if len(nomes) == 1 else "fusão: " + " + ".join(nomes)
 
 
+def caminho_xlsr() -> str | None:
+    """O JSON do modelo final, ou None para os detectores antigos.
+
+    `DETECTOR_XLSR` decide quando existe (`0` ou vazio desliga). Sem ela, quem
+    escolheu um modelo antigo por outra variável fica com ele; senão vale o padrão,
+    se já foi calibrado. Antes, esquecer a variável no terminal subia a interface
+    com o baseline_v2 sem ninguém notar (09/11/2026)."""
+    valor = os.environ.get("DETECTOR_XLSR")
+    if valor is not None:
+        return None if valor.strip() in ("", "0") else valor
+    if any(os.environ.get(v) for v in ("DETECTOR_LIMIAR_FUSAO", "DETECTOR_CONFIG", "DETECTOR_CHECKPOINT")):
+        return None
+    return str(XLSR_PADRAO) if XLSR_PADRAO.is_file() else None
+
+
 class Detector:
     """Carrega config e checkpoint uma vez; cada análise cria seu analisador,
     para o estado do canal não vazar de um arquivo para outro."""
@@ -75,9 +94,9 @@ class Detector:
         self.device = resolve_device(device or os.environ.get("DETECTOR_DEVICE", "cpu"))
         self.limiar_xlsr = None
         self._modelo_final = None
-        caminho_xlsr = xlsr or os.environ.get("DETECTOR_XLSR")
-        if caminho_xlsr:
-            self._iniciar_xlsr(caminho_xlsr)
+        json_xlsr = xlsr or (None if config or checkpoint or limiar_fusao else caminho_xlsr())
+        if json_xlsr:
+            self._iniciar_xlsr(json_xlsr)
             return
         caminho_fusao = limiar_fusao or os.environ.get("DETECTOR_LIMIAR_FUSAO")
         self.fusao = ler_limiar_fusao(caminho_fusao) if caminho_fusao else None

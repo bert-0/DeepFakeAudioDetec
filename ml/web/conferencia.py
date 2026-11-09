@@ -48,8 +48,9 @@ class Item:
 def modelo_final(caminho_json: str | None, carregar=None) -> list[Item]:
     """O JSON do limiar (com os pesos da cabeça conferidos), a pasta do XLS-R e a carga."""
     if not caminho_json:
-        return [Item("Modelo", "atencao", "a interface está com o modelo antigo (baseline_v2)",
-                     "Suba a interface com DETECTOR_XLSR apontando para o limiar do modelo final.")]
+        return [Item("Modelo", "atencao", "a interface está com um detector antigo, não com o modelo final",
+                     "Calibre o limiar do modelo final (scripts/limiar_xlsr.py) e tire DETECTOR_XLSR=0, "
+                     "se estiver definido.")]
     from src.xlsr_final import ler_limiar
 
     try:

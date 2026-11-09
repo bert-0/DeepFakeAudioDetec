@@ -44,9 +44,13 @@ class Voz:
     referencia: Path
 
 
+def caminho_vozes() -> Path:
+    return Path(os.environ.get("DETECTOR_VOZES", RAIZ_ML / VOZES_PADRAO))
+
+
 def ler_vozes(caminho: str | Path | None = None) -> list[Voz]:
     """As vozes autorizadas; arquivo ausente ou referência sumida ficam de fora."""
-    caminho = Path(caminho or os.environ.get("DETECTOR_VOZES", VOZES_PADRAO))
+    caminho = Path(caminho or caminho_vozes())
     if not caminho.is_file():
         return []
     dados = json.loads(caminho.read_text(encoding="utf-8"))

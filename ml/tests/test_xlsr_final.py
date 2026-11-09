@@ -289,6 +289,51 @@ def test_ao_vivo_roda_o_modelo_final(limiar_xlsr, tmp_path, monkeypatch):
     assert modulo._modelo_ao_vivo() == "xlsr_congelado"
 
 
+def test_sem_variavel_a_interface_usa_o_modelo_final(limiar_xlsr, tmp_path, monkeypatch):
+    """09/11/2026: a interface subiu com o baseline_v2 porque a variável ficou em outro
+    terminal. O modelo final calibrado passou a ser o padrão."""
+    import subprocess
+
+    import web.analise as analise
+
+    monkeypatch.delenv("DETECTOR_XLSR")
+    monkeypatch.setattr(analise, "XLSR_PADRAO", limiar_xlsr)
+    import web.app as modulo
+
+    importlib.reload(modulo)
+    assert modulo.detector().xlsr
+    capturado = {}
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: capturado.setdefault("cmd", cmd))
+    modulo._iniciar_monitor(tmp_path / "s.json", tmp_path / "s.wav", tmp_path / "s.parar",
+                            tmp_path / "s.log", fonte="microfone")
+    assert capturado["cmd"][capturado["cmd"].index("--xlsr") + 1] == str(limiar_xlsr)
+    assert modulo._modelo_ao_vivo() == "xlsr_congelado"
+
+
+@pytest.mark.parametrize(("variaveis", "calibrado", "esperado"), [
+    ({}, True, "padrão"),
+    ({}, False, None),
+    ({"DETECTOR_XLSR": "0"}, True, None),
+    ({"DETECTOR_XLSR": ""}, True, None),
+    ({"DETECTOR_XLSR": "outro.json"}, True, "outro.json"),
+    ({"DETECTOR_CONFIG": "configs/fusion_v4.yaml"}, True, None),
+    ({"DETECTOR_LIMIAR_FUSAO": "fusao.json"}, True, None),
+])
+def test_qual_modelo_a_interface_usa(tmp_path, monkeypatch, variaveis, calibrado, esperado):
+    """Quem escolhe um detector antigo por variável fica com ele; DETECTOR_XLSR=0 desliga."""
+    import web.analise as analise
+
+    padrao = tmp_path / "limiar.json"
+    if calibrado:
+        padrao.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(analise, "XLSR_PADRAO", padrao)
+    for nome in ("DETECTOR_XLSR", "DETECTOR_CONFIG", "DETECTOR_CHECKPOINT", "DETECTOR_LIMIAR_FUSAO"):
+        monkeypatch.delenv(nome, raising=False)
+    for nome, valor in variaveis.items():
+        monkeypatch.setenv(nome, valor)
+    assert analise.caminho_xlsr() == (str(padrao) if esperado == "padrão" else esperado)
+
+
 def test_monitor_frase_por_frase_num_arquivo(limiar_xlsr, tmp_path):
     import monitor
 
