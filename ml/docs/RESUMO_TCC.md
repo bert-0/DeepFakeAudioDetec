@@ -5284,6 +5284,32 @@ em `outputs/clones_teste/sementes/` e saem até 19/11/2026.
 no Chatterbox (mediana +1,40, contra +4,41 a +6,88 nas outras vozes). Para a
 banca, as vozes mais seguras são L03, L05 e L06.
 
+### 10.2.53 Clones do L01 e do L02 na aba Clonar (descritivo, 09/11/2026)
+
+**Por quê:** o L01 e o L02 também autorizaram clones (termos de 06/11/2026), mas
+não gravaram o texto de referência. As referências vieram das 10 frases que cada
+um já tinha lido, juntadas pelo `preparar_referencia.py` (como as da L03 e da L04
+no 10.2.51): 82,7 s (L01, frases do teste) e 93,8 s (L02, frases da calibração).
+Teste rápido, sem critério: as 4 primeiras frases do 10.2.52, semente 1 a 4,
+nas duas ferramentas, analisadas como no Enviar arquivo, limiar −0,581. Em
+`outputs/testes_demo/clones_L01_L02.json`; os clones saem até 19/11/2026.
+
+| voz | XTTS acima do limiar | Chatterbox acima do limiar |
+|---|---|---|
+| L01 | 4 de 4 (+1,159 a +5,715) | **2 de 4** (−3,269 a +2,282) |
+| L02 | 4 de 4 (+3,239 a +3,605) | **1 de 4** (−2,763 a +4,255) |
+
+- O XTTS foi pego nos 8. O Chatterbox passou em 5 de 8, três deles bem abaixo do
+  limiar (−3,269, −2,763, −1,178).
+- Amostra pequena (4 por voz e ferramenta). Nas vozes com a leitura do texto de
+  referência (L05, L06), o Chatterbox foi pego 40 de 40 no 10.2.52; nas de frases
+  juntadas, L03 20 de 20, L04 17 de 20, e agora L01 e L02 3 de 8. A causa não
+  foi medida; uma hipótese é a referência, frases curtas de 12 s com o ruído da
+  sala entre elas.
+
+**Leitura:** para a banca, o L01 e o L02 só com o XTTS, ou com uma referência
+nova gravada na aba Clonar (o texto de referência inteiro) e testada antes.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
