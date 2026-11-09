@@ -100,7 +100,9 @@ Rode <b>só um</b> dos dois.</p>
     inicia e para a captura. Ao parar, a sessão vai para o Histórico.</td></tr>
   <tr><td>Clonar</td><td>Escolhe a voz (só as autorizadas por termo) e a ferramenta (XTTS ou Chatterbox),
     digita a frase e gera o clone; ele toca na página e já sai analisado. Leva de 1 a 2 minutos.
-    Pare o ao vivo antes: a GPU não comporta os dois.</td></tr>
+    Pare o ao vivo antes: a GPU não comporta os dois. Embaixo, <b>Gravar a referência</b>: escolhe a
+    voz, a pessoa lê o texto da tela e clica em Parar; se as checagens passarem, a gravação vira a
+    referência daquela voz. Pessoa nova só entra na lista à mão, depois de conferir o termo.</td></tr>
   <tr><td>Conferir</td><td>No cabeçalho, ao lado de Sobre: roda sozinha quando o servidor abre e mostra
     "Pronto", "Atenção" ou "Falha". A página lista o que conferiu (modelo, limiar, GPU, microfone, som,
     clonagem, disco) e o que fazer. Pelo terminal: <code>python scripts\conferir.py</code>.</td></tr>
@@ -113,19 +115,20 @@ Rode <b>só um</b> dos dois.</p>
 <pre>$env:DETECTOR_CONFIG = "configs\baseline_v2.yaml"
 $env:DETECTOR_CHECKPOINT = "checkpoints\baseline_lfcc_cnn_v2.pt"
 uvicorn web.app:app</pre>
-<p class="faz"><b>O que faz:</b> define qual modelo o servidor carrega (os valores acima já são o
-padrão). As variáveis valem só para aquele terminal. Outras: <code>DETECTOR_DEVICE</code> (cpu ou
+<p class="faz"><b>O que faz:</b> troca o modelo final por um detector antigo (os valores acima são os
+do baseline_v2). As variáveis valem só para aquele terminal. Outras: <code>DETECTOR_DEVICE</code> (cpu ou
 cuda), <code>DETECTOR_BANCO</code> (arquivo do histórico), <code>DETECTOR_PASTA_AO_VIVO</code>
 (onde ficam as gravações).</p>
 </div>
 
 <h3>Modelo final: XLS-R congelado</h3>
 <div class="cmd">
-<pre>$env:DETECTOR_XLSR = "outputs\limiar_xlsr\limiar.json"
-$env:DETECTOR_DEVICE = "cpu"
-uvicorn web.app:app</pre>
-<p class="faz"><b>O que faz:</b> sobe a interface com o modelo final. O JSON traz o limiar, a cabeça
-treinada e a pasta do XLS-R; o modelo carrega na primeira análise. Com <code>cpu</code>, o Enviar arquivo
+<pre>uvicorn web.app:app</pre>
+<p class="faz"><b>O que faz:</b> o modelo final é o padrão desde 09/11: a interface usa o limiar
+calibrado em <code>outputs\limiar_xlsr\limiar.json</code>, que traz também a cabeça treinada e a
+pasta do XLS-R; o modelo carrega na primeira análise. Outro limiar:
+<code>$env:DETECTOR_XLSR = "arquivo.json"</code>; <code>$env:DETECTOR_XLSR = "0"</code> volta aos
+detectores antigos. Com <code>cpu</code>, o Enviar arquivo
 leva uns 3 s por áudio e deixa a GPU para o ao vivo e para a aba Clonar (o Chatterbox ocupa quase toda
 ela). As duas abas analisam só a fala, <b>frase por frase</b>, com o mesmo limiar: no Enviar arquivo, o
 score é a média das frases; no Ao vivo, o resultado aparece cerca de 1 s depois que a pessoa para de falar.</p>
@@ -292,11 +295,12 @@ página. Numa pasta do <code>gerar_sintetico</code>, compara original, Griffin-L
     apagado; a gravação ao vivo fica no computador até a sessão ser excluída.</td></tr>
   <tr><td>Por que o ao vivo do modelo final espera a pausa?</td><td>O limiar foi calibrado com frases
     inteiras, e a média de pedaços de 4 s não dá o mesmo número: a diferença chega a 0,67 nos log-odds.</td></tr>
-  <tr><td>Por que dois limiares no modelo final?</td><td>A gravação de 12 s leva uns 5 s de ruído da sala,
-    e a frase do ao vivo não. Cada caminho tem o seu limiar, tirado das mesmas vozes reais.</td></tr>
+  <tr><td>Por que um limiar só no modelo final?</td><td>A gravação de 12 s leva uns 5 s de ruído da sala,
+    e a frase do ao vivo não. Desde 29/10, as duas abas analisam só a fala, frase por frase, com o mesmo
+    limiar, tirado das vozes reais de L02, L03 e L04.</td></tr>
 </table>
 
-<p class="rodape">Números de RESUMO_TCC.md (seções 10.2.1 a 10.2.7; modelo final, 10.2.43 e 10.2.44).
-Modelo padrão: baseline_v2; o modelo final entra com <code>DETECTOR_XLSR</code>.</p>
+<p class="rodape">Números de RESUMO_TCC.md (seções 10.2.1 a 10.2.7; modelo final, 10.2.43 a 10.2.52).
+Modelo padrão: o modelo final (desde 09/11/2026); <code>DETECTOR_XLSR=0</code> volta ao baseline_v2.</p>
 </body>
 </html>

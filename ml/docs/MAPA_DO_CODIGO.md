@@ -68,7 +68,7 @@ janelas de 4 s com passo de 2 s no áudio todo, pesadas pela fração de fala
 |---|---|---|
 | `src/` | a biblioteca: tudo que a interface, o monitor e os scripts importam | sim |
 | `scripts/` | um comando por tarefa (lista abaixo) | sim |
-| `web/` | a interface: rotas (`app.py`), análise (`analise.py`), clonagem (`clonagem.py`), conferência (`conferencia.py`), histórico (`banco.py`), telas | sim |
+| `web/` | a interface: rotas (`app.py`), análise e escolha do modelo (`analise.py`), clonagem (`clonagem.py`), gravação da referência (`referencia.py`), conferência (`conferencia.py`), histórico (`banco.py`), telas | sim |
 | `tests/` | um arquivo por módulo, com dados sintéticos, sem GPU e sem base real | sim |
 | `configs/` | um YAML por modelo treinado (`baseline_v2`, `fusion_v4`, ...) | sim |
 | `docs/` | `RESUMO_TCC.md` (todos os números), `PLANO_INCREMENTO_4.md`, `TC2_REDACAO.md`, ética e colinha | sim |
@@ -132,12 +132,12 @@ janelas de 4 s com passo de 2 s no áudio todo, pesadas pela fração de fala
 
 | tarefa | arquivo |
 |---|---|
-| trocar o limiar do modelo final | rodar `scripts/limiar_xlsr.py` com as vozes novas |
+| trocar o limiar do modelo final | rodar `scripts/limiar_xlsr.py` com as vozes novas (a interface lê `outputs/limiar_xlsr/limiar.json` sozinha) |
 | mudar o que a tela mostra | `web/templates/` e `web/static/estilo.css` |
 | mudar uma rota ou o que ela faz | `web/app.py` |
 | mudar como um arquivo é analisado | `web/analise.py` e `src/xlsr_final.py` |
 | mudar o corte das frases do ao vivo | `src/capture/frases.py` |
-| pôr ou tirar uma voz da aba Clonar | `data/vozes/vozes_autorizadas.json`, só com o termo |
+| pôr ou tirar uma voz da aba Clonar | `data/vozes/vozes_autorizadas.json`, só com o termo; a referência se grava na própria aba (`web/referencia.py`) |
 | conferir tudo antes de apresentar | a página Conferir, ou `scripts/conferir.py` |
 | mudar a checagem depois de gravar | `src/capture/checagens.py` |
 | registrar um experimento | `docs/RESUMO_TCC.md`, com o critério antes de rodar |

@@ -174,6 +174,11 @@ primeiro: nenhuma gravação começa antes deles.
     modo atual).
     Ligar uma voz continua à mão, depois de conferir o termo em papel. Gravar a
     referência pela própria aba fica para depois da entrega do texto (08/11).
+  - Feito em 09/11/2026 (pedido do grupo): a aba grava a referência de uma voz
+    da lista pelo microfone, com as checagens do gravador (`web/referencia.py`);
+    só vozes com a clonagem autorizada aparecem, e a tentativa reprovada não
+    guarda nada. L01 e L02 entraram na aba com referências das frases já
+    gravadas. O modelo final passou a ser o padrão da interface.
 - Conferência antes da apresentação (pedido do grupo, 29/10/2026): roda sozinha
   quando a interface abre (modelo e limiar, GPU, microfone, som, clonagem,
   disco) e mostra a situação no cabeçalho; também `scripts/conferir.py`. Na

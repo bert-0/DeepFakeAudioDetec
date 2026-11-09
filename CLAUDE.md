@@ -80,8 +80,10 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   Histórico. O ao vivo roda o `monitor.py` como subprocesso, parado por arquivo
   (`--parar-com`). Com `DETECTOR_LIMIAR_FUSAO` (JSON do `limiar_fusao.py`), as
   duas abas usam os modelos, a regra e o limiar dele; Enviar arquivo usa também a
-  taxa comum de 48 kHz, como o ensaio 2. Com `DETECTOR_XLSR` (JSON do
-  `scripts/limiar_xlsr.py`), as duas abas usam o modelo final
+  taxa comum de 48 kHz, como o ensaio 2. O modelo final é o padrão desde
+  09/11/2026 (`caminho_xlsr` em `web/analise.py`: o limiar de
+  `outputs/limiar_xlsr/limiar.json`; `DETECTOR_XLSR` aponta outro, `0` desliga, e
+  as variáveis de um detector antigo também o desligam): as duas abas usam o modelo final
   (`src/xlsr_final.py`, preparo em `src/features/xlsr.py`): as duas só com a
   fala, frase por frase (`src/capture/frases.py`), com o limiar da frase
   (decisão de 29/10/2026; `limiar_xlsr.py --arquivo-inteiro` volta ao caminho
@@ -92,7 +94,10 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   (`web/clonagem.py`): roda o `clonar_xtts.py` no ambiente conda da ferramenta,
   offline primeiro, só com as vozes de `data/vozes/vozes_autorizadas.json`; o
   clone é analisado como arquivo e apagado com o registro. Não clona com o ao
-  vivo ligado (o Chatterbox ocupa ~3,4 GB da GPU). Conferência
+  vivo ligado (o Chatterbox ocupa ~3,4 GB da GPU). A mesma aba grava a referência
+  de uma voz da lista (`web/referencia.py`, 09/11/2026), com as checagens do
+  gravador; tentativa reprovada não guarda nada, e pessoa nova só entra na lista à
+  mão, depois de conferir o termo. Conferência
   (`web/conferencia.py`, `scripts/conferir.py`): roda sozinha quando o servidor
   sobe (`DETECTOR_CONFERIR=0` desliga) e mostra a situação no cabeçalho; o
   microfone e o som têm tempo limite, porque o driver de áudio pode travar.

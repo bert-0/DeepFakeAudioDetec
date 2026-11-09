@@ -495,13 +495,10 @@ WAV, MP3, FLAC, OGG e Opus abrem direto. **M4A e AAC precisam do FFmpeg** no
 computador (no Windows: `winget install Gyan.FFmpeg`, depois reabrir o terminal);
 sem ele, a página avisa e pede outro formato. Na demonstração, prefira WAV.
 
-Com o modelo final (o JSON do `scripts/limiar_xlsr.py`), no PowerShell:
-
-```powershell
-$env:DETECTOR_XLSR = "outputs\limiar_xlsr\limiar.json"
-$env:DETECTOR_DEVICE = "cpu"   # deixa a GPU para o ao vivo e a clonagem
-uvicorn web.app:app
-```
+O modelo final é o padrão (desde 09/11/2026): com o limiar calibrado em
+`outputs/limiar_xlsr/limiar.json` (do `scripts/limiar_xlsr.py`), basta
+`uvicorn web.app:app`. A análise de arquivos roda na CPU (`DETECTOR_DEVICE`,
+padrão `cpu`), e a GPU fica para o ao vivo e a clonagem.
 
 Abas:
 - **Enviar arquivo:** analisa um áudio frase por frase; o score é a média das
@@ -512,7 +509,10 @@ Abas:
   arquivo que o monitor vigia (`--parar-com`): no Windows não dá para mandar
   Ctrl+C a outro processo.
 - **Clonar:** gera o clone de uma voz autorizada por termo
-  (`data/vozes/vozes_autorizadas.json`) e o analisa como arquivo.
+  (`data/vozes/vozes_autorizadas.json`) e o analisa como arquivo. Embaixo, grava
+  a referência de uma voz da lista pelo microfone, com as checagens do gravador
+  (`web/referencia.py`); pessoa nova entra na lista à mão, depois de conferir o
+  termo.
 - **Histórico:** as análises e sessões; o arquivo enviado é apagado ao fim da
   análise, e o banco (SQLite em `outputs/web/historico.db`) guarda só o
   resultado.
@@ -522,11 +522,12 @@ limiar, GPU, microfone, som, clonagem, disco). Na tela, o score aparece na
 escala centrada no limiar (o limiar fica em 0,50). Tema escuro (preto e verde)
 por padrão, com o claro num botão.
 
-Variáveis: `DETECTOR_XLSR` (o modelo final), `DETECTOR_LIMIAR_FUSAO` (a fusão
-dos `fusion_v4`), `DETECTOR_CONFIG` e `DETECTOR_CHECKPOINT` (um detector
-antigo; padrão `baseline_v2`), `DETECTOR_DEVICE` (padrão `cpu`),
-`DETECTOR_BANCO`, `DETECTOR_PASTA_AO_VIVO`, `DETECTOR_PASTA_CLONES`,
-`DETECTOR_VOZES` e `DETECTOR_CONFERIR` (`0` desliga a conferência).
+Variáveis: `DETECTOR_XLSR` (outro limiar do modelo final; `0` desliga),
+`DETECTOR_LIMIAR_FUSAO` (a fusão dos `fusion_v4`), `DETECTOR_CONFIG` e
+`DETECTOR_CHECKPOINT` (um detector antigo no lugar do modelo final),
+`DETECTOR_DEVICE` (padrão `cpu`), `DETECTOR_BANCO`, `DETECTOR_PASTA_AO_VIVO`,
+`DETECTOR_PASTA_CLONES`, `DETECTOR_VOZES`, `DETECTOR_PASTA_VOZES` (onde a aba
+Clonar grava as referências) e `DETECTOR_CONFERIR` (`0` desliga a conferência).
 
 ## Inferência em um único áudio (RF05/RF06/RF07)
 
