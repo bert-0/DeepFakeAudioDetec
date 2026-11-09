@@ -17,10 +17,10 @@ import torch
 
 pytest.importorskip("fastapi")
 pytest.importorskip("multipart")
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from src.config import load_config  # noqa: E402
-from src.models import build_model  # noqa: E402
+from src.config import load_config
+from src.models import build_model
 
 
 def _vozes(tmp_path, autorizada=True):
@@ -138,7 +138,7 @@ def cliente(tmp_path, monkeypatch):
 
 
 def test_aba_clonar_gera_analisa_toca_e_apaga(cliente):
-    c, modulo, tmp_path = cliente
+    c, _, tmp_path = cliente
     pagina = c.get("/clonar").text
     assert 'value="L01"' in pagina and "L03" not in pagina and "XTTS v2" in pagina
     assert "Chatterbox" not in pagina, "sem o ambiente, a ferramenta não aparece"
@@ -157,7 +157,7 @@ def test_aba_clonar_gera_analisa_toca_e_apaga(cliente):
 
 
 def test_aba_clonar_recusa_o_que_nao_pode(cliente, monkeypatch):
-    c, modulo, tmp_path = cliente
+    c, modulo, _ = cliente
     frase = "a biblioteca abre mais cedo para os alunos estudarem"
     assert c.post("/api/clonar", json={"voz": "L03", "frase": frase}).status_code == 400
     assert c.post("/api/clonar", json={"voz": "L01", "ferramenta": "chatterbox", "frase": frase}).status_code == 400
@@ -168,7 +168,7 @@ def test_aba_clonar_recusa_o_que_nao_pode(cliente, monkeypatch):
 
 
 def test_audio_so_de_dentro_das_pastas(cliente):
-    c, modulo, tmp_path = cliente
+    _, modulo, tmp_path = cliente
     fora = tmp_path / "fora.wav"
     sf.write(fora, np.zeros(16000, np.float32), 16000)
     assert modulo._audio_da_analise({"gravacao": str(fora)}) is None

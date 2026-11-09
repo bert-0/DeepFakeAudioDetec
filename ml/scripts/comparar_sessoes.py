@@ -22,9 +22,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, output_name  # noqa: E402
-from src.metrics import compute_eer  # noqa: E402
-from src.scores import scores_path  # noqa: E402
+from src.config import load_config, output_name
+from src.metrics import compute_eer
+from src.scores import scores_path
 
 OUTPUT_DIR = Path("outputs")
 

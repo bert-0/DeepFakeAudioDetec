@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.data.asvspoof2021 import (  # noqa: E402
+from src.data.asvspoof2021 import (
     MetadadoInvalido,
     condicoes,
     escrever_protocolo,
@@ -20,7 +20,7 @@ from src.data.asvspoof2021 import (  # noqa: E402
     ler_metadata,
     linha_de_protocolo,
 )
-from src.data.dataset import parse_protocol_with_systems  # noqa: E402
+from src.data.dataset import parse_protocol_with_systems
 
 # Formato do eval-package: locutor arquivo codec canal ataque chave trim fase.
 # O bonafide aparece com `bonafide` (formato real) e com `-` na coluna de ataque.

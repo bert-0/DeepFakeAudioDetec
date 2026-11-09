@@ -33,8 +33,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.score_fusion import combine  # noqa: E402
-from src.metrics import compute_eer, compute_eer_with_threshold  # noqa: E402
+from scripts.score_fusion import combine
+from src.metrics import compute_eer, compute_eer_with_threshold
 
 
 def carregar(caminho: str | Path) -> dict:

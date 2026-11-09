@@ -29,8 +29,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.checagens import checar, energia_por_faixa  # noqa: E402
-from src.capture.sources import CaptureError, MicrofoneWasapiSource  # noqa: E402
+from src.capture.checagens import checar, energia_por_faixa
+from src.capture.sources import CaptureError, MicrofoneWasapiSource
 
 #: Abaixo disso é a variação natural entre duas leituras da mesma frase.
 LIMIAR_DB = 6.0

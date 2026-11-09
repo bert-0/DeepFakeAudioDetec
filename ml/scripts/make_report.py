@@ -104,12 +104,12 @@ def duracao(segundos) -> str:
 
 
 def as_markdown(cabecalho: list[str], linhas: list[list[str]]) -> str:
-    largura = [max(len(cabecalho[i]), *(len(l[i]) for l in linhas)) if linhas
+    largura = [max(len(cabecalho[i]), *(len(lin[i]) for lin in linhas)) if linhas
                else len(cabecalho[i]) for i in range(len(cabecalho))]
     def linha(celulas):
         return "| " + " | ".join(c.ljust(largura[i]) for i, c in enumerate(celulas)) + " |"
     partes = [linha(cabecalho), "|" + "|".join("-" * (w + 2) for w in largura) + "|"]
-    partes += [linha(l) for l in linhas]
+    partes += [linha(lin) for lin in linhas]
     return "\n".join(partes) + "\n"
 
 
@@ -121,8 +121,8 @@ def as_latex(cabecalho: list[str], linhas: list[list[str]], legenda: str,
                 .replace("%", r"\%").replace("&", r"\&").replace("—", "--"))
 
     colunas = "l" + "r" * (len(cabecalho) - 1)
-    corpo = "\n".join("    " + " & ".join(escapar(c) for c in l) + r" \\"
-                      for l in linhas)
+    corpo = "\n".join("    " + " & ".join(escapar(c) for c in lin) + r" \\"
+                      for lin in linhas)
     return (
         "\\begin{table}[htbp]\n"
         "  \\centering\n"

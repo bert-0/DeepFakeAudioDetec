@@ -28,8 +28,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.checagens import trechos_de_fala  # noqa: E402
-from src.capture.frases import medir_frases  # noqa: E402
+from src.capture.checagens import trechos_de_fala
+from src.capture.frases import medir_frases
 
 FOLGA_S = 0.5
 PICO_DB = -3.0

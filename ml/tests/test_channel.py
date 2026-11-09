@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.preprocess.channel import (  # noqa: E402
+from src.preprocess.channel import (
     ChannelChain,
     ChannelDegradation,
     limitar_banda,

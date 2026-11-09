@@ -9,7 +9,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.simular_caminho import main, remover_trechos  # noqa: E402
+from scripts.simular_caminho import main, remover_trechos
 
 SR = 16000
 

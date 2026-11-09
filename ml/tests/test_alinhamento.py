@@ -13,7 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.alinhamento import (  # noqa: E402
+from src.capture.alinhamento import (
     CORRELACAO_MINIMA,
     Trecho,
     alinhar,
@@ -215,7 +215,8 @@ def test_linha_de_protocolo_e_lida_pelo_parser(tmp_path):
 def _base_falsa(raiz: Path, n: int = 8) -> Path:
     import soundfile as sf
 
-    audio = raiz / "flac"; audio.mkdir(parents=True)
+    audio = raiz / "flac"
+    audio.mkdir(parents=True)
     linhas = []
     for i in range(n):
         spoof = i % 2 == 1

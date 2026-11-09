@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.data.dataset import parse_protocol_with_systems  # noqa: E402
+from src.data.dataset import parse_protocol_with_systems
 
 RAPIDO, ALTERNATIVO, PULADO = "rapido", "alternativo", "pulado"
 

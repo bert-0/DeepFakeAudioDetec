@@ -97,7 +97,7 @@ def test_sem_ruido_de_fundo_avisa_que_o_teste_nao_decide():
 def test_grava_a_48_khz_sem_o_fir_e_sem_o_clique_do_inicio(monkeypatch):
     sinal = np.random.default_rng(4).standard_normal(SR * 2) * 0.1
     _sounddevice_falso(monkeypatch, sinal)
-    wav, modo, nome, taxa = gravar(1.0, True, None)
+    wav, modo, _, taxa = gravar(1.0, True, None)
     assert (modo, taxa) == ("exclusivo", SR) and len(wav) == SR
     np.testing.assert_allclose(wav, sinal[SR // 2:SR // 2 + SR], atol=1e-6)
 

@@ -13,8 +13,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.features.lfcc import compute_lfcc, linear_filterbank  # noqa: E402
-from src.preprocess.degradacao import Degradacao  # noqa: E402
+from src.features.lfcc import compute_lfcc, linear_filterbank
+from src.preprocess.degradacao import Degradacao
 
 RAIZ = Path(__file__).resolve().parent.parent
 SR = 16000

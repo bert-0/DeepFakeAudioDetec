@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.robustness_eval import indices_estratificados  # noqa: E402
+from scripts.robustness_eval import indices_estratificados
 
 LABELS = [0] * 700 + [1] * 290 + [1] * 10
 SYSTEMS = ["-"] * 700 + ["A07"] * 290 + ["A19"] * 10

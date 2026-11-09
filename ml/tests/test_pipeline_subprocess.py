@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.run_pipeline import child_env, run_step  # noqa: E402
+from scripts.run_pipeline import child_env, run_step
 
 
 class LogCronometrado:

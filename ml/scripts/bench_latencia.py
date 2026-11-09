@@ -20,9 +20,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.analyzer import AnalisadorContinuo, Agregador  # noqa: E402
-from src.capture.sources import FileSource  # noqa: E402
-from src.config import load_config, resolve_device  # noqa: E402
+from src.capture.analyzer import AnalisadorContinuo, Agregador
+from src.capture.sources import FileSource
+from src.config import load_config, resolve_device
 
 #: Limite do RNF01 por análise.
 LIMITE_RNF01_S = 30.0

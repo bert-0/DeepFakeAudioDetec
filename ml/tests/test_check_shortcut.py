@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.check_shortcut import eer_trivial  # noqa: E402
+from scripts.check_shortcut import eer_trivial
 
 
 def _rotulos_e_valores(sep: float, n: int = 400, seed: int = 0):

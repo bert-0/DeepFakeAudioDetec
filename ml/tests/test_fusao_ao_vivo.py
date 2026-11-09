@@ -10,9 +10,9 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.analyzer import AnalisadorContinuo, Agregador, Leitura  # noqa: E402
-from src.capture.qualidade import EstadoDoCanal  # noqa: E402
-from src.models import build_model  # noqa: E402
+from src.capture.analyzer import AnalisadorContinuo, Agregador, Leitura
+from src.capture.qualidade import EstadoDoCanal
+from src.models import build_model
 
 RAIZ = Path(__file__).resolve().parent.parent
 

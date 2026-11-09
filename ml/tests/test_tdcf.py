@@ -127,7 +127,7 @@ def test_exporta_formato_oficial(tmp_path):
     arq = tmp_path / "cm.txt"
     exportar_formato_oficial(arq, ["LA_E_1", "LA_E_2"], ["-", "A07"], [0, 1],
                              score_bonafide(np.array([0.2, 0.8])))
-    linhas = [l.split() for l in arq.read_text(encoding="utf-8").splitlines()]
+    linhas = [lin.split() for lin in arq.read_text(encoding="utf-8").splitlines()]
     assert linhas[0][:3] == ["LA_E_1", "-", "bonafide"]
     assert linhas[1][:3] == ["LA_E_2", "A07", "spoof"]
     assert float(linhas[0][3]) > float(linhas[1][3])

@@ -161,7 +161,10 @@ def test_same_epoch_is_reproducible_across_workers(audio_cfg, feat_cfg):
     ds = SmokeDataset(8, audio_cfg, FeatureExtractor(audio_cfg, feat_cfg),
                       seed=1, random_crop=True)
     loader = DataLoader(ds, batch_size=4, num_workers=2, persistent_workers=True)
-    ds.set_epoch(7); a = float(next(iter(loader))[0]["lfcc"].sum())
-    ds.set_epoch(9); next(iter(loader))
-    ds.set_epoch(7); b = float(next(iter(loader))[0]["lfcc"].sum())
+    ds.set_epoch(7)
+    a = float(next(iter(loader))[0]["lfcc"].sum())
+    ds.set_epoch(9)
+    next(iter(loader))
+    ds.set_epoch(7)
+    b = float(next(iter(loader))[0]["lfcc"].sum())
     assert abs(a - b) < 1e-9

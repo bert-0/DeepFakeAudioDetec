@@ -11,8 +11,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import scripts.canal_real as canal_real  # noqa: E402
-from test_alinhamento import SR, _base_falsa  # noqa: E402
+import scripts.canal_real as canal_real
+from test_alinhamento import SR, _base_falsa
 
 
 def _playlist(tmp_path):

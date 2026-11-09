@@ -7,7 +7,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.per_attack_eval import eer_per_attack  # noqa: E402
+from scripts.per_attack_eval import eer_per_attack
 
 
 def test_isolates_hard_attack_hidden_by_global_average():

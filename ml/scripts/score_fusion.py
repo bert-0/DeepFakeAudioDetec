@@ -23,13 +23,13 @@ from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, seed_worker, output_name, resolve_device, set_seed  # noqa: E402
-from src.data import build_dataset  # noqa: E402
-from src.data.dataset import protocol_ids_and_systems  # noqa: E402
-from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_eer, probabilidade_e_logodds  # noqa: E402
-from src.models import build_model  # noqa: E402
-from src.scores import checkpoint_fingerprint, load_scores, scores_path  # noqa: E402
+from src.config import load_config, seed_worker, output_name, resolve_device, set_seed
+from src.data import build_dataset
+from src.data.dataset import protocol_ids_and_systems
+from src.features import FeatureExtractor
+from src.metrics import compute_eer, probabilidade_e_logodds
+from src.models import build_model
+from src.scores import checkpoint_fingerprint, load_scores, scores_path
 
 OUTPUT_DIR = Path("outputs")
 RULES = ("mean", "rank", "max", "min")
@@ -67,9 +67,9 @@ def scores_of_model(config_path: str, ckpt_path: str, partition: str,
     if smoke:
         extractor = FeatureExtractor(config["audio"], config["features"])
         ds = build_dataset(config, partition, extractor, smoke)
-        ids, sistemas = list(ds.ids), list(ds.system_ids)
+        ids = list(ds.ids)
     else:
-        ids, sistemas = protocol_ids_and_systems(config, partition)
+        ids, _ = protocol_ids_and_systems(config, partition)
 
     if not recompute:
         reuso, motivo = load_scores(scores_path(OUTPUT_DIR, name, partition),

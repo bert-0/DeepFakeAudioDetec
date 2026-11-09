@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from web.analise import CHECKPOINT_PADRAO, CONFIG_PADRAO, Detector  # noqa: E402
+from web.analise import CHECKPOINT_PADRAO, CONFIG_PADRAO, Detector
 
 EXTENSOES = {".wav", ".flac", ".mp3", ".m4a", ".ogg", ".opus"}
 VERSOES = ("original", "griffinlim", "world")

@@ -12,11 +12,11 @@ import torch
 
 pytest.importorskip("fastapi")
 pytest.importorskip("multipart")
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from src.config import load_config  # noqa: E402
-from src.limiares import centrado  # noqa: E402
-from src.models import build_model  # noqa: E402
+from src.config import load_config
+from src.limiares import centrado
+from src.models import build_model
 
 
 @pytest.fixture()

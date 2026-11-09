@@ -180,7 +180,7 @@ def test_juntar_pastas_indexa_como_uma_so(tmp_path, professor):
                                   np.stack([a["entradas"][1, 0], b["entradas"][0, 0]]))
     np.testing.assert_array_equal(j["alvos"][4, :5], b["alvos"][1, :5])
     media, desvio = np.zeros(16, np.float32), np.ones(16, np.float32)
-    x, y, n_e, n_a = _lote(j, np.array([0, 4]), media, desvio, "cpu")
+    x, y, _, _ = _lote(j, np.array([0, 4]), media, desvio, "cpu")
     assert x.shape == (2, MAX_ENTRADA, 140) and y.shape == (2, MAX_ALVO, 16)
 
 

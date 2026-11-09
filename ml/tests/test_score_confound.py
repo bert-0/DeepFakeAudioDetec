@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.check_score_confound import classificar, piso_de_ruido  # noqa: E402
+from scripts.check_score_confound import classificar, piso_de_ruido
 
 
 def test_piso_cai_com_amostras_maiores():

@@ -24,9 +24,9 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config  # noqa: E402
-from src.data.dataset import parse_protocol_with_systems  # noqa: E402
-from src.preprocess import load_audio  # noqa: E402
+from src.config import load_config
+from src.data.dataset import parse_protocol_with_systems
+from src.preprocess import load_audio
 
 #: Silêncio entre áudios igual à janela do monitor (4 s), para uma janela não
 #: misturar dois áudios.

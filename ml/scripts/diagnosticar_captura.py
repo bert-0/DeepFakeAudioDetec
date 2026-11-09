@@ -20,8 +20,8 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.alinhamento import TAXA_ENVELOPE_HZ, envelope  # noqa: E402
-from src.preprocess import load_audio  # noqa: E402
+from src.capture.alinhamento import TAXA_ENVELOPE_HZ, envelope
+from src.preprocess import load_audio
 
 PEDACO_S = 3.0
 

@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.data.asvspoof5 import (  # noqa: E402
+from src.data.asvspoof5 import (
     ProtocoloInvalido,
     conferir_tamanho,
     escrever_protocolo,
@@ -21,7 +21,7 @@ from src.data.asvspoof5 import (  # noqa: E402
     resumo,
     subamostrar,
 )
-from src.data.dataset import parse_protocol_with_systems  # noqa: E402
+from src.data.dataset import parse_protocol_with_systems
 
 # locutor arquivo gênero codec codec_q original adaptação ataque chave reservado
 LINHAS = """\

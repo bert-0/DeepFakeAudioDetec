@@ -12,7 +12,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.rotulo import identificador, main  # noqa: E402
+from scripts.rotulo import identificador, main
 
 
 @pytest.fixture

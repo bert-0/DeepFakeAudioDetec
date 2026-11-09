@@ -8,8 +8,8 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.comparar_espectro import FAIXAS, comparar  # noqa: E402
-from scripts.simular_caminho import ida_e_volta  # noqa: E402
+from scripts.comparar_espectro import FAIXAS, comparar
+from scripts.simular_caminho import ida_e_volta
 
 SR = 16000
 

@@ -8,7 +8,7 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.simular_caminho import ida_e_volta, main, passa_baixa  # noqa: E402
+from scripts.simular_caminho import ida_e_volta, main, passa_baixa
 
 SR = 16000
 
@@ -68,5 +68,5 @@ def test_efeitos_encadeados_na_ordem(tmp_path):
                                                      encoding="utf-8")
     assert main(["--pasta", str(tmp_path / "canal"), "--destino", "ambos",
                  "--efeito", "reamostragem", "piso", "--db", "-31"]) == 0
-    _, dif, pa, pb = comparar(tmp_path / "canal", "limpo", "ambos")
+    _, _, pa, pb = comparar(tmp_path / "canal", "limpo", "ambos")
     assert np.median(pb - pa) > 30

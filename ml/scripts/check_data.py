@@ -19,8 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config  # noqa: E402
-from src.data.dataset import parse_protocol  # noqa: E402
+from src.config import load_config
+from src.data.dataset import parse_protocol
 
 OK = "[ OK ]"
 WARN = "[AVISO]"

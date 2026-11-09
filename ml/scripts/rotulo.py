@@ -16,8 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config  # noqa: E402
-from src.data.dataset import parse_protocol_with_systems  # noqa: E402
+from src.config import load_config
+from src.data.dataset import parse_protocol_with_systems
 
 ROTULO = {0: "bonafide", 1: "spoof"}
 

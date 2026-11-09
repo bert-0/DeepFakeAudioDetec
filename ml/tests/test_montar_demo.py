@@ -10,7 +10,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.montar_demo import GAP_S, INICIO_S, main, montar  # noqa: E402
+from scripts.montar_demo import GAP_S, INICIO_S, main, montar
 
 SR = 16000
 

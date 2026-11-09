@@ -8,9 +8,9 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from scripts.diagnosticar_captura import analisar, diagnosticar  # noqa: E402
-from src.capture.alinhamento import Trecho, montar_referencia  # noqa: E402
-from test_alinhamento import SR  # noqa: E402
+from scripts.diagnosticar_captura import analisar, diagnosticar
+from src.capture.alinhamento import Trecho, montar_referencia
+from test_alinhamento import SR
 
 
 def _rajadas(rng, segundos):

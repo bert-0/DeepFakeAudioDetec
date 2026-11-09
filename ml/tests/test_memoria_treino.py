@@ -13,12 +13,12 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import (  # noqa: E402
+from src.config import (
     RAM_POR_WORKER_GB,
     estimativa_ram_gb,
     memoria_total_gb,
 )
-from train import aviso_de_memoria, save_checkpoint  # noqa: E402
+from train import aviso_de_memoria, save_checkpoint
 
 CONFIGS = Path(__file__).resolve().parent.parent / "configs"
 

@@ -34,11 +34,11 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.fusao_ao_vivo import alinhar, limiar_por_alarme_falso, ponto_de_operacao  # noqa: E402
-from scripts.score_fusion import combine  # noqa: E402
-from src.config import config_derivado, load_config, salvar_config  # noqa: E402
-from src.limiares import LimiarFusao  # noqa: E402
-from src.metrics import compute_eer  # noqa: E402
+from scripts.fusao_ao_vivo import alinhar, limiar_por_alarme_falso, ponto_de_operacao
+from scripts.score_fusion import combine
+from src.config import config_derivado, load_config, salvar_config
+from src.limiares import LimiarFusao
+from src.metrics import compute_eer
 
 MODELOS_PADRAO = (
     ("configs/fusion_v4_2019_degr.yaml", "checkpoints/fusion_lcnn_v4_2019_degr.pt"),

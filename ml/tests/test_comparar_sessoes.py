@@ -8,8 +8,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import scripts.comparar_sessoes as comparar  # noqa: E402
-from src.scores import save_scores, scores_path  # noqa: E402
+import scripts.comparar_sessoes as comparar
+from src.scores import save_scores, scores_path
 
 IDS = ["LA_E_1", "LA_E_2", "LA_E_3", "LA_E_4"]
 LABELS = [0, 0, 1, 1]

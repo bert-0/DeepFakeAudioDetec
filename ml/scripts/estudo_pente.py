@@ -33,7 +33,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.estudo_linhas import GRADE, TOLERANCIA_HZ, excesso, ler  # noqa: E402
+from scripts.estudo_linhas import GRADE, TOLERANCIA_HZ, excesso, ler
 
 #: Banda do pente: acima dos harmônicos fortes da voz, abaixo dos 12 kHz dos clones.
 FAIXA_NATIVA = (4000.0, 11500.0)

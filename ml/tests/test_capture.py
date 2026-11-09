@@ -13,8 +13,8 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture import CaptureError, FileSource, JanelaDeslizante  # noqa: E402
-from src.capture.analyzer import (  # noqa: E402
+from src.capture import CaptureError, FileSource, JanelaDeslizante
+from src.capture.analyzer import (
     SILENCIO_RMS,
     Agregador,
     Leitura,

@@ -95,7 +95,7 @@ class LimiarXlsr:
     modelo_hf: str = MODELO_HF
     locutores: dict = field(default_factory=dict)
     limiar_frase: float | None = None
-    #: Opção (b) da decisão pendente: o Enviar arquivo também frase por frase.
+    #: Decisão (b), 29/10/2026 (§10.2.45): o Enviar arquivo também frase por frase.
     arquivo_por_frase: bool = False
     #: A pasta do XLS-R no cache, gravada na calibração: a interface não depende do HF_HOME.
     modelo_local: str | None = None
@@ -239,7 +239,7 @@ class ModeloFinal:
                          janelas=[(i / SR, float(v)) for i, v in zip(inicios(len(wav)), z_janelas, strict=True)])
 
     def pontuar_por_frases(self, bruto: np.ndarray, sample_rate: int = SR) -> Pontuacao:
-        """A opção (b) da decisão pendente (§10.2.44): o arquivo pelo caminho do ao vivo,
+        """Decisão (b), 29/10/2026 (§10.2.45): o arquivo pelo caminho do ao vivo,
         frase por frase, e o score é a média dos log-odds das frases."""
         from src.capture.frases import frases_de
 

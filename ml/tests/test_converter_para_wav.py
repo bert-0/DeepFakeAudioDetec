@@ -13,7 +13,7 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.converter_para_wav import (  # noqa: E402
+from scripts.converter_para_wav import (
     ALTERNATIVO,
     PULADO,
     RAPIDO,
@@ -47,7 +47,7 @@ def test_conversao_e_exata_amostra_a_amostra(origem, tmp_path):
     destino = tmp_path / "wav"
     destino.mkdir()
 
-    audio_id, status = converter_um(("a", str(origem / "a.flac"), str(destino / "a.wav")))
+    _, status = converter_um(("a", str(origem / "a.flac"), str(destino / "a.wav")))
 
     lido, sr = sf.read(destino / "a.wav", dtype="float32")
     assert status == RAPIDO and sr == SR

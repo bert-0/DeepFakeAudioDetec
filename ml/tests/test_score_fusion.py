@@ -7,16 +7,18 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.score_fusion import combine, eer_per_attack, parse_args, to_ranks  # noqa: E402
+from scripts.score_fusion import combine, eer_per_attack, parse_args, to_ranks
 
 
 def test_mean_averages_scores():
-    a = np.array([0.0, 1.0]); b = np.array([1.0, 0.0])
+    a = np.array([0.0, 1.0])
+    b = np.array([1.0, 0.0])
     assert np.allclose(combine([a, b], "mean"), [0.5, 0.5])
 
 
 def test_max_and_min():
-    a = np.array([0.2, 0.9]); b = np.array([0.7, 0.1])
+    a = np.array([0.2, 0.9])
+    b = np.array([0.7, 0.1])
     assert np.allclose(combine([a, b], "max"), [0.7, 0.9])
     assert np.allclose(combine([a, b], "min"), [0.2, 0.1])
 

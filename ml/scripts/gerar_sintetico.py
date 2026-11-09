@@ -20,8 +20,8 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.montar_demo import GAP_S, montar  # noqa: E402
-from src.preprocess import load_audio  # noqa: E402
+from scripts.montar_demo import GAP_S, montar
+from src.preprocess import load_audio
 
 TAXA_MODELO = 16000
 TAXA_SAIDA = 48000

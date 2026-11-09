@@ -33,7 +33,7 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.alinhamento import (  # noqa: E402
+from src.capture.alinhamento import (
     Trecho,
     alinhar,
     carregar_mapa,
@@ -42,9 +42,9 @@ from src.capture.alinhamento import (  # noqa: E402
     recortar,
     salvar_mapa,
 )
-from src.config import config_derivado, load_config, salvar_config  # noqa: E402
-from src.data.dataset import parse_protocol_with_systems  # noqa: E402
-from src.preprocess import load_audio  # noqa: E402
+from src.config import config_derivado, load_config, salvar_config
+from src.data.dataset import parse_protocol_with_systems
+from src.preprocess import load_audio
 
 #: Silêncio entre áudios: folga para o recorte e para a supressão de ruído.
 GAP_S = 1.0
@@ -105,7 +105,8 @@ def cmd_preparar(args) -> int:
         return 1
 
     referencia, mapa = montar_referencia(audios, sr, GAP_S)
-    saida = Path(args.saida); saida.mkdir(parents=True, exist_ok=True)
+    saida = Path(args.saida)
+    saida.mkdir(parents=True, exist_ok=True)
     sf.write(saida / "referencia.wav", referencia, sr)
     salvar_mapa(mapa, saida / "mapa.json", sr)
 
@@ -327,7 +328,8 @@ def cmd_alinhar(args) -> int:
     encaixes = alinhar(mapa, referencia, captura, sr)
     pedacos = recortar(captura, encaixes)
 
-    saida = destino_sessao / "capturado"; saida.mkdir(parents=True, exist_ok=True)
+    saida = destino_sessao / "capturado"
+    saida.mkdir(parents=True, exist_ok=True)
     for arquivo in saida.glob("*.flac"):
         arquivo.unlink()
     for trecho, wav in pedacos:

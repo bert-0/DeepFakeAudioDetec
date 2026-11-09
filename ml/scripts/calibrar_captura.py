@@ -20,13 +20,13 @@ from torch.utils.data import DataLoader, Subset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.robustness_eval import indices_estratificados, run_inference  # noqa: E402
-from src.config import load_config, resolve_device, seed_worker, set_seed  # noqa: E402
-from src.data import build_dataset  # noqa: E402
-from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_eer, compute_eer_with_threshold  # noqa: E402
-from src.models import build_model  # noqa: E402
-from src.preprocess.channel import ChannelDegradation  # noqa: E402
+from scripts.robustness_eval import indices_estratificados, run_inference
+from src.config import load_config, resolve_device, seed_worker, set_seed
+from src.data import build_dataset
+from src.features import FeatureExtractor
+from src.metrics import compute_eer, compute_eer_with_threshold
+from src.models import build_model
+from src.preprocess.channel import ChannelDegradation
 
 #: Acima desta fração de bonafide em 1,0 nenhum limiar os separa (fusion_v4: 100%).
 SATURACAO_MAXIMA = 0.05

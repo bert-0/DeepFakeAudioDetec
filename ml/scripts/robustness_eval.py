@@ -27,24 +27,24 @@ from torch.utils.data import DataLoader, Subset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import (  # noqa: E402
+from src.config import (
     load_config,
     output_name,
     resolve_device,
     seed_worker,
     set_seed,
 )
-from src.data import build_dataset  # noqa: E402
-from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import (  # noqa: E402
+from src.data import build_dataset
+from src.features import FeatureExtractor
+from src.metrics import (
     compute_eer,
     compute_metrics,
     format_metrics,
     probabilidade_e_logodds,
 )
-from src.models import build_model  # noqa: E402
-from src.preprocess.augment import make_perturbation  # noqa: E402
-from src.preprocess.channel import (  # noqa: E402
+from src.models import build_model
+from src.preprocess.augment import make_perturbation
+from src.preprocess.channel import (
     ChannelChain,
     ChannelDegradation,
     medir_taxa_kbps,

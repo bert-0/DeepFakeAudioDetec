@@ -249,8 +249,10 @@ def test_attention_freq_stats_honours_freq_bins(freq_bins):
 def test_attention_freq_stats_distinguishes_frequency_bands():
     from src.models.blocks import AttentiveFreqStatsPool, AttentiveStatsPool
 
-    baixa = torch.zeros(1, 1, 8, 20); baixa[:, :, :4, :] = 1.0
-    alta = torch.zeros(1, 1, 8, 20); alta[:, :, 4:, :] = 1.0
+    baixa = torch.zeros(1, 1, 8, 20)
+    baixa[:, :, :4, :] = 1.0
+    alta = torch.zeros(1, 1, 8, 20)
+    alta[:, :, 4:, :] = 1.0
     plano = AttentiveStatsPool(1)
     assert torch.allclose(plano(baixa), plano(alta))          # não distingue
     preserva = AttentiveFreqStatsPool(1, freq_bins=4)

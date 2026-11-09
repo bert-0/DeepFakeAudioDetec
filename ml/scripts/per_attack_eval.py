@@ -21,13 +21,13 @@ from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config, seed_worker, output_name, resolve_device, set_seed  # noqa: E402
-from src.data import build_dataset  # noqa: E402
-from src.data.dataset import protocol_ids_and_systems  # noqa: E402
-from src.features import FeatureExtractor  # noqa: E402
-from src.metrics import compute_eer, probabilidade_e_logodds  # noqa: E402
-from src.models import build_model  # noqa: E402
-from src.scores import checkpoint_fingerprint, load_scores, scores_path  # noqa: E402
+from src.config import load_config, seed_worker, output_name, resolve_device, set_seed
+from src.data import build_dataset
+from src.data.dataset import protocol_ids_and_systems
+from src.features import FeatureExtractor
+from src.metrics import compute_eer, probabilidade_e_logodds
+from src.models import build_model
+from src.scores import checkpoint_fingerprint, load_scores, scores_path
 
 OUTPUT_DIR = Path("outputs")
 

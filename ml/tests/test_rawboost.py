@@ -14,8 +14,8 @@ from scipy.signal import freqz, lfilter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.preprocess import rawboost as rb  # noqa: E402
-from src.preprocess.degradacao import Degradacao  # noqa: E402
+from src.preprocess import rawboost as rb
+from src.preprocess.degradacao import Degradacao
 
 SR = 16000
 

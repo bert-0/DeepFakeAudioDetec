@@ -27,8 +27,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import config_derivado, load_config, salvar_config  # noqa: E402
-from src.data.asvspoof2021 import (  # noqa: E402
+from src.config import config_derivado, load_config, salvar_config
+from src.data.asvspoof2021 import (
     MetadadoInvalido,
     condicoes,
     escrever_protocolo,

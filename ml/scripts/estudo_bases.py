@@ -35,8 +35,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.estudo_linhas import GRADE, escolher_linhas, presenca  # noqa: E402
-from scripts.estudo_pente import FAIXA_MODELO, auc, varrido  # noqa: E402
+from scripts.estudo_linhas import GRADE, escolher_linhas, presenca
+from scripts.estudo_pente import FAIXA_MODELO, auc, varrido
 
 SR = 16000
 SEGUNDOS = 3.0

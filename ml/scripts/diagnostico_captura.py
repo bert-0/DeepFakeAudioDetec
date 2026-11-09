@@ -39,7 +39,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # A contagem mora nas checagens, que a rodam depois de cada gravação.
-from src.capture.checagens import SILENCIO_DIGITAL, contar_repetidos  # noqa: E402
+from src.capture.checagens import SILENCIO_DIGITAL, contar_repetidos
 
 
 def remover_repetidos(x: np.ndarray, pacote: int = 480,

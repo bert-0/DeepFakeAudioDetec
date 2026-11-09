@@ -8,7 +8,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.calibrar_captura import calibrar, caminho_saida, main  # noqa: E402
+from scripts.calibrar_captura import calibrar, caminho_saida, main
 
 
 def _deslocado(rng, n=2000):

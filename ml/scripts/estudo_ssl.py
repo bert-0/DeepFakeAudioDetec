@@ -46,7 +46,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # O preparo e as representações moram em src/features/xlsr.py: a interface usa o mesmo código.
-from src.features.xlsr import (  # noqa: E402,F401
+from src.features.xlsr import (  # noqa: F401
     JANELA_S,
     LFCC_CFG,
     MIN_AMOSTRAS,

@@ -9,7 +9,7 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.gerar_sintetico import griffin_lim, main, world  # noqa: E402
+from scripts.gerar_sintetico import griffin_lim, main, world
 
 SR = 16000
 

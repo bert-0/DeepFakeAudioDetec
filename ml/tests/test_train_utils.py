@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
-from train import archive_previous_checkpoints, class_weights_from  # noqa: E402
+from train import archive_previous_checkpoints, class_weights_from
 
 
 def test_archive_renames_existing_checkpoint(tmp_path):

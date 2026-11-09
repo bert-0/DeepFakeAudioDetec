@@ -18,10 +18,10 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config  # noqa: E402
-from src.data.dataset import parse_protocol  # noqa: E402
-from src.metrics import compute_eer  # noqa: E402
-from src.preprocess.audio import load_audio, trim_silence  # noqa: E402
+from src.config import load_config
+from src.data.dataset import parse_protocol
+from src.metrics import compute_eer
+from src.preprocess.audio import load_audio, trim_silence
 
 
 def parse_args() -> argparse.Namespace:

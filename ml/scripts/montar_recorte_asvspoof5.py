@@ -39,7 +39,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.data.asvspoof5 import (  # noqa: E402
+from src.data.asvspoof5 import (
     ProtocoloInvalido,
     conferir_arquivo,
     conferir_tamanho,

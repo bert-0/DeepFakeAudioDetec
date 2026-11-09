@@ -12,14 +12,14 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.capture.qualidade import (  # noqa: E402
+from src.capture.qualidade import (
     CORTE_HZ,
     FRACAO_MINIMA,
     EstadoDoCanal,
     avaliar,
     fracao_energia_alta,
 )
-from src.preprocess.channel import limitar_banda  # noqa: E402
+from src.preprocess.channel import limitar_banda
 
 SR = 16000
 T = np.arange(SR * 4) / SR

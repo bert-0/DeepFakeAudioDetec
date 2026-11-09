@@ -21,8 +21,8 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.canal_real import CHECKPOINT_PADRAO, CONFIG_PADRAO  # noqa: E402
-from src.config import config_derivado, load_config, salvar_config  # noqa: E402
+from scripts.canal_real import CHECKPOINT_PADRAO, CONFIG_PADRAO
+from src.config import config_derivado, load_config, salvar_config
 
 EFEITOS = ("perdas", "reamostragem", "passa_baixa", "piso")
 

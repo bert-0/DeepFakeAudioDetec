@@ -13,8 +13,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.preprocess.channel import ocluir_banda_alta  # noqa: E402
-from src.preprocess.degradacao import construir  # noqa: E402
+from src.preprocess.channel import ocluir_banda_alta
+from src.preprocess.degradacao import construir
 
 RAIZ = Path(__file__).resolve().parent.parent
 

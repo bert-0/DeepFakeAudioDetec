@@ -13,11 +13,11 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import load_config  # noqa: E402
-from src.data.dataset import ASVspoofDataset, SmokeDataset, _config_fingerprint  # noqa: E402
-from src.features import FeatureExtractor  # noqa: E402
-from src.preprocess import load_audio  # noqa: E402
-from src.preprocess.degradacao import Degradacao, construir  # noqa: E402
+from src.config import load_config
+from src.data.dataset import ASVspoofDataset, SmokeDataset, _config_fingerprint
+from src.features import FeatureExtractor
+from src.preprocess import load_audio
+from src.preprocess.degradacao import Degradacao, construir
 
 RAIZ = Path(__file__).resolve().parent.parent
 SR = 16000

@@ -19,7 +19,7 @@ def _npz(pasta, nome, scores, labels, limiar, ids=None):
     scores = np.asarray(scores, dtype=float)
     ids = np.array(ids if ids is not None else [f"LA_E_{i:07d}" for i in range(len(scores))])
     caminho = pasta / f"{nome}_amostra10_captura_48k_fir_eval_captura_48k_fir_scores.npz"
-    np.savez(caminho, ids=ids, systems=np.array(["-" if l == 0 else "A07" for l in labels]),
+    np.savez(caminho, ids=ids, systems=np.array(["-" if rot == 0 else "A07" for rot in labels]),
              labels=np.asarray(labels), scores=scores,
              logodds=np.log(np.clip(scores, 1e-6, 1 - 1e-6)) - np.log1p(-np.clip(scores, 1e-6, 1 - 1e-6)),
              threshold=limiar)

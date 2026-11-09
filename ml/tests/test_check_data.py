@@ -9,7 +9,7 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.check_data import CONTAGENS_OFICIAIS, _check_sample, check_partition  # noqa: E402
+from scripts.check_data import CONTAGENS_OFICIAIS, _check_sample, check_partition
 
 
 def _escreve_flac(destino: Path, segundos: float = 4.0, sr: int = 16000) -> Path:
@@ -84,7 +84,8 @@ def _protocolo(destino: Path, n: int) -> Path:
 
 def test_avisa_quando_a_contagem_diverge_da_oficial(tmp_path, capsys):
     proto = _protocolo(tmp_path / "p.txt", 100)      # muito menos que os 25.380
-    audio = tmp_path / "flac"; audio.mkdir()
+    audio = tmp_path / "flac"
+    audio.mkdir()
     for i in range(100):
         _escreve_flac(audio / f"u{i:05d}.flac", segundos=0.2)
 
@@ -100,7 +101,8 @@ def test_avisa_quando_a_contagem_diverge_da_oficial(tmp_path, capsys):
 def test_nao_avisa_quando_a_contagem_bate(tmp_path, capsys, monkeypatch):
     monkeypatch.setitem(CONTAGENS_OFICIAIS, "train", 4)
     proto = _protocolo(tmp_path / "p.txt", 4)
-    audio = tmp_path / "flac"; audio.mkdir()
+    audio = tmp_path / "flac"
+    audio.mkdir()
     for i in range(4):
         _escreve_flac(audio / f"u{i:05d}.flac", segundos=0.2)
 

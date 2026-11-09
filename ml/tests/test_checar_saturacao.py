@@ -8,7 +8,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.checar_saturacao import contar, main  # noqa: E402
+from scripts.checar_saturacao import contar, main
 
 
 def test_softmax_float32_satura_em_exatamente_1():

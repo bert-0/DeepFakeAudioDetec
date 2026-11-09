@@ -13,8 +13,8 @@ from scipy.signal import welch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.preprocess import codecs  # noqa: E402
-from src.preprocess.degradacao import Degradacao  # noqa: E402
+from src.preprocess import codecs
+from src.preprocess.degradacao import Degradacao
 
 SR = 16000
 

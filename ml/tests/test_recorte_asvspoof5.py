@@ -14,9 +14,9 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import src.data.asvspoof5 as asv5  # noqa: E402
-from scripts.montar_recorte_asvspoof5 import main  # noqa: E402
-from src.data.dataset import parse_protocol_with_systems  # noqa: E402
+import src.data.asvspoof5 as asv5
+from scripts.montar_recorte_asvspoof5 import main
+from src.data.dataset import parse_protocol_with_systems
 
 SR = 16000
 

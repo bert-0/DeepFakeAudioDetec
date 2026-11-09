@@ -9,9 +9,9 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.avaliar_arquivos import frase_e_versao, main  # noqa: E402
-from src.config import load_config  # noqa: E402
-from src.models import build_model  # noqa: E402
+from scripts.avaliar_arquivos import frase_e_versao, main
+from src.config import load_config
+from src.models import build_model
 
 
 def test_frase_e_versao():
