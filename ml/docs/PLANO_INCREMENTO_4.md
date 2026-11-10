@@ -345,3 +345,14 @@ Vêm antes da semana 1, porque mudam o desenho do treino e da demonstração.
   convincente da voz brasileira é peça central da demonstração. Precisa baixar
   o modelo (com aprovação), conferir se o `clonar_xtts.py` o carrega e fixar o
   critério antes de gerar.
+- **Pendente (10/11/2026): limiar único ou limiar da pessoa na demonstração?**
+  Os clones do Chatterbox do L01 e do L02 passam (6 e 13 de 20, RESUMO_TCC
+  §10.2.54), mas dentro da mesma pessoa 239 de 240 clones ficam acima das frases
+  reais dela (§10.2.55): falha o limiar único, porque a voz real de cada pessoa
+  começa num ponto diferente. Opções:
+  - (a) manter o limiar único (−0,581) e registrar a limitação; na banca, o L01 e
+    o L02 só com o XTTS;
+  - (b) na demonstração, calibrar o limiar com a voz da própria pessoa (a do
+    orientador, com as frases dele gravadas antes). Só protege quem foi
+    calibrado; com 10 frases, cerca de 1 frase real em cada 11 passa do limiar.
+    Precisa de critério antes e de um teste com vozes fora da calibração.

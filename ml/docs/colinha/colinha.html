@@ -289,8 +289,9 @@ página. Numa pasta do <code>gerar_sintetico</code>, compara original, Griffin-L
     segundo limiar foi calibrado na partição de desenvolvimento com a mesma conversão, sem tocar no conjunto de avaliação.</td></tr>
   <tr><td>Por que a página não grava pelo navegador?</td><td>O navegador não tem acesso ao som do sistema.
     A página inicia o <code>monitor.py</code> como processo e para ele criando um arquivo que o monitor vigia.</td></tr>
-  <tr><td>Funciona com vozes de IA atuais?</td><td>Não de forma confiável. O modelo conhece ataques de
-    2018–2019 e, com vozes fora da base, reage às condições de gravação. Isso foi medido e está no trabalho.</td></tr>
+  <tr><td>Funciona com vozes de IA atuais?</td><td>Em parte. Os detectores antigos conhecem ataques de
+    2018–2019 e reagem às condições de gravação. O modelo final pegou 156 de 160 clones da aba Clonar e
+    91,5% dos falsos do In-the-Wild (limiar em uso), mas vozes de IA da internet saíram como humanas nos testes soltos.</td></tr>
   <tr><td>O que fica guardado?</td><td>Só os resultados, num banco SQLite local. O arquivo enviado é
     apagado; a gravação ao vivo fica no computador até a sessão ser excluída.</td></tr>
   <tr><td>Por que o ao vivo do modelo final espera a pausa?</td><td>O limiar foi calibrado com frases
@@ -298,9 +299,12 @@ página. Numa pasta do <code>gerar_sintetico</code>, compara original, Griffin-L
   <tr><td>Por que um limiar só no modelo final?</td><td>A gravação de 12 s leva uns 5 s de ruído da sala,
     e a frase do ao vivo não. Desde 29/10, as duas abas analisam só a fala, frase por frase, com o mesmo
     limiar, tirado das vozes reais de L02, L03 e L04.</td></tr>
+  <tr><td>Por que o clone do Chatterbox de algumas vozes passa?</td><td>Na mesma pessoa, 239 de 240 clones
+    ficam acima da voz real dela; falha o limiar único. A voz real de cada um começa num ponto diferente, e o
+    Chatterbox copia o ruído da sala dos 10 primeiros segundos da referência. L01 e L02: use o XTTS.</td></tr>
 </table>
 
-<p class="rodape">Números de RESUMO_TCC.md (seções 10.2.1 a 10.2.7; modelo final, 10.2.43 a 10.2.52).
+<p class="rodape">Números de RESUMO_TCC.md (seções 10.2.1 a 10.2.7; modelo final, 10.2.43 a 10.2.55).
 Modelo padrão: o modelo final (desde 09/11/2026); <code>DETECTOR_XLSR=0</code> volta ao baseline_v2.</p>
 </body>
 </html>

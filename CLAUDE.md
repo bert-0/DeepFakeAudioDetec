@@ -282,6 +282,13 @@ A linha de raciocínio e cada script por etapa: `ml/docs/MAPA_DO_CODIGO.md`.
   calibração, 10 de 10 abaixo do limiar; clones da aba Clonar (L03 a L06, 20
   por voz e ferramenta), 156 de 160 pegos. Os 4 que passaram são da L04; o
   Chatterbox fica mais perto do limiar.
+- **Chatterbox do L01 e do L02** (RESUMO_TCC §10.2.54 e §10.2.55): XTTS 20 de 20
+  nos dois; Chatterbox 6 e 13 de 20, abaixo do critério. Dentro da mesma pessoa,
+  239 de 240 clones ficam acima das frases reais dela: falha o limiar único (as
+  vozes reais do L01 e do L02 são as mais baixas). O Chatterbox usa só os 10
+  primeiros segundos da referência e copia o ruído da sala dela; abafar as pausas
+  sobe o clone. Tom de voz, semelhança e ruído como pista de voz real não
+  explicam. Limiar da pessoa: decisão pendente do grupo.
 - Defeito da captura (RESUMO_TCC §10.2.34): em WASAPI exclusivo, o PortAudio
   com este driver Realtek insere cópias exatas de trechos recentes (110 ms com
   blocos de 100 ms, 20 ms com os pacotes do driver), ~1,47x o tempo real, em 16
