@@ -7,6 +7,7 @@ testes do gravador de frases.
 
 import importlib
 import json
+import sys
 import types
 
 import numpy as np
@@ -155,6 +156,10 @@ def cliente(tmp_path, monkeypatch):
     monkeypatch.setenv("DETECTOR_CONFIG", "configs/baseline.yaml")
     monkeypatch.setenv("DETECTOR_CHECKPOINT", str(ckpt))
     _lista(tmp_path)
+    # Uma ferramenta "instalada" em qualquer máquina: no CI não há o ambiente do XTTS,
+    # e a página não mostrava o formulário do clone.
+    monkeypatch.setenv("DETECTOR_PYTHON_XTTS", sys.executable)
+    monkeypatch.setenv("DETECTOR_PYTHON_CHATTERBOX", str(tmp_path / "nao_instalado.exe"))
     monkeypatch.setattr("src.capture.sources.MicrofoneWasapiSource",
                         lambda *a, **k: _MicrofoneFalso(_leitura()))
     import web.app as modulo
