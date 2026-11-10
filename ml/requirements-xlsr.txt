@@ -1,0 +1,3 @@
+# Modelo final (src/xlsr_final.py): carrega o XLS-R 300M do cache do Hugging Face
+# (HF_HOME). Fora do CI de propósito: os testes trocam o XLS-R por uma rede pequena.
+transformers>=5.20   # a versão usada no treino e na calibração

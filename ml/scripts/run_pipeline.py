@@ -1,11 +1,8 @@
-"""Executa a sequência completa de um experimento, de ponta a ponta.
+"""Executa um ou mais experimentos de ponta a ponta e compara os resultados.
 
-Em vez de digitar treino, avaliação, análise por ataque e robustez um a um para
-cada config, este script encadeia tudo e ao final imprime uma tabela comparativa
-com os resultados de todos os experimentos pedidos.
-
-Pensado para execução longa e desacompanhada: cada etapa é registrada com o tempo
-gasto, uma falha não derruba os experimentos seguintes, e tudo é salvo em log.
+Encadeia verificação, treino, avaliação, análise por ataque e (opcional)
+robustez. Registra o tempo de cada etapa, segue adiante quando uma falha e
+grava tudo em log.
 
 Uso:
     # um experimento completo
@@ -61,11 +58,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def experiment_name(config_path: str, smoke: bool = False) -> str:
-    """Nome dos artefatos do experimento.
-
-    Precisa acompanhar o sufixo `_smoke` que os scripts aplicam, senão o
-    pipeline procuraria checkpoints e JSONs com o nome errado.
-    """
+    """Nome dos artefatos, com o mesmo sufixo `_smoke` que os scripts aplicam."""
     nome = yaml.safe_load(open(config_path, encoding="utf-8"))["experiment"]["name"]
     return f"{nome}_smoke" if smoke else nome
 
@@ -97,21 +90,10 @@ def build_steps(config: str, name: str, args: argparse.Namespace) -> list[tuple[
 
 
 def child_env() -> dict[str, str]:
-    """Ambiente dos subprocessos, com duas variáveis que o Windows exige.
+    """Ambiente dos subprocessos: saída sem buffer e em UTF-8.
 
-    **`PYTHONUNBUFFERED`** — com o stdout num pipe (e não num terminal), o Python
-    filho passa a usar buffer de bloco (~8 KB) e nenhum `print` de `train.py`
-    chama `flush`. O `bufsize=1` do `Popen` configura o *pai*, não o filho. Sem
-    isto, um treino de horas não imprime nada até terminar: medido aqui, três
-    linhas espaçadas de 0,5 s chegaram todas juntas em t=1,51 s.
-
-    **`PYTHONIOENCODING`** — o `encoding` do `Popen` diz apenas como o *pai
-    decodifica*. Quem escolhe como o *filho codifica* é o `sys.stdout` dele, que
-    no Windows segue o locale (`cp1252`). O pai então lê cp1252 como UTF-8 e cada
-    acento vira `U+FFFD` — corrupção permanente, já que o byte original se perde
-    ao ser gravado no log. Pior: se a saída do próprio pipeline for redirecionada
-    para arquivo, imprimir `U+FFFD` levanta `UnicodeEncodeError`, porque esse
-    caractere não existe em cp1252, e o pipeline morre no meio.
+    Sem isso, num pipe o filho só entrega a saída no fim, e no Windows escreve
+    em cp1252, o que corrompe os acentos no log.
     """
     return {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
 
@@ -191,9 +173,8 @@ def main() -> int:
     OUTPUT_DIR.mkdir(exist_ok=True)
     CHECKPOINT_DIR.mkdir(exist_ok=True)
 
-    # Os subprocessos rodam com cwd=ML_DIR, então caminhos relativos ao diretório
-    # atual precisam ser resolvidos aqui — senão o pré-check passa e cada etapa
-    # morre com FileNotFoundError.
+    # Os subprocessos rodam com cwd=ML_DIR: caminhos relativos ao diretório atual
+    # precisam ser resolvidos aqui.
     configs = []
     for cfg in args.config:
         p = Path(cfg)
@@ -239,8 +220,7 @@ def main() -> int:
         tempos[name] = time.perf_counter() - t0
         resultados.append(collect_results(name))
 
-    # As tabelas do relatório saem de uma vez ao final, e não por experimento:
-    # a comparação entre incrementos só existe com todos eles já avaliados.
+    # Tabelas só no fim: a comparação entre incrementos precisa de todos avaliados.
     if not args.no_report:
         cmd = [sys.executable, "scripts/make_report.py"]
         if args.smoke:

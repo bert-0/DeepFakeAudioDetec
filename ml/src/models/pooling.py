@@ -18,10 +18,8 @@ def build_pooling(
 ) -> tuple[nn.Module, int]:
     """Devolve (módulo de pooling, dimensão de saída).
 
-    - "avg"        média global (freq e tempo) — comportamento original
-    - "stats"      média + desvio no tempo (freq é mediada antes)
-    - "freq_stats" preserva a frequência: fixa `freq_bins` faixas e as achata
-                   nos canais antes das estatísticas temporais
+    `avg` é a média global; `stats` faz média e desvio no tempo; `freq_stats`
+    faz o mesmo mantendo `freq_bins` faixas de frequência.
     """
     if name == "avg":
         return nn.AdaptiveAvgPool2d((1, 1)), channels
@@ -38,14 +36,9 @@ def build_pooling(
 def build_attention_pooling(
     name: str, channels: int, freq_bins: int = 4
 ) -> tuple[nn.Module, int]:
-    """Versões com atenção, usadas pelo Incremento 3.
+    """Versões com atenção de `build_pooling` (Incremento 3).
 
-    Cada modo espelha o equivalente sem atenção em `build_pooling`, para que a
-    comparação entre os incrementos isole de fato o efeito da atenção:
-
-    - "avg"        atenção sobre a média (frequência mediada)
-    - "stats"      Attentive Statistics Pooling (frequência mediada)
-    - "freq_stats" idem, mas **preservando** as faixas de frequência
+    Cada modo espelha o sem atenção, para a comparação isolar o efeito da atenção.
     """
     if name == "avg":
         pool = TemporalAttentionPool(channels)

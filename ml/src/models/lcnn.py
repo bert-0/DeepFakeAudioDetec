@@ -1,18 +1,7 @@
-"""LCNN — Light CNN com Max-Feature-Map, aplicada a LFCC.
+"""LCNN: Light CNN com Max-Feature-Map (Lavrentyeva et al., ASVspoof 2019).
 
-Arquitetura amplamente usada em detecção de spoofing de voz (Lavrentyeva et al.,
-sistema do STC para o ASVspoof 2019). Duas características a distinguem da CNN
-convencional do Incremento 1:
-
-1. **Max-Feature-Map (MFM)** no lugar da ReLU: em vez de zerar ativações
-   negativas, ela põe pares de mapas para competir e mantém o mais forte,
-   funcionando como seleção de características.
-2. **Blocos 1x1 + 3x3 alternados**, que refinam os canais antes de cada
-   convolução espacial, dando profundidade com poucos parâmetros.
-
-O encoder é um substituto direto do `CNNEncoder`: mesma interface de entrada
-(B, 1, freq, frames) e saída (B, C, freq', frames'), então serve aos três
-incrementos (baseline, fusão e atenção).
+Usa MFM no lugar da ReLU e alterna blocos 1x1 e 3x3. Tem a mesma interface do
+`CNNEncoder`, então serve aos três incrementos.
 """
 
 from __future__ import annotations
@@ -24,10 +13,7 @@ from .blocks import MFM
 
 
 def _conv_mfm(in_ch: int, out_ch: int, kernel: int, padding: int = 0) -> nn.Sequential:
-    """Conv -> MFM. `out_ch` é o número de canais APÓS a MFM.
-
-    A convolução produz 2*out_ch canais porque a MFM os consome aos pares.
-    """
+    """Conv -> MFM. `out_ch` conta os canais após a MFM (a conv gera o dobro)."""
     return nn.Sequential(
         nn.Conv2d(in_ch, out_ch * 2, kernel_size=kernel, padding=padding),
         MFM(),
@@ -35,10 +21,9 @@ def _conv_mfm(in_ch: int, out_ch: int, kernel: int, padding: int = 0) -> nn.Sequ
 
 
 class LCNNEncoder(nn.Module):
-    """Pilha convolucional da LCNN.
+    """Pilha convolucional da LCNN, com 4 max-pools de 2x em cada eixo.
 
-    Entrada: (B, in_ch, freq, frames)
-    Saída:   (B, out_channels, freq', frames')  —  4 reduções de 2x em cada eixo.
+    (B, in_ch, freq, frames) -> (B, out_channels, freq', frames')
     """
 
     def __init__(self, in_ch: int = 1, width: int = 1.0):

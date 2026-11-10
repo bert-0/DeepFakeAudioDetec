@@ -1,0 +1,881 @@
+arquivo	classe	rotulo	montagem	microfone	alto_falante	lingua
+data/ReplayDF/wav/0220278671f0/benign/it/0bea8d2445e4.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	it
+data/ReplayDF/wav/0220278671f0/benign/de/db0ae614fed4.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/benign/de/4b87884015ff.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/benign/it/bebfb01bd573.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	it
+data/ReplayDF/wav/0220278671f0/benign/en/ae378a298627.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	en
+data/ReplayDF/wav/0220278671f0/benign/en/77b20c1dbec4.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	en
+data/ReplayDF/wav/0220278671f0/benign/en/6a20c5ea56dc.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	en
+data/ReplayDF/wav/0220278671f0/benign/de/ed1cf7afdb34.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/benign/it/b41add5f5c6c.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	it
+data/ReplayDF/wav/0220278671f0/benign/de/d2437838dd08.wav	bonafide	0	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/spoof/bark/en/414e68692a3d.wav	bark	1	0220278671f0	Beats Flex	S2-010	en
+data/ReplayDF/wav/0220278671f0/spoof/vits/de/ef3a15fda341.wav	vits	1	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/spoof/xtts_v1.1/de/180cb8b3e43f.wav	xtts_v1.1	1	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/spoof/xtts_v2/it/3ebf9bb1e6e6.wav	xtts_v2	1	0220278671f0	Beats Flex	S2-010	it
+data/ReplayDF/wav/0220278671f0/spoof/bark/it/ca32c4a1556f.wav	bark	1	0220278671f0	Beats Flex	S2-010	it
+data/ReplayDF/wav/0220278671f0/spoof/vits/de/d67fa6ae2ca0.wav	vits	1	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/spoof/xtts_v1.1/en/baffdeb338a9.wav	xtts_v1.1	1	0220278671f0	Beats Flex	S2-010	en
+data/ReplayDF/wav/0220278671f0/spoof/xtts_v2/de/ecc7dc493087.wav	xtts_v2	1	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0220278671f0/spoof/bark/es/9c7285540c5d.wav	bark	1	0220278671f0	Beats Flex	S2-010	es
+data/ReplayDF/wav/0220278671f0/spoof/vits/de/143904c7f508.wav	vits	1	0220278671f0	Beats Flex	S2-010	de
+data/ReplayDF/wav/0a81454a7e50/benign/it/4f16377f5f01.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	it
+data/ReplayDF/wav/0a81454a7e50/benign/en/e982469e0939.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	en
+data/ReplayDF/wav/0a81454a7e50/benign/it/5a0c5dd6ec43.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	it
+data/ReplayDF/wav/0a81454a7e50/benign/es/9646ce415462.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	es
+data/ReplayDF/wav/0a81454a7e50/benign/en/d336506d2a7d.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	en
+data/ReplayDF/wav/0a81454a7e50/benign/fr/45d79eecd807.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	fr
+data/ReplayDF/wav/0a81454a7e50/benign/fr/777e1991a2b2.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	fr
+data/ReplayDF/wav/0a81454a7e50/benign/fr/2dee75ea740e.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	fr
+data/ReplayDF/wav/0a81454a7e50/benign/es/be16630cf811.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	es
+data/ReplayDF/wav/0a81454a7e50/benign/de/7a2dbe6b393f.wav	bonafide	0	0a81454a7e50	Yeti USB	Logitech Z323	de
+data/ReplayDF/wav/0a81454a7e50/spoof/bark/en/e2dd7be8a842.wav	bark	1	0a81454a7e50	Yeti USB	Logitech Z323	en
+data/ReplayDF/wav/0a81454a7e50/spoof/vits/fr/4a6b4f402cd3.wav	vits	1	0a81454a7e50	Yeti USB	Logitech Z323	fr
+data/ReplayDF/wav/0a81454a7e50/spoof/xtts_v1.1/en/532346b0992d.wav	xtts_v1.1	1	0a81454a7e50	Yeti USB	Logitech Z323	en
+data/ReplayDF/wav/0a81454a7e50/spoof/xtts_v2/en/636ab5bf87d2.wav	xtts_v2	1	0a81454a7e50	Yeti USB	Logitech Z323	en
+data/ReplayDF/wav/0a81454a7e50/spoof/bark/es/9811ca1f6c13.wav	bark	1	0a81454a7e50	Yeti USB	Logitech Z323	es
+data/ReplayDF/wav/0a81454a7e50/spoof/vits/pl/fbfbf0d9997c.wav	vits	1	0a81454a7e50	Yeti USB	Logitech Z323	pl
+data/ReplayDF/wav/0a81454a7e50/spoof/xtts_v1.1/de/11ba66f8fa6a.wav	xtts_v1.1	1	0a81454a7e50	Yeti USB	Logitech Z323	de
+data/ReplayDF/wav/0a81454a7e50/spoof/xtts_v2/fr/6dbb762aef93.wav	xtts_v2	1	0a81454a7e50	Yeti USB	Logitech Z323	fr
+data/ReplayDF/wav/0a81454a7e50/spoof/bark/es/98d30ef7d4a2.wav	bark	1	0a81454a7e50	Yeti USB	Logitech Z323	es
+data/ReplayDF/wav/0a81454a7e50/spoof/vits/es/73e85f78588b.wav	vits	1	0a81454a7e50	Yeti USB	Logitech Z323	es
+data/ReplayDF/wav/0af776b43107/benign/es/8955ff6e014e.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/0af776b43107/benign/fr/9126a4c393ff.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/0af776b43107/benign/es/68892171a880.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/0af776b43107/benign/fr/9a29b936ba52.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/0af776b43107/benign/en/e957da76d751.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/0af776b43107/benign/it/7e4305b4531b.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/0af776b43107/benign/de/2616579350b3.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/0af776b43107/benign/pl/445b972e5397.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/0af776b43107/benign/it/4056bea42da1.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/0af776b43107/benign/es/9d8a783147c8.wav	bonafide	0	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/0af776b43107/spoof/bark/es/aaabc5059979.wav	bark	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/0af776b43107/spoof/vits/fr/26ca686bbb38.wav	vits	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/0af776b43107/spoof/xtts_v1.1/en/0b5edbe578e2.wav	xtts_v1.1	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/0af776b43107/spoof/xtts_v2/de/2752f6281987.wav	xtts_v2	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/0af776b43107/spoof/bark/it/5af572e779bc.wav	bark	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/0af776b43107/spoof/vits/fr/3620bfc5d9cb.wav	vits	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/0af776b43107/spoof/xtts_v1.1/pl/2e1436bef639.wav	xtts_v1.1	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/0af776b43107/spoof/xtts_v2/it/8215bc93b223.wav	xtts_v2	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/0af776b43107/spoof/bark/pl/bf789caa746e.wav	bark	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/0af776b43107/spoof/vits/it/e23b9b0e0388.wav	vits	1	0af776b43107	UM10 USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/272cecb1d884/benign/fr/468979c13e51.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	fr
+data/ReplayDF/wav/272cecb1d884/benign/pl/84faf317d037.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	pl
+data/ReplayDF/wav/272cecb1d884/benign/es/b7a60d137611.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	es
+data/ReplayDF/wav/272cecb1d884/benign/it/33e92c0179be.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	it
+data/ReplayDF/wav/272cecb1d884/benign/pl/19e1192626fc.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	pl
+data/ReplayDF/wav/272cecb1d884/benign/es/1ace62eec140.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	es
+data/ReplayDF/wav/272cecb1d884/benign/fr/98f0541344c9.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	fr
+data/ReplayDF/wav/272cecb1d884/benign/pl/86bd5a3f758d.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	pl
+data/ReplayDF/wav/272cecb1d884/benign/de/93ab94eff607.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	de
+data/ReplayDF/wav/272cecb1d884/benign/pl/c8eea3af6d6a.wav	bonafide	0	272cecb1d884	AirPods Pro 2	S2-010	pl
+data/ReplayDF/wav/272cecb1d884/spoof/bark/it/8abd71a191ce.wav	bark	1	272cecb1d884	AirPods Pro 2	S2-010	it
+data/ReplayDF/wav/272cecb1d884/spoof/vits/en/931488f223f6.wav	vits	1	272cecb1d884	AirPods Pro 2	S2-010	en
+data/ReplayDF/wav/272cecb1d884/spoof/xtts_v1.1/de/180cb8b3e43f.wav	xtts_v1.1	1	272cecb1d884	AirPods Pro 2	S2-010	de
+data/ReplayDF/wav/272cecb1d884/spoof/xtts_v2/fr/fe07f788fb8c.wav	xtts_v2	1	272cecb1d884	AirPods Pro 2	S2-010	fr
+data/ReplayDF/wav/272cecb1d884/spoof/bark/de/e9e3cbc62aac.wav	bark	1	272cecb1d884	AirPods Pro 2	S2-010	de
+data/ReplayDF/wav/272cecb1d884/spoof/vits/es/aedd1583b658.wav	vits	1	272cecb1d884	AirPods Pro 2	S2-010	es
+data/ReplayDF/wav/272cecb1d884/spoof/xtts_v1.1/it/8e0ceccaffc7.wav	xtts_v1.1	1	272cecb1d884	AirPods Pro 2	S2-010	it
+data/ReplayDF/wav/272cecb1d884/spoof/xtts_v2/es/3bdcc721616d.wav	xtts_v2	1	272cecb1d884	AirPods Pro 2	S2-010	es
+data/ReplayDF/wav/272cecb1d884/spoof/bark/pl/baacad9814a1.wav	bark	1	272cecb1d884	AirPods Pro 2	S2-010	pl
+data/ReplayDF/wav/272cecb1d884/spoof/vits/it/c98db26dd3c6.wav	vits	1	272cecb1d884	AirPods Pro 2	S2-010	it
+data/ReplayDF/wav/27a8d37b996b/benign/es/f1549eb2092a.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	es
+data/ReplayDF/wav/27a8d37b996b/benign/it/f6d679110651.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	it
+data/ReplayDF/wav/27a8d37b996b/benign/it/6c699a86e2df.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	it
+data/ReplayDF/wav/27a8d37b996b/benign/fr/a6e97c9944a5.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	fr
+data/ReplayDF/wav/27a8d37b996b/benign/it/819df058d315.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	it
+data/ReplayDF/wav/27a8d37b996b/benign/fr/29b6df504156.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	fr
+data/ReplayDF/wav/27a8d37b996b/benign/de/f2d1ea402f1e.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	de
+data/ReplayDF/wav/27a8d37b996b/benign/es/40254130eb64.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	es
+data/ReplayDF/wav/27a8d37b996b/benign/de/1ca06feb12e7.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	de
+data/ReplayDF/wav/27a8d37b996b/benign/fr/176c5cea8234.wav	bonafide	0	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	fr
+data/ReplayDF/wav/27a8d37b996b/spoof/bark/fr/df07b85696ee.wav	bark	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	fr
+data/ReplayDF/wav/27a8d37b996b/spoof/vits/de/143904c7f508.wav	vits	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	de
+data/ReplayDF/wav/27a8d37b996b/spoof/xtts_v1.1/de/97f199c1d59e.wav	xtts_v1.1	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	de
+data/ReplayDF/wav/27a8d37b996b/spoof/xtts_v2/es/65dc1b3c65a3.wav	xtts_v2	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	es
+data/ReplayDF/wav/27a8d37b996b/spoof/bark/pl/d142afd7ea90.wav	bark	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	pl
+data/ReplayDF/wav/27a8d37b996b/spoof/vits/en/4c3249ab5181.wav	vits	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	en
+data/ReplayDF/wav/27a8d37b996b/spoof/xtts_v1.1/it/0b566999b255.wav	xtts_v1.1	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	it
+data/ReplayDF/wav/27a8d37b996b/spoof/xtts_v2/fr/42ea2acea022.wav	xtts_v2	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	fr
+data/ReplayDF/wav/27a8d37b996b/spoof/bark/it/5ae2c3c780d9.wav	bark	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	it
+data/ReplayDF/wav/27a8d37b996b/spoof/vits/de/949c0e7be49c.wav	vits	1	27a8d37b996b	Thinkpad T470s Built-in Mic	Logitech Z323	de
+data/ReplayDF/wav/2a16eaf2ea3d/benign/fr/4a7025f88bd5.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	fr
+data/ReplayDF/wav/2a16eaf2ea3d/benign/it/bd0c8a24b8a7.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	it
+data/ReplayDF/wav/2a16eaf2ea3d/benign/en/d492818b78f0.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	en
+data/ReplayDF/wav/2a16eaf2ea3d/benign/it/519fe2f8c378.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	it
+data/ReplayDF/wav/2a16eaf2ea3d/benign/pl/f3097bc816d0.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	pl
+data/ReplayDF/wav/2a16eaf2ea3d/benign/pl/a820a7093acb.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	pl
+data/ReplayDF/wav/2a16eaf2ea3d/benign/es/454c08f0cfd3.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	es
+data/ReplayDF/wav/2a16eaf2ea3d/benign/es/bf3dac883c3b.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	es
+data/ReplayDF/wav/2a16eaf2ea3d/benign/fr/26d0bfbe5912.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	fr
+data/ReplayDF/wav/2a16eaf2ea3d/benign/es/13264fd36035.wav	bonafide	0	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	es
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/bark/es/79e87a69bcc4.wav	bark	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	es
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/vits/fr/dcfd60293c37.wav	vits	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	fr
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/xtts_v1.1/es/f9d342a47b4d.wav	xtts_v1.1	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	es
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/xtts_v2/es/34855a31a681.wav	xtts_v2	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	es
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/bark/fr/da7b2e14774d.wav	bark	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	fr
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/vits/es/0bcaecc1606b.wav	vits	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	es
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/xtts_v1.1/de/e0c180b925c9.wav	xtts_v1.1	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	de
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/xtts_v2/de/a71cd986637a.wav	xtts_v2	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	de
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/bark/it/8adc3bb85203.wav	bark	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	it
+data/ReplayDF/wav/2a16eaf2ea3d/spoof/vits/pl/6795f8cc83aa.wav	vits	1	2a16eaf2ea3d	Sony SRS-BTS500 Bluetooth mic	Built-in speaker MacBook Air 2011	pl
+data/ReplayDF/wav/2d2491ed5756/benign/fr/4c828bdbd9b7.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	fr
+data/ReplayDF/wav/2d2491ed5756/benign/de/7677bd134829.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	de
+data/ReplayDF/wav/2d2491ed5756/benign/en/b1e5e322df13.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	en
+data/ReplayDF/wav/2d2491ed5756/benign/it/7edb794b7fc6.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	it
+data/ReplayDF/wav/2d2491ed5756/benign/fr/80b68d77d4d1.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	fr
+data/ReplayDF/wav/2d2491ed5756/benign/it/04160a11f681.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	it
+data/ReplayDF/wav/2d2491ed5756/benign/de/816c4a098c2b.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	de
+data/ReplayDF/wav/2d2491ed5756/benign/fr/1de761be03b6.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	fr
+data/ReplayDF/wav/2d2491ed5756/benign/es/e37284ab2bfa.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	es
+data/ReplayDF/wav/2d2491ed5756/benign/fr/264eedbdffc8.wav	bonafide	0	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	fr
+data/ReplayDF/wav/2d2491ed5756/spoof/bark/it/89049c52e5fa.wav	bark	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	it
+data/ReplayDF/wav/2d2491ed5756/spoof/vits/pl/b20103ef1cab.wav	vits	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	pl
+data/ReplayDF/wav/2d2491ed5756/spoof/xtts_v1.1/it/5d01b279b713.wav	xtts_v1.1	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	it
+data/ReplayDF/wav/2d2491ed5756/spoof/xtts_v2/fr/7c465ce5cce0.wav	xtts_v2	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	fr
+data/ReplayDF/wav/2d2491ed5756/spoof/bark/es/567e0cd74950.wav	bark	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	es
+data/ReplayDF/wav/2d2491ed5756/spoof/vits/en/d2cc60f3205f.wav	vits	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	en
+data/ReplayDF/wav/2d2491ed5756/spoof/xtts_v1.1/fr/55daba4dcc76.wav	xtts_v1.1	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	fr
+data/ReplayDF/wav/2d2491ed5756/spoof/xtts_v2/en/782640a0cc39.wav	xtts_v2	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	en
+data/ReplayDF/wav/2d2491ed5756/spoof/bark/es/0b419621c87b.wav	bark	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	es
+data/ReplayDF/wav/2d2491ed5756/spoof/vits/fr/35ef4af9b367.wav	vits	1	2d2491ed5756	Jabra Evolve2 40 Headset	Sigma SP300	fr
+data/ReplayDF/wav/326c69561d73/benign/de/5f55a76b086a.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	de
+data/ReplayDF/wav/326c69561d73/benign/es/2e5e5b0dd475.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	es
+data/ReplayDF/wav/326c69561d73/benign/en/af00101f3afc.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/326c69561d73/benign/it/06f87fc8ff94.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/326c69561d73/benign/es/2a441d6cc428.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	es
+data/ReplayDF/wav/326c69561d73/benign/pl/9777001590eb.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	pl
+data/ReplayDF/wav/326c69561d73/benign/en/9ca766715214.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/326c69561d73/benign/it/1dd539b5cc33.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/326c69561d73/benign/it/939adf384a05.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/326c69561d73/benign/pl/cc2f4ed54ec0.wav	bonafide	0	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	pl
+data/ReplayDF/wav/326c69561d73/spoof/bark/pl/a88732776cfa.wav	bark	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	pl
+data/ReplayDF/wav/326c69561d73/spoof/vits/it/8b6bd0fbf124.wav	vits	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/326c69561d73/spoof/xtts_v1.1/it/0a6132bfa83e.wav	xtts_v1.1	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/326c69561d73/spoof/xtts_v2/en/52d0885bea5f.wav	xtts_v2	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/326c69561d73/spoof/bark/de/29b8f7e4710f.wav	bark	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	de
+data/ReplayDF/wav/326c69561d73/spoof/vits/it/d2cb585fd7cd.wav	vits	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/326c69561d73/spoof/xtts_v1.1/de/63e4ea44fe52.wav	xtts_v1.1	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	de
+data/ReplayDF/wav/326c69561d73/spoof/xtts_v2/fr/9cde6f90b227.wav	xtts_v2	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	fr
+data/ReplayDF/wav/326c69561d73/spoof/bark/en/612bd9383001.wav	bark	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/326c69561d73/spoof/vits/en/75411394d468.wav	vits	1	326c69561d73	IPhone 13 Pro Max	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/373d5e1728a8/benign/it/424b9cc35672.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	it
+data/ReplayDF/wav/373d5e1728a8/benign/es/58380b66ef1c.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	es
+data/ReplayDF/wav/373d5e1728a8/benign/pl/eb3cd9babd35.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	pl
+data/ReplayDF/wav/373d5e1728a8/benign/it/34f9458e4355.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	it
+data/ReplayDF/wav/373d5e1728a8/benign/de/d31769e05a5b.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	de
+data/ReplayDF/wav/373d5e1728a8/benign/it/5733d53693e4.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	it
+data/ReplayDF/wav/373d5e1728a8/benign/it/0fdab21edd0b.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	it
+data/ReplayDF/wav/373d5e1728a8/benign/en/1d5afa561ee3.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	en
+data/ReplayDF/wav/373d5e1728a8/benign/fr/47ed1a202d47.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	fr
+data/ReplayDF/wav/373d5e1728a8/benign/fr/72859b6d82c7.wav	bonafide	0	373d5e1728a8	IRig Mic Lav	Logitech Z323	fr
+data/ReplayDF/wav/373d5e1728a8/spoof/bark/fr/529eb31952d3.wav	bark	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	fr
+data/ReplayDF/wav/373d5e1728a8/spoof/vits/fr/6df30d628b61.wav	vits	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	fr
+data/ReplayDF/wav/373d5e1728a8/spoof/xtts_v1.1/de/785489a98741.wav	xtts_v1.1	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	de
+data/ReplayDF/wav/373d5e1728a8/spoof/xtts_v2/de/ce1a5f8e335a.wav	xtts_v2	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	de
+data/ReplayDF/wav/373d5e1728a8/spoof/bark/pl/9f55e2ba8c28.wav	bark	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	pl
+data/ReplayDF/wav/373d5e1728a8/spoof/vits/fr/69c0d6bd3b8a.wav	vits	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	fr
+data/ReplayDF/wav/373d5e1728a8/spoof/xtts_v1.1/pl/03a906510211.wav	xtts_v1.1	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	pl
+data/ReplayDF/wav/373d5e1728a8/spoof/xtts_v2/pl/fca01b1727ad.wav	xtts_v2	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	pl
+data/ReplayDF/wav/373d5e1728a8/spoof/bark/en/91da6ca17a58.wav	bark	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	en
+data/ReplayDF/wav/373d5e1728a8/spoof/vits/es/19c8a4a7a6e6.wav	vits	1	373d5e1728a8	IRig Mic Lav	Logitech Z323	es
+data/ReplayDF/wav/37c5b9c5a188/benign/it/12b627265916.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	it
+data/ReplayDF/wav/37c5b9c5a188/benign/de/e76f1e8ce984.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	de
+data/ReplayDF/wav/37c5b9c5a188/benign/en/dcbb7c17fa7a.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	en
+data/ReplayDF/wav/37c5b9c5a188/benign/it/44a32167eb79.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	it
+data/ReplayDF/wav/37c5b9c5a188/benign/pl/b33d2d7e2c4c.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	pl
+data/ReplayDF/wav/37c5b9c5a188/benign/pl/e2f38a7b021e.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	pl
+data/ReplayDF/wav/37c5b9c5a188/benign/pl/143112b51f97.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	pl
+data/ReplayDF/wav/37c5b9c5a188/benign/pl/8b5c95e1dfdd.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	pl
+data/ReplayDF/wav/37c5b9c5a188/benign/it/9716469fd5bf.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	it
+data/ReplayDF/wav/37c5b9c5a188/benign/it/17db4f562ff4.wav	bonafide	0	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	it
+data/ReplayDF/wav/37c5b9c5a188/spoof/bark/fr/c7e86f9396d9.wav	bark	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	fr
+data/ReplayDF/wav/37c5b9c5a188/spoof/vits/pl/998fa2378728.wav	vits	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	pl
+data/ReplayDF/wav/37c5b9c5a188/spoof/xtts_v1.1/en/fc08a5cce03d.wav	xtts_v1.1	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	en
+data/ReplayDF/wav/37c5b9c5a188/spoof/xtts_v2/pl/5e93c90d359a.wav	xtts_v2	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	pl
+data/ReplayDF/wav/37c5b9c5a188/spoof/bark/en/6835b0d308d8.wav	bark	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	en
+data/ReplayDF/wav/37c5b9c5a188/spoof/vits/en/cf7fe588c8e4.wav	vits	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	en
+data/ReplayDF/wav/37c5b9c5a188/spoof/xtts_v1.1/es/06ec3eaa9f81.wav	xtts_v1.1	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	es
+data/ReplayDF/wav/37c5b9c5a188/spoof/xtts_v2/es/95ddc2e7c595.wav	xtts_v2	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	es
+data/ReplayDF/wav/37c5b9c5a188/spoof/bark/fr/1a1f49824b6b.wav	bark	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	fr
+data/ReplayDF/wav/37c5b9c5a188/spoof/vits/fr/91699ea7b0cb.wav	vits	1	37c5b9c5a188	Jabra Evolve2 40 Headset	Meeting Owl Pro	fr
+data/ReplayDF/wav/41e4a426e23d/benign/fr/231ccca82996.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	fr
+data/ReplayDF/wav/41e4a426e23d/benign/es/d295e0ff283c.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	es
+data/ReplayDF/wav/41e4a426e23d/benign/it/f3e36e2975dc.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	it
+data/ReplayDF/wav/41e4a426e23d/benign/it/5f45db30b2cc.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	it
+data/ReplayDF/wav/41e4a426e23d/benign/de/df5a8e9b84b0.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	de
+data/ReplayDF/wav/41e4a426e23d/benign/it/edc0ef4c6323.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	it
+data/ReplayDF/wav/41e4a426e23d/benign/de/e2f8153a8151.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	de
+data/ReplayDF/wav/41e4a426e23d/benign/fr/0dab0564e628.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	fr
+data/ReplayDF/wav/41e4a426e23d/benign/fr/7eb164d8c444.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	fr
+data/ReplayDF/wav/41e4a426e23d/benign/en/3720450e862c.wav	bonafide	0	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	en
+data/ReplayDF/wav/41e4a426e23d/spoof/bark/de/a2f5e916f545.wav	bark	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	de
+data/ReplayDF/wav/41e4a426e23d/spoof/vits/fr/8e45e711442d.wav	vits	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	fr
+data/ReplayDF/wav/41e4a426e23d/spoof/xtts_v1.1/it/698097b4bb63.wav	xtts_v1.1	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	it
+data/ReplayDF/wav/41e4a426e23d/spoof/xtts_v2/de/c0e9101ef769.wav	xtts_v2	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	de
+data/ReplayDF/wav/41e4a426e23d/spoof/bark/en/8402043f1039.wav	bark	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	en
+data/ReplayDF/wav/41e4a426e23d/spoof/vits/en/de3e451bdb9d.wav	vits	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	en
+data/ReplayDF/wav/41e4a426e23d/spoof/xtts_v1.1/it/1861bb45c3c4.wav	xtts_v1.1	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	it
+data/ReplayDF/wav/41e4a426e23d/spoof/xtts_v2/de/2f21a47c3c8c.wav	xtts_v2	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	de
+data/ReplayDF/wav/41e4a426e23d/spoof/bark/es/1455435f6435.wav	bark	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	es
+data/ReplayDF/wav/41e4a426e23d/spoof/vits/es/74235c153dca.wav	vits	1	41e4a426e23d	Logitech Brio Ultra HD Webcam	Sigma SP300	es
+data/ReplayDF/wav/43a882882ff1/benign/it/edfeffd28c31.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	it
+data/ReplayDF/wav/43a882882ff1/benign/de/0d6eceb09906.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	de
+data/ReplayDF/wav/43a882882ff1/benign/de/be0b32ab90e2.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	de
+data/ReplayDF/wav/43a882882ff1/benign/it/89679fb337eb.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	it
+data/ReplayDF/wav/43a882882ff1/benign/es/364494f6323b.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	es
+data/ReplayDF/wav/43a882882ff1/benign/es/3a2b14eca10c.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	es
+data/ReplayDF/wav/43a882882ff1/benign/es/96c95f194699.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	es
+data/ReplayDF/wav/43a882882ff1/benign/it/aee605673d46.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	it
+data/ReplayDF/wav/43a882882ff1/benign/fr/af27c7b5d6cb.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	fr
+data/ReplayDF/wav/43a882882ff1/benign/fr/f1b53fd2f289.wav	bonafide	0	43a882882ff1	Yeti USB	Sigma SP300	fr
+data/ReplayDF/wav/43a882882ff1/spoof/bark/de/d176a82659b7.wav	bark	1	43a882882ff1	Yeti USB	Sigma SP300	de
+data/ReplayDF/wav/43a882882ff1/spoof/vits/pl/5f6e8dda8d93.wav	vits	1	43a882882ff1	Yeti USB	Sigma SP300	pl
+data/ReplayDF/wav/43a882882ff1/spoof/xtts_v1.1/pl/7439eca146fa.wav	xtts_v1.1	1	43a882882ff1	Yeti USB	Sigma SP300	pl
+data/ReplayDF/wav/43a882882ff1/spoof/xtts_v2/es/c9fd35db14d9.wav	xtts_v2	1	43a882882ff1	Yeti USB	Sigma SP300	es
+data/ReplayDF/wav/43a882882ff1/spoof/bark/fr/30ddef6a8a98.wav	bark	1	43a882882ff1	Yeti USB	Sigma SP300	fr
+data/ReplayDF/wav/43a882882ff1/spoof/vits/en/eed7a4f4db50.wav	vits	1	43a882882ff1	Yeti USB	Sigma SP300	en
+data/ReplayDF/wav/43a882882ff1/spoof/xtts_v1.1/it/7e1276e89ba6.wav	xtts_v1.1	1	43a882882ff1	Yeti USB	Sigma SP300	it
+data/ReplayDF/wav/43a882882ff1/spoof/xtts_v2/de/02a972007329.wav	xtts_v2	1	43a882882ff1	Yeti USB	Sigma SP300	de
+data/ReplayDF/wav/43a882882ff1/spoof/bark/es/3d2c46c82047.wav	bark	1	43a882882ff1	Yeti USB	Sigma SP300	es
+data/ReplayDF/wav/43a882882ff1/spoof/vits/fr/47add52f5524.wav	vits	1	43a882882ff1	Yeti USB	Sigma SP300	fr
+data/ReplayDF/wav/48a43214871e/benign/it/416e779c7446.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/48a43214871e/benign/it/4dd3947d8765.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/48a43214871e/benign/de/889ef0317c41.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/48a43214871e/benign/it/b213a43a5eca.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/48a43214871e/benign/pl/f6867e7d5369.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	pl
+data/ReplayDF/wav/48a43214871e/benign/it/a2ba724bb505.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/48a43214871e/benign/fr/8a2d71a360b5.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/48a43214871e/benign/pl/5249b88d0449.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	pl
+data/ReplayDF/wav/48a43214871e/benign/fr/3239d16b106d.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/48a43214871e/benign/de/ce5c38184f6e.wav	bonafide	0	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/48a43214871e/spoof/bark/es/7b857c222b96.wav	bark	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/48a43214871e/spoof/vits/fr/104200debe7c.wav	vits	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/48a43214871e/spoof/xtts_v1.1/fr/33f21a5bd887.wav	xtts_v1.1	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/48a43214871e/spoof/xtts_v2/it/d5a1f1b61d3b.wav	xtts_v2	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/48a43214871e/spoof/bark/it/175d34566560.wav	bark	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/48a43214871e/spoof/vits/en/03485fa7b1ed.wav	vits	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/48a43214871e/spoof/xtts_v1.1/de/c4d09e2d74a7.wav	xtts_v1.1	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/48a43214871e/spoof/xtts_v2/es/4c2c58445ff1.wav	xtts_v2	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/48a43214871e/spoof/bark/de/29afb93407d6.wav	bark	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/48a43214871e/spoof/vits/en/a84e08effe38.wav	vits	1	48a43214871e	Beats Flex	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/4ac5210c9a3c/benign/en/ab14e92546e6.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	en
+data/ReplayDF/wav/4ac5210c9a3c/benign/de/f9da88adb706.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	de
+data/ReplayDF/wav/4ac5210c9a3c/benign/fr/7ebe6d868473.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	fr
+data/ReplayDF/wav/4ac5210c9a3c/benign/pl/9eb4f5550305.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	pl
+data/ReplayDF/wav/4ac5210c9a3c/benign/es/bd554415eef9.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	es
+data/ReplayDF/wav/4ac5210c9a3c/benign/de/1f59d8451bc2.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	de
+data/ReplayDF/wav/4ac5210c9a3c/benign/en/c9110a687c9a.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	en
+data/ReplayDF/wav/4ac5210c9a3c/benign/pl/eb4500606d9c.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	pl
+data/ReplayDF/wav/4ac5210c9a3c/benign/pl/0f6d9d7524cc.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	pl
+data/ReplayDF/wav/4ac5210c9a3c/benign/es/d550b1b67118.wav	bonafide	0	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	es
+data/ReplayDF/wav/4ac5210c9a3c/spoof/bark/it/eddeeb9699db.wav	bark	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	it
+data/ReplayDF/wav/4ac5210c9a3c/spoof/vits/pl/999cd7266181.wav	vits	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	pl
+data/ReplayDF/wav/4ac5210c9a3c/spoof/xtts_v1.1/pl/3b7d4100acf4.wav	xtts_v1.1	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	pl
+data/ReplayDF/wav/4ac5210c9a3c/spoof/xtts_v2/it/34f0be7ced91.wav	xtts_v2	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	it
+data/ReplayDF/wav/4ac5210c9a3c/spoof/bark/de/770561ce01e9.wav	bark	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	de
+data/ReplayDF/wav/4ac5210c9a3c/spoof/vits/es/570d63f5af2d.wav	vits	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	es
+data/ReplayDF/wav/4ac5210c9a3c/spoof/xtts_v1.1/es/c344d5ba99e1.wav	xtts_v1.1	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	es
+data/ReplayDF/wav/4ac5210c9a3c/spoof/xtts_v2/fr/1729c8e95512.wav	xtts_v2	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	fr
+data/ReplayDF/wav/4ac5210c9a3c/spoof/bark/es/3647e6e12704.wav	bark	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	es
+data/ReplayDF/wav/4ac5210c9a3c/spoof/vits/de/749f2d4c1a01.wav	vits	1	4ac5210c9a3c	Beats Flex	MacBook Pro 13 2020 Speaker	de
+data/ReplayDF/wav/50f760a5493d/benign/en/c6f9b0434aec.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	en
+data/ReplayDF/wav/50f760a5493d/benign/es/c2fd4a40c8bd.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	es
+data/ReplayDF/wav/50f760a5493d/benign/it/bd7588fd3ca6.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	it
+data/ReplayDF/wav/50f760a5493d/benign/en/91ccc76fa08e.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	en
+data/ReplayDF/wav/50f760a5493d/benign/it/5aac948c5cf8.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	it
+data/ReplayDF/wav/50f760a5493d/benign/fr/e79394682bef.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	fr
+data/ReplayDF/wav/50f760a5493d/benign/fr/8b4fd9339e81.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	fr
+data/ReplayDF/wav/50f760a5493d/benign/fr/c1e5c8ad5418.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	fr
+data/ReplayDF/wav/50f760a5493d/benign/pl/210c7610ce56.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	pl
+data/ReplayDF/wav/50f760a5493d/benign/en/46d0eeb789b6.wav	bonafide	0	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	en
+data/ReplayDF/wav/50f760a5493d/spoof/bark/de/044ded61a278.wav	bark	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	de
+data/ReplayDF/wav/50f760a5493d/spoof/vits/fr/45a28d25d1a2.wav	vits	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	fr
+data/ReplayDF/wav/50f760a5493d/spoof/xtts_v1.1/es/881b9ab0deef.wav	xtts_v1.1	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	es
+data/ReplayDF/wav/50f760a5493d/spoof/xtts_v2/de/640c730bf5c2.wav	xtts_v2	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	de
+data/ReplayDF/wav/50f760a5493d/spoof/bark/es/aeccd40c891d.wav	bark	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	es
+data/ReplayDF/wav/50f760a5493d/spoof/vits/es/97d433df00aa.wav	vits	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	es
+data/ReplayDF/wav/50f760a5493d/spoof/xtts_v1.1/es/bb8816160606.wav	xtts_v1.1	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	es
+data/ReplayDF/wav/50f760a5493d/spoof/xtts_v2/en/1d7dd86318eb.wav	xtts_v2	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	en
+data/ReplayDF/wav/50f760a5493d/spoof/bark/fr/2f1ec2a9d1f8.wav	bark	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	fr
+data/ReplayDF/wav/50f760a5493d/spoof/vits/de/52bba38708dc.wav	vits	1	50f760a5493d	Yeti USB	Dell Monitor U4025QW built in speakers	de
+data/ReplayDF/wav/5d24e452524e/benign/en/4835a5101bad.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	en
+data/ReplayDF/wav/5d24e452524e/benign/de/974fcd9837c3.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	de
+data/ReplayDF/wav/5d24e452524e/benign/es/cbd169dc9899.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	es
+data/ReplayDF/wav/5d24e452524e/benign/es/6bb9c4c9aa2d.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	es
+data/ReplayDF/wav/5d24e452524e/benign/en/21009a0b3632.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	en
+data/ReplayDF/wav/5d24e452524e/benign/es/93afc02fc0fc.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	es
+data/ReplayDF/wav/5d24e452524e/benign/pl/8d163807e038.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	pl
+data/ReplayDF/wav/5d24e452524e/benign/es/74235c153dca.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	es
+data/ReplayDF/wav/5d24e452524e/benign/pl/4a9795869c29.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	pl
+data/ReplayDF/wav/5d24e452524e/benign/pl/af42f0d0bb08.wav	bonafide	0	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	pl
+data/ReplayDF/wav/5d24e452524e/spoof/bark/en/e5561b10224a.wav	bark	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	en
+data/ReplayDF/wav/5d24e452524e/spoof/vits/pl/2fc064b4059c.wav	vits	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	pl
+data/ReplayDF/wav/5d24e452524e/spoof/xtts_v1.1/de/182b8dd45497.wav	xtts_v1.1	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	de
+data/ReplayDF/wav/5d24e452524e/spoof/xtts_v2/es/a084c84df302.wav	xtts_v2	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	es
+data/ReplayDF/wav/5d24e452524e/spoof/bark/pl/2ab46cf6c3cc.wav	bark	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	pl
+data/ReplayDF/wav/5d24e452524e/spoof/vits/pl/4ff4967d3e9a.wav	vits	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	pl
+data/ReplayDF/wav/5d24e452524e/spoof/xtts_v1.1/it/77b3b9db96a5.wav	xtts_v1.1	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	it
+data/ReplayDF/wav/5d24e452524e/spoof/xtts_v2/en/2e1de5d424bd.wav	xtts_v2	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	en
+data/ReplayDF/wav/5d24e452524e/spoof/bark/fr/a75ed590138c.wav	bark	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	fr
+data/ReplayDF/wav/5d24e452524e/spoof/vits/pl/4c79259203d9.wav	vits	1	5d24e452524e	VideoMic Pro (+20dB)	Jabra PHS002W	pl
+data/ReplayDF/wav/7a138d4031ea/benign/en/8d68acee6bfd.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	en
+data/ReplayDF/wav/7a138d4031ea/benign/es/754ab4ffe5f9.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	es
+data/ReplayDF/wav/7a138d4031ea/benign/es/e8a6d1dbf50d.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	es
+data/ReplayDF/wav/7a138d4031ea/benign/en/ef0e536d8d19.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	en
+data/ReplayDF/wav/7a138d4031ea/benign/es/e5a152cdf92c.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	es
+data/ReplayDF/wav/7a138d4031ea/benign/en/bca16f44ca0a.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	en
+data/ReplayDF/wav/7a138d4031ea/benign/es/639e8c0808cf.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	es
+data/ReplayDF/wav/7a138d4031ea/benign/fr/9d0be7a2629c.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	fr
+data/ReplayDF/wav/7a138d4031ea/benign/fr/e641b97f6942.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	fr
+data/ReplayDF/wav/7a138d4031ea/benign/fr/12ec22ab2e4e.wav	bonafide	0	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	fr
+data/ReplayDF/wav/7a138d4031ea/spoof/bark/pl/b33570f0b5a9.wav	bark	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	pl
+data/ReplayDF/wav/7a138d4031ea/spoof/vits/fr/babff4213afa.wav	vits	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	fr
+data/ReplayDF/wav/7a138d4031ea/spoof/xtts_v1.1/pl/8f33bc88c87b.wav	xtts_v1.1	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	pl
+data/ReplayDF/wav/7a138d4031ea/spoof/xtts_v2/fr/d5ffc79417dd.wav	xtts_v2	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	fr
+data/ReplayDF/wav/7a138d4031ea/spoof/bark/fr/e6881640cc39.wav	bark	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	fr
+data/ReplayDF/wav/7a138d4031ea/spoof/vits/de/c97330549263.wav	vits	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	de
+data/ReplayDF/wav/7a138d4031ea/spoof/xtts_v1.1/es/39279eefd2d3.wav	xtts_v1.1	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	es
+data/ReplayDF/wav/7a138d4031ea/spoof/xtts_v2/pl/7213529dfcbe.wav	xtts_v2	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	pl
+data/ReplayDF/wav/7a138d4031ea/spoof/bark/pl/8125245569fc.wav	bark	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	pl
+data/ReplayDF/wav/7a138d4031ea/spoof/vits/es/ee3390681ce7.wav	vits	1	7a138d4031ea	Logitech Brio Ultra HD Webcam	Logitech Z323	es
+data/ReplayDF/wav/848b3883f811/benign/fr/e02f295a1a21.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	fr
+data/ReplayDF/wav/848b3883f811/benign/en/2965cad57cdc.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	en
+data/ReplayDF/wav/848b3883f811/benign/it/66f26a393ad4.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	it
+data/ReplayDF/wav/848b3883f811/benign/es/bedb8b97e7e6.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	es
+data/ReplayDF/wav/848b3883f811/benign/de/fa4d13235202.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	de
+data/ReplayDF/wav/848b3883f811/benign/pl/b36499c09082.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	pl
+data/ReplayDF/wav/848b3883f811/benign/it/454b4d61d646.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	it
+data/ReplayDF/wav/848b3883f811/benign/it/6e04a8230c56.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	it
+data/ReplayDF/wav/848b3883f811/benign/en/f2e50e572120.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	en
+data/ReplayDF/wav/848b3883f811/benign/fr/f6759ac432b4.wav	bonafide	0	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	fr
+data/ReplayDF/wav/848b3883f811/spoof/bark/de/2ba32c50f133.wav	bark	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	de
+data/ReplayDF/wav/848b3883f811/spoof/vits/en/b5e30df93cfc.wav	vits	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	en
+data/ReplayDF/wav/848b3883f811/spoof/xtts_v1.1/de/dc18a164c26f.wav	xtts_v1.1	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	de
+data/ReplayDF/wav/848b3883f811/spoof/xtts_v2/it/263a0fd51659.wav	xtts_v2	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	it
+data/ReplayDF/wav/848b3883f811/spoof/bark/es/dac2621aad1e.wav	bark	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	es
+data/ReplayDF/wav/848b3883f811/spoof/vits/en/1a53c964288a.wav	vits	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	en
+data/ReplayDF/wav/848b3883f811/spoof/xtts_v1.1/es/5152a677a6b1.wav	xtts_v1.1	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	es
+data/ReplayDF/wav/848b3883f811/spoof/xtts_v2/de/ce70509d519b.wav	xtts_v2	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	de
+data/ReplayDF/wav/848b3883f811/spoof/bark/de/76ac8bd60a0d.wav	bark	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	de
+data/ReplayDF/wav/848b3883f811/spoof/vits/fr/4f119d22e601.wav	vits	1	848b3883f811	SteelSeries Arctis 3 2019 Headset	SteelSeries Arctis 3 2019 Headset	fr
+data/ReplayDF/wav/8dfeb1ddef8b/benign/en/609fff4d67ff.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	en
+data/ReplayDF/wav/8dfeb1ddef8b/benign/de/2f18effe060f.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	de
+data/ReplayDF/wav/8dfeb1ddef8b/benign/fr/0c3f1f8adf8a.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	fr
+data/ReplayDF/wav/8dfeb1ddef8b/benign/pl/f5e1a2b95273.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	pl
+data/ReplayDF/wav/8dfeb1ddef8b/benign/es/5bbfde4c8572.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	es
+data/ReplayDF/wav/8dfeb1ddef8b/benign/en/7d4b8ae73c6f.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	en
+data/ReplayDF/wav/8dfeb1ddef8b/benign/pl/27c0560e048f.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	pl
+data/ReplayDF/wav/8dfeb1ddef8b/benign/it/443bd0c250de.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	it
+data/ReplayDF/wav/8dfeb1ddef8b/benign/it/1a3c89be6813.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	it
+data/ReplayDF/wav/8dfeb1ddef8b/benign/es/85f3a2eb108c.wav	bonafide	0	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	es
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/bark/fr/61dc410923d7.wav	bark	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	fr
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/vits/pl/4084adb5ee63.wav	vits	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	pl
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/xtts_v1.1/de/87f167dcb822.wav	xtts_v1.1	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	de
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/xtts_v2/fr/77a39bea57f8.wav	xtts_v2	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	fr
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/bark/fr/ff4a4cf1ccfc.wav	bark	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	fr
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/vits/en/3dc92ea1b1c3.wav	vits	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	en
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/xtts_v1.1/it/cc3656178936.wav	xtts_v1.1	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	it
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/xtts_v2/it/672fce015791.wav	xtts_v2	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	it
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/bark/de/e43da4b85f7b.wav	bark	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	de
+data/ReplayDF/wav/8dfeb1ddef8b/spoof/vits/it/333588b01770.wav	vits	1	8dfeb1ddef8b	AirPods Pro 2	MacBook Pro 13 2020 Speakers	it
+data/ReplayDF/wav/8f4967522fa6/benign/it/d1973260eedc.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	it
+data/ReplayDF/wav/8f4967522fa6/benign/en/826e14cea8de.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	en
+data/ReplayDF/wav/8f4967522fa6/benign/it/e0abdab476bd.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	it
+data/ReplayDF/wav/8f4967522fa6/benign/pl/3609ddbcd46e.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	pl
+data/ReplayDF/wav/8f4967522fa6/benign/pl/e3d52103d9bc.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	pl
+data/ReplayDF/wav/8f4967522fa6/benign/it/9afabb9e9192.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	it
+data/ReplayDF/wav/8f4967522fa6/benign/pl/0d47fd15167b.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	pl
+data/ReplayDF/wav/8f4967522fa6/benign/en/999684b5c3c8.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	en
+data/ReplayDF/wav/8f4967522fa6/benign/de/b4a49593c9c9.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	de
+data/ReplayDF/wav/8f4967522fa6/benign/pl/d1c6f7ba93fb.wav	bonafide	0	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	pl
+data/ReplayDF/wav/8f4967522fa6/spoof/bark/it/4e8ad373ada0.wav	bark	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	it
+data/ReplayDF/wav/8f4967522fa6/spoof/vits/es/78406d0ca400.wav	vits	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	es
+data/ReplayDF/wav/8f4967522fa6/spoof/xtts_v1.1/it/0e875de2b901.wav	xtts_v1.1	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	it
+data/ReplayDF/wav/8f4967522fa6/spoof/xtts_v2/es/e6a5afd00201.wav	xtts_v2	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	es
+data/ReplayDF/wav/8f4967522fa6/spoof/bark/en/18b286e3ce27.wav	bark	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	en
+data/ReplayDF/wav/8f4967522fa6/spoof/vits/it/6ab3753b0f8d.wav	vits	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	it
+data/ReplayDF/wav/8f4967522fa6/spoof/xtts_v1.1/fr/a975d2192677.wav	xtts_v1.1	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	fr
+data/ReplayDF/wav/8f4967522fa6/spoof/xtts_v2/de/1b7f9d70c233.wav	xtts_v2	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	de
+data/ReplayDF/wav/8f4967522fa6/spoof/bark/fr/3355217aca43.wav	bark	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	fr
+data/ReplayDF/wav/8f4967522fa6/spoof/vits/en/2e43944ffed7.wav	vits	1	8f4967522fa6	AudioTechnica AT2022	Mackie MR5	en
+data/ReplayDF/wav/9ad81aac9ca6/benign/fr/209a837dad49.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/9ad81aac9ca6/benign/fr/8daca855b837.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/9ad81aac9ca6/benign/fr/f712fdefbf7b.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/9ad81aac9ca6/benign/en/548c47e084dd.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/9ad81aac9ca6/benign/it/991a4b188ce9.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/9ad81aac9ca6/benign/en/36b3c8d9fc3b.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/9ad81aac9ca6/benign/de/60a8ec1afe8c.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/9ad81aac9ca6/benign/es/9cd4cd23a917.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/9ad81aac9ca6/benign/it/6c130afea69b.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/9ad81aac9ca6/benign/en/a96ee5c9fecd.wav	bonafide	0	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/9ad81aac9ca6/spoof/bark/de/ee7410e1e3e2.wav	bark	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/9ad81aac9ca6/spoof/vits/fr/9d51cf490b81.wav	vits	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/9ad81aac9ca6/spoof/xtts_v1.1/es/5b9e063cf64c.wav	xtts_v1.1	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/9ad81aac9ca6/spoof/xtts_v2/pl/a259d6eedbaf.wav	xtts_v2	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/9ad81aac9ca6/spoof/bark/pl/e3a9fd0d197c.wav	bark	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/9ad81aac9ca6/spoof/vits/en/25427ba0ceea.wav	vits	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/9ad81aac9ca6/spoof/xtts_v1.1/fr/e136a26f3b03.wav	xtts_v1.1	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/9ad81aac9ca6/spoof/xtts_v2/it/224accd437b5.wav	xtts_v2	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/9ad81aac9ca6/spoof/bark/de/6190586deee1.wav	bark	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/9ad81aac9ca6/spoof/vits/de/150f1976fe26.wav	vits	1	9ad81aac9ca6	Logitech Brio Ultra HD Webcam	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/a75bbea7c0ba/benign/de/791178e0c019.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/a75bbea7c0ba/benign/en/3f24eb5b017b.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/a75bbea7c0ba/benign/fr/3041622ca50e.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/a75bbea7c0ba/benign/pl/d142afd7ea90.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	pl
+data/ReplayDF/wav/a75bbea7c0ba/benign/fr/a069f45269d9.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/a75bbea7c0ba/benign/it/87f5049703f3.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/a75bbea7c0ba/benign/fr/476d1bcca531.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/a75bbea7c0ba/benign/de/b0898d854e8c.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/a75bbea7c0ba/benign/en/0de18bdda1c1.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/a75bbea7c0ba/benign/it/c5d7ca88c8e3.wav	bonafide	0	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/a75bbea7c0ba/spoof/bark/fr/70d68dbec796.wav	bark	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/a75bbea7c0ba/spoof/vits/es/73d5ffaebf09.wav	vits	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/a75bbea7c0ba/spoof/xtts_v1.1/pl/e6fde2d90961.wav	xtts_v1.1	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	pl
+data/ReplayDF/wav/a75bbea7c0ba/spoof/xtts_v2/pl/21b072bdff45.wav	xtts_v2	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	pl
+data/ReplayDF/wav/a75bbea7c0ba/spoof/bark/fr/a6d85f458754.wav	bark	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/a75bbea7c0ba/spoof/vits/en/bfed3a3b740d.wav	vits	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/a75bbea7c0ba/spoof/xtts_v1.1/es/77182068df9f.wav	xtts_v1.1	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/a75bbea7c0ba/spoof/xtts_v2/es/38d68061eabb.wav	xtts_v2	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/a75bbea7c0ba/spoof/bark/fr/989f69857a31.wav	bark	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/a75bbea7c0ba/spoof/vits/de/f28d77771f32.wav	vits	1	a75bbea7c0ba	SteelSeries Arctis 3 2019 Headset	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/b40639676869/benign/pl/9f936fd9f31e.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	pl
+data/ReplayDF/wav/b40639676869/benign/de/1fcb373db5ad.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b40639676869/benign/fr/1ed24062f49e.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	fr
+data/ReplayDF/wav/b40639676869/benign/it/57bf9715a799.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	it
+data/ReplayDF/wav/b40639676869/benign/fr/9910c76182ff.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	fr
+data/ReplayDF/wav/b40639676869/benign/es/3bdbc2a8b2a3.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	es
+data/ReplayDF/wav/b40639676869/benign/pl/9a110e116b26.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	pl
+data/ReplayDF/wav/b40639676869/benign/es/2d8eb543257b.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	es
+data/ReplayDF/wav/b40639676869/benign/de/8d5451a10228.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b40639676869/benign/es/5594b223bc7a.wav	bonafide	0	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	es
+data/ReplayDF/wav/b40639676869/spoof/bark/de/9aeff73dd033.wav	bark	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b40639676869/spoof/vits/pl/60a7442451ec.wav	vits	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	pl
+data/ReplayDF/wav/b40639676869/spoof/xtts_v1.1/it/e25454af1106.wav	xtts_v1.1	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	it
+data/ReplayDF/wav/b40639676869/spoof/xtts_v2/fr/0a565247b9ca.wav	xtts_v2	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	fr
+data/ReplayDF/wav/b40639676869/spoof/bark/de/86216dcbb688.wav	bark	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b40639676869/spoof/vits/fr/ef16cecc8d5a.wav	vits	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	fr
+data/ReplayDF/wav/b40639676869/spoof/xtts_v1.1/de/c4d09e2d74a7.wav	xtts_v1.1	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b40639676869/spoof/xtts_v2/de/18ea8a2dc244.wav	xtts_v2	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b40639676869/spoof/bark/de/add22123b057.wav	bark	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b40639676869/spoof/vits/de/bb6781cfc139.wav	vits	1	b40639676869	ThinkPad P14s Gen2	Oliver Wyman speaker (60cm)	de
+data/ReplayDF/wav/b5a0a107e0e5/benign/fr/6d546958f845.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/b5a0a107e0e5/benign/es/8269e8dbc57d.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/b5a0a107e0e5/benign/it/1621a1ce23c4.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/b5a0a107e0e5/benign/pl/122de4607533.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/b5a0a107e0e5/benign/es/6942ccf9d381.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/b5a0a107e0e5/benign/it/746583e9c2f7.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/b5a0a107e0e5/benign/de/fd1034b9291b.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/b5a0a107e0e5/benign/fr/a3fd1cffc7ae.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/b5a0a107e0e5/benign/pl/4715819c9be0.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/b5a0a107e0e5/benign/de/9d0b999a7737.wav	bonafide	0	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/b5a0a107e0e5/spoof/bark/es/b52ec7b5e575.wav	bark	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/b5a0a107e0e5/spoof/vits/it/a6ed2220ed3f.wav	vits	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/b5a0a107e0e5/spoof/xtts_v1.1/pl/7cbba30b57b1.wav	xtts_v1.1	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/b5a0a107e0e5/spoof/xtts_v2/fr/d0a5907fac19.wav	xtts_v2	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/b5a0a107e0e5/spoof/bark/de/770561ce01e9.wav	bark	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/b5a0a107e0e5/spoof/vits/de/8e3905acda2a.wav	vits	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/b5a0a107e0e5/spoof/xtts_v1.1/pl/0f457c4bdb6a.wav	xtts_v1.1	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/b5a0a107e0e5/spoof/xtts_v2/en/ca00e830718c.wav	xtts_v2	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/b5a0a107e0e5/spoof/bark/en/5cbd7543ee80.wav	bark	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/b5a0a107e0e5/spoof/vits/en/c61966ed30ff.wav	vits	1	b5a0a107e0e5	Yeti USB	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/b8dc9ff08aeb/benign/fr/35105a49f345.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	fr
+data/ReplayDF/wav/b8dc9ff08aeb/benign/es/4d06ca1a18c9.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	es
+data/ReplayDF/wav/b8dc9ff08aeb/benign/pl/13657243a88e.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	pl
+data/ReplayDF/wav/b8dc9ff08aeb/benign/it/64f798ab8058.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	it
+data/ReplayDF/wav/b8dc9ff08aeb/benign/es/9d8a783147c8.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	es
+data/ReplayDF/wav/b8dc9ff08aeb/benign/de/2cb893f92018.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	de
+data/ReplayDF/wav/b8dc9ff08aeb/benign/it/8423e6e0eac4.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	it
+data/ReplayDF/wav/b8dc9ff08aeb/benign/fr/6cc1c2f07f65.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	fr
+data/ReplayDF/wav/b8dc9ff08aeb/benign/pl/bdbb799ebb49.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	pl
+data/ReplayDF/wav/b8dc9ff08aeb/benign/it/5c0678375ecb.wav	bonafide	0	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	it
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/bark/it/f0104f0f4631.wav	bark	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	it
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/vits/fr/f680affd1597.wav	vits	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	fr
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/xtts_v1.1/en/d5c412e19bbc.wav	xtts_v1.1	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	en
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/xtts_v2/fr/0a62829a4f7c.wav	xtts_v2	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	fr
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/bark/pl/caaf4f57ea77.wav	bark	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	pl
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/vits/en/85503fc883fe.wav	vits	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	en
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/xtts_v1.1/de/4468a9d4c160.wav	xtts_v1.1	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	de
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/xtts_v2/es/9cd37583fff7.wav	xtts_v2	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	es
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/bark/it/1e260cea9105.wav	bark	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	it
+data/ReplayDF/wav/b8dc9ff08aeb/spoof/vits/de/28915aeec11f.wav	vits	1	b8dc9ff08aeb	Logitech Brio Ultra HD Webcam	JBL Flip 4	de
+data/ReplayDF/wav/c18ae1721be1/benign/fr/8b03a7507704.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	fr
+data/ReplayDF/wav/c18ae1721be1/benign/it/dd12f5d78151.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	it
+data/ReplayDF/wav/c18ae1721be1/benign/es/60bee1cf74a7.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	es
+data/ReplayDF/wav/c18ae1721be1/benign/it/a15eb86f2e64.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	it
+data/ReplayDF/wav/c18ae1721be1/benign/en/21a4372cda5d.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	en
+data/ReplayDF/wav/c18ae1721be1/benign/de/f5bb42646c10.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	de
+data/ReplayDF/wav/c18ae1721be1/benign/fr/724c636e0973.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	fr
+data/ReplayDF/wav/c18ae1721be1/benign/pl/eaca29f217aa.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	pl
+data/ReplayDF/wav/c18ae1721be1/benign/en/26fb320a5a82.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	en
+data/ReplayDF/wav/c18ae1721be1/benign/en/6dc7838472db.wav	bonafide	0	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	en
+data/ReplayDF/wav/c18ae1721be1/spoof/bark/es/e33dc2a9a9b0.wav	bark	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	es
+data/ReplayDF/wav/c18ae1721be1/spoof/vits/en/cafe5f23ff61.wav	vits	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	en
+data/ReplayDF/wav/c18ae1721be1/spoof/xtts_v1.1/it/977f0ba6edaa.wav	xtts_v1.1	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	it
+data/ReplayDF/wav/c18ae1721be1/spoof/xtts_v2/de/1aae4ec45899.wav	xtts_v2	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	de
+data/ReplayDF/wav/c18ae1721be1/spoof/bark/fr/e472596d6295.wav	bark	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	fr
+data/ReplayDF/wav/c18ae1721be1/spoof/vits/fr/e67ce75fd042.wav	vits	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	fr
+data/ReplayDF/wav/c18ae1721be1/spoof/xtts_v1.1/es/0eeb0c7a038d.wav	xtts_v1.1	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	es
+data/ReplayDF/wav/c18ae1721be1/spoof/xtts_v2/fr/3514ba66c8e3.wav	xtts_v2	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	fr
+data/ReplayDF/wav/c18ae1721be1/spoof/bark/it/eddeeb9699db.wav	bark	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	it
+data/ReplayDF/wav/c18ae1721be1/spoof/vits/it/a246c7ccc899.wav	vits	1	c18ae1721be1	Jabra Evolve2 40 Headset	Bose QuietComfort	it
+data/ReplayDF/wav/c537ea39e5f3/benign/fr/83b347387410.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/c537ea39e5f3/benign/es/76116a726734.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/c537ea39e5f3/benign/pl/c7eda4b2010c.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/c537ea39e5f3/benign/fr/d8d17b357704.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/c537ea39e5f3/benign/fr/ed7e1e9ba922.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/c537ea39e5f3/benign/pl/f0b80a687de6.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/c537ea39e5f3/benign/en/4a466ad4599b.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/c537ea39e5f3/benign/es/b1fbc9682b4e.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/c537ea39e5f3/benign/it/f492e8350fbb.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/c537ea39e5f3/benign/it/aa21014af0b8.wav	bonafide	0	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/c537ea39e5f3/spoof/bark/de/a4ec15d63c62.wav	bark	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	de
+data/ReplayDF/wav/c537ea39e5f3/spoof/vits/es/542096c563e6.wav	vits	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/c537ea39e5f3/spoof/xtts_v1.1/it/49b2c81bcffc.wav	xtts_v1.1	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/c537ea39e5f3/spoof/xtts_v2/en/36e163dedd96.wav	xtts_v2	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	en
+data/ReplayDF/wav/c537ea39e5f3/spoof/bark/pl/4a55c94eb41c.wav	bark	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/c537ea39e5f3/spoof/vits/pl/5ba6e7832fbc.wav	vits	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	pl
+data/ReplayDF/wav/c537ea39e5f3/spoof/xtts_v1.1/it/29984805d877.wav	xtts_v1.1	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/c537ea39e5f3/spoof/xtts_v2/es/7171e1935ad1.wav	xtts_v2	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	es
+data/ReplayDF/wav/c537ea39e5f3/spoof/bark/fr/e7ac3c2dab4c.wav	bark	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	fr
+data/ReplayDF/wav/c537ea39e5f3/spoof/vits/it/0159881fa024.wav	vits	1	c537ea39e5f3	Thinkpad T470s Built-in Mic	Bose Mini II SE Soundlink	it
+data/ReplayDF/wav/ca84735ecb1a/benign/en/76a18d575bed.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	en
+data/ReplayDF/wav/ca84735ecb1a/benign/it/e6ea9b81991f.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	it
+data/ReplayDF/wav/ca84735ecb1a/benign/pl/3f8bc98b5b47.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	pl
+data/ReplayDF/wav/ca84735ecb1a/benign/es/3c7947999c91.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	es
+data/ReplayDF/wav/ca84735ecb1a/benign/en/6312169ff98d.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	en
+data/ReplayDF/wav/ca84735ecb1a/benign/pl/46c5dd9eec0c.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	pl
+data/ReplayDF/wav/ca84735ecb1a/benign/fr/80ad7527b3de.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	fr
+data/ReplayDF/wav/ca84735ecb1a/benign/en/af0b7645b469.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	en
+data/ReplayDF/wav/ca84735ecb1a/benign/fr/cf7654708cfb.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	fr
+data/ReplayDF/wav/ca84735ecb1a/benign/es/0083fad81f3a.wav	bonafide	0	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	es
+data/ReplayDF/wav/ca84735ecb1a/spoof/bark/fr/03ebe4c14f59.wav	bark	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	fr
+data/ReplayDF/wav/ca84735ecb1a/spoof/vits/fr/6d30bed6ff3a.wav	vits	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	fr
+data/ReplayDF/wav/ca84735ecb1a/spoof/xtts_v1.1/it/af85565ec4b7.wav	xtts_v1.1	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	it
+data/ReplayDF/wav/ca84735ecb1a/spoof/xtts_v2/es/999682ede563.wav	xtts_v2	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	es
+data/ReplayDF/wav/ca84735ecb1a/spoof/bark/es/f07ebda376b5.wav	bark	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	es
+data/ReplayDF/wav/ca84735ecb1a/spoof/vits/it/247244997783.wav	vits	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	it
+data/ReplayDF/wav/ca84735ecb1a/spoof/xtts_v1.1/fr/974034abbe57.wav	xtts_v1.1	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	fr
+data/ReplayDF/wav/ca84735ecb1a/spoof/xtts_v2/es/d279b9f155c3.wav	xtts_v2	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	es
+data/ReplayDF/wav/ca84735ecb1a/spoof/bark/en/a57a413880c4.wav	bark	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	en
+data/ReplayDF/wav/ca84735ecb1a/spoof/vits/es/b96ebc859097.wav	vits	1	ca84735ecb1a	VideoMic Pro (+20dB)	Sigma SP300	es
+data/ReplayDF/wav/daa3aa381787/benign/pl/c7d079ac2aa5.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	pl
+data/ReplayDF/wav/daa3aa381787/benign/es/d27dba5af0f0.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	es
+data/ReplayDF/wav/daa3aa381787/benign/fr/bf9f313a1af7.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	fr
+data/ReplayDF/wav/daa3aa381787/benign/pl/502f228f7fac.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	pl
+data/ReplayDF/wav/daa3aa381787/benign/pl/7630562333c3.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	pl
+data/ReplayDF/wav/daa3aa381787/benign/pl/7de167702f13.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	pl
+data/ReplayDF/wav/daa3aa381787/benign/fr/bb7d30ba3b16.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	fr
+data/ReplayDF/wav/daa3aa381787/benign/es/ce99bb5beac2.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	es
+data/ReplayDF/wav/daa3aa381787/benign/de/00bde6d92694.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	de
+data/ReplayDF/wav/daa3aa381787/benign/en/3e47dc347a26.wav	bonafide	0	daa3aa381787	IPhone 13 Pro Max	S2-010	en
+data/ReplayDF/wav/daa3aa381787/spoof/bark/es/6d1a5c660366.wav	bark	1	daa3aa381787	IPhone 13 Pro Max	S2-010	es
+data/ReplayDF/wav/daa3aa381787/spoof/vits/de/70745b720766.wav	vits	1	daa3aa381787	IPhone 13 Pro Max	S2-010	de
+data/ReplayDF/wav/daa3aa381787/spoof/xtts_v1.1/it/5443f8e9510f.wav	xtts_v1.1	1	daa3aa381787	IPhone 13 Pro Max	S2-010	it
+data/ReplayDF/wav/daa3aa381787/spoof/xtts_v2/it/28d2e3c8b0d1.wav	xtts_v2	1	daa3aa381787	IPhone 13 Pro Max	S2-010	it
+data/ReplayDF/wav/daa3aa381787/spoof/bark/it/5904efc981d1.wav	bark	1	daa3aa381787	IPhone 13 Pro Max	S2-010	it
+data/ReplayDF/wav/daa3aa381787/spoof/vits/it/a6bfbab3771b.wav	vits	1	daa3aa381787	IPhone 13 Pro Max	S2-010	it
+data/ReplayDF/wav/daa3aa381787/spoof/xtts_v1.1/es/44aec3b44229.wav	xtts_v1.1	1	daa3aa381787	IPhone 13 Pro Max	S2-010	es
+data/ReplayDF/wav/daa3aa381787/spoof/xtts_v2/es/d9070d8dbf68.wav	xtts_v2	1	daa3aa381787	IPhone 13 Pro Max	S2-010	es
+data/ReplayDF/wav/daa3aa381787/spoof/bark/de/14b25f2cfa22.wav	bark	1	daa3aa381787	IPhone 13 Pro Max	S2-010	de
+data/ReplayDF/wav/daa3aa381787/spoof/vits/fr/42fc212ea791.wav	vits	1	daa3aa381787	IPhone 13 Pro Max	S2-010	fr
+data/ReplayDF/wav/dd642a8c091a/benign/it/8ff4d6aacd53.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	it
+data/ReplayDF/wav/dd642a8c091a/benign/es/93ac1851d0ab.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	es
+data/ReplayDF/wav/dd642a8c091a/benign/de/c3f0803fa6c4.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	de
+data/ReplayDF/wav/dd642a8c091a/benign/en/6dbc1009c123.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	en
+data/ReplayDF/wav/dd642a8c091a/benign/en/51d19a37989c.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	en
+data/ReplayDF/wav/dd642a8c091a/benign/fr/12dd33493fbe.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	fr
+data/ReplayDF/wav/dd642a8c091a/benign/it/95a4409c9a50.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	it
+data/ReplayDF/wav/dd642a8c091a/benign/pl/bbd00a9c5af3.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	pl
+data/ReplayDF/wav/dd642a8c091a/benign/de/0acbd8a5f0ec.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	de
+data/ReplayDF/wav/dd642a8c091a/benign/es/2b66951484bd.wav	bonafide	0	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	es
+data/ReplayDF/wav/dd642a8c091a/spoof/bark/de/a0d60f9306da.wav	bark	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	de
+data/ReplayDF/wav/dd642a8c091a/spoof/vits/fr/f62444b885d6.wav	vits	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	fr
+data/ReplayDF/wav/dd642a8c091a/spoof/xtts_v1.1/es/bd64488a84fb.wav	xtts_v1.1	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	es
+data/ReplayDF/wav/dd642a8c091a/spoof/xtts_v2/es/fffe69f12f10.wav	xtts_v2	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	es
+data/ReplayDF/wav/dd642a8c091a/spoof/bark/fr/d56c7021b14a.wav	bark	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	fr
+data/ReplayDF/wav/dd642a8c091a/spoof/vits/de/9474413f4a25.wav	vits	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	de
+data/ReplayDF/wav/dd642a8c091a/spoof/xtts_v1.1/it/781387fd8210.wav	xtts_v1.1	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	it
+data/ReplayDF/wav/dd642a8c091a/spoof/xtts_v2/it/3e995db7d45c.wav	xtts_v2	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	it
+data/ReplayDF/wav/dd642a8c091a/spoof/bark/pl/f7df47ecf840.wav	bark	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	pl
+data/ReplayDF/wav/dd642a8c091a/spoof/vits/de/3c5a685fa7bf.wav	vits	1	dd642a8c091a	Jabra Evolve2 40 Headset	Jabra Evolve2 40 Headset	de
+data/ReplayDF/wav/dfebbf7d7f86/benign/es/53f489cd73d1.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	es
+data/ReplayDF/wav/dfebbf7d7f86/benign/pl/cabbb8b504eb.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	pl
+data/ReplayDF/wav/dfebbf7d7f86/benign/pl/5c7b608af901.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	pl
+data/ReplayDF/wav/dfebbf7d7f86/benign/fr/44ac05c450cf.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	fr
+data/ReplayDF/wav/dfebbf7d7f86/benign/pl/321e4d722279.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	pl
+data/ReplayDF/wav/dfebbf7d7f86/benign/en/8a8081c11a03.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	en
+data/ReplayDF/wav/dfebbf7d7f86/benign/fr/76845d305a8d.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	fr
+data/ReplayDF/wav/dfebbf7d7f86/benign/pl/1a4ca3811f8c.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	pl
+data/ReplayDF/wav/dfebbf7d7f86/benign/fr/5f0e05a62cf3.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	fr
+data/ReplayDF/wav/dfebbf7d7f86/benign/it/29e1a852a52b.wav	bonafide	0	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	it
+data/ReplayDF/wav/dfebbf7d7f86/spoof/bark/en/cf7770bf0d95.wav	bark	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	en
+data/ReplayDF/wav/dfebbf7d7f86/spoof/vits/de/720406a8f3b5.wav	vits	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	de
+data/ReplayDF/wav/dfebbf7d7f86/spoof/xtts_v1.1/it/428f676462ca.wav	xtts_v1.1	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	it
+data/ReplayDF/wav/dfebbf7d7f86/spoof/xtts_v2/de/67d3d8ead136.wav	xtts_v2	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	de
+data/ReplayDF/wav/dfebbf7d7f86/spoof/bark/it/2b26c76d5f19.wav	bark	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	it
+data/ReplayDF/wav/dfebbf7d7f86/spoof/vits/es/d1b2b7c5bc10.wav	vits	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	es
+data/ReplayDF/wav/dfebbf7d7f86/spoof/xtts_v1.1/es/d4d92ac56050.wav	xtts_v1.1	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	es
+data/ReplayDF/wav/dfebbf7d7f86/spoof/xtts_v2/en/7a6c76dd5de3.wav	xtts_v2	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	en
+data/ReplayDF/wav/dfebbf7d7f86/spoof/bark/en/07b9191b140f.wav	bark	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	en
+data/ReplayDF/wav/dfebbf7d7f86/spoof/vits/pl/254fcbb62f1d.wav	vits	1	dfebbf7d7f86	Thinkpad T470s Built-in Mic	JBL Flip 4	pl
+data/ReplayDF/wav/e423db9b72e8/benign/en/a89f10934ca2.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/e423db9b72e8/benign/de/c381fd6c0d8f.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	de
+data/ReplayDF/wav/e423db9b72e8/benign/pl/d417870fcbd6.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	pl
+data/ReplayDF/wav/e423db9b72e8/benign/en/4a150598342d.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/e423db9b72e8/benign/pl/6012766d73f8.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	pl
+data/ReplayDF/wav/e423db9b72e8/benign/fr/92d1f204da0e.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	fr
+data/ReplayDF/wav/e423db9b72e8/benign/it/348b90b46532.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/e423db9b72e8/benign/en/6cca13aa6afc.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/e423db9b72e8/benign/fr/c5ad281f1c2a.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	fr
+data/ReplayDF/wav/e423db9b72e8/benign/es/d73ade1db9cc.wav	bonafide	0	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	es
+data/ReplayDF/wav/e423db9b72e8/spoof/bark/es/1f514a5243d3.wav	bark	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	es
+data/ReplayDF/wav/e423db9b72e8/spoof/vits/it/3af169a90193.wav	vits	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/e423db9b72e8/spoof/xtts_v1.1/it/09c441a9e152.wav	xtts_v1.1	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	it
+data/ReplayDF/wav/e423db9b72e8/spoof/xtts_v2/fr/35b248463849.wav	xtts_v2	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	fr
+data/ReplayDF/wav/e423db9b72e8/spoof/bark/es/173af881fc7a.wav	bark	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	es
+data/ReplayDF/wav/e423db9b72e8/spoof/vits/de/11583d8e413d.wav	vits	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	de
+data/ReplayDF/wav/e423db9b72e8/spoof/xtts_v1.1/en/459aa66be0c6.wav	xtts_v1.1	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	en
+data/ReplayDF/wav/e423db9b72e8/spoof/xtts_v2/de/e4adf36e5a14.wav	xtts_v2	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	de
+data/ReplayDF/wav/e423db9b72e8/spoof/bark/pl/96d6b0d26ded.wav	bark	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	pl
+data/ReplayDF/wav/e423db9b72e8/spoof/vits/de/8e16a21d0e22.wav	vits	1	e423db9b72e8	MacBook Pro 13 2020 Microphone	iiyama ProLite XUB2792QSN	de
+data/ReplayDF/wav/e7a8d116be51/benign/en/06994c21bbfa.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/e7a8d116be51/benign/en/56bd425561c8.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/e7a8d116be51/benign/fr/8951f36b7cd6.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/e7a8d116be51/benign/en/2dd19aac2be5.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/e7a8d116be51/benign/it/96ab5b2fd826.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/e7a8d116be51/benign/pl/5d28a4bdffc8.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	pl
+data/ReplayDF/wav/e7a8d116be51/benign/de/173fefd7081b.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/e7a8d116be51/benign/fr/b95ac41599b7.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/e7a8d116be51/benign/de/4e6883cc707a.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/e7a8d116be51/benign/fr/7a134c096eda.wav	bonafide	0	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/e7a8d116be51/spoof/bark/es/89e113405581.wav	bark	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/e7a8d116be51/spoof/vits/es/75a54604ad50.wav	vits	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/e7a8d116be51/spoof/xtts_v1.1/en/db49043ad54a.wav	xtts_v1.1	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/e7a8d116be51/spoof/xtts_v2/en/25c300165628.wav	xtts_v2	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	en
+data/ReplayDF/wav/e7a8d116be51/spoof/bark/fr/8641cc62fa5c.wav	bark	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	fr
+data/ReplayDF/wav/e7a8d116be51/spoof/vits/es/b70da95c4f6d.wav	vits	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/e7a8d116be51/spoof/xtts_v1.1/it/36ad0b2793ca.wav	xtts_v1.1	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/e7a8d116be51/spoof/xtts_v2/es/c99120de48e1.wav	xtts_v2	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	es
+data/ReplayDF/wav/e7a8d116be51/spoof/bark/de/50e0d3242874.wav	bark	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	de
+data/ReplayDF/wav/e7a8d116be51/spoof/vits/it/a6bc520d6269.wav	vits	1	e7a8d116be51	IPhone 13 Pro Max	Soundbar SAMSUNG HW-B750D	it
+data/ReplayDF/wav/e9f8427e4653/benign/fr/5ab2b42fa92f.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	fr
+data/ReplayDF/wav/e9f8427e4653/benign/en/76ec8cdc0ff2.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	en
+data/ReplayDF/wav/e9f8427e4653/benign/en/5f38c57471d8.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	en
+data/ReplayDF/wav/e9f8427e4653/benign/de/0c47fb083425.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	de
+data/ReplayDF/wav/e9f8427e4653/benign/de/f215885d347c.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	de
+data/ReplayDF/wav/e9f8427e4653/benign/pl/9e0ebf57f471.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	pl
+data/ReplayDF/wav/e9f8427e4653/benign/pl/b6434a042eea.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	pl
+data/ReplayDF/wav/e9f8427e4653/benign/de/90f82a466c85.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	de
+data/ReplayDF/wav/e9f8427e4653/benign/de/74362a64fc72.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	de
+data/ReplayDF/wav/e9f8427e4653/benign/es/7587f071ac58.wav	bonafide	0	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	es
+data/ReplayDF/wav/e9f8427e4653/spoof/bark/de/594e5fb4c516.wav	bark	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	de
+data/ReplayDF/wav/e9f8427e4653/spoof/vits/fr/f2ca63f8bd41.wav	vits	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	fr
+data/ReplayDF/wav/e9f8427e4653/spoof/xtts_v1.1/es/b1afdfc0c0d8.wav	xtts_v1.1	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	es
+data/ReplayDF/wav/e9f8427e4653/spoof/xtts_v2/fr/fecd7f5e5ac4.wav	xtts_v2	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	fr
+data/ReplayDF/wav/e9f8427e4653/spoof/bark/pl/6aea00dcee26.wav	bark	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	pl
+data/ReplayDF/wav/e9f8427e4653/spoof/vits/it/c8577d5cdfc8.wav	vits	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	it
+data/ReplayDF/wav/e9f8427e4653/spoof/xtts_v1.1/pl/f25f93e2525d.wav	xtts_v1.1	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	pl
+data/ReplayDF/wav/e9f8427e4653/spoof/xtts_v2/pl/74ad0b1494c1.wav	xtts_v2	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	pl
+data/ReplayDF/wav/e9f8427e4653/spoof/bark/en/c2e7c0724bf4.wav	bark	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	en
+data/ReplayDF/wav/e9f8427e4653/spoof/vits/pl/e00a6077f47d.wav	vits	1	e9f8427e4653	ThinkPad P14s Gen2	ThinkPad P14s Gen2	pl
+data/ReplayDF/wav/ea61ba26e476/benign/fr/f4668d4b9b20.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	fr
+data/ReplayDF/wav/ea61ba26e476/benign/es/69899298a726.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	es
+data/ReplayDF/wav/ea61ba26e476/benign/es/7d4d43853cb1.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	es
+data/ReplayDF/wav/ea61ba26e476/benign/en/03f891170879.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	en
+data/ReplayDF/wav/ea61ba26e476/benign/de/f3bf849bc7e1.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	de
+data/ReplayDF/wav/ea61ba26e476/benign/fr/93c575cde779.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	fr
+data/ReplayDF/wav/ea61ba26e476/benign/de/a76ada565052.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	de
+data/ReplayDF/wav/ea61ba26e476/benign/pl/24906e294248.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	pl
+data/ReplayDF/wav/ea61ba26e476/benign/pl/85096d95a53e.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	pl
+data/ReplayDF/wav/ea61ba26e476/benign/en/3d567da950e8.wav	bonafide	0	ea61ba26e476	UM10 USB	Logitech Z323	en
+data/ReplayDF/wav/ea61ba26e476/spoof/bark/es/f3e8581b035c.wav	bark	1	ea61ba26e476	UM10 USB	Logitech Z323	es
+data/ReplayDF/wav/ea61ba26e476/spoof/vits/fr/e68ad0f73874.wav	vits	1	ea61ba26e476	UM10 USB	Logitech Z323	fr
+data/ReplayDF/wav/ea61ba26e476/spoof/xtts_v1.1/fr/ee1fabefac91.wav	xtts_v1.1	1	ea61ba26e476	UM10 USB	Logitech Z323	fr
+data/ReplayDF/wav/ea61ba26e476/spoof/xtts_v2/es/df46cc68a091.wav	xtts_v2	1	ea61ba26e476	UM10 USB	Logitech Z323	es
+data/ReplayDF/wav/ea61ba26e476/spoof/bark/it/15ab2bdc7c34.wav	bark	1	ea61ba26e476	UM10 USB	Logitech Z323	it
+data/ReplayDF/wav/ea61ba26e476/spoof/vits/pl/3d9810d60b58.wav	vits	1	ea61ba26e476	UM10 USB	Logitech Z323	pl
+data/ReplayDF/wav/ea61ba26e476/spoof/xtts_v1.1/es/bdc1b373cf0b.wav	xtts_v1.1	1	ea61ba26e476	UM10 USB	Logitech Z323	es
+data/ReplayDF/wav/ea61ba26e476/spoof/xtts_v2/de/4aa1e7379318.wav	xtts_v2	1	ea61ba26e476	UM10 USB	Logitech Z323	de
+data/ReplayDF/wav/ea61ba26e476/spoof/bark/de/8675f49e1c4f.wav	bark	1	ea61ba26e476	UM10 USB	Logitech Z323	de
+data/ReplayDF/wav/ea61ba26e476/spoof/vits/fr/b2bd8cb10fe4.wav	vits	1	ea61ba26e476	UM10 USB	Logitech Z323	fr
+data/ReplayDF/wav/ea884fdb7209/benign/pl/f10911c01cd5.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	pl
+data/ReplayDF/wav/ea884fdb7209/benign/pl/fb959cc74778.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	pl
+data/ReplayDF/wav/ea884fdb7209/benign/fr/6dcf7c09b8eb.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	fr
+data/ReplayDF/wav/ea884fdb7209/benign/en/c4a5cc89b3b8.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	en
+data/ReplayDF/wav/ea884fdb7209/benign/es/0f551fa50b6e.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	es
+data/ReplayDF/wav/ea884fdb7209/benign/en/0013e00d1671.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	en
+data/ReplayDF/wav/ea884fdb7209/benign/en/506ca4391f85.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	en
+data/ReplayDF/wav/ea884fdb7209/benign/es/570d63f5af2d.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	es
+data/ReplayDF/wav/ea884fdb7209/benign/pl/6003b2070c02.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	pl
+data/ReplayDF/wav/ea884fdb7209/benign/it/270a830bc9d7.wav	bonafide	0	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	it
+data/ReplayDF/wav/ea884fdb7209/spoof/bark/es/764b545441ea.wav	bark	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	es
+data/ReplayDF/wav/ea884fdb7209/spoof/vits/es/601e919d393c.wav	vits	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	es
+data/ReplayDF/wav/ea884fdb7209/spoof/xtts_v1.1/it/9be9280c968d.wav	xtts_v1.1	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	it
+data/ReplayDF/wav/ea884fdb7209/spoof/xtts_v2/de/2912fc417282.wav	xtts_v2	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	de
+data/ReplayDF/wav/ea884fdb7209/spoof/bark/fr/e52e866a0670.wav	bark	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	fr
+data/ReplayDF/wav/ea884fdb7209/spoof/vits/pl/2cb78a28a417.wav	vits	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	pl
+data/ReplayDF/wav/ea884fdb7209/spoof/xtts_v1.1/en/71313dcd218c.wav	xtts_v1.1	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	en
+data/ReplayDF/wav/ea884fdb7209/spoof/xtts_v2/fr/33ef3680f86a.wav	xtts_v2	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	fr
+data/ReplayDF/wav/ea884fdb7209/spoof/bark/en/f064d28045a8.wav	bark	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	en
+data/ReplayDF/wav/ea884fdb7209/spoof/vits/es/570d63f5af2d.wav	vits	1	ea884fdb7209	Poly EncorePro 320 Headset	JBL Flip 4	es
+data/ReplayDF/wav/eb00e6796b7a/benign/pl/910c2f0e131f.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	pl
+data/ReplayDF/wav/eb00e6796b7a/benign/fr/8fce8db16c4f.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	fr
+data/ReplayDF/wav/eb00e6796b7a/benign/en/fda0aee9a029.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	en
+data/ReplayDF/wav/eb00e6796b7a/benign/it/e98ed5014208.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	it
+data/ReplayDF/wav/eb00e6796b7a/benign/de/d16974c61fdc.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	de
+data/ReplayDF/wav/eb00e6796b7a/benign/it/30e9544112a2.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	it
+data/ReplayDF/wav/eb00e6796b7a/benign/es/2a677773f2b3.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	es
+data/ReplayDF/wav/eb00e6796b7a/benign/de/fb4e42485b18.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	de
+data/ReplayDF/wav/eb00e6796b7a/benign/de/2411dcdbd1eb.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	de
+data/ReplayDF/wav/eb00e6796b7a/benign/pl/b7d6f0e888c1.wav	bonafide	0	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	pl
+data/ReplayDF/wav/eb00e6796b7a/spoof/bark/es/bd09a7afe9fa.wav	bark	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	es
+data/ReplayDF/wav/eb00e6796b7a/spoof/vits/it/6cd3666865bd.wav	vits	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	it
+data/ReplayDF/wav/eb00e6796b7a/spoof/xtts_v1.1/pl/d1fc0ec3a17f.wav	xtts_v1.1	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	pl
+data/ReplayDF/wav/eb00e6796b7a/spoof/xtts_v2/it/c38771db2165.wav	xtts_v2	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	it
+data/ReplayDF/wav/eb00e6796b7a/spoof/bark/de/b98ae5241d0b.wav	bark	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	de
+data/ReplayDF/wav/eb00e6796b7a/spoof/vits/es/5327654fb331.wav	vits	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	es
+data/ReplayDF/wav/eb00e6796b7a/spoof/xtts_v1.1/pl/458fbaba3f22.wav	xtts_v1.1	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	pl
+data/ReplayDF/wav/eb00e6796b7a/spoof/xtts_v2/en/8efa1cb6d42a.wav	xtts_v2	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	en
+data/ReplayDF/wav/eb00e6796b7a/spoof/bark/it/4773721167ec.wav	bark	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	it
+data/ReplayDF/wav/eb00e6796b7a/spoof/vits/en/11f6a0a37028.wav	vits	1	eb00e6796b7a	Logitech Brio Ultra HD Webcam	Creative Pebble USB	en
+data/ReplayDF/wav/eb22ed7f96af/benign/pl/912bc7947504.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	pl
+data/ReplayDF/wav/eb22ed7f96af/benign/es/047fda885694.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	es
+data/ReplayDF/wav/eb22ed7f96af/benign/fr/ee9b740b4512.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	fr
+data/ReplayDF/wav/eb22ed7f96af/benign/en/e0586cdee72f.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	en
+data/ReplayDF/wav/eb22ed7f96af/benign/pl/dc79b5672a8a.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	pl
+data/ReplayDF/wav/eb22ed7f96af/benign/fr/52d26b5787a8.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	fr
+data/ReplayDF/wav/eb22ed7f96af/benign/fr/f6c700919371.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	fr
+data/ReplayDF/wav/eb22ed7f96af/benign/pl/7d98d1ab0458.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	pl
+data/ReplayDF/wav/eb22ed7f96af/benign/fr/a44fa5eda89e.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	fr
+data/ReplayDF/wav/eb22ed7f96af/benign/pl/690727bd9502.wav	bonafide	0	eb22ed7f96af	Creative Pebble USB	Yeti USB	pl
+data/ReplayDF/wav/eb22ed7f96af/spoof/bark/en/5ca8227eec9a.wav	bark	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	en
+data/ReplayDF/wav/eb22ed7f96af/spoof/vits/en/8e3d4aa41911.wav	vits	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	en
+data/ReplayDF/wav/eb22ed7f96af/spoof/xtts_v1.1/pl/fb362c1e7ece.wav	xtts_v1.1	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	pl
+data/ReplayDF/wav/eb22ed7f96af/spoof/xtts_v2/fr/ffc873ff9d9f.wav	xtts_v2	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	fr
+data/ReplayDF/wav/eb22ed7f96af/spoof/bark/fr/7059875351c9.wav	bark	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	fr
+data/ReplayDF/wav/eb22ed7f96af/spoof/vits/es/ef05ef251975.wav	vits	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	es
+data/ReplayDF/wav/eb22ed7f96af/spoof/xtts_v1.1/en/1f81323ce361.wav	xtts_v1.1	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	en
+data/ReplayDF/wav/eb22ed7f96af/spoof/xtts_v2/it/31316de21fd3.wav	xtts_v2	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	it
+data/ReplayDF/wav/eb22ed7f96af/spoof/bark/en/5a3edbc02f6f.wav	bark	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	en
+data/ReplayDF/wav/eb22ed7f96af/spoof/vits/pl/12aad197b093.wav	vits	1	eb22ed7f96af	Creative Pebble USB	Yeti USB	pl
+data/ReplayDF/wav/f01cb40c918e/benign/de/da72e876087c.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	de
+data/ReplayDF/wav/f01cb40c918e/benign/es/2d47ce06d8b7.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	es
+data/ReplayDF/wav/f01cb40c918e/benign/es/aa7b0ca93fad.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	es
+data/ReplayDF/wav/f01cb40c918e/benign/fr/a257b49a7847.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	fr
+data/ReplayDF/wav/f01cb40c918e/benign/de/bfbbe3a82400.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	de
+data/ReplayDF/wav/f01cb40c918e/benign/en/7c3fe4b837f2.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	en
+data/ReplayDF/wav/f01cb40c918e/benign/en/6aea01cf9400.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	en
+data/ReplayDF/wav/f01cb40c918e/benign/pl/b349c535f633.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	pl
+data/ReplayDF/wav/f01cb40c918e/benign/de/033ed4b1f489.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	de
+data/ReplayDF/wav/f01cb40c918e/benign/en/8808c75f08be.wav	bonafide	0	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	en
+data/ReplayDF/wav/f01cb40c918e/spoof/bark/es/9e3ecd5a7bdb.wav	bark	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	es
+data/ReplayDF/wav/f01cb40c918e/spoof/vits/en/bd17aa2c3e9e.wav	vits	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	en
+data/ReplayDF/wav/f01cb40c918e/spoof/xtts_v1.1/it/0e78479db6ba.wav	xtts_v1.1	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	it
+data/ReplayDF/wav/f01cb40c918e/spoof/xtts_v2/pl/6cef2e077776.wav	xtts_v2	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	pl
+data/ReplayDF/wav/f01cb40c918e/spoof/bark/pl/bd729fb51720.wav	bark	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	pl
+data/ReplayDF/wav/f01cb40c918e/spoof/vits/de/1cecebdf5a6e.wav	vits	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	de
+data/ReplayDF/wav/f01cb40c918e/spoof/xtts_v1.1/en/39d48f8c008f.wav	xtts_v1.1	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	en
+data/ReplayDF/wav/f01cb40c918e/spoof/xtts_v2/it/0ad87a28e918.wav	xtts_v2	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	it
+data/ReplayDF/wav/f01cb40c918e/spoof/bark/fr/15b1d609b001.wav	bark	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	fr
+data/ReplayDF/wav/f01cb40c918e/spoof/vits/de/c1e9f2e08bbb.wav	vits	1	f01cb40c918e	VideoMic Pro (+20dB)	Logitech Z323	de
+data/ReplayDF/wav/f05c24dc2b81/benign/en/7e605279b573.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	en
+data/ReplayDF/wav/f05c24dc2b81/benign/en/b139a1882e9b.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	en
+data/ReplayDF/wav/f05c24dc2b81/benign/en/4f37bbbcff30.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	en
+data/ReplayDF/wav/f05c24dc2b81/benign/es/d04e34b10f09.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	es
+data/ReplayDF/wav/f05c24dc2b81/benign/pl/d7d77d61a27a.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	pl
+data/ReplayDF/wav/f05c24dc2b81/benign/fr/247ad4a09bbf.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	fr
+data/ReplayDF/wav/f05c24dc2b81/benign/fr/07413accab20.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	fr
+data/ReplayDF/wav/f05c24dc2b81/benign/es/17b69fd3ba0f.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	es
+data/ReplayDF/wav/f05c24dc2b81/benign/pl/122de4607533.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	pl
+data/ReplayDF/wav/f05c24dc2b81/benign/en/2777dc5aba44.wav	bonafide	0	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	en
+data/ReplayDF/wav/f05c24dc2b81/spoof/bark/it/7f6037825e26.wav	bark	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	it
+data/ReplayDF/wav/f05c24dc2b81/spoof/vits/fr/48afe73a20a7.wav	vits	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	fr
+data/ReplayDF/wav/f05c24dc2b81/spoof/xtts_v1.1/fr/b0ba797f8cec.wav	xtts_v1.1	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	fr
+data/ReplayDF/wav/f05c24dc2b81/spoof/xtts_v2/en/f1f8da9abbdf.wav	xtts_v2	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	en
+data/ReplayDF/wav/f05c24dc2b81/spoof/bark/en/71dba86f89ef.wav	bark	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	en
+data/ReplayDF/wav/f05c24dc2b81/spoof/vits/es/2d8eb543257b.wav	vits	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	es
+data/ReplayDF/wav/f05c24dc2b81/spoof/xtts_v1.1/pl/3ca85f9ed5e6.wav	xtts_v1.1	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	pl
+data/ReplayDF/wav/f05c24dc2b81/spoof/xtts_v2/es/f590a593682c.wav	xtts_v2	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	es
+data/ReplayDF/wav/f05c24dc2b81/spoof/bark/en/e7939d01c06a.wav	bark	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	en
+data/ReplayDF/wav/f05c24dc2b81/spoof/vits/de/1c31b03b4faf.wav	vits	1	f05c24dc2b81	ThinkPad P14s Gen2	Oliver Wyman speaker (10cm)	de
+data/ReplayDF/wav/f2e836658a50/benign/fr/102cc323ff39.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/benign/en/ee58ac67245b.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	en
+data/ReplayDF/wav/f2e836658a50/benign/it/589bef8c7cbf.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	it
+data/ReplayDF/wav/f2e836658a50/benign/pl/1ba8f9e268d8.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	pl
+data/ReplayDF/wav/f2e836658a50/benign/fr/5050b5a30b91.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/benign/fr/685cd43a12b1.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/benign/en/773a57870c5a.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	en
+data/ReplayDF/wav/f2e836658a50/benign/fr/f7215f92c50e.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/benign/fr/cfc85b55f31c.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/benign/it/b74989a88fb0.wav	bonafide	0	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	it
+data/ReplayDF/wav/f2e836658a50/spoof/bark/es/1184db5089fd.wav	bark	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	es
+data/ReplayDF/wav/f2e836658a50/spoof/vits/fr/089b6528c1df.wav	vits	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/spoof/xtts_v1.1/de/271cdea38e90.wav	xtts_v1.1	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	de
+data/ReplayDF/wav/f2e836658a50/spoof/xtts_v2/fr/8b1b0dc16e7a.wav	xtts_v2	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/spoof/bark/fr/3f54bf969fd5.wav	bark	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/spoof/vits/fr/13968f2e0dea.wav	vits	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/spoof/xtts_v1.1/en/9b7e2791cee4.wav	xtts_v1.1	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	en
+data/ReplayDF/wav/f2e836658a50/spoof/xtts_v2/it/ae418e7f8762.wav	xtts_v2	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	it
+data/ReplayDF/wav/f2e836658a50/spoof/bark/fr/b67d7ef45b73.wav	bark	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	fr
+data/ReplayDF/wav/f2e836658a50/spoof/vits/de/1039fc574615.wav	vits	1	f2e836658a50	Jabra Evolve2 40 Headset	OneOdio A70 Headphones	de
+data/ReplayDF/wav/f8d8b766284b/benign/de/1cec1f33cde1.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	de
+data/ReplayDF/wav/f8d8b766284b/benign/en/a0e3c67118e5.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	en
+data/ReplayDF/wav/f8d8b766284b/benign/pl/8837b88f7537.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	pl
+data/ReplayDF/wav/f8d8b766284b/benign/fr/7b6b0d172c1b.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	fr
+data/ReplayDF/wav/f8d8b766284b/benign/de/cdd54d5f7ef5.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	de
+data/ReplayDF/wav/f8d8b766284b/benign/pl/87725cff08c1.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	pl
+data/ReplayDF/wav/f8d8b766284b/benign/fr/b7592dc39ce3.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	fr
+data/ReplayDF/wav/f8d8b766284b/benign/fr/10c4046fb641.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	fr
+data/ReplayDF/wav/f8d8b766284b/benign/en/f2375ebe73ae.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	en
+data/ReplayDF/wav/f8d8b766284b/benign/de/d249b1522de6.wav	bonafide	0	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	de
+data/ReplayDF/wav/f8d8b766284b/spoof/bark/it/b8358c93dadc.wav	bark	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	it
+data/ReplayDF/wav/f8d8b766284b/spoof/vits/it/8760bcc396f4.wav	vits	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	it
+data/ReplayDF/wav/f8d8b766284b/spoof/xtts_v1.1/it/6dc9d03658e8.wav	xtts_v1.1	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	it
+data/ReplayDF/wav/f8d8b766284b/spoof/xtts_v2/pl/5bf268dcc63b.wav	xtts_v2	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	pl
+data/ReplayDF/wav/f8d8b766284b/spoof/bark/it/6ae9e3e84fe8.wav	bark	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	it
+data/ReplayDF/wav/f8d8b766284b/spoof/vits/fr/8cd1ca7ef067.wav	vits	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	fr
+data/ReplayDF/wav/f8d8b766284b/spoof/xtts_v1.1/it/b6cff4c3e244.wav	xtts_v1.1	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	it
+data/ReplayDF/wav/f8d8b766284b/spoof/xtts_v2/en/3ad4bd953922.wav	xtts_v2	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	en
+data/ReplayDF/wav/f8d8b766284b/spoof/bark/de/278af07ee97b.wav	bark	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	de
+data/ReplayDF/wav/f8d8b766284b/spoof/vits/it/cccfe5e7eddb.wav	vits	1	f8d8b766284b	AudioTechnica AT2022	MacBook Pro 13 2017 built-in speakers	it
+data/ReplayDF/wav/fab4d8808d57/benign/fr/ff8733f88381.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	fr
+data/ReplayDF/wav/fab4d8808d57/benign/pl/e504050b85b9.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	pl
+data/ReplayDF/wav/fab4d8808d57/benign/de/b9c4670fffc2.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	de
+data/ReplayDF/wav/fab4d8808d57/benign/es/278e72e0c3a7.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	es
+data/ReplayDF/wav/fab4d8808d57/benign/en/34b928688c74.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	en
+data/ReplayDF/wav/fab4d8808d57/benign/fr/5d41811a16bc.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	fr
+data/ReplayDF/wav/fab4d8808d57/benign/pl/5f69faa4ecb1.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	pl
+data/ReplayDF/wav/fab4d8808d57/benign/it/16b847cc1c40.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	it
+data/ReplayDF/wav/fab4d8808d57/benign/pl/c0457aac8870.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	pl
+data/ReplayDF/wav/fab4d8808d57/benign/es/a9e5ea701064.wav	bonafide	0	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	es
+data/ReplayDF/wav/fab4d8808d57/spoof/bark/es/6494825d0135.wav	bark	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	es
+data/ReplayDF/wav/fab4d8808d57/spoof/vits/de/e2620e6c774f.wav	vits	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	de
+data/ReplayDF/wav/fab4d8808d57/spoof/xtts_v1.1/pl/1150666109ca.wav	xtts_v1.1	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	pl
+data/ReplayDF/wav/fab4d8808d57/spoof/xtts_v2/fr/8bc3484b11c8.wav	xtts_v2	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	fr
+data/ReplayDF/wav/fab4d8808d57/spoof/bark/en/462f95f76519.wav	bark	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	en
+data/ReplayDF/wav/fab4d8808d57/spoof/vits/es/08b9525244ca.wav	vits	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	es
+data/ReplayDF/wav/fab4d8808d57/spoof/xtts_v1.1/es/82661608c577.wav	xtts_v1.1	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	es
+data/ReplayDF/wav/fab4d8808d57/spoof/xtts_v2/fr/7598f4305dce.wav	xtts_v2	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	fr
+data/ReplayDF/wav/fab4d8808d57/spoof/bark/fr/990681abe38d.wav	bark	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	fr
+data/ReplayDF/wav/fab4d8808d57/spoof/vits/es/de704cf05c18.wav	vits	1	fab4d8808d57	IRig Mic Lav	Creative Pebble USB	es
+data/ReplayDF/wav/fbf472c53584/benign/de/a48138cb5e38.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	de
+data/ReplayDF/wav/fbf472c53584/benign/es/83f4b801c562.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	es
+data/ReplayDF/wav/fbf472c53584/benign/de/4d66ddf953c5.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	de
+data/ReplayDF/wav/fbf472c53584/benign/de/e12bc5866d79.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	de
+data/ReplayDF/wav/fbf472c53584/benign/de/a2f5e916f545.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	de
+data/ReplayDF/wav/fbf472c53584/benign/fr/9cfe9ef69d69.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	fr
+data/ReplayDF/wav/fbf472c53584/benign/it/4d4ebff5ad73.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	it
+data/ReplayDF/wav/fbf472c53584/benign/es/07c95b66f07a.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	es
+data/ReplayDF/wav/fbf472c53584/benign/pl/e34f416b86dd.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	pl
+data/ReplayDF/wav/fbf472c53584/benign/fr/855d0a6139ba.wav	bonafide	0	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	fr
+data/ReplayDF/wav/fbf472c53584/spoof/bark/en/375765328f22.wav	bark	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	en
+data/ReplayDF/wav/fbf472c53584/spoof/vits/it/f8d8e4a407a7.wav	vits	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	it
+data/ReplayDF/wav/fbf472c53584/spoof/xtts_v1.1/en/004d5966e1f0.wav	xtts_v1.1	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	en
+data/ReplayDF/wav/fbf472c53584/spoof/xtts_v2/de/49f31635ee05.wav	xtts_v2	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	de
+data/ReplayDF/wav/fbf472c53584/spoof/bark/en/68294cce6a54.wav	bark	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	en
+data/ReplayDF/wav/fbf472c53584/spoof/vits/fr/a3fd1cffc7ae.wav	vits	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	fr
+data/ReplayDF/wav/fbf472c53584/spoof/xtts_v1.1/it/ba32e4d85915.wav	xtts_v1.1	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	it
+data/ReplayDF/wav/fbf472c53584/spoof/xtts_v2/es/aab9c0c3ff71.wav	xtts_v2	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	es
+data/ReplayDF/wav/fbf472c53584/spoof/bark/pl/94d896f6451d.wav	bark	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	pl
+data/ReplayDF/wav/fbf472c53584/spoof/vits/de/bd2fc92d9a9e.wav	vits	1	fbf472c53584	Jabra Evolve2 40 Headset	Dell Zylux Multimediasystem	de

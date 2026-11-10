@@ -1,8 +1,7 @@
 """Testes da consolidação de resultados para o relatório.
 
-O risco aqui não é o script quebrar — é ele montar uma tabela *plausível* com o
-número errado. Um EER trocado de coluna, um experimento faltando em silêncio ou
-um `_` não escapado que quebra o LaTeX só aparecem na leitura do documento.
+O risco é uma tabela plausível com número errado: EER na coluna trocada,
+experimento faltando ou `_` sem escape no LaTeX.
 """
 
 import json
@@ -151,7 +150,7 @@ def test_tabela_robustez_keeps_condition_order():
                                         "gain_+6dB": {"eer": 0.25}}}]
     cab, linhas = tabela_robustez(exp)
     assert cab == ["Condição", "a", "b"]
-    assert [l[0] for l in linhas] == ["clean", "noise_10dB", "gain_+6dB"]
+    assert [lin[0] for lin in linhas] == ["clean", "noise_10dB", "gain_+6dB"]
     assert linhas[1] == ["noise_10dB", "30.00", "—"]
 
 

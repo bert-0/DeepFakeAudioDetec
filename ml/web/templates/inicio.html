@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<form action="/analisar" method="post" enctype="multipart/form-data" class="cartao" id="form">
+  {% if erro %}<div class="faixa-aviso vermelho erro-envio">{{ erro }}</div>{% endif %}
+  <div class="linha-arquivo oculto" id="linha">
+    <span class="nome" id="nome"></span><span class="duracao" id="duracao"></span>
+  </div>
+
+  <label class="envio" for="arquivo" id="zona">
+    <span class="principal">Arraste um arquivo de áudio para cá</span>
+    <span class="secundario">ou</span>
+    <span class="botao-contorno">Selecionar arquivo</span>
+  </label>
+  {# Fora da área de envio: ela é escondida depois da seleção, e o navegador não
+     abre o seletor de um campo dentro de um elemento escondido. #}
+  <input type="file" id="arquivo" name="arquivo" required class="visualmente-oculto"
+         accept="{{ extensoes | join(',') }}">
+
+  <div class="centro oculto" id="analisando">
+    <div class="veredito">Analisando voz…</div>
+    <div class="legenda">Isso pode levar alguns segundos.</div>
+  </div>
+
+  <div class="acoes" id="acoes">
+    <button type="button" id="trocar" class="oculto">Trocar arquivo</button>
+    <button type="submit" class="verde">Analisar</button>
+  </div>
+  <div class="nota">Formatos aceitos: WAV · MP3 · M4A · FLAC · OGG · até 25 MB.</div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById("form"), input = document.getElementById("arquivo"),
+      zona = document.getElementById("zona"), linha = document.getElementById("linha"),
+      nome = document.getElementById("nome"), duracao = document.getElementById("duracao"),
+      trocar = document.getElementById("trocar");
+
+  var acoes = document.getElementById("acoes");
+  acoes.classList.add("oculto");   // sem JavaScript, o botão fica sempre visível
+
+  function mmss(s) { s = Math.round(s); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+
+  function mostrar(arquivo) {
+    nome.textContent = arquivo.name;
+    duracao.textContent = "";
+    var audio = new Audio(URL.createObjectURL(arquivo));
+    audio.addEventListener("loadedmetadata", function () {
+      if (isFinite(audio.duration)) duracao.textContent = mmss(audio.duration);
+    });
+    linha.classList.remove("oculto"); trocar.classList.remove("oculto"); zona.classList.add("oculto");
+    acoes.classList.remove("oculto");
+  }
+
+  input.addEventListener("change", function () { if (input.files.length) mostrar(input.files[0]); });
+  trocar.addEventListener("click", function () { input.click(); });
+  ["dragenter", "dragover"].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add("arrastando"); });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.remove("arrastando"); });
+  });
+  zona.addEventListener("drop", function (e) {
+    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; mostrar(input.files[0]); }
+  });
+  form.addEventListener("submit", function () {
+    zona.classList.add("oculto");
+    document.getElementById("analisando").classList.remove("oculto");
+    acoes.classList.add("oculto");
+  });
+})();
+</script>
+{% endblock %}

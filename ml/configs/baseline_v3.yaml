@@ -1,4 +1,4 @@
-# Incremento 1 (v3) — v3a + encoder mais profundo + mais paciencia.
+# Incremento 1 (v3) — v3a + encoder mais profundo + mais paciência.
 
 experiment:
   name: baseline_lfcc_cnn_v3

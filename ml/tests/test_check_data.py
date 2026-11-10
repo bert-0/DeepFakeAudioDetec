@@ -9,7 +9,7 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.check_data import CONTAGENS_OFICIAIS, _check_sample, check_partition  # noqa: E402
+from scripts.check_data import CONTAGENS_OFICIAIS, _check_sample, check_partition
 
 
 def _escreve_flac(destino: Path, segundos: float = 4.0, sr: int = 16000) -> Path:
@@ -25,9 +25,8 @@ def _trunca(caminho: Path, fracao: float) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: `sf.info` lê só o cabeçalho, que sobrevive à truncagem. Um FLAC
-# cortado pela metade reporta a duração original e passaria como íntegro —
-# derrubando o treino horas depois, com uma mensagem que não diz qual arquivo.
+# Regressão: `sf.info` lê só o cabeçalho, então um FLAC truncado passava como
+# íntegro e derrubava o treino horas depois
 # --------------------------------------------------------------------------- #
 def test_modo_raso_aprova_flac_truncado(tmp_path, capsys):
     _escreve_flac(tmp_path / "u0.flac")
@@ -73,8 +72,8 @@ def test_arquivo_faltando_e_reportado_pelo_nome(tmp_path, capsys):
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: o parser descarta linhas malformadas em silêncio, então um
-# protocolo truncado gera uma partição menor sem nenhum sinal.
+# Regressão: o parser ignora linhas malformadas, então um protocolo truncado
+# virava uma partição menor sem aviso
 # --------------------------------------------------------------------------- #
 def _protocolo(destino: Path, n: int) -> Path:
     linhas = [f"LA_0001 u{i:05d} - {'A07' if i % 2 else '-'} "
@@ -85,7 +84,8 @@ def _protocolo(destino: Path, n: int) -> Path:
 
 def test_avisa_quando_a_contagem_diverge_da_oficial(tmp_path, capsys):
     proto = _protocolo(tmp_path / "p.txt", 100)      # muito menos que os 25.380
-    audio = tmp_path / "flac"; audio.mkdir()
+    audio = tmp_path / "flac"
+    audio.mkdir()
     for i in range(100):
         _escreve_flac(audio / f"u{i:05d}.flac", segundos=0.2)
 
@@ -101,7 +101,8 @@ def test_avisa_quando_a_contagem_diverge_da_oficial(tmp_path, capsys):
 def test_nao_avisa_quando_a_contagem_bate(tmp_path, capsys, monkeypatch):
     monkeypatch.setitem(CONTAGENS_OFICIAIS, "train", 4)
     proto = _protocolo(tmp_path / "p.txt", 4)
-    audio = tmp_path / "flac"; audio.mkdir()
+    audio = tmp_path / "flac"
+    audio.mkdir()
     for i in range(4):
         _escreve_flac(audio / f"u{i:05d}.flac", segundos=0.2)
 
@@ -120,10 +121,9 @@ def test_contagens_oficiais_do_asvspoof(particao, esperado):
 
 
 def test_deep_da_sinal_de_vida_em_bases_grandes(tmp_path, capsys):
-    """Sem progresso, uma varredura de minutos é indistinguível de um travamento.
+    """Sem progresso, uma varredura longa parece travamento.
 
-    Os arquivos nem precisam existir: o contador é impresso antes da leitura,
-    que é justamente o que garante o sinal de vida mesmo em disco lento.
+    Os arquivos nem existem: o contador sai antes da leitura.
     """
     itens = [(f"u{i}", 1) for i in range(12000)]
 

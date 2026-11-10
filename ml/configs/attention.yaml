@@ -1,4 +1,4 @@
-# Incremento 3 — Fusao + mecanismo de atencao (TC1 §4.7)
+# Incremento 3 — Fusão + mecanismo de atenção (TC1 §4.7)
 
 experiment:
   name: attention_fusion
@@ -10,8 +10,8 @@ audio:
   trim_silence: true
   top_db: 30
   peak_normalize: true
-  random_crop: false     # recorte temporal aleatorio no treino (anti-overfitting)
-  augment:                # aumentacao no treino (desativada p/ comparacao justa entre incrementos)
+  random_crop: false     # recorte temporal aleatório no treino (anti-overfitting)
+  augment:                # aumentação no treino (desativada p/ comparação justa entre incrementos)
     enabled: false
     noise: {prob: 0.5, snr_db: [10, 30]}
     gain:  {prob: 0.5, gain_db: [-6, 6]}
@@ -34,7 +34,7 @@ features:
 
 model:
   name: attention
-  pooling: avg            # avg | stats (media + desvio temporais)
+  pooling: avg            # avg | stats (média + desvio temporais)
   channels: [16, 32, 64]  # canais por bloco conv (mais/maiores = encoder mais profundo)
   n_classes: 2
   dropout: 0.3
@@ -48,7 +48,7 @@ train:
   device: cuda
   cache_features: true
   class_weights: auto     # auto | sqrt (mais suave) | none
-  calibrate_threshold: false   # reporta metricas no corte do EER (calibrado no dev)
+  calibrate_threshold: false   # reporta métricas no corte do EER (calibrado no dev)
   amp: true
   grad_clip: 0            # 0 = desligado; >0 limita a norma do gradiente
   early_stopping_patience: 7

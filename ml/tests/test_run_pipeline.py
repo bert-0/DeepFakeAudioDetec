@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.run_pipeline import build_steps, collect_results, experiment_name, fmt_dur  # noqa: E402
+from scripts.run_pipeline import build_steps, collect_results, experiment_name, fmt_dur
 
 
 def _args(**kw):
@@ -21,28 +21,27 @@ def test_experiment_name_comes_from_config():
 
 
 def test_default_sequence_has_all_stages():
-    labels = [l for l, _ in build_steps("c.yaml", "exp", _args())]
+    labels = [rot for rot, _ in build_steps("c.yaml", "exp", _args())]
     assert labels == ["verificação da base", "treino", "avaliação (eval)", "EER por ataque"]
 
 
 def test_robustness_is_opt_in():
-    sem = [l for l, _ in build_steps("c.yaml", "exp", _args())]
-    com = [l for l, _ in build_steps("c.yaml", "exp", _args(robustness=True))]
+    sem = [rot for rot, _ in build_steps("c.yaml", "exp", _args())]
+    com = [rot for rot, _ in build_steps("c.yaml", "exp", _args(robustness=True))]
     assert "robustez" not in sem
     assert "robustez" in com
 
 
 def test_skip_train_removes_only_training():
-    labels = [l for l, _ in build_steps("c.yaml", "exp", _args(skip_train=True))]
+    labels = [rot for rot, _ in build_steps("c.yaml", "exp", _args(skip_train=True))]
     assert "treino" not in labels
     assert "avaliação (eval)" in labels
 
 
 def test_smoke_name_matches_the_suffix_the_scripts_use():
-    """Os scripts acrescentam `_smoke` aos artefatos; o pipeline precisa seguir.
+    """O pipeline usa o mesmo sufixo `_smoke` dos scripts.
 
-    Sem isso o pipeline treinaria `x_smoke.pt` e procuraria `x.pt` — todas as
-    análises falhariam com FileNotFoundError.
+    Senão treinaria `x_smoke.pt` e as análises procurariam `x.pt`.
     """
     assert experiment_name("configs/fusion_v4.yaml") == "fusion_lcnn_v4"
     assert experiment_name("configs/fusion_v4.yaml", smoke=True) == "fusion_lcnn_v4_smoke"
@@ -58,7 +57,7 @@ def test_smoke_stages_reference_the_smoke_checkpoint():
 
 def test_smoke_skips_data_check_and_propagates_flag():
     steps = build_steps("c.yaml", "exp", _args(smoke=True))
-    labels = [l for l, _ in steps]
+    labels = [rot for rot, _ in steps]
     # check_data exige o dataset real; não faz sentido no modo sintético.
     assert "verificação da base" not in labels
     for _, cmd in steps:

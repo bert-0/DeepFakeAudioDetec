@@ -57,18 +57,15 @@ def test_make_perturbation_clean_is_identity(sine_wave):
 @pytest.mark.parametrize("kind,level", [("clean", None), ("noise", 10),
                                         ("gain", 3), ("shift", 100)])
 def test_perturbations_accept_rng_kwarg(kind, level, sine_wave):
-    """Mesma assinatura do Augmenter, para o dataset usar os dois igualmente."""
+    """Perturbações aceitam `rng`, com a mesma assinatura do Augmenter."""
     pert = make_perturbation(kind, level)
     out = pert(sine_wave.copy(), rng=np.random.default_rng(0))
     assert out.shape == sine_wave.shape
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: o Augmenter não pode guardar estado aleatório próprio.
-#
-# Com DataLoader(num_workers>0) cada worker recebe uma CÓPIA do dataset. Se o
-# rng fosse atributo do objeto, todos os workers gerariam a mesma sequência —
-# e ela se repetiria a cada época, quando os workers são recriados.
+# O Augmenter não guarda rng: com num_workers>0 cada worker teria uma cópia
+# dele e todos repetiriam a mesma sequência a cada época.
 # --------------------------------------------------------------------------- #
 AUG_CFG = {"enabled": True,
            "noise": {"prob": 1.0, "snr_db": [10, 30]},
@@ -108,10 +105,7 @@ def test_same_sample_same_epoch_is_reproducible(sine_wave):
 
 
 # --------------------------------------------------------------------------- #
-# Perturbações precisam atravessar os workers do DataLoader.
-#
-# Enquanto eram `lambda`, o pickle não as serializava e a avaliação de robustez
-# ficava presa a num_workers=0 — um processo só para 71.237 áudios por condição.
+# Perturbações serializáveis, para rodar com workers do DataLoader
 # --------------------------------------------------------------------------- #
 def test_perturbation_is_picklable():
     import pickle
@@ -127,12 +121,8 @@ def test_perturbation_rejects_unknown_kind():
 
 
 def test_noise_is_reproducible_per_sample(sine_wave):
-    """O ruído tem de vir do rng da amostra, não de um gerador compartilhado.
-
-    Com um gerador compartilhado, o ruído de cada áudio dependeria da ORDEM em
-    que ele fosse processado — e essa ordem muda com o nº de workers, o que faria
-    o resultado da robustez variar conforme a máquina.
-    """
+    """O ruído vem do rng da amostra, então não depende da ordem de
+    processamento (que muda com o nº de workers)."""
     pert = make_perturbation("noise", 10, seed=7)
     a = pert(sine_wave, rng=np.random.default_rng((0, 0, 42)))
     b = pert(sine_wave, rng=np.random.default_rng((0, 0, 42)))
@@ -143,7 +133,7 @@ def test_noise_is_reproducible_per_sample(sine_wave):
 
 
 def test_robustness_is_independent_of_worker_count(audio_cfg, feat_cfg):
-    """Mesmos scores com 0 e com 2 workers — o ponto da mudança acima."""
+    """Mesmas features com 0 e com 2 workers."""
     from torch.utils.data import DataLoader
 
     from src.data import SmokeDataset
@@ -159,7 +149,7 @@ def test_robustness_is_independent_of_worker_count(audio_cfg, feat_cfg):
 
 
 def test_deterministic_perturbations_ignore_the_sample_rng(sine_wave):
-    """Ganho e deslocamento têm nível fixo: o rng não pode alterá-los."""
+    """Ganho e deslocamento têm nível fixo e ignoram o rng."""
     for kind, level in [("gain", -6), ("shift", 100), ("clean", None)]:
         pert = make_perturbation(kind, level)
         a = pert(sine_wave, rng=np.random.default_rng(1))

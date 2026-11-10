@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.check_score_confound import classificar, piso_de_ruido  # noqa: E402
+from scripts.check_score_confound import classificar, piso_de_ruido
 
 
 def test_piso_cai_com_amostras_maiores():
@@ -25,9 +25,8 @@ def test_piso_nao_estoura_com_amostra_minima():
 
 
 # --------------------------------------------------------------------------- #
-# Regressão: a primeira versão usava um limiar fixo de 0,10. Com 300 pontos por
-# classe o acaso já produz |rho| ~0,116, então um modelo que ignora o nível era
-# marcado como dependente. O piso agora acompanha o tamanho da amostra.
+# Regressão: um limiar fixo de 0,10 marcava como dependente um modelo que ignora
+# o nível (com 300 pontos por classe, o acaso já dá |rho| ~0,116).
 # --------------------------------------------------------------------------- #
 def test_correlacao_no_ruido_e_desprezivel_em_amostra_pequena():
     piso = piso_de_ruido(300)

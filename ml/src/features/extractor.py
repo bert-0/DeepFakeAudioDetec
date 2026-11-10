@@ -1,9 +1,7 @@
-"""ExtratorCaracteristicas — orquestra a extração das features configuradas.
+"""Extração das features configuradas (ExtratorCaracteristicas da APS).
 
-Recebe um waveform já pré-processado e devolve um dicionário de tensores
-(uma entrada por tipo de feature), pronto para os modelos. Manter um dicionário
-uniforme permite que baseline (só LFCC) e fusão/atenção (LFCC + espectrograma)
-compartilhem a mesma interface.
+Recebe um waveform pré-processado e devolve um dicionário de tensores, um por
+tipo de feature — a mesma interface para baseline e fusão.
 """
 
 from __future__ import annotations
@@ -19,17 +17,13 @@ from .stft import power_spectrum, stft_params
 class FeatureExtractor:
     """Extrai as features listadas em `features.types`.
 
-    O nome de cada tipo determina o *cálculo* pelo seu prefixo e o *bloco de
-    configuração* pelo nome completo. Isso permite mais de uma variante da mesma
-    feature no mesmo modelo — por exemplo, dois LFCC com resoluções diferentes::
+    O prefixo do nome (`lfcc`, `spectrogram`) escolhe o cálculo e o nome
+    completo, o bloco de config; assim cabem variantes da mesma feature::
 
         features:
           types: [lfcc, lfcc_hi]
           lfcc:    {n_filter: 20, ...}
           lfcc_hi: {n_filter: 70, ...}
-
-    Qualquer nome iniciado por `lfcc` usa o cálculo de LFCC; qualquer nome
-    iniciado por `spectrogram`, o de espectrograma log-mel.
     """
 
     def __init__(self, audio_cfg: dict, feat_cfg: dict):
@@ -46,24 +40,14 @@ class FeatureExtractor:
         self.spec_cfg = feat_cfg.get("spectrogram", {})
 
     def fingerprint(self) -> dict:
-        """Parâmetros que afetam as features extraídas.
-
-        Usado para invalidar o cache em disco: mudar `n_filter`, `n_lfcc` etc.
-        precisa gerar uma chave diferente, senão features antigas seriam reusadas
-        silenciosamente. Só os tipos ativos entram, para não invalidar o cache à
-        toa quando se altera uma feature que nem está em uso.
-        """
+        """Parâmetros das features ativas, usados na chave do cache em disco."""
         return {"types": sorted(self.types),
                 **{t: self.cfgs[t] for t in sorted(self.types)}}
 
     def __call__(self, wav: np.ndarray) -> dict[str, torch.Tensor]:
         """Extrai as features pedidas. Cada tensor tem shape (1, freq, frames).
 
-        Ramos que compartilham `n_fft`/`win_length`/`hop_length` compartilham
-        também o espectro de potência: é o mesmo array, calculado uma vez. Em
-        `fusion_v4.yaml` (LFCC + espectrograma, mesma janela) isso corta 29% da
-        extração. Configs cujos ramos têm janelas diferentes calculam um espectro
-        para cada, exatamente como antes.
+        Ramos com a mesma janela de STFT reusam o mesmo espectro de potência.
         """
         espectros: dict[tuple[int, int, int], np.ndarray] = {}
         out: dict[str, torch.Tensor] = {}

@@ -59,3 +59,22 @@ ml/data/volunteers/        # ignorado pelo git — NÃO versionar
 Quando `cache_features: true`, as features extraídas são salvas em
 `ml/data/cache/` para acelerar épocas seguintes. Essa pasta também é ignorada
 pelo git e pode ser apagada a qualquer momento.
+
+## 4. Bases do quarto incremento (no `D:`, por junções)
+
+As pastas abaixo, em `ml/data/`, são junções para o `D:` (SSD SATA). Em
+05/11/2026, os pacotes originais foram apagados para liberar espaço (78 GB):
+ficaram só as amostras usadas, que são as que as listas de `ml/data/recortes/`
+apontam. As características do XLS-R tiradas delas estão em `ml/outputs/ssl/`.
+
+| pasta | o que ficou | o que saiu (baixar de novo para montar outra amostra) |
+|---|---|---|
+| `ASVspoof5` | os protocolos (`.tsv`) | os `.tar` de treino e dev (Zenodo); o recorte usado está em `ASVspoof5_recorte/`, no `E:` |
+| `BRSpeech-DF` | `amostra/` (treino, validação, teste) | `bonafide/` e `spoof/` da base inteira |
+| `CommonVoice_pt` | `amostra/` e `tabelas/` | o pacote `cv-corpus-27.0` |
+| `BUT_ReverbDB` | `extraido/` (salas e ruídos) | o pacote `RIR-Only.tgz` |
+| `InTheWild` | a base inteira | — |
+| `ReplayDF` | a base inteira | — |
+
+Sem os pacotes, `montar_recorte_asvspoof5.py`, `montar_amostra_brspeech.py` e
+`montar_amostra_commonvoice.py` só rodam depois de baixar de novo.
