@@ -167,6 +167,18 @@ def test_aba_clonar_recusa_o_que_nao_pode(cliente, monkeypatch):
     assert r.status_code == 409 and "ao vivo" in r.json()["detail"]
 
 
+def test_ao_vivo_nao_liga_com_um_clone_sendo_gerado(cliente, monkeypatch):
+    c, modulo, tmp_path = cliente
+    # Se a recusa falhar, nada de monitor de verdade nem pasta fora do tmp.
+    monkeypatch.setenv("DETECTOR_PASTA_AO_VIVO", str(tmp_path / "ao_vivo"))
+    monkeypatch.setattr(modulo, "_iniciar_monitor",
+                        lambda *a, **k: types.SimpleNamespace(poll=lambda: None))
+    monkeypatch.setitem(modulo._estado, "clonando", True)
+    r = c.post("/api/ao-vivo/iniciar", json={"fonte": "microfone"})
+    assert r.status_code == 409 and "clone" in r.json()["detail"]
+    assert "sessao" not in modulo._estado, "nenhum monitor foi iniciado"
+
+
 def test_audio_so_de_dentro_das_pastas(cliente):
     _, modulo, tmp_path = cliente
     fora = tmp_path / "fora.wav"

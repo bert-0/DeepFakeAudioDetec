@@ -545,6 +545,9 @@ def api_ao_vivo_iniciar(pedido: PedidoAoVivo | None = None):
         raise HTTPException(409, "Já há uma sessão ao vivo em andamento.")
     if gravador_referencia().gravando():
         raise HTTPException(409, "Espere a gravação da referência terminar.")
+    # O monitor carrega o XLS-R na GPU, e o Chatterbox ocupa ~3,4 GB dos 4 GB.
+    if _estado.get("clonando"):
+        raise HTTPException(409, "Espere o clone terminar.")
     pasta = pasta_ao_vivo()
     pasta.mkdir(parents=True, exist_ok=True)
     marca = time.strftime("%Y%m%d_%H%M%S")
@@ -621,6 +624,7 @@ def api_ao_vivo_parar():
             sessao["proc"].wait(timeout=20)
         except Exception:
             sessao["proc"].terminate()
+    sessao.setdefault("fim", time.time())
     if sessao["analise_id"] is None:
         sessao["analise_id"] = _salvar_sessao_no_historico(sessao)
     return {"ok": True, "analise_id": sessao["analise_id"]}
@@ -633,10 +637,14 @@ def api_ao_vivo(ultimas: int = 40):
     if not sessao:
         return {"existe": False, "rodando": False}
     rodando = _rodando(sessao)
+    if not rodando:
+        # O relógio da página para quando o monitor encerra (antes, seguia contando).
+        sessao.setdefault("fim", time.time())
+    fim = time.time() if rodando else sessao["fim"]
     dados = _ler_json_sessao(sessao)
     base = {"rodando": rodando, "analise_id": sessao["analise_id"],
             "fonte": sessao.get("fonte", "sistema"),
-            "decorrido_s": round(time.time() - sessao["inicio"], 1)}
+            "decorrido_s": round(fim - sessao["inicio"], 1)}
     if dados is None:
         erro = None
         if not rodando:

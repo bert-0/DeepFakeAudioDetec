@@ -143,7 +143,15 @@ def test_sessao_ao_vivo_inicia_mostra_so_a_atual_e_vai_para_resultados(cliente, 
 
     parou = cliente.post("/api/ao-vivo/parar").json()
     assert parou["ok"] and parou["analise_id"]
-    assert not cliente.get("/api/ao-vivo").json()["rodando"]
+    d = cliente.get("/api/ao-vivo").json()
+    assert not d["rodando"]
+    import time
+
+    agora = time.time() + 100
+    monkeypatch.setattr(modulo, "time", SimpleNamespace(time=lambda: agora, strftime=time.strftime,
+                                                        localtime=time.localtime))
+    assert cliente.get("/api/ao-vivo").json()["decorrido_s"] == d["decorrido_s"], \
+        "o relógio para quando a sessão encerra"
     assert "Sessão ao vivo" in cliente.get("/historico").text
     assert cliente.get(f"/analises/{parou['analise_id']}").status_code == 200
 
