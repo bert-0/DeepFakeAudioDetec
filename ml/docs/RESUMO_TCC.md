@@ -5408,8 +5408,9 @@ os mesmos clones da referência atual:
 | L05 com o ruído da sala do L01 | 10 de 10 | +5,00 | −1,19 (2 de 10) |
 
 - O Chatterbox copia o fundo da referência: com as pausas abafadas, o piso dos
-  clones do L01 cai de −38,0 para −60,8 dB. Os do XTTS têm pausas quase em
-  silêncio digital.
+  clones do L01 cai de −38,0 para −60,8 dB. Os do Chatterbox ficam de −34 a
+  −42 dB nas seis vozes; os do XTTS, de −64 a −157 dB em cinco delas (−42 na
+  L06).
 - Tirar o ruído da referência sobe o clone; pôr ruído desce. Quais frases ficam
   nos 10 s também muda o resultado (de −0,39 a +1,64).
 
