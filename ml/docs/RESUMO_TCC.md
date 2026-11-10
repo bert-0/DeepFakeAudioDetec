@@ -5310,6 +5310,23 @@ nas duas ferramentas, analisadas como no Enviar arquivo, limiar −0,581. Em
 **Leitura:** para a banca, o L01 e o L02 só com o XTTS, ou com uma referência
 nova gravada na aba Clonar (o texto de referência inteiro) e testada antes.
 
+### 10.2.54 20 clones por voz e ferramenta no L01 e no L02 (09/11/2026)
+
+**Por quê:** os 4 por voz e ferramenta do 10.2.53 são pouco para dizer se o
+Chatterbox escapa nessas vozes. O grupo pediu o mesmo tamanho do 10.2.52.
+
+**Como:** igual ao 10.2.52, só com o L01 e o L02 (referências de 06/11/2026,
+conferidas: remontadas das frases de `teste/L01` e `calibracao/L02`, saem iguais
+às em uso). 10 frases, sementes 1 a 10 e 101 a 110, XTTS e Chatterbox: 20 clones
+por voz e ferramenta, 80 no total, analisados como no Enviar arquivo, limiar
+−0,581. Os 4 primeiros de cada grupo (frases 1 a 4, sementes 1 a 4) repetem os
+do 10.2.53, já vistos.
+
+**Critério, registrado antes de rodar:** o mesmo do 10.2.52, pelo menos 16 de 20
+acima do limiar em cada voz e ferramenta.
+
+**Resultado:** pendente.
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
