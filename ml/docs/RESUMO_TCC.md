@@ -5325,7 +5325,35 @@ do 10.2.53, já vistos.
 **Critério, registrado antes de rodar:** o mesmo do 10.2.52, pelo menos 16 de 20
 acima do limiar em cada voz e ferramenta.
 
-**Resultado:** pendente.
+**Resultado (XTTS passou; Chatterbox não, nas duas vozes).** Em
+`outputs/testes_demo/clones_L01_L02_sementes.json`; os clones ficam em
+`outputs/clones_teste/L01_L02_sementes/` e saem até 19/11/2026.
+
+| voz | XTTS acima | mediana (mínimo) | Chatterbox acima | mediana (mínimo) |
+|---|---|---|---|---|
+| L01 | 20 de 20 | +5,06 (+1,10) | **6 de 20** | −1,53 (−5,92) |
+| L02 | 20 de 20 | +4,56 (+1,97) | **13 de 20** | +1,00 (−3,20) |
+
+- No Chatterbox do L01, a mediana fica abaixo do limiar: a maior parte dos
+  clones passa como voz real, não só os de uma semente azarada.
+- Sem os 4 já vistos no 10.2.53: Chatterbox do L01 4 de 16, do L02 12 de 16. Os
+  4 repetidos dão o mesmo veredito (diferença até 0,02; o Chatterbox na GPU não
+  repete o número exato).
+- Sementes: a diferença entre as duas da mesma frase tem mediana 1,22 (até
+  7,67); em 5 dos 40 pares uma passa e a outra não, todos no Chatterbox.
+- Nenhuma frase ficou sem veredito.
+- Com o 10.2.52, o Chatterbox foi pego em 40 de 40 no L05 e na L06 (referência
+  da leitura do texto), 37 de 40 na L03 e na L04 (frases juntadas) e 19 de 40
+  no L01 e no L02 (frases juntadas). A referência de frases juntadas não explica
+  sozinha: a L03, com o mesmo tipo de referência, teve 20 de 20. A causa não foi
+  medida.
+- Em lote, 10 clones por vez com o modelo carregado: XTTS de 76 a 108 s,
+  Chatterbox de 186 a 232 s.
+
+**Leitura:** para a banca, o L01 e o L02 só com o XTTS. Para usar o Chatterbox
+neles, gravar a referência pela aba Clonar (o texto inteiro) e testar de novo,
+com o critério antes. Com as duas ferramentas, as vozes seguras seguem L03, L05
+e L06.
 
 ### 10.3 Bases públicas que já trazem canal
 
