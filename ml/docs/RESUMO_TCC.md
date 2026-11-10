@@ -5355,6 +5355,97 @@ neles, gravar a referência pela aba Clonar (o texto inteiro) e testar de novo,
 com o critério antes. Com as duas ferramentas, as vozes seguras seguem L03, L05
 e L06.
 
+### 10.2.55 Por que o Chatterbox do L01 e do L02 passa (exploratório, 10/11/2026)
+
+**Por quê:** pedido do grupo depois do 10.2.54. Sem critério antes: nada aqui
+muda o modelo, o limiar ou um placar. Scripts e resultados em
+`outputs/testes_demo/investigacao_chatterbox/`; os clones novos em
+`outputs/clones_teste/investigacao/` saem até 19/11/2026.
+
+**1. O que o Chatterbox usa da referência.** No código dele (`mtl_tts.py`,
+`prepare_conditionals`), o decodificador acústico (S3Gen) usa só os **10
+primeiros segundos** da referência, e o prompt do T3 os 6 primeiros; o
+codificador de voz usa a referência inteira. O XTTS usa a referência inteira.
+
+**2. Dentro da mesma pessoa, a ordem quase não erra.** Os 240 clones do 10.2.52
+e do 10.2.54 contra as frases reais de cada pessoa (L01 `teste`, L02 a L04
+`calibracao`, L05 `ensaio5/real`, L06 `L06/frases`), pelo caminho do Enviar
+arquivo:
+
+| voz | reais: mediana (maior) | Chatterbox: mediana, deslocamento | XTTS: mediana, deslocamento | clones acima do maior real da pessoa |
+|---|---|---|---|---|
+| L01 | −7,15 (−4,86) | −1,53, +5,62 | +5,06, +12,21 | Chatterbox 19 de 20, XTTS 20 |
+| L02 | −8,63 (−5,90) | +1,00, +9,63 | +4,56, +13,19 | 20 e 20 |
+| L03 | −2,50 (−0,58) | +4,30, +6,79 | +7,63, +10,13 | 20 e 20 |
+| L04 | −5,68 (−3,38) | +1,14, +6,82 | +5,17, +10,85 | 20 e 20 |
+| L05 | −4,03 (−1,86) | +6,57, +10,60 | +6,81, +10,83 | 20 e 20 |
+| L06 | −3,44 (−1,07) | +4,80, +8,23 | +5,75, +9,19 | 20 e 20 |
+
+- 239 de 240 clones ficam acima de todas as frases reais da mesma pessoa.
+- As vozes reais do L01 e do L02 são as mais baixas das seis; o limiar global
+  (−0,581) é a frase real mais alta da L03.
+- O Chatterbox desloca menos que o XTTS em todas as vozes; no L01, o menor
+  deslocamento (+5,62).
+- Na cabeça, a diferença entre os Chatterbox do L01/L02 e os da L03/L05/L06 está
+  no ramo do XLS-R (−3,86 na soma), quase toda nas camadas 5 (−1,27) e 6
+  (−1,04); o ramo LFCC pesa pouco.
+
+**3. O ruído da referência vai para o clone.** Teste de causa, 10 clones do
+Chatterbox por referência (frases e sementes 1 a 10 do 10.2.52), pareados com
+os mesmos clones da referência atual:
+
+| referência | acima do limiar | mediana | mudança pareada (frases que sobem) |
+|---|---|---|---|
+| L01 atual | 3 de 10 | −1,75 | |
+| L01 com as pausas abafadas em 30 dB | 6 de 10 | −0,16 | +1,58 (7 de 10) |
+| L01 começando pela frase 7 | 6 de 10 | +0,73 | +1,64 (8 de 10) |
+| L01 começando pela frase 4 | 4 de 10 | −1,85 | −0,39 (4 de 10) |
+| L01 com a fala livre na frente | 2 de 10 | −2,36 | −1,16 (3 de 10) |
+| L02 atual | 6 de 10 | +0,59 | |
+| L02 com as pausas abafadas | 10 de 10 | +2,15 | +1,83 (9 de 10) |
+| L02 começando pela frase 4 | 7 de 10 | +0,48 | +0,03 (5 de 10) |
+| L05 atual | 10 de 10 | +7,03 | |
+| L05 com o ruído da sala do L01 | 10 de 10 | +5,00 | −1,19 (2 de 10) |
+
+- O Chatterbox copia o fundo da referência: com as pausas abafadas, o piso dos
+  clones do L01 cai de −38,0 para −60,8 dB. Os do XTTS têm pausas quase em
+  silêncio digital.
+- Tirar o ruído da referência sobe o clone; pôr ruído desce. Quais frases ficam
+  nos 10 s também muda o resultado (de −0,39 a +1,64).
+
+**4. O que não explica.**
+- **Semelhança de voz** (codificador do próprio Chatterbox): clone e pessoa de
+  0,79 a 0,89 na mediana, L01 0,828; nenhuma relação com o score (Spearman
+  +0,01, 120 clones do Chatterbox).
+- **Tom de voz:** nas 59 frases reais do grupo, quanto mais grave, mais baixo o
+  score (Spearman +0,45; +0,35 dentro da pessoa). Não se repete na régua do
+  In-the-Wild (675 reais, −0,13), e na ASVspoof 5 os reais de homens e mulheres
+  quase não diferem (medianas −5,42 e −4,84).
+- **Ruído como pista de voz real:** 150 reais e 150 falsos do eval da ASVspoof 5,
+  sem codec, com o ruído da sala do L01 a 20 dB abaixo da fala: os reais sobem
+  +2,50 (ficam mais sintéticos), os falsos −0,25; com ruído branco, +5,66 e
+  −0,47. O modelo não lê ruído de sala como voz real; o efeito do item 3 passa
+  pela geração do Chatterbox, não pelo ruído somado.
+
+**5. Limiar por pessoa (conta retrospectiva, sem critério).** Com o limiar de
+cada pessoa no maior score das 10 frases reais dela, 239 de 240 clones ficam
+acima. O custo vem da própria regra: deixando uma frase de fora, 1 em cada 10
+reais passa do limiar das outras 9 (53 de 59 reais certos).
+
+**Leitura:**
+- O detector separa o clone da voz real da mesma pessoa; o que falha é o ponto
+  de corte único. As vozes do L01 e do L02 começam muito abaixo das outras, e o
+  Chatterbox desloca pouco, ainda mais com o ruído da sala da referência.
+- Por que essas duas vozes reais ficam tão baixas não foi medido. Também no
+  In-the-Wild a mediana dos reais varia muito de uma pessoa para outra (de −11,36
+  a −5,85).
+- Opções para o grupo, não decididas:
+  - um limiar calibrado com a voz da própria pessoa (na demonstração, a do
+    orientador). Só protege quem foi calibrado, com 1 alarme falso em cada 11
+    frases reais esperado com 10 frases de calibração;
+  - manter o limiar único e registrar a limitação. Para a banca, o L01 e o L02 só
+    com o XTTS (10.2.54).
+
 ### 10.3 Bases públicas que já trazem canal
 
 | base | o que traz | uso |
